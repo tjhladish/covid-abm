@@ -97,14 +97,14 @@ namespace covid {
         template <typename T> inline long double meanl(vector<T> list) { return (long double) sum(list) / list.size(); }
 
         template <typename T> inline
-        double median(vector<T> L) { 
+        double median(vector<T> L) {
             sort(L.begin(), L.end());
             float idx = (L.size() - 1.0) * 0.5;
             return ( L[ (int) ceil(idx) ] + L[ (int) floor(idx) ] ) /2.0;
         }
 
         // five number summary (min, 1st quartile, median, 3rd quartile, max)
-        template <typename T> inline 
+        template <typename T> inline
         vector<double> fivenum(vector<T> L) {
             assert(L.size() > 2);
             vector<double> stats(5);
@@ -115,15 +115,15 @@ namespace covid {
             float idx1 = (L.size() -1) * 0.25;
             float idx2 = (L.size() -1) * 0.5;
             float idx3 = (L.size() -1) * 0.75;
-            
+
             stats[1] = (L[ceil(idx1)] + L[floor(idx1)]) /2.0;
             stats[2] = (L[ceil(idx2)] + L[floor(idx2)]) /2.0;
             stats[3] = (L[ceil(idx3)] + L[floor(idx3)]) /2.0;
-         
+
             return stats;
         }
 
-        template <typename T> inline 
+        template <typename T> inline
         T min_element(vector<T> list) {
             T element = list[0];
             for (unsigned int i = 0; i < list.size(); i++) {
@@ -132,7 +132,7 @@ namespace covid {
             return element;
         }
 
-        template <typename T> inline 
+        template <typename T> inline
         T max_element(vector<T> list) {
             T element = list[0];
             for (unsigned int i = 0; i < list.size(); i++) {
@@ -141,7 +141,7 @@ namespace covid {
             return element;
         }
 
-        template <typename T> inline 
+        template <typename T> inline
         T range(vector<T> list) {
             return max_element(list) - min_element(list);
         }
@@ -228,25 +228,25 @@ namespace covid {
             return tabulated;
         }
 
-        template <typename T>  
-        vector<T> shuffle_periods(const gsl_rng* RNG, vector<T> & sequence, int period_length = 365) {  
-            vector<int> periods(sequence.size()/period_length);  
-            for (unsigned int i = 0; i<periods.size(); i++) periods[i] = i;  
-            gsl_ran_shuffle (RNG, periods.data(), periods.size(), sizeof(int));  
-         
-            vector<T> new_seq(sequence.size());  
-            for(unsigned int i=0; i<periods.size(); ++i) {  
-                for (int j = 0; j<period_length; j++) new_seq[i*period_length + j] = sequence[periods[i]*period_length + j];  
-            }  
-         
-            if (sequence.size()/period_length < ((float) sequence.size())/period_length) {  
-                int r = gsl_rng_uniform_int(RNG, 1+ceil(sequence.size()/period_length));  
-                int offset = periods.size()*period_length;  
-                for (unsigned int i = 0; i<new_seq.size() - offset; ++i) {  
-                    new_seq[offset + i] = sequence[r*period_length + i];  
-                }  
-            }  
-            return new_seq;  
+        template <typename T>
+        vector<T> shuffle_periods(const gsl_rng* RNG, vector<T> & sequence, int period_length = 365) {
+            vector<int> periods(sequence.size()/period_length);
+            for (unsigned int i = 0; i<periods.size(); i++) periods[i] = i;
+            gsl_ran_shuffle (RNG, periods.data(), periods.size(), sizeof(int));
+
+            vector<T> new_seq(sequence.size());
+            for(unsigned int i=0; i<periods.size(); ++i) {
+                for (int j = 0; j<period_length; j++) new_seq[i*period_length + j] = sequence[periods[i]*period_length + j];
+            }
+
+            if (sequence.size()/period_length < ((float) sequence.size())/period_length) {
+                int r = gsl_rng_uniform_int(RNG, 1+ceil(sequence.size()/period_length));
+                int offset = periods.size()*period_length;
+                for (unsigned int i = 0; i<new_seq.size() - offset; ++i) {
+                    new_seq[offset + i] = sequence[r*period_length + i];
+                }
+            }
+            return new_seq;
         }
 
         inline int parseLine(char line[]){

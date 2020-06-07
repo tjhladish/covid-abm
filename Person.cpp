@@ -26,9 +26,11 @@ const Parameters* Person::_par;
 Person::Person() {
     id = NEXT_ID++;
     age = -1;
-    home_id = -1;
-    day_id = -1;
-    for(int i=0; i<(int) NUM_OF_TIME_PERIODS; i++) _pLocation[i] = NULL;
+    home_loc = nullptr;
+    day_loc = nullptr;
+//    home_id = -1;
+//    day_id = -1;
+//    for(int i=0; i<(int) NUM_OF_TIME_PERIODS; i++) _pLocation[i] = NULL;
     immune_state = NAIVE;
     //dead = false;
     //vaccinated = false;
@@ -72,12 +74,12 @@ Infection& Person::initializeNewInfection() {
 
 
 Infection& Person::initializeNewInfection(int time, int sourceloc, int sourceid) {
-    Infection& infection = initializeNewInfection();
-    infection.infectedTime  = time;
-    infection.infectedPlace = sourceloc;
-    infection.infectedByID  = sourceid; // TODO - What kind of ID is this?
-    //infection.infectiousTime = Parameters::sampler(INCUBATION_CDF, gsl_rng_uniform(RNG)) + time;
-    infection.infectiousTime = time + _par->infectiousOnset;
+    Infection& infection         = initializeNewInfection();
+    infection.infectedTime       = time;
+    infection.infectedPlace      = sourceloc;
+    infection.infectedByID       = sourceid;
+    infection.infectiousTime     = time + INFECTIOUSNESS_ONSET;
+    infection.infectiousDuration = INFECTIOUS_PERIOD;
     return infection;
 }
 
@@ -187,49 +189,93 @@ bool Person::infect(int sourceid, int time, int sourceloc) {
     // due to natural infection or vaccination
     if (not isInfectable(time)) return false;
 
-    //const int numPrevInfections = getNumNaturalInfections();  // these both need to be called
-    const double remaining_efficacy = remainingEfficacy(time);  // before initializing new infection
+    const double remaining_efficacy = remainingEfficacy(time);  // due to vaccination; needs to be called before initializing new infection (still true?)
 
     // Create a new infection record
     Infection& infection = initializeNewInfection(time, sourceloc, sourceid);
 
-    double symptomatic_probability = _par->basePathogenicity * SYMPTOMATIC_BY_AGE[age];
-    const double severe_given_case = _par->severeFraction;
-    // TODO -- add support for *all* outcomes
+    double symptomatic_probability = PATHOGENICITY;             // may be modified by vaccination
+    const double severe_given_case = SEVERE_FRACTION;           // might become age-, sex- or co-morbidity-structured in the future
+    const double critical_given_severe = CRITICAL_FRACTION;
 
-    if (symptomatic_probability > 1.0) symptomatic_probability = 1.0;
     const double effective_VEP = isVaccinated() ? _par->VEP*remaining_efficacy : 0.0;        // reduced symptoms due to vaccine
     symptomatic_probability *= (1.0 - effective_VEP);
     assert(symptomatic_probability >= 0.0);
     assert(symptomatic_probability <= 1.0);
 
-    infection.recoveryTime = infection.infectiousTime + INFECTIOUS_PERIOD_ASYMPTOMATIC;            // may be changed below 
+    // determine disease outcome and timings
+    if ( gsl_rng_uniform(RNG) < symptomatic_probability ) {
+//cerr << "symptomatic ";
+        // This is a case
+        infection.symptomTime = time + SYMPTOM_ONSET;
+        if ( not (gsl_rng_uniform(RNG) < severe_given_case) ) {
+//cerr << "not severe ";
+            // It does not become severe
+            infection.symptomDuration = SYMPTOM_DURATION_MILD;
+        } else {
+//cerr << "severe ";
+            // It does progress and become severe
+            infection.severeTime = infection.symptomTime + PRE_SEVERE_SYMPTOMATIC;
 
-    if ( gsl_rng_uniform(RNG) < symptomatic_probability ) {         // Is this a case?
-        const double severe_rand = gsl_rng_uniform(RNG);
-        infection.recoveryTime = infection.infectiousTime + INFECTIOUS_PERIOD_MILD;                // may yet be changed below 
-        if ( severe_rand < severe_given_case ) {                     // Is this a severe case?
-            if (not isVaccinated() or gsl_rng_uniform(RNG) > _par->VEH*remaining_efficacy) { // Is this person unvaccinated or vaccinated but unlucky?
-                infection.recoveryTime = infection.infectiousTime + INFECTIOUS_PERIOD_SEVERE;
-//                infection.severeDisease = true; // TODO -- SET severeTime
+            // Is this person hospitalized when their severe symptoms begin?
+            const float hosp_prob = long_term_care ? LTC_SEVERE_TO_HOSPITAL : SEVERE_TO_HOSPITAL;
+            bool hosp = false;
+            if (gsl_rng_uniform(RNG) < hosp_prob) {
+//cerr << "hospitalized ";
+                // This person is hospitalized when symptoms become severe
+                hosp = true;
+                infection.hospitalizedTime = infection.severeTime;
             }
-        }
 
-        // Determine if this person withdraws (stops going to work/school)
-/*        infection.symptomTime = infection.infectiousTime + SYMPTOMATIC_DELAY;
-        const int symptomatic_duration = infection.recoveryTime - infection.symptomTime;
-        const int symptomatic_active_period = gsl_ran_geometric(RNG, 0.5) - 1; // min generator value is 1 trial
-        infection.withdrawnTime = symptomatic_active_period < symptomatic_duration ?
-                                  infection.symptomTime + symptomatic_active_period :
-                                  infection.withdrawnTime;*/
+            if (not (gsl_rng_uniform(RNG) < critical_given_severe)) {
+//cerr << "not critical ";
+                // Severe, but does not become critical
+                infection.severeDuration = SEVERE_DURATION;
+                infection.symptomDuration = SYMPTOM_DURATION_SEVERE; // total symptomatic period for severe cases
+            } else {
+//cerr << "critical ";
+                // It does progress to critical disease
+                infection.criticalTime = infection.severeTime + PRE_CRITICAL_SEVERE;
+                infection.criticalDuration = CRITICAL_DURATION;
+                infection.severeDuration = SEVERE_DURATION_CRITICAL;
+                infection.symptomDuration = SYMPTOM_DURATION_CRITICAL;
+
+                // Is this person put in intensive care (and thus also hospitalized, if not previously)?
+                const float icu_prob = hosp ? CRITICAL_TO_ICU_IF_HOSP : CRITICAL_TO_ICU_IF_NOT_HOSP;
+                bool death = false;
+                if (gsl_rng_uniform(RNG) < icu_prob) {
+//cerr << "icu ";
+                    // Patient goes to intensive care
+                    infection.icuTime = infection.criticalTime;
+                    if (not hosp) { infection.hospitalizedTime = infection.icuTime; } // if they weren't hospitalized before, they are now
+                    death = gsl_rng_uniform(RNG) < ICU_CRITICAL_MORTALITY;
+                    if (death) {
+//cerr << "death ";
+                        // uniform randomly chose a day from the critical duration when death happens
+                        infection.deathTime = infection.criticalTime + gsl_rng_uniform_int(RNG, infection.criticalDuration);
+                    }
+                } else {
+                    death = gsl_rng_uniform(RNG) < NON_ICU_CRITICAL_MORTALITY;
+                    if (death) {
+//cerr << "death ";
+                        // death happens when critical symptoms begin, as this person is not receiving care
+                        infection.deathTime = infection.criticalTime;
+                    }
+                }
+            }
+/*            if (not isVaccinated() or gsl_rng_uniform(RNG) > _par->VEH*remaining_efficacy) { // Is this person unvaccinated or vaccinated but unlucky?
+                infection.recoveryTime = infection.infectiousTime + INFECTIOUS_PERIOD_SEVERE;
+            }*/
+        }
+//cerr << endl;
+    } else {
+//cerr << "asymptomatic\n";
     }
 
     // Flag locations with (non-historical) infections, so that we know to look there for human->mosquito transmission
     // Negative days are historical (pre-simulation) events, and thus we don't care about modeling transmission
-    for (int day = std::max(infection.infectiousTime, 0); day < infection.recoveryTime; day++) {
-        for (int t=0; t<(int) NUM_OF_TIME_PERIODS; t++) {
-            Community::flagInfectedLocation(_pLocation[t], day);
-        }
+    for (int day = std::max(infection.infectiousTime, 0); day < infection.infectiousTime + infection.infectiousDuration; day++) {
+        Community::flagInfectedLocation(getHomeLoc(), day);
     }
 
     // if the antibody-primed vaccine-induced immunity can be acquired retroactively, upgrade this person from naive to mature
@@ -238,65 +284,6 @@ bool Person::infect(int sourceid, int time, int sourceloc) {
     return true;
 }
 
-
-bool Person::isNewlyInfected(int time) const {
-    if (infectionHistory.size() > 0) {
-        Infection* infection = infectionHistory.back();
-        if (time == infection->infectedTime) {
-            return true;
-        }
-    }
-    return false;
-}
-
-
-bool Person::isInfected(int time) const {
-    if (infectionHistory.size() > 0) {
-        Infection* infection = infectionHistory.back();
-        if (time >= infection->infectedTime and time < infection->recoveryTime) {
-            return true;
-        }
-    }
-    return false;
-}
-
-
-bool Person::isInfectious(int time) const { // TODO -- we will almost certainly want to make this more sophisticated
-    if (infectionHistory.size() > 0) {
-        Infection* infection = infectionHistory.back();
-        if (time >= infection->getInfectiousTime() and time < (infection->getInfectiousTime() + _par->infectiousDuration) and not isDead(time)) {
-            return true;
-        }
-    }
-    return false;
-}
-
-
-bool Person::isSymptomatic(int time) const {
-    if (infectionHistory.size() > 0) {
-        return infectionHistory.back()->isSymptomatic(time);
-    } else {
-        return false;
-    }
-}
-
-
-bool Person::isSevere(int time) const {
-    if (infectionHistory.size() > 0) {
-        return infectionHistory.back()->isSevere(time);
-    } else {
-        return false;
-    }
-}
-
-
-bool Person::isCritical(int time) const {
-    if (infectionHistory.size() > 0) {
-        return infectionHistory.back()->isCritical(time);
-    } else {
-        return false;
-    }
-}
 
 /*
 bool Person::isWithdrawn(int time) const {
@@ -312,7 +299,7 @@ bool Person::isWithdrawn(int time) const {
 
 bool Person::isCrossProtected(int time) const { // assumes binary cross-immunity
     return (getNumNaturalInfections() > 0) and  // has any past infection
-           (infectionHistory.back()->infectedTime + _par->daysImmune > time); // prev. infection w/in crossprotection period 
+           (infectionHistory.back()->infectedTime + _par->daysImmune > time); // prev. infection w/in crossprotection period
 }
 
 
@@ -370,7 +357,7 @@ bool Person::vaccinate(int time) {
                         exit(-1);
                         break;
                 }
-               
+
             }
         }
         return true;

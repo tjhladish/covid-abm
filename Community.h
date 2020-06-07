@@ -29,7 +29,8 @@ class Community {
         bool loadLocations(std::string locationFilename, std::string networkFilename = "");
         size_t getNumPeople() const { return _people.size(); }
         std::vector<Person*> getPeople() const { return _people; }
-        size_t getNumInfected(int day);
+        size_t getNumInfected(int day); // includes people in incubation period
+        size_t getNumInfectious(int day);
         size_t getNumSymptomatic(int day);
         size_t getNumNaive();
         //void populate(Person **parray, int targetpop);
@@ -57,7 +58,7 @@ class Community {
         std::vector<size_t> getNumSevereCases() { return _numSevereCases; }
         static void flagInfectedLocation(Location* _pLoc, int day);
 
-        int ageIntervalSize(int ageMin, int ageMax) { return std::accumulate(_personAgeCohortSizes+ageMin, _personAgeCohortSizes+ageMax,0); }
+//        int ageIntervalSize(int ageMin, int ageMax) { return std::accumulate(_personAgeCohortSizes+ageMin, _personAgeCohortSizes+ageMax,0); }
 
         void reset();                                                // reset the state of the community
         const std::vector<Location*> getLocations() const { return _location; }
@@ -67,7 +68,7 @@ class Community {
         static const Parameters* _par;
         std::vector<Person*> _people;                                          // the array index is equal to the ID
         std::vector< std::vector<Person*> > _personAgeCohort;                  // array of pointers to people of the same age
-        int _personAgeCohortSizes[NUM_AGE_CLASSES];                            // size of each age cohort
+        //int _personAgeCohortSizes[NUM_AGE_CLASSES];                            // size of each age cohort
         //double *_fMortality;                                                 // mortality by year, starting from 0
         std::vector<Location*> _location;                                      // the array index is equal to the ID
         std::map<LocationType, std::set<Location*, LocPtrComp>> _location_map; //
@@ -87,9 +88,9 @@ class Community {
         //bool _uniformSwap;                                            // use original swapping (==true); or parse swap file (==false)
 
         void expandExposedQueues();
-        void _advanceTimers();
-        void _processBirthday(Person* p);
-        void _processDelayedBirthdays();
+//        void _advanceTimers();
+//        void _processBirthday(Person* p);
+//        void _processDelayedBirthdays();
         //void _swapIfNeitherInfected(Person* p, Person* donor);
 };
 #endif

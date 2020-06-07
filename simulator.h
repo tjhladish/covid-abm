@@ -110,7 +110,7 @@ void seed_epidemic(const Parameters* par, Community* community) {
     return;
 }
 
-
+/*
 void write_yearly_people_file(const Parameters* par, const Community* community, int time) {
     ofstream yearlyPeopleOutputFile;
     ostringstream ssFilename;
@@ -128,13 +128,13 @@ void write_yearly_people_file(const Parameters* par, const Community* community,
                 << p->getInfectedTime(j) << ","
                 << p->getSymptomTime(j) << ","
 //                << p->getWithdrawnTime(j) << ","
-                << p->getRecoveryTime(j) << ",";
+//                << p->getRecoveryTime(j) << ",";
                 yearlyPeopleOutputFile << (p->isNaive()?0:1) << endl;
         }
     }
     yearlyPeopleOutputFile.close();
     return;
-}
+}*/
 
 
 void _aggregator(map<string, vector<int> >& periodic_incidence, string key) {
@@ -150,7 +150,7 @@ void _reporter(stringstream& ss, map<string, vector<int> > &periodic_incidence, 
 }
 
 
-void periodic_output(const Parameters* par, const Community* community, map<string, vector<int> > &periodic_incidence, vector<int> &periodic_prevalence, const Date& date, const string process_id, vector<int>& epi_sizes) {
+void periodic_output(const Parameters* par, map<string, vector<int> > &periodic_incidence, vector<int> &periodic_prevalence, const Date& date, const string process_id, vector<int>& epi_sizes) {
     stringstream ss;
 //if (date.day() >= 25*365 and date.day() < 36*365) {
 //if (date.day() >= 116*365) {                         // daily output starting in 1995, assuming Jan 1, 1879 simulation start
@@ -195,7 +195,6 @@ void periodic_output(const Parameters* par, const Community* community, map<stri
 
         epi_sizes.push_back(periodic_incidence["yearly"][2]);
 
-        if (par->yearlyPeopleOutputFilename.length() > 0) write_yearly_people_file(par, community, date.day());
         if (par->yearlyOutput) { _reporter(ss, periodic_incidence, dummy, par, process_id, " year: ", date.year(), "yearly"); ss << endl; }
         periodic_incidence["yearly"] = vector<int>(NUM_OF_INCIDENCE_REPORTING_TYPES, 0);
     }
@@ -251,7 +250,7 @@ void advance_simulator(const Parameters* par, Community* community, Date &date, 
 
     for (Person* p: community->getPeople()) {
         const int now = date.day();
-        if (p->isInfected(now)) {
+        if (p->isInfected(now) or p->isSymptomatic(now)) {
             const Infection* infec = p->getInfection();
             bool intro  = not infec->isLocallyAcquired();
             bool symp   = infec->isSymptomatic(now);      // subset of all infections
@@ -289,7 +288,7 @@ void advance_simulator(const Parameters* par, Community* community, Date &date, 
         }
     }
 
-    periodic_output(par, community, periodic_incidence, periodic_prevalence, date, process_id, epi_sizes);
+    periodic_output(par, periodic_incidence, periodic_prevalence, date, process_id, epi_sizes);
     return;
 }
 
@@ -428,7 +427,7 @@ void daily_detailed_output(Community* community, int t) {
             cout << t
                  << ",p,"
                  << p->getID() << ","
-                 << p->getLocation(HOME)->getID() << ","
+                 << p->getHomeLoc()->getID() << ","
                  << (p->isSymptomatic(t)?1:0) << ","
                  //<< (p->isWithdrawn(t)?1:0) << ","
                  << (p->isNewlyInfected(t)?1:0) << endl;

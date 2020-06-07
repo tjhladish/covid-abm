@@ -27,7 +27,7 @@ set<Person*> Community::_revaccinate_set;
 int mod(int k, int n) { return ((k %= n) < 0) ? k+n : k; } // correct for non-negative n
 
 Community::Community(const Parameters* parameters) :
-    _exposedQueue(MAX_INCUBATION, vector<Person*>(0)),
+//    _exposedQueue(MAX_INCUBATION, vector<Person*>(0)),
     _numNewlyInfected(parameters->runLength), // +1 not needed; runLength is already a valid size
     _numNewlySymptomatic(parameters->runLength),
     _numVaccinatedCases(parameters->runLength),
@@ -38,7 +38,7 @@ Community::Community(const Parameters* parameters) :
     //_mortality = NULL;
     //_bNoSecondaryTransmission = false;
     //_uniformSwap = true;
-    for (int a = 0; a<NUM_AGE_CLASSES; a++) _personAgeCohortSizes[a] = 0;
+//    for (int a = 0; a<NUM_AGE_CLASSES; a++) _personAgeCohortSizes[a] = 0;
     _isHot.resize(_par->runLength);
 }
 
@@ -57,12 +57,12 @@ void Community::reset() { // used for r-zero calculations, to reset pop after a 
     for (auto &e: _isHot) e.clear();
 
     // clear community queues & tallies
-    _exposedQueue.clear();
+//    _exposedQueue.clear();
     _numNewlyInfected.clear();
     _numNewlySymptomatic.clear();
     _numVaccinatedCases.clear();
 
-    _exposedQueue.resize(MAX_INCUBATION, vector<Person*>(0));
+//    _exposedQueue.resize(MAX_INCUBATION, vector<Person*>(0));
     _numNewlyInfected.resize(_par->runLength);
     _numNewlySymptomatic.resize(_par->runLength);
     _numVaccinatedCases.resize(_par->runLength);
@@ -80,11 +80,11 @@ Community::~Community() {
     _location.clear();
 
     for (auto& kv: _location_map) {
-        kv.second.clear(); 
+        kv.second.clear();
     }
     _location_map.clear();
 
-    _exposedQueue.clear();
+//    _exposedQueue.clear();
     _personAgeCohort.clear();
     _numNewlyInfected.clear();
     _numNewlySymptomatic.clear();
@@ -100,8 +100,8 @@ bool Community::loadPopulation(string populationFilename, string immunityFilenam
         return false;
     }
     string buffer;
-    int agecounts[NUM_AGE_CLASSES];
-    for (int i=0; i<NUM_AGE_CLASSES; i++) agecounts[i] = 0;
+//    int agecounts[NUM_AGE_CLASSES];
+//    for (int i=0; i<NUM_AGE_CLASSES; i++) agecounts[i] = 0;
 
     istringstream line;
     // per IPUMS, expecting 1 for male, 2 for female for sex
@@ -123,13 +123,22 @@ bool Community::loadPopulation(string populationFilename, string immunityFilenam
             _people.push_back(p);
             p->setAge(age);
             p->setSex((SexType) sex);
-            p->setHomeID(hid);
-            p->setLocation(_location[hid], HOME);
-            p->setLocation(_location[did], DAY); // currently just any non-home daytime location--may be a school; -1 == NA
-            _location[hid]->addPerson(p);
-            if (did >= 0) _location[did]->addPerson(p);
-            assert(age<NUM_AGE_CLASSES);
-            agecounts[age]++;
+            assert(_location.size() > hid);
+            if ((signed) _location.size() <= did) {
+                cerr << line.str() << endl;
+                exit(-1);
+            }
+            p->setHomeLoc(_location[hid]);
+//            p->setLocation(_location[hid], HOME);
+//            p->setLocation(_location[did], DAY);
+            _location[hid]->addPerson(p); // TODO -- currently locations that can be a home *AND* a workplace cannot
+            if (did >= 0) {
+                p->setDayLoc(_location[did]); // currently just any non-home daytime location--may be a school; -1 == NA
+                _location[did]->addPerson(p); // distinguish between the reasons why someone is there without querying the person
+            }
+            if (_location[hid]->getType() == NURSINGHOME) p->setLongTermCare(true);
+            //assert(age<NUM_AGE_CLASSES);
+ //           agecounts[age]++;
         }
     }
     iss.close();
@@ -195,15 +204,15 @@ bool Community::loadPopulation(string populationFilename, string immunityFilenam
     }
 
     // keep track of all age cohorts for aging and mortality
-    _personAgeCohort.clear();
-    _personAgeCohort.resize(NUM_AGE_CLASSES, vector<Person*>(0));
+//    _personAgeCohort.clear();
+//    _personAgeCohort.resize(NUM_AGE_CLASSES, vector<Person*>(0));
 
-    for (Person* p: _people) {
+/*    for (Person* p: _people) {
         int age = p->getAge();
         assert(age<NUM_AGE_CLASSES);
         _personAgeCohort[age].push_back(p);
         _personAgeCohortSizes[age]++;
-    }
+    }*/
 
 /*    if (swapFilename == "") {
         _uniformSwap = true;
@@ -491,7 +500,7 @@ void Community::within_household_transmission() {
     for (Location* loc: _location_map[HOUSE]) { // TODO -- tracking 'hot' households will avoid looping through the vast majority
         int infectious_count = 0;
         for (Person* p: loc->getPeople()) { // if isHot is a map with a count, we wouldn't need this loop at all
-            infectious_count += p->isInfectious(_day); 
+            infectious_count += p->isInfectious(_day);
         }
         if (infectious_count > 0) {
             const double T = 1.0 - pow(1.0 - _par->household_transmissibility, infectious_count);
@@ -518,7 +527,7 @@ void Community::location_transmission(set<Location*, LocPtrComp> &locations) {
     for (Location* loc: locations) { // TODO -- track 'hot' workplaces/schools
         int infectious_count = 0;
         for (Person* p: loc->getPeople()) { // if isHot is a map with a count, we wouldn't need this loop at all
-            infectious_count += p->isInfectious(_day); 
+            infectious_count += p->isInfectious(_day);
         }
         const int workplace_size = loc->getNumPeople();
         if (infectious_count > 0 and workplace_size > 1) {
@@ -591,7 +600,7 @@ void Community::humanToMosquitoTransmission() {
 }
 */
 
-
+/*
 void Community::_advanceTimers() {
     // advance incubation in people
     for (unsigned int i=0; i<_exposedQueue.size()-1; i++) {
@@ -600,7 +609,7 @@ void Community::_advanceTimers() {
     _exposedQueue.back().clear();
 
     return;
-}
+}*/
 
 
 void Community::tick(int day) {
@@ -612,7 +621,7 @@ void Community::tick(int day) {
 //    }
 //    local_transmission();
 //    between_household_transmission();
-//    within_household_transmission();
+    within_household_transmission();
 
     //updateVaccination();
 
@@ -620,7 +629,7 @@ void Community::tick(int day) {
 //    mosquitoToHumanTransmission();                                    // infect people
 
 //    humanToMosquitoTransmission();                                    // infect mosquitoes in each location
-    _advanceTimers();                                                 // advance H&M incubation periods and M ages
+//    _advanceTimers();                                                 // advance H&M incubation periods and M ages
 
     return;
 }
@@ -629,7 +638,15 @@ void Community::tick(int day) {
 // getNumInfected - counts number of infected residents
 size_t Community::getNumInfected(int day) {
     size_t count=0;
-    for (Person* p: _people) { if (p->isInfected(day)) count++; }
+    //for (Person* p: _people) { if (p->isInfected(day)) count++; }
+    for (Person* p: _people) { count += p->isInfected(day); }
+    return count;
+}
+
+
+size_t Community::getNumInfectious(int day) {
+    size_t count=0;
+    for (Person* p: _people) { if (p->isInfectious(day)) count++; }
     return count;
 }
 

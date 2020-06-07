@@ -16,7 +16,7 @@ OPTI     	= -O2
 LDFLAGS	 	= -L$(GSL_PATH)/lib/ # $(HPC_GSL_LIB) $(TACC_GSL_LIB)
 INCLUDES 	= -I$(GSL_PATH)/include # $(HPC_GSL_INC) $(TACC_GSL_INC)
 LIBS     	= -lm -lgsl -lgslcblas
-DEFINES  	= -DVERBOSE 
+DEFINES  	= -DVERBOSE
 
 default: Makefile simulator.h Person.o Location.o Community.o Parameters.o Utility.o
 
