@@ -16,7 +16,7 @@ using covid::util::max_element;
 time_t GLOBAL_START_TIME;
 
 string calculate_process_id(vector<double> &args, string &argstring);
-const string SIM_POP = "florida";
+const string SIM_POP = "escambia";
 const string HOME_DIR(std::getenv("HOME"));
 const string pop_dir = HOME_DIR + "/work/covid-abm/pop-" + SIM_POP;
 const string output_dir("/ufrc/longini/tjhladish/");
@@ -53,14 +53,14 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     double _mild_RF      = 0.05;
     double _severe_RF    = 0.7;
     double _base_path    = 0.5;
-    double _exp_coef     = 100;
+    double _exp_coef     = 1;
 
     par->reportedFraction = {0.0, _mild_RF, _severe_RF}; // no asymptomatic infections are reported
 
     par->randomseed              = rng_seed;
-    par->dailyOutput             = true; // turn on for daily prevalence figure, probably uncomment filter in simulator.h for daily output to get only rel. days
+    par->dailyOutput             = false; // turn on for daily prevalence figure, probably uncomment filter in simulator.h for daily output to get only rel. days
     par->periodicOutput          = false;
-    par->periodicOutputInterval  = 5;
+    par->periodicOutputInterval  = 20;
     par->weeklyOutput            = true;
     par->monthlyOutput           = false;
     par->yearlyOutput            = true;

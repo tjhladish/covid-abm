@@ -20,6 +20,7 @@ Location::Location()
     _coord = make_pair(0.0, 0.0);
     _type = NUM_OF_LOCATION_TYPES; // compileable, but not sensible value, because it must be set elsewhere
     _essential = true;
+    _riskAversion = 0.0;
 }
 
 

@@ -14,8 +14,9 @@ void Parameters::define_defaults() {
     serial = 0;
     randomseed = 5489;
     runLength = 100;
-    household_transmissibility = 0.05;
-    workplace_transmissibility = 0.05;
+    household_transmissibility = 0.15;
+    workplace_transmissibility = 0.15;
+    social_transmissibility = 0.15;
     infectiousOnset = 3;                                // days into infection when infectiousness starts
     infectiousDuration = 10;                            // number of days infectious
     VES = 0.7;

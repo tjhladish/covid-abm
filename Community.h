@@ -38,12 +38,13 @@ class Community {
         void updateDiseaseStatus();
         void tick(int day);                                           // simulate one day
         void within_household_transmission();
-//        void between_household_transmission();
+        void between_household_transmission();
         void workplace_and_school_transmission();
         void location_transmission(std::set<Location*, Location::LocPtrComp> &locations);
 
         //void setNoSecondaryTransmission() { _bNoSecondaryTransmission = true; }
 
+        float social_distancing(int) const;
         void vaccinate(CatchupVaccinationEvent cve);
         void targetVaccination(Person* p); // routine vaccination on target birthday
         void updateVaccination();          // for boosting and multi-does vaccines

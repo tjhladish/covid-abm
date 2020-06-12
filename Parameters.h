@@ -216,6 +216,7 @@ public:
     int runLength;
     double household_transmissibility;                      // per-day probability of transmission between a co-habitating dyad
     double workplace_transmissibility;                      // per-day probability of transmission, scaled by the fraction of infectious co-workers
+    double social_transmissibility;                         // per-day probability of transmission, scaled by the fraction of infectious social contacts
     int infectiousOnset;                                    // days into infection when infectiousness starts
     int infectiousDuration;                                 // number of days infectious
     double VES;                                             // vaccine efficacy for susceptibility (can be leaky or all-or-none)

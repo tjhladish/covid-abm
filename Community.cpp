@@ -296,6 +296,7 @@ bool Community::loadLocations(string locationFilename,string networkFilename) {
             newLoc->setX(locX);
             newLoc->setY(locY);
             newLoc->setType(locType); // may be redundant--would save 1 mb per million locations to omit, so probably not worth removing
+            if (locType == HOUSE) newLoc->setRiskAversion(gsl_rng_uniform(RNG));
             newLoc->setEssential((bool) essential);
             _location.push_back(newLoc);
             _location_map[locType].insert(newLoc);
@@ -512,7 +513,7 @@ void Community::within_household_transmission() {
     for (Location* loc: _location_map[HOUSE]) { // TODO -- tracking 'hot' households will avoid looping through the vast majority
         int infectious_count = 0;
         for (Person* p: loc->getPeople()) { // if isHot is a map with a count, we wouldn't need this loop at all
-            infectious_count += p->isInfectious(_day);
+            infectious_count += p->isInfectious(_day) and not p->isHospitalized(_day);
         }
         if (infectious_count > 0) {
             const double T = 1.0 - pow(1.0 - _par->household_transmissibility, infectious_count);
@@ -526,32 +527,46 @@ void Community::within_household_transmission() {
     return;
 }
 
-/*
+
+float Community::social_distancing(int /*_day*/) const {
+    return 0.0;
+}
+
+
 void Community::between_household_transmission() {
-    FINISH IMPLEMENTING
     for (Location* loc: _location_map[HOUSE]) { // TODO -- tracking 'hot' households will avoid looping through the vast majority
-        int infectious_count = 0;
-        for (Person* p: loc->getPeople()) { // if isHot is a map with a count, we wouldn't need this loop at all
-            infectious_count += p->isInfectious(_day);
-        }
-        if (infectious_count > 0) {
-            const double T = 1.0 - pow(1.0 - _par->household_transmissibility, infectious_count);
-            for (Person* p: loc->getPeople()) {
-                if (gsl_rng_uniform(RNG) < T) {
-                    p->infect((int) HOUSE, _day, loc->getID()); // infect() tests for whether person is infectable
+        if (loc->getRiskAversion() > social_distancing(_day)) { // this household is not cautious enough to avoid interactions
+            int infectious_count = 0;
+            const int hh_size = loc->getNumPeople();
+
+            for (Person* p: loc->getPeople()) { // if isHot is a map with a count, we wouldn't need this loop at all
+                infectious_count += p->isInfectious(_day) and not p->isSevere(_day);
+            }
+
+            const float hh_prev = (float) infectious_count / hh_size;
+            if (hh_prev > 0.0) {
+                for (Location* neighbor: loc->getNeighbors()) {
+                    if (neighbor->getRiskAversion() > social_distancing(_day)) {
+                        const double T = _par->social_transmissibility * hh_prev;
+                        for (Person* p: loc->getPeople()) {
+                            if (gsl_rng_uniform(RNG) < T) {
+                                p->infect((int) HOUSE, _day, loc->getID()); // infect() tests for whether person is infectable
+                            }
+                        }
+                    }
                 }
             }
         }
     }
     return;
-}*/
+}
 
 
 void Community::workplace_and_school_transmission() {
     location_transmission(_location_map[WORK]);
     location_transmission(_location_map[SCHOOL]);
 }
-
+// TODO -- check how people who work at schools are handled
 
 void Community::location_transmission(set<Location*, Location::LocPtrComp> &locations) {
     // TODO -- right now, school and workplace transmission are handled separately
@@ -559,7 +574,7 @@ void Community::location_transmission(set<Location*, Location::LocPtrComp> &loca
     for (Location* loc: locations) { // TODO -- track 'hot' workplaces/schools
         int infectious_count = 0;
         for (Person* p: loc->getPeople()) { // if isHot is a map with a count, we wouldn't need this loop at all
-            infectious_count += p->isInfectious(_day);
+            infectious_count += p->isInfectious(_day) and not p->isSevere(_day);
         }
         const int workplace_size = loc->getNumPeople();
         if (infectious_count > 0 and workplace_size > 1) {
@@ -648,7 +663,7 @@ void Community::tick(int day) {
     _day = day;
     within_household_transmission();
     workplace_and_school_transmission(); // does not currently include schools or churches
-//    between_household_transmission();
+    between_household_transmission();
 // TODO - nursing home interactions
 
 //    if (isWeekday(dow)) {
