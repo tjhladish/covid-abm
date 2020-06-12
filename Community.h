@@ -11,12 +11,9 @@
 #include <cmath>
 #include <algorithm>
 #include "Date.h"
+#include "Location.h"
 
 class Person;
-class Location;
-
-// We use this to make sure that locations are iterated through in a well-defined order (by ID), rather than by mem address
-struct LocPtrComp { bool operator()(const Location* A, const Location* B) const { return A->getID() < B->getID(); } };
 
 // We use this to created a vector of people, sorted by decreasing age.  Used for aging/immunity swapping.
 //struct PerPtrComp { bool operator()(const Person* A, const Person* B) const { return A->getAge() > B->getAge(); } };
@@ -41,9 +38,9 @@ class Community {
         void updateDiseaseStatus();
         void tick(int day);                                           // simulate one day
         void within_household_transmission();
-        void between_household_transmission();
+//        void between_household_transmission();
         void workplace_and_school_transmission();
-        void location_transmission(std::set<Location*, LocPtrComp> &locations);
+        void location_transmission(std::set<Location*, Location::LocPtrComp> &locations);
 
         //void setNoSecondaryTransmission() { _bNoSecondaryTransmission = true; }
 
@@ -71,20 +68,18 @@ class Community {
         //int _personAgeCohortSizes[NUM_AGE_CLASSES];                            // size of each age cohort
         //double *_fMortality;                                                 // mortality by year, starting from 0
         std::vector<Location*> _location;                                      // the array index is equal to the ID
-        std::map<LocationType, std::set<Location*, LocPtrComp>> _location_map; //
+        std::map<LocationType, std::set<Location*, Location::LocPtrComp>> _location_map; //
         std::vector< std::vector<Person*> > _exposedQueue;                     // queue of people with n days of latency left
         int _day;                                                              // current day
         std::vector<size_t> _numNewlyInfected;
         std::vector<size_t> _numNewlySymptomatic;
         std::vector<size_t> _numVaccinatedCases;
         std::vector<size_t> _numSevereCases;
-        static std::vector<std::set<Location*, LocPtrComp> > _isHot;
+        static std::vector<std::set<Location*, Location::LocPtrComp> > _isHot;
         static std::vector<Person*> _peopleByAge;
         static std::map<int, std::set<std::pair<Person*, Person*> > > _delayedBirthdays;
         static std::set<Person*> _revaccinate_set;          // not automatically re-vaccinated, just checked for boosting, multiple doses
 
-        static std::vector<std::set<Location*, LocPtrComp> > _vectorControlStartDates;
-        static std::set<Location*, LocPtrComp> _vectorControlLocations; // Locations that currently have vector control measures in place
         //bool _uniformSwap;                                            // use original swapping (==true); or parse swap file (==false)
 
         void expandExposedQueues();

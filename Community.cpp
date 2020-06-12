@@ -19,7 +19,7 @@
 using namespace covid::standard;
 
 const Parameters* Community::_par;
-vector< set<Location*, LocPtrComp> > Community::_isHot;
+vector< set<Location*, Location::LocPtrComp> > Community::_isHot;
 set<Person*> Community::_revaccinate_set;
 //vector<Person*> Community::_peopleByAge;
 //map<int, set<pair<Person*,Person*> > > Community::_delayedBirthdays;
@@ -119,11 +119,15 @@ bool Community::loadPopulation(string populationFilename, string immunityFilenam
         5 1948560 2 19 481010
         */
         if (line >> id >> hid >> sex >> age >> did ) { //>> empstat) {
+            if (id != (signed) _people.size()) { // ensures indexing stays consistent
+                cerr << "ERROR: Person ID's must be sequential integers starting at 0" << endl;
+                return false;
+            }
             Person* p = new Person();
             _people.push_back(p);
             p->setAge(age);
             p->setSex((SexType) sex);
-            assert(_location.size() > hid);
+            assert((signed) _location.size() > hid);
             if ((signed) _location.size() <= did) {
                 cerr << line.str() << endl;
                 exit(-1);
@@ -243,10 +247,10 @@ bool Community::loadPopulation(string populationFilename, string immunityFilenam
 }
 
 
-bool Community::loadLocations(string locationFilename,string /*networkFilename*/) {
+bool Community::loadLocations(string locationFilename,string networkFilename) {
     ifstream iss(locationFilename.c_str());
     if (!iss) {
-        cerr << "ERROR: " << locationFilename << " not found." << endl;
+        cerr << "ERROR: locations file " << locationFilename << " not found." << endl;
         return false;
     }
     _location.clear();
@@ -254,20 +258,18 @@ bool Community::loadLocations(string locationFilename,string /*networkFilename*/
     char buffer[500];
     int locID;
     string locTypeStr;
-    string essential;
+    string essentialStr;
     double locX, locY;
     istringstream line(buffer);
-
-bool error = false;
 
     while (iss) {
         iss.getline(buffer,500);
         line.clear();
         line.str(buffer);
         //if (line >> locID >> locTypeStr >> locX >> locY) {
-        if (line >> locID >> locX >> locY >> locTypeStr >> essential) {
+        if (line >> locID >> locX >> locY >> locTypeStr >> essentialStr) {
             if (locID != (signed) _location.size()) {
-                cerr << "WARNING: Location ID's must be sequential integers" << endl;
+                cerr << "ERROR: Location ID's must be sequential integers starting at 0" << endl;
                 return false;
             }
             const LocationType locType = (locTypeStr == "h") ? HOUSE :
@@ -277,25 +279,33 @@ bool error = false;
                                          (locTypeStr == "n") ? NURSINGHOME :
                                              NUM_OF_LOCATION_TYPES;
 
-            if (locType == NUM_OF_LOCATION_TYPES and not error) {
+            if (locType == NUM_OF_LOCATION_TYPES) {
                 cerr << "ERROR: Parsed unknown location type: " << locTypeStr << " from location file: " << locationFilename << endl;
-error = true;
-//                return false;
+                return false;
             }
+
+            const int essential = (essentialStr == "y" or essentialStr == "NA") ? 1 :
+                                  (essentialStr == "n") ? 0 :
+                                      -1;
+            if (essential == -1) {
+                cerr << "ERROR: Unknown value for \"essential\" status: " << essentialStr << " from location file: " << locationFilename << endl;
+                return false;
+            }
+
             Location* newLoc = new Location();
-            newLoc->setID(locID);
             newLoc->setX(locX);
             newLoc->setY(locY);
             newLoc->setType(locType); // may be redundant--would save 1 mb per million locations to omit, so probably not worth removing
+            newLoc->setEssential((bool) essential);
             _location.push_back(newLoc);
             _location_map[locType].insert(newLoc);
         }
     }
     iss.close();
 
-/*    iss.open(networkFilename.c_str());
+    iss.open(networkFilename.c_str());
     if (!iss) {
-        cerr << "ERROR: " << networkFilename << " not found." << endl;
+        cerr << "ERROR: network file " << networkFilename << " not found." << endl;
         return false;
     }
     int locID1, locID2;
@@ -305,11 +315,13 @@ error = true;
         line.str(buffer);
         if (line >> locID1 >> locID2) { // data (non-header) line
             //      cerr << locID1 << " , " << locID2 << endl;
+            assert(locID1 >= 0 and locID2 >= 0);
+            assert(locID1 < (signed) _location.size() and locID2 < (signed) _location.size());
             _location[locID1]->addNeighbor(_location[locID2]);            // should check for ID
             _location[locID2]->addNeighbor(_location[locID1]);
         }
     }
-    iss.close();*/
+    iss.close();
 
     return true;
 }
@@ -514,6 +526,26 @@ void Community::within_household_transmission() {
     return;
 }
 
+/*
+void Community::between_household_transmission() {
+    FINISH IMPLEMENTING
+    for (Location* loc: _location_map[HOUSE]) { // TODO -- tracking 'hot' households will avoid looping through the vast majority
+        int infectious_count = 0;
+        for (Person* p: loc->getPeople()) { // if isHot is a map with a count, we wouldn't need this loop at all
+            infectious_count += p->isInfectious(_day);
+        }
+        if (infectious_count > 0) {
+            const double T = 1.0 - pow(1.0 - _par->household_transmissibility, infectious_count);
+            for (Person* p: loc->getPeople()) {
+                if (gsl_rng_uniform(RNG) < T) {
+                    p->infect((int) HOUSE, _day, loc->getID()); // infect() tests for whether person is infectable
+                }
+            }
+        }
+    }
+    return;
+}*/
+
 
 void Community::workplace_and_school_transmission() {
     location_transmission(_location_map[WORK]);
@@ -521,7 +553,7 @@ void Community::workplace_and_school_transmission() {
 }
 
 
-void Community::location_transmission(set<Location*, LocPtrComp> &locations) {
+void Community::location_transmission(set<Location*, Location::LocPtrComp> &locations) {
     // TODO -- right now, school and workplace transmission are handled separately
     // this has the weird implication that students and school employees cannot transmit to each other at school
     for (Location* loc: locations) { // TODO -- track 'hot' workplaces/schools
@@ -614,14 +646,15 @@ void Community::_advanceTimers() {
 
 void Community::tick(int day) {
     _day = day;
-
+    within_household_transmission();
     workplace_and_school_transmission(); // does not currently include schools or churches
+//    between_household_transmission();
+// TODO - nursing home interactions
+
 //    if (isWeekday(dow)) {
 //        school_transmission();
 //    }
 //    local_transmission();
-//    between_household_transmission();
-    within_household_transmission();
 
     //updateVaccination();
 

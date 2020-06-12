@@ -14,60 +14,67 @@ class Location;
 class Infection {
     friend class Person;
     Infection() {
-        infectedTime     = INT_MIN;
-        infectedPlace    = INT_MIN;
-        infectedByID     = INT_MIN;
-        infectiousTime   = INT_MIN;
-        infectiousDuration = INT_MIN;
+        infectedBegin     = INT_MIN;
+        infectedPlace     = INT_MIN;
+        infectedByID      = INT_MIN;
+        infectiousBegin   = INT_MIN;
+        infectiousEnd     = INT_MIN;
 
-        symptomTime      = INT_MIN;
-        symptomDuration  = INT_MIN;
+        symptomBegin      = INT_MIN;
+        symptomEnd        = INT_MIN;
 
-        severeTime       = INT_MIN;
-        severeDuration   = INT_MIN;
-        hospitalizedTime = INT_MIN;
+        severeBegin       = INT_MIN;
+        severeEnd         = INT_MIN;
+        hospitalizedBegin = INT_MIN;
 
-        criticalTime     = INT_MIN;
-        criticalDuration = INT_MIN;
-        icuTime          = INT_MIN;
+        criticalBegin     = INT_MIN;
+        criticalEnd       = INT_MIN;
+        icuBegin          = INT_MIN;
 
-        deathTime        = INT_MAX;
+        deathTime         = INT_MAX;        // this ONE should default to INT_MAX, the others INT_MIN
     };
 
-    int infectedTime;                               // when infected?
-    int infectedPlace;                              // where infected?
-    int infectedByID;                               // who infected this person
-    int infectiousTime;                             // when infectious period starts
-    int infectiousDuration;                         //
+    int infectedBegin;                      // when infected?
+    int infectedPlace;                      // where infected?
+    int infectedByID;                       // who infected this person
+    int infectiousBegin;                    // when infectious period starts
+    int infectiousEnd;
 
-    int symptomTime;                                // when symptoms start
-    int symptomDuration;                            //
+    int symptomBegin;                       // when symptoms start
+    int symptomEnd;
 
-    int severeTime;
-    int severeDuration;
-    int hospitalizedTime;
+    int severeBegin;
+    int severeEnd;
+    int hospitalizedBegin;
 
-    int criticalTime;
-    int criticalDuration;
-    int icuTime;
+    int criticalBegin;
+    int criticalEnd;
+    int icuBegin;
 
     int deathTime;
 
   public:
-    // TODO - consider storing state end-points rather than durations.  likely fewer operations
     bool isLocallyAcquired()    const { return infectedByID != -1; }
-    int getInfectedTime()       const { return infectedTime; }
-    int getInfectiousTime()     const { return infectiousTime; }
-    int getInfectiousDuration() const { return infectiousDuration; }
+
+    int getInfectedTime()       const { return infectedBegin; }
+    int getInfectiousTime()     const { return infectiousBegin; }
+    int getSymptomTime()        const { return symptomBegin; }
+    int getSevereTime()         const { return severeBegin; }
+    int getHospitalizedTime()   const { return hospitalizedBegin; }
+    int getCriticalTime()       const { return criticalBegin; }
+    int getIcuTime()            const { return icuBegin; }
+    int getDeathTime()          const { return deathTime; }
+
+//    int getInfectiousEndTime()  const { return infectiousDuration; }
     // if we ensure that death coincides with the end of symptoms/severity/criticality, then we don't also need to check deathtime
-    bool isInfected(int now)    const { return infectedTime <= now and now < (infectiousTime + infectiousDuration);}
-    bool isInfectious(int now)  const { return infectiousTime <= now and now < (infectiousTime + infectiousDuration);}
-    bool isSymptomatic(int now) const { return symptomTime <= now and now < (symptomTime + symptomDuration) and now < deathTime; }
-    bool isSevere(int now)      const { return severeTime <= now and now < (severeTime + severeDuration); }
-    bool isCritical(int now)    const { return criticalTime <= now and now < (criticalTime + criticalDuration); }
+    bool isInfected(int now)    const { return infectedBegin <= now     and now < infectiousEnd;}
+    bool isInfectious(int now)  const { return infectiousBegin <= now   and now < infectiousEnd;}
+    bool isSymptomatic(int now) const { return symptomBegin <= now      and now < symptomEnd; }
+    bool isSevere(int now)      const { return severeBegin <= now       and now < severeEnd; }
+    bool isCritical(int now)    const { return criticalBegin <= now     and now < criticalEnd; }
+    bool inHospital(int now)    const { return hospitalizedBegin <= now and now < severeEnd;}
+    bool inIcu(int now)         const { return icuBegin <= now          and now < criticalEnd;}
     bool isDead(int now)        const { return deathTime <= now; }
-    bool inHospital(int now)    const { return hospitalizedTime <= now and now < (severeTime + severeDuration);}
-    bool inICU(int now)         const { return icuTime <= now and now < (criticalTime + criticalDuration);}
 };
 
 class Person {
@@ -107,22 +114,22 @@ class Person {
 
         inline int getInfectedByID(int infectionsago=0)     const { return getInfection(infectionsago)->infectedByID; }
         inline int getInfectedPlace(int infectionsago=0)    const { return getInfection(infectionsago)->infectedPlace; }
-        inline int getInfectedTime(int infectionsago=0)     const { return getInfection(infectionsago)->infectedTime; }
+        inline int getInfectedTime(int infectionsago=0)     const { return getInfection(infectionsago)->infectedBegin; }
 
-        inline int getInfectiousTime(int infectionsago=0)   const { return getInfection(infectionsago)->infectiousTime; }
-        inline int getInfectiousDuration(int infectionsago=0)   const { return getInfection(infectionsago)->infectiousDuration; }
+        inline int getInfectiousTime(int infectionsago=0)   const { return getInfection(infectionsago)->infectiousBegin; }
+//        inline int getInfectiousDuration(int infectionsago=0)   const { return getInfection(infectionsago)->infectiousDuration; }
 
-        inline int getSymptomTime(int infectionsago=0)      const { return getInfection(infectionsago)->symptomTime; }
-        inline int getSymptomDuration(int infectionsago=0)      const { return getInfection(infectionsago)->symptomDuration; }
+        inline int getSymptomTime(int infectionsago=0)      const { return getInfection(infectionsago)->symptomBegin; }
+//        inline int getSymptomDuration(int infectionsago=0)      const { return getInfection(infectionsago)->symptomDuration; }
 
-        inline int getSevereTime(int infectionsago=0)       const { return getInfection(infectionsago)->severeTime; }
-        inline int getSevereDuration(int infectionsago=0)   const { return getInfection(infectionsago)->severeDuration; }
+        inline int getSevereTime(int infectionsago=0)       const { return getInfection(infectionsago)->severeBegin; }
+//        inline int getSevereDuration(int infectionsago=0)   const { return getInfection(infectionsago)->severeDuration; }
 
-        inline int getCriticalTime(int infectionsago=0)     const { return getInfection(infectionsago)->criticalTime; }
-        inline int getCriticalDuration(int infectionsago=0) const { return getInfection(infectionsago)->criticalDuration; }
+        inline int getCriticalTime(int infectionsago=0)     const { return getInfection(infectionsago)->criticalBegin; }
+//        inline int getCriticalDuration(int infectionsago=0) const { return getInfection(infectionsago)->criticalDuration; }
 
-        inline int getHospitalizationTime(int infectionsago=0) const { return getInfection(infectionsago)->hospitalizedTime; }
-        inline int getIcuTime(int infectionsago=0) const { return getInfection(infectionsago)->icuTime; }
+        inline int getHospitalizationTime(int infectionsago=0) const { return getInfection(infectionsago)->hospitalizedBegin; }
+        inline int getIcuTime(int infectionsago=0) const { return getInfection(infectionsago)->icuBegin; }
         inline int getDeathTime(int infectionsago=0)        const { return getInfection(infectionsago)->deathTime; }
 
         const Infection* getInfection(int infectionsago=0) const { return infectionHistory[getNumNaturalInfections() - 1 - infectionsago]; }
@@ -136,13 +143,15 @@ class Person {
         double vaccineProtection(const int time) const;
 
         bool infect(int sourceid, int time, int sourceloc);
+        void processDeath(Infection &infection, const int time);
         inline bool infect(int time) {return infect(INT_MIN, time, INT_MIN);}
 
+        // TODO -- the following functions assume that only the most recent infection needs to be inspected
         bool inHospital(int time) const { return infectionHistory.size() > 0 and infectionHistory.back()->inHospital(time); }
-        bool inICU(int time)      const { return infectionHistory.size() > 0 and infectionHistory.back()->inICU(time); }
+        bool inIcu(int time)      const { return infectionHistory.size() > 0 and infectionHistory.back()->inIcu(time); }
         bool isDead(int time)     const { return infectionHistory.size() > 0 and infectionHistory.back()->isDead(time); } // no deaths due to other causes
 
-        bool isNewlyInfected(int time)  const { return infectionHistory.size() > 0 and time == infectionHistory.back()->infectedTime; }
+        bool isNewlyInfected(int time)  const { return infectionHistory.size() > 0 and time == infectionHistory.back()->infectedBegin; }
         bool isInfected(int time)       const { return infectionHistory.size() > 0 and infectionHistory.back()->isInfected(time); }
         bool isInfectious(int time)     const { return infectionHistory.size() > 0 and infectionHistory.back()->isInfectious(time); }
         bool isSymptomatic(int time)    const { return infectionHistory.size() > 0 and infectionHistory.back()->isSymptomatic(time); }

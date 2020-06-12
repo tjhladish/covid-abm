@@ -74,12 +74,12 @@ Infection& Person::initializeNewInfection() {
 
 
 Infection& Person::initializeNewInfection(int time, int sourceloc, int sourceid) {
-    Infection& infection         = initializeNewInfection();
-    infection.infectedTime       = time;
-    infection.infectedPlace      = sourceloc;
-    infection.infectedByID       = sourceid;
-    infection.infectiousTime     = time + INFECTIOUSNESS_ONSET;
-    infection.infectiousDuration = INFECTIOUS_PERIOD;
+    Infection& infection      = initializeNewInfection();
+    infection.infectedBegin   = time;
+    infection.infectedPlace   = sourceloc;
+    infection.infectedByID    = sourceid;
+    infection.infectiousBegin = time + INFECTIOUSNESS_ONSET;
+    infection.infectiousEnd   = infection.infectiousBegin + INFECTIOUS_PERIOD;
     return infection;
 }
 
@@ -181,6 +181,17 @@ double Person::vaccineProtection(const int time) const {
 }*/
 
 
+void Person::processDeath(Infection &infection, const int deathTime) {
+    infection.deathTime         = deathTime;
+    infection.infectiousEnd     = min(infection.infectiousEnd, deathTime);
+    infection.symptomEnd        = min(infection.symptomEnd, deathTime);
+    infection.severeEnd         = min(infection.severeEnd, deathTime);
+    infection.hospitalizedBegin = min(infection.hospitalizedBegin, deathTime);
+    infection.criticalEnd       = min(infection.criticalEnd, deathTime);
+}
+
+
+
 // infect - infect this individual
 // returns true if infection occurs
 bool Person::infect(int sourceid, int time, int sourceloc) {
@@ -207,15 +218,15 @@ bool Person::infect(int sourceid, int time, int sourceloc) {
     if ( gsl_rng_uniform(RNG) < symptomatic_probability ) {
 //cerr << "symptomatic ";
         // This is a case
-        infection.symptomTime = time + SYMPTOM_ONSET;
+        infection.symptomBegin = time + SYMPTOM_ONSET;
         if ( not (gsl_rng_uniform(RNG) < severe_given_case) ) {
 //cerr << "not severe ";
             // It does not become severe
-            infection.symptomDuration = SYMPTOM_DURATION_MILD;
+            infection.symptomEnd = infection.symptomBegin + SYMPTOM_DURATION_MILD;
         } else {
 //cerr << "severe ";
             // It does progress and become severe
-            infection.severeTime = infection.symptomTime + PRE_SEVERE_SYMPTOMATIC;
+            infection.severeBegin = infection.symptomBegin + PRE_SEVERE_SYMPTOMATIC;
 
             // Is this person hospitalized when their severe symptoms begin?
             const float hosp_prob = long_term_care ? LTC_SEVERE_TO_HOSPITAL : SEVERE_TO_HOSPITAL;
@@ -224,21 +235,21 @@ bool Person::infect(int sourceid, int time, int sourceloc) {
 //cerr << "hospitalized ";
                 // This person is hospitalized when symptoms become severe
                 hosp = true;
-                infection.hospitalizedTime = infection.severeTime;
+                infection.hospitalizedBegin = infection.severeBegin;
             }
 
             if (not (gsl_rng_uniform(RNG) < critical_given_severe)) {
 //cerr << "not critical ";
                 // Severe, but does not become critical
-                infection.severeDuration = SEVERE_DURATION;
-                infection.symptomDuration = SYMPTOM_DURATION_SEVERE; // total symptomatic period for severe cases
+                infection.severeEnd     = infection.severeBegin   + SEVERE_DURATION;
+                infection.symptomEnd    = infection.symptomBegin  + SYMPTOM_DURATION_SEVERE; // total symptomatic period for severe cases
             } else {
 //cerr << "critical ";
                 // It does progress to critical disease
-                infection.criticalTime = infection.severeTime + PRE_CRITICAL_SEVERE;
-                infection.criticalDuration = CRITICAL_DURATION;
-                infection.severeDuration = SEVERE_DURATION_CRITICAL;
-                infection.symptomDuration = SYMPTOM_DURATION_CRITICAL;
+                infection.criticalBegin = infection.severeBegin   + PRE_CRITICAL_SEVERE;
+                infection.criticalEnd   = infection.criticalBegin + CRITICAL_DURATION;
+                infection.severeEnd     = infection.severeBegin   + SEVERE_DURATION_CRITICAL;
+                infection.symptomEnd    = infection.symptomBegin  + SYMPTOM_DURATION_CRITICAL;
 
                 // Is this person put in intensive care (and thus also hospitalized, if not previously)?
                 const float icu_prob = hosp ? CRITICAL_TO_ICU_IF_HOSP : CRITICAL_TO_ICU_IF_NOT_HOSP;
@@ -246,25 +257,25 @@ bool Person::infect(int sourceid, int time, int sourceloc) {
                 if (gsl_rng_uniform(RNG) < icu_prob) {
 //cerr << "icu ";
                     // Patient goes to intensive care
-                    infection.icuTime = infection.criticalTime;
-                    if (not hosp) { infection.hospitalizedTime = infection.icuTime; } // if they weren't hospitalized before, they are now
+                    infection.icuBegin = infection.criticalBegin;
+                    if (not hosp) { infection.hospitalizedBegin = infection.icuBegin; } // if they weren't hospitalized before, they are now
                     death = gsl_rng_uniform(RNG) < ICU_CRITICAL_MORTALITY;
                     if (death) {
 //cerr << "death ";
                         // uniform randomly chose a day from the critical duration when death happens
-                        infection.deathTime = infection.criticalTime + gsl_rng_uniform_int(RNG, infection.criticalDuration);
+                        processDeath(infection, infection.criticalBegin + gsl_rng_uniform_int(RNG, infection.criticalEnd - infection.criticalBegin));
                     }
                 } else {
                     death = gsl_rng_uniform(RNG) < NON_ICU_CRITICAL_MORTALITY;
                     if (death) {
 //cerr << "death ";
                         // death happens when critical symptoms begin, as this person is not receiving care
-                        infection.deathTime = infection.criticalTime;
+                        processDeath(infection, infection.criticalBegin);
                     }
                 }
             }
 /*            if (not isVaccinated() or gsl_rng_uniform(RNG) > _par->VEH*remaining_efficacy) { // Is this person unvaccinated or vaccinated but unlucky?
-                infection.recoveryTime = infection.infectiousTime + INFECTIOUS_PERIOD_SEVERE;
+                infection.recoveryTime = infection.infectiousBegin + INFECTIOUS_PERIOD_SEVERE;
             }*/
         }
 //cerr << endl;
@@ -274,7 +285,7 @@ bool Person::infect(int sourceid, int time, int sourceloc) {
 
     // Flag locations with (non-historical) infections, so that we know to look there for human->mosquito transmission
     // Negative days are historical (pre-simulation) events, and thus we don't care about modeling transmission
-    for (int day = std::max(infection.infectiousTime, 0); day < infection.infectiousTime + infection.infectiousDuration; day++) {
+    for (int day = std::max(infection.infectiousBegin, 0); day < infection.infectiousEnd; day++) {
         Community::flagInfectedLocation(getHomeLoc(), day);
     }
 
@@ -299,7 +310,7 @@ bool Person::isWithdrawn(int time) const {
 
 bool Person::isCrossProtected(int time) const { // assumes binary cross-immunity
     return (getNumNaturalInfections() > 0) and  // has any past infection
-           (infectionHistory.back()->infectedTime + _par->daysImmune > time); // prev. infection w/in crossprotection period
+           (infectionHistory.back()->infectedBegin + _par->daysImmune > time); // prev. infection w/in crossprotection period
 }
 
 

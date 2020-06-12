@@ -12,14 +12,14 @@
 
 using namespace covid::standard;
 
-int Location::_nNextSerial = 0;
+size_t Location::NEXT_ID = 0;
 
 Location::Location()
     : _person(0) {
-    _serial = _nNextSerial++;
-    _ID = 0;
+    _ID = NEXT_ID++;
     _coord = make_pair(0.0, 0.0);
     _type = NUM_OF_LOCATION_TYPES; // compileable, but not sensible value, because it must be set elsewhere
+    _essential = true;
 }
 
 
@@ -59,8 +59,6 @@ Person* Location::findMom() {
 
 // addNeighbor - adds location p to the location's neighbor list.
 // Note that this relationship is one-way.
-void Location::addNeighbor(Location* p) {
-    for (unsigned int i=0; i<_neighbors.size(); i++)
-        if (_neighbors[i]==p) return;                                                   // already a neighbor
-    _neighbors.push_back(p);
+void Location::addNeighbor(Location* loc) {
+    _neighbors.insert(loc);
 }

@@ -62,7 +62,7 @@ Community* build_community(const Parameters* par) {
     Community* community = new Community(par);
     Person::setPar(par);
 cerr << "Reading locations ... ";
-    if (!community->loadLocations(par->locationFilename)) {
+    if (!community->loadLocations(par->locationFilename, par->networkFilename)) {
         cerr << "ERROR: Could not load locations" << endl;
         exit(-1);
     }
@@ -200,6 +200,7 @@ void periodic_output(const Parameters* par, map<string, vector<int> > &periodic_
     }
 
     periodic_incidence["daily"] = vector<int>(NUM_OF_INCIDENCE_REPORTING_TYPES, 0);
+    periodic_prevalence = vector<int>(NUM_OF_PREVALENCE_REPORTING_TYPES, 0);
     string output = ss.str();
     //fputs(output.c_str(), stderr);
     fputs(output.c_str(), stdout);
@@ -250,41 +251,49 @@ void advance_simulator(const Parameters* par, Community* community, Date &date, 
 
     for (Person* p: community->getPeople()) {
         const int now = date.day();
-        if (p->isInfected(now) or p->isSymptomatic(now)) {
+
+        if (p->isInfected(now) or p->isSymptomatic(now) or p->isDead(now)) {
             const Infection* infec = p->getInfection();
             bool intro  = not infec->isLocallyAcquired();
-            bool symp   = infec->isSymptomatic(now);      // subset of all infections
-            bool severe = infec->isSevere(now);           // subset of symptomatic
-            bool crit   = infec->isCritical(now);         // subset of severe
-            bool dead   = infec->isDead(now);             // exclusive of other states
-
-            // Prevalence
-            periodic_prevalence[INTRO_INF_PREV]      += intro;
-            periodic_prevalence[INTRO_CASE_PREV]     += intro and symp;
-            periodic_prevalence[INTRO_SEVERE_PREV]   += intro and severe;
-            periodic_prevalence[INTRO_CRITICAL_PREV] += intro and crit;
-            periodic_prevalence[INTRO_DEATH_PREV]    += intro and dead;
-
-            periodic_prevalence[TOTAL_INF_PREV]      += 1; // if you're here, then you're infected
-            periodic_prevalence[TOTAL_CASE_PREV]     += symp;
-            periodic_prevalence[TOTAL_SEVERE_PREV]   += severe;
-            periodic_prevalence[TOTAL_CRITICAL_PREV] += crit;
-            periodic_prevalence[TOTAL_DEATH_PREV]    += dead;
 
             // Incidence
-            if (p->isNewlyInfected(date.day())) {
+            if (infec->getInfectedTime() == now) {
                 periodic_incidence["daily"][INTRO_INF]      += intro;
-                periodic_incidence["daily"][INTRO_CASE]     += intro and symp;
-                periodic_incidence["daily"][INTRO_SEVERE]   += intro and severe;
-                periodic_incidence["daily"][INTRO_CRITICAL] += intro and crit;
-                periodic_incidence["daily"][INTRO_DEATH]    += intro and dead;
-
                 periodic_incidence["daily"][TOTAL_INF]      += 1;
-                periodic_incidence["daily"][TOTAL_CASE]     += symp;
-                periodic_incidence["daily"][TOTAL_SEVERE]   += severe;
-                periodic_incidence["daily"][TOTAL_CRITICAL] += crit;
-                periodic_incidence["daily"][TOTAL_DEATH]    += dead;
             }
+
+            if (infec->getSymptomTime() == now) {
+                periodic_incidence["daily"][INTRO_CASE]     += intro;
+                periodic_incidence["daily"][TOTAL_CASE]     += 1;
+            }
+
+            if (infec->getSevereTime() == now) {
+                periodic_incidence["daily"][INTRO_SEVERE]   += intro;
+                periodic_incidence["daily"][TOTAL_SEVERE]   += 1;
+            }
+
+            if (infec->getCriticalTime() == now) {
+                periodic_incidence["daily"][INTRO_CRITICAL] += intro;
+                periodic_incidence["daily"][TOTAL_CRITICAL] += 1;
+            }
+
+            if (infec->getDeathTime() == now) {
+                periodic_incidence["daily"][INTRO_DEATH]    += intro;
+                periodic_incidence["daily"][TOTAL_DEATH]    += 1;
+            }
+
+            // Prevalence
+            periodic_prevalence[INTRO_INF_PREV]      += intro and infec->isInfected(now);
+            periodic_prevalence[INTRO_CASE_PREV]     += intro and infec->isSymptomatic(now);
+            periodic_prevalence[INTRO_SEVERE_PREV]   += intro and infec->isSevere(now);
+            periodic_prevalence[INTRO_CRITICAL_PREV] += intro and infec->isCritical(now);
+            periodic_prevalence[INTRO_DEATH_PREV]    += intro and infec->isDead(now);
+
+            periodic_prevalence[TOTAL_INF_PREV]      += infec->isInfected(now);
+            periodic_prevalence[TOTAL_CASE_PREV]     += infec->isSymptomatic(now);
+            periodic_prevalence[TOTAL_SEVERE_PREV]   += infec->isSevere(now);
+            periodic_prevalence[TOTAL_CRITICAL_PREV] += infec->isCritical(now);
+            periodic_prevalence[TOTAL_DEATH_PREV]    += infec->isDead(now);
         }
     }
 

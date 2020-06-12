@@ -239,6 +239,7 @@ public:
 
     std::string populationFilename;
     std::string locationFilename;
+    std::string networkFilename;
     std::string peopleOutputFilename;
     std::string yearlyPeopleOutputFilename;
     std::string dailyOutputFilename;

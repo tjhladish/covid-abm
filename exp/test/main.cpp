@@ -61,7 +61,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->dailyOutput             = true; // turn on for daily prevalence figure, probably uncomment filter in simulator.h for daily output to get only rel. days
     par->periodicOutput          = false;
     par->periodicOutputInterval  = 5;
-    par->weeklyOutput            = false;
+    par->weeklyOutput            = true;
     par->monthlyOutput           = false;
     par->yearlyOutput            = true;
     par->abcVerbose              = false; // needs to be false to get WHO daily output
@@ -89,7 +89,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
 
     par->populationFilename       = pop_dir    + "/population-"         + SIM_POP + ".txt";
     par->locationFilename         = pop_dir    + "/locations-"          + SIM_POP + ".txt";
-//    par->networkFilename          = pop_dir    + "/network-"            + SIM_POP + ".txt";
+    par->networkFilename          = pop_dir    + "/network-"            + SIM_POP + ".txt";
 
     return par;
 }

@@ -28,6 +28,7 @@ void Parameters::define_defaults() {
     //secondaryTransmission = true;
     populationFilename = "population.txt";
     locationFilename = "locations.txt";
+    networkFilename = "network.txt";
     peopleOutputFilename = "";
     yearlyPeopleOutputFilename = "";
     dailyOutputFilename = "";
