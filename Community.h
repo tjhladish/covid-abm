@@ -36,10 +36,12 @@ class Community {
         int getDay() { return _day; }                                // what day is it?
         //void swapImmuneStates();
         void updateDiseaseStatus();
+        void updateHotLocations();
         void tick(int day);                                           // simulate one day
         void within_household_transmission();
         void between_household_transmission();
         void workplace_and_school_transmission();
+        void location_transmission(std::map<Location*, int, Location::LocPtrComp> &locations);
         void location_transmission(std::set<Location*, Location::LocPtrComp> &locations);
 
         //void setNoSecondaryTransmission() { _bNoSecondaryTransmission = true; }
@@ -54,7 +56,7 @@ class Community {
         std::vector<size_t> getNumNewlySymptomatic() { return _numNewlySymptomatic; }
         std::vector<size_t> getNumVaccinatedCases() { return _numVaccinatedCases; }
         std::vector<size_t> getNumSevereCases() { return _numSevereCases; }
-        static void flagInfectedLocation(Location* _pLoc, int day);
+        static void flagInfectedLocation(LocationType locType, Location* _pLoc, int day);
 
 //        int ageIntervalSize(int ageMin, int ageMax) { return std::accumulate(_personAgeCohortSizes+ageMin, _personAgeCohortSizes+ageMax,0); }
 
@@ -76,7 +78,7 @@ class Community {
         std::vector<size_t> _numNewlySymptomatic;
         std::vector<size_t> _numVaccinatedCases;
         std::vector<size_t> _numSevereCases;
-        static std::vector<std::set<Location*, Location::LocPtrComp> > _isHot;
+        static std::vector<std::map<LocationType, std::map<Location*, int, Location::LocPtrComp>>> _isHot;
         static std::vector<Person*> _peopleByAge;
         static std::map<int, std::set<std::pair<Person*, Person*> > > _delayedBirthdays;
         static std::set<Person*> _revaccinate_set;          // not automatically re-vaccinated, just checked for boosting, multiple doses

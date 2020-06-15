@@ -286,7 +286,8 @@ bool Person::infect(int sourceid, int time, int sourceloc) {
     // Flag locations with (non-historical) infections, so that we know to look there for human->mosquito transmission
     // Negative days are historical (pre-simulation) events, and thus we don't care about modeling transmission
     for (int day = std::max(infection.infectiousBegin, 0); day < infection.infectiousEnd; day++) {
-        Community::flagInfectedLocation(getHomeLoc(), day);
+        Community::flagInfectedLocation(HOUSE, getHomeLoc(), day);
+        if (getDayLoc()) Community::flagInfectedLocation(getDayLoc()->getType(), getDayLoc(), day); // TODO -- people never stop going to work/school when sick
     }
 
     // if the antibody-primed vaccine-induced immunity can be acquired retroactively, upgrade this person from naive to mature

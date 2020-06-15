@@ -17,6 +17,7 @@ time_t GLOBAL_START_TIME;
 
 string calculate_process_id(vector<double> &args, string &argstring);
 const string SIM_POP = "escambia";
+//const string SIM_POP = "florida";
 const string HOME_DIR(std::getenv("HOME"));
 const string pop_dir = HOME_DIR + "/work/covid-abm/pop-" + SIM_POP;
 const string output_dir("/ufrc/longini/tjhladish/");

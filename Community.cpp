@@ -19,7 +19,7 @@
 using namespace covid::standard;
 
 const Parameters* Community::_par;
-vector< set<Location*, Location::LocPtrComp> > Community::_isHot;
+vector< map<LocationType, map<Location*, int, Location::LocPtrComp>>> Community::_isHot;
 set<Person*> Community::_revaccinate_set;
 //vector<Person*> Community::_peopleByAge;
 //map<int, set<pair<Person*,Person*> > > Community::_delayedBirthdays;
@@ -40,6 +40,11 @@ Community::Community(const Parameters* parameters) :
     //_uniformSwap = true;
 //    for (int a = 0; a<NUM_AGE_CLASSES; a++) _personAgeCohortSizes[a] = 0;
     _isHot.resize(_par->runLength);
+    for (auto &e: _isHot) {
+        for (size_t locType = 0; locType < NUM_OF_LOCATION_TYPES; ++locType) {
+            e[(LocationType) locType] = {};
+        }
+    }
 }
 
 
@@ -135,7 +140,7 @@ bool Community::loadPopulation(string populationFilename, string immunityFilenam
             p->setHomeLoc(_location[hid]);
 //            p->setLocation(_location[hid], HOME);
 //            p->setLocation(_location[did], DAY);
-            _location[hid]->addPerson(p); // TODO -- currently locations that can be a home *AND* a workplace cannot
+            _location[hid]->addPerson(p); // TODO -- currently locations that can be a home *AND* a workplace cannot exist
             if (did >= 0) {
                 p->setDayLoc(_location[did]); // currently just any non-home daytime location--may be a school; -1 == NA
                 _location[did]->addPerson(p); // distinguish between the reasons why someone is there without querying the person
@@ -436,17 +441,22 @@ void Community::updateDiseaseStatus() {
 }
 
 
-void Community::flagInfectedLocation(Location* _pLoc, int day) {
-    if (day < _par->runLength) _isHot[day].insert(_pLoc);
+void Community::flagInfectedLocation(LocationType locType, Location* _pLoc, int day) {
+    // pass in location type in case we want to model e.g. nursing home workers not going to work, but residents staying put
+    //if (day < _par->runLength) _isHot[day].insert(_pLoc);
+    if (day < _par->runLength) _isHot[day][locType][_pLoc]++;
 }
 
 
 void Community::within_household_transmission() {
-    for (Location* loc: _location_map[HOUSE]) { // TODO -- tracking 'hot' households will avoid looping through the vast majority
-        int infectious_count = 0;
-        for (Person* p: loc->getPeople()) { // if isHot is a map with a count, we wouldn't need this loop at all
-            infectious_count += p->isInfectious(_day) and not p->inHospital(_day);
-        }
+    //for (Location* loc: _location_map[HOUSE]) { // TODO -- tracking 'hot' households will avoid looping through the vast majority
+    //for (Location* loc: _isHot[_day][HOUSE]) {
+    for (const auto hot: _isHot[_day][HOUSE]) {
+        Location* loc = hot.first;
+        int infectious_count = hot.second;
+//        for (Person* p: loc->getPeople()) { // if isHot is a map with a count, we wouldn't need this loop at all
+//            infectious_count += p->isInfectious(_day) and not p->inHospital(_day);
+//        }
         if (infectious_count > 0) {
             const double T = 1.0 - pow(1.0 - _par->household_transmissibility, infectious_count);
             for (Person* p: loc->getPeople()) {
@@ -467,6 +477,7 @@ double Community::social_distancing(int _day) const {
 
 void Community::between_household_transmission() {
     for (Location* loc: _location_map[HOUSE]) { // TODO -- tracking 'hot' households will avoid looping through the vast majority
+        if (_isHot[_day][HOUSE].count(loc) == 0) continue;
         if (loc->getRiskAversion() > social_distancing(_day)) { // this household is not cautious enough to avoid interactions
             int infectious_count = 0;
             const int hh_size = loc->getNumPeople();
@@ -496,8 +507,34 @@ void Community::between_household_transmission() {
 
 void Community::workplace_and_school_transmission() {
     // some (== non-essential) workplaces may be closed, but schools are either all open or all closed
-    location_transmission(_location_map[WORK]);
-    if (not _par->timedInterventionEffect(SCHOOL_CLOSURE, _day)) location_transmission(_location_map[SCHOOL]);
+    //location_transmission(_location_map[WORK]);
+    //if (not _par->timedInterventionEffect(SCHOOL_CLOSURE, _day)) location_transmission(_location_map[SCHOOL]);
+    location_transmission(_isHot[_day][WORK]);
+    if (not _par->timedInterventionEffect(SCHOOL_CLOSURE, _day)) location_transmission(_isHot[_day][SCHOOL]);
+}
+
+
+void Community::location_transmission(map<Location*, int, Location::LocPtrComp> &locations) {
+    // TODO -- right now, school and workplace transmission are handled separately
+    // Transmission for school employees is considered school transmission, not workplace transmission
+    for (auto hot : locations) {
+        Location* loc = hot.first;
+        const int infectious_count = hot.second;
+        // if non-essential businesses are closed, skip this workplace
+        if (loc->isNonEssential() and _par->timedInterventionEffect(NONESSENTIAL_BUSINESS_CLOSURE, _day)) {
+            continue;
+        }
+        const int workplace_size = loc->getNumPeople();
+        if (infectious_count > 0 and workplace_size > 1) {
+            const double T = _par->workplace_transmissibility * infectious_count/(workplace_size - 1.0);
+            for (Person* p: loc->getPeople()) {
+                if (gsl_rng_uniform(RNG) < T) {
+                    p->infect((int) HOME, _day, loc->getID()); // infect() tests for whether person is infectable
+                }
+            }
+        }
+    }
+    return;
 }
 
 
@@ -528,6 +565,13 @@ void Community::location_transmission(set<Location*, Location::LocPtrComp> &loca
 }
 
 
+void Community::updateHotLocations() {
+    for (size_t locType = 0; locType < NUM_OF_LOCATION_TYPES; ++locType) {
+        _isHot[_day][(LocationType) locType] = {};
+    }
+}
+
+
 void Community::tick(int day) {
     _day = day;
     within_household_transmission();
@@ -543,6 +587,7 @@ void Community::tick(int day) {
     //updateVaccination();
 
     updateDiseaseStatus();                                            // make people stay home or return to work
+    updateHotLocations();
 
     return;
 }
