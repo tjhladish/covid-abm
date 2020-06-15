@@ -19,6 +19,7 @@ class Location {
         void setType(LocationType t) { _type = t; }
         void setEssential(bool e) { _essential = e; }
         bool isEssential() const { return _essential; }
+        bool isNonEssential() const { return !_essential; }
         LocationType getType() const { return _type; }
         void addPerson(Person *p) { _person.push_back(p); }
         bool removePerson(Person *p);

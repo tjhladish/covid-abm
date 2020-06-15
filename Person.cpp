@@ -120,7 +120,8 @@ bool Person::naturalDeath(int t) {
 
 
 bool Person::isInfectable(int time) const {
-    return isNaive() or (!isCrossProtected(time) and !isVaccineProtected(time));
+    return gsl_rng_uniform(RNG) < _par->susceptibilityByAge[age]
+              and (isNaive() or (!isCrossProtected(time) and !isVaccineProtected(time)));
 }
 
 
@@ -199,13 +200,12 @@ bool Person::infect(int sourceid, int time, int sourceloc) {
     // Not quite the same as "susceptible"--this person may be e.g. partially immune
     // due to natural infection or vaccination
     if (not isInfectable(time)) return false;
-
     const double remaining_efficacy = remainingEfficacy(time);  // due to vaccination; needs to be called before initializing new infection (still true?)
 
     // Create a new infection record
     Infection& infection = initializeNewInfection(time, sourceloc, sourceid);
 
-    double symptomatic_probability = PATHOGENICITY;             // may be modified by vaccination
+    double symptomatic_probability = _par->pathogenicityByAge[age];             // may be modified by vaccination
     const double severe_given_case = SEVERE_FRACTION;           // might become age-, sex- or co-morbidity-structured in the future
     const double critical_given_severe = CRITICAL_FRACTION;
 

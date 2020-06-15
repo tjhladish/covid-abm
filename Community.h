@@ -44,7 +44,7 @@ class Community {
 
         //void setNoSecondaryTransmission() { _bNoSecondaryTransmission = true; }
 
-        float social_distancing(int) const;
+        double social_distancing(int) const;
         void vaccinate(CatchupVaccinationEvent cve);
         void targetVaccination(Person* p); // routine vaccination on target birthday
         void updateVaccination();          // for boosting and multi-does vaccines

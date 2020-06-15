@@ -339,26 +339,6 @@ Person* Community::getPersonByID(int id) {
 
     assert (_people[id]->getID() == id);
     return _people[id];
-/*
-    int i = 0;
-    Person* person = NULL;
-    if (_people[id-1]->getID()==id) {
-        i = id-1;
-        person = _people[i];
-    } else {
-        for (Person* p: _people) {
-            if (p->getID()==id) {
-                person = p;
-                break;
-            }
-        }
-    }
-
-    if (not person) {
-        cerr << "ERROR: failed to find person with id " << id << endl;
-        exit(-2001);
-    }
-    return person;*/
 }
 
 
@@ -461,59 +441,11 @@ void Community::flagInfectedLocation(Location* _pLoc, int day) {
 }
 
 
-/*
-void Community::mosquitoToHumanTransmission() {
-    for(unsigned int i=0; i<_infectiousMosquitoQueue.size(); i++) {
-        for(unsigned int j=0; j<_infectiousMosquitoQueue[i].size(); j++) {
-            Mosquito* m = _infectiousMosquitoQueue[i][j];
-            Location* pLoc = m->getLocation();
-            if (gsl_rng_uniform(RNG)<_par->betaMP) {                      // infectious mosquito bites
-
-                // take sum of people in the location, weighting by time of day
-                double exposuretime[(int) NUM_OF_TIME_PERIODS];
-                double totalExposureTime = 0;
-                for (int t=0; t<(int) NUM_OF_TIME_PERIODS; t++) {
-                    exposuretime[t] = pLoc->getNumPerson((TimePeriod) t) * DAILY_BITING_PDF[t];
-                    totalExposureTime += exposuretime[t];
-                }
-                if ( totalExposureTime > 0 ) {
-                    double r = gsl_rng_uniform(RNG) * totalExposureTime;
-                    int timeofday;
-                    for (timeofday=0; timeofday<(int) NUM_OF_TIME_PERIODS - 1; timeofday++) {
-                        if (r<exposuretime[timeofday]) {
-                            // bite at this time of day
-                            break;
-                        }
-                        r -= exposuretime[timeofday];
-                    }
-                    int idx = floor(r*pLoc->getNumPerson((TimePeriod) timeofday)/exposuretime[timeofday]);
-                    Person* p = pLoc->getPerson(idx, (TimePeriod) timeofday);
-                    Serotype serotype = m->getSerotype();
-                    if (p->infect(m->getID(), serotype, _day, pLoc->getID())) {
-                        _numNewlyInfected[(int) serotype][_day]++;
-                        if (_bNoSecondaryTransmission) {
-                            p->kill();                       // kill secondary cases so they do not transmit
-                        }
-                        else {
-                            // NOTE: We are storing the location ID of infection, not person ID!!!
-                            // add to queue
-                            _exposedQueue[p->getInfectiousTime()-_day].push_back(p);
-                        }
-                    }
-                }
-            }
-        }
-    }
-    return;
-}
-*/
-
-
 void Community::within_household_transmission() {
     for (Location* loc: _location_map[HOUSE]) { // TODO -- tracking 'hot' households will avoid looping through the vast majority
         int infectious_count = 0;
         for (Person* p: loc->getPeople()) { // if isHot is a map with a count, we wouldn't need this loop at all
-            infectious_count += p->isInfectious(_day) and not p->isHospitalized(_day);
+            infectious_count += p->isInfectious(_day) and not p->inHospital(_day);
         }
         if (infectious_count > 0) {
             const double T = 1.0 - pow(1.0 - _par->household_transmissibility, infectious_count);
@@ -528,8 +460,8 @@ void Community::within_household_transmission() {
 }
 
 
-float Community::social_distancing(int /*_day*/) const {
-    return 0.0;
+double Community::social_distancing(int _day) const {
+    return _par->timedInterventionEffect(SOCIAL_DISTANCING, _day);
 }
 
 
@@ -563,15 +495,21 @@ void Community::between_household_transmission() {
 
 
 void Community::workplace_and_school_transmission() {
+    // some (== non-essential) workplaces may be closed, but schools are either all open or all closed
     location_transmission(_location_map[WORK]);
-    location_transmission(_location_map[SCHOOL]);
+    if (not _par->timedInterventionEffect(SCHOOL_CLOSURE, _day)) location_transmission(_location_map[SCHOOL]);
 }
-// TODO -- check how people who work at schools are handled
+
 
 void Community::location_transmission(set<Location*, Location::LocPtrComp> &locations) {
     // TODO -- right now, school and workplace transmission are handled separately
-    // this has the weird implication that students and school employees cannot transmit to each other at school
+    // Transmission for school employees is considered school transmission, not workplace transmission
     for (Location* loc: locations) { // TODO -- track 'hot' workplaces/schools
+        // if non-essential businesses are closed, skip this workplace
+        if (loc->isNonEssential() and _par->timedInterventionEffect(NONESSENTIAL_BUSINESS_CLOSURE, _day)) {
+            continue;
+        }
+
         int infectious_count = 0;
         for (Person* p: loc->getPeople()) { // if isHot is a map with a count, we wouldn't need this loop at all
             infectious_count += p->isInfectious(_day) and not p->isSevere(_day);
@@ -589,75 +527,6 @@ void Community::location_transmission(set<Location*, Location::LocPtrComp> &loca
     return;
 }
 
-/*
-void Community::humanToMosquitoTransmission() {
-    for (Location* loc: _isHot[_day]) {
-        double sumviremic = 0.0;
-        double sumnonviremic = 0.0;
-        vector<double> sumserotype(NUM_OF_SEROTYPES,0.0);                                    // serotype fractions at location
-
-        // calculate fraction of people who are viremic
-        for (int timeofday=0; timeofday<(int) NUM_OF_TIME_PERIODS; timeofday++) {
-            for (int i=loc->getNumPerson((TimePeriod) timeofday)-1; i>=0; i--) {
-                Person* p = loc->getPerson(i, (TimePeriod) timeofday);
-                if (p->isViremic(_day)) {
-                    double vaceffect = (p->isVaccinated()?(1.0-_par->fVEI):1.0);
-                    int serotype = (int) p->getSerotype();
-                    if (vaceffect==1.0) {
-                        sumviremic += DAILY_BITING_PDF[timeofday];
-                        sumserotype[serotype] += DAILY_BITING_PDF[timeofday];
-                    } else {
-                        sumviremic += DAILY_BITING_PDF[timeofday]*vaceffect;
-                        sumserotype[serotype] += DAILY_BITING_PDF[timeofday]*vaceffect;
-                        // a vaccinated person is treated like a fraction of an infectious person and a fraction of a non-infectious person
-                        sumnonviremic += DAILY_BITING_PDF[timeofday]*(1.0-vaceffect);
-                    }
-                } else {
-                    sumnonviremic += DAILY_BITING_PDF[timeofday];
-                }
-            }
-        }
-
-        if (sumviremic>0.0) {
-            for (int i=0; i<NUM_OF_SEROTYPES; i++) {
-                sumserotype[i] /= sumviremic;
-            }
-            int locid = loc->getID();                   // location ID
-            int m = int(loc->getBaseMosquitoCapacity() * (1.0-loc->getCurrentVectorControlEfficacy(_day)) * getMosquitoMultiplier() + 0.5);  // number of mosquitoes
-            m -= loc->getCurrentInfectedMosquitoes(); // subtract off the number of already-infected mosquitos
-            if (m<0) m=0; // more infected mosquitoes than the base capacity, presumable due to immigration
-                                                                  // how many susceptible mosquitoes bite viremic hosts in this location?
-            const double prob_infecting_bite = _par->betaPM*sumviremic/(sumviremic+sumnonviremic);
-            int numbites = gsl_ran_binomial(RNG, prob_infecting_bite, m);
-            while (numbites-->0) {
-                int serotype;                                     // which serotype infects mosquito
-                if (sumserotype[0]==1.0) {
-                    serotype = 0;
-                } else {
-                    double r = gsl_rng_uniform(RNG);
-                    for (serotype=0; serotype<NUM_OF_SEROTYPES && r>sumserotype[serotype]; serotype++)
-                        r -= sumserotype[serotype];
-                }
-                attemptToAddMosquito(loc, (Serotype) serotype, locid, prob_infecting_bite);
-            }
-        }
-    }
-    _isHot[_day].clear();
-    return;
-}
-*/
-
-/*
-void Community::_advanceTimers() {
-    // advance incubation in people
-    for (unsigned int i=0; i<_exposedQueue.size()-1; i++) {
-        _exposedQueue[i] = _exposedQueue[i+1];
-    }
-    _exposedQueue.back().clear();
-
-    return;
-}*/
-
 
 void Community::tick(int day) {
     _day = day;
@@ -674,10 +543,6 @@ void Community::tick(int day) {
     //updateVaccination();
 
     updateDiseaseStatus();                                            // make people stay home or return to work
-//    mosquitoToHumanTransmission();                                    // infect people
-
-//    humanToMosquitoTransmission();                                    // infect mosquitoes in each location
-//    _advanceTimers();                                                 // advance H&M incubation periods and M ages
 
     return;
 }

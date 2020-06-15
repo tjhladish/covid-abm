@@ -66,6 +66,13 @@ enum VaccineSeroConstraint {
     NUM_OF_VACCINE_SERO_CONSTRAINTS
 };
 
+enum TimedIntervention {
+    SCHOOL_CLOSURE,
+    NONESSENTIAL_BUSINESS_CLOSURE,
+    SOCIAL_DISTANCING,
+    NUM_OF_TIMED_INTERVNETIONS
+};
+
 extern const gsl_rng* RNG;// = gsl_rng_alloc (gsl_rng_taus2);
 
 static const std::vector<std::string> MONTH_NAMES = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
@@ -101,8 +108,6 @@ transmission from asymp is 0.5*trans from symp
 .duration of symptoms 14 days for mild, (1 week mild, 2w severe, 1w mild) for severe, 10 more days critical, in the middle of severe period
 */
 
-//static const float SUSCEPTIBILITY = 1.0;                      // probability of infection with no immunity -- 1.0 = everyone is susceptible
-static const float PATHOGENICITY = 0.5;                       // fraction of infections become symptomatic
 static const float SEVERE_FRACTION = 0.1;                     // fraction of cases become severe
 static const float CRITICAL_FRACTION = 0.5;                   // fraction of severe cases that become critical
 
@@ -133,8 +138,6 @@ static const float NON_ICU_CRITICAL_MORTALITY = 1.0;          // probability of 
 
 // from Person.h
 static const int NUM_AGE_CLASSES = 121;                       // maximum age+1 for a person
-//static const int MAX_INCUBATION = 9;                          // max incubation period in days
-//static const int MAX_HISTORY = 50;                            // length of exposure history in years
 
 
 // for some serotypes, the fraction who are symptomatic upon primary infection
@@ -206,30 +209,29 @@ public:
     void readParameters(int argc, char *argv[]);
     void validate_parameters();
     void loadAnnualIntroductions(std::string annualIntrosFilename);
+    void define_susceptibility_and_pathogenicity();
 
     static int sampler (const std::vector<double> CDF, const double rand, unsigned int index = 0) {
         while (index < CDF.size() and CDF[index] < rand) index++;
         return index;
     };
 
+    double timedInterventionEffect(TimedIntervention ti, size_t day) const;
+
     unsigned long int randomseed;
     int runLength;
     double household_transmissibility;                      // per-day probability of transmission between a co-habitating dyad
     double workplace_transmissibility;                      // per-day probability of transmission, scaled by the fraction of infectious co-workers
     double social_transmissibility;                         // per-day probability of transmission, scaled by the fraction of infectious social contacts
-    int infectiousOnset;                                    // days into infection when infectiousness starts
-    int infectiousDuration;                                 // number of days infectious
+    vector<float> susceptibilityByAge;                      // probability of infection given exposure, index by year of age
+    vector<float> pathogenicityByAge;                       // probability of clinical disease given infection, index by year of age
     double VES;                                             // vaccine efficacy for susceptibility (can be leaky or all-or-none)
     double VES_NAIVE;                                       // VES for initially immunologically naive people
     double VEI;                                             // vaccine efficacy to reduce infectiousness
     double VEP;                                             // vaccine efficacy for pathogenicity
     double VEH;                                             // vaccine efficacy against hospitalization, given disease
     PathogenicityModel pathogenicityModel;                  // use age-specific values, or constant?
-//    double severeFraction;                                  // fraction of cases that are severe
-//    double criticalFraction;                                // fraction of severe cases that are critical
-//    double criticalMortality;                               // fraction of critical cases that die
-    std::vector<double> hospitalizedFraction;               // Probability of being hospitalized, given asymptomatic, mild, severe, and critical infection
-    std::vector<double> reportedFraction;                   // Probability of being reported, given asymptomatic, mild, severe, and critical infection
+    std::vector<double> reportedFraction;                   // Probability of being reported, given asymptomatic, mild, severe, critical, and fatal infection
     bool vaccineLeaky;                                      // if false, vaccine is all-or-none
     bool retroactiveMatureVaccine;                          // if true, infection causes leaky vaccine to jump from naive to mature protection
     double seroTestFalsePos;                                // probability that seroneg person tests positive -- leaky test
@@ -258,6 +260,9 @@ public:
     int vaccineTargetAge;
     double vaccineTargetCoverage;
     int vaccineTargetStartDate;
+
+                                                            // e.g. school closures, non-essential business closures, social distancing
+    std::map<TimedIntervention, std::vector<float>> timedInterventions;
 
     int startDayOfYear;
     bool dailyOutput;

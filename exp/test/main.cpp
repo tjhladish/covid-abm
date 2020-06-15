@@ -49,29 +49,30 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     //11   "timing",
     //12   "vc_coverage",
     //13   "vc_efficacy",
+    const float T = 0.25;
 
-    double _mild_RF      = 0.05;
-    double _severe_RF    = 0.7;
-    double _base_path    = 0.5;
-    double _exp_coef     = 1;
-
-    par->reportedFraction = {0.0, _mild_RF, _severe_RF}; // no asymptomatic infections are reported
-
+    par->household_transmissibility = T;
+    par->workplace_transmissibility = T;
+    par->social_transmissibility    = T;
+    //hospitalizedFraction = {0.0, 0.15, 0.9};
+    par->reportedFraction = {0.0, 0.01, 0.5, 0.8, 1.0};      // fraction of asymptomatic, mild, severe, critical, and deaths reported
     par->randomseed              = rng_seed;
     par->dailyOutput             = false; // turn on for daily prevalence figure, probably uncomment filter in simulator.h for daily output to get only rel. days
     par->periodicOutput          = false;
     par->periodicOutputInterval  = 20;
-    par->weeklyOutput            = true;
-    par->monthlyOutput           = false;
+    par->weeklyOutput            = false;
+    par->monthlyOutput           = true;
     par->yearlyOutput            = true;
     par->abcVerbose              = false; // needs to be false to get WHO daily output
     par->runLength               = TOTAL_DURATION;
     par->startDayOfYear          = 1;
-    par->annualIntroductionsCoef = _exp_coef;
-    //par->annualIntroductionsCoef = pow(10, _exp_coef);
+    par->annualIntroductionsCoef = 1;
 
-    //par->basePathogenicity = _base_path;
     par->pathogenicityModel = ORIGINAL_LOGISTIC;
+    par->timedInterventions[SCHOOL_CLOSURE].resize(par->runLength, 0.0);
+    par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(par->runLength, 0.0);
+    par->timedInterventions[SOCIAL_DISTANCING].resize(par->runLength, 0.0);
+
     //par->postSecondaryRelativeRisk = 0.1;
 
     //par->severeFraction    = 0.5;
