@@ -513,6 +513,7 @@ double Community::social_distancing(int _day) {
 void Community::between_household_transmission() {
     for (Location* loc: _location_map[HOUSE]) { // TODO -- tracking 'hot' households will avoid looping through the vast majority
         if (_isHot[_day][HOUSE].count(loc) == 0) continue;
+        // TODO -- it would make more sense to call this risk loving, instead of risk aversion.  this is not intuitive right now
         if (loc->getRiskAversion() > social_distancing(_day)) { // this household is not cautious enough to avoid interactions
             int infectious_count = 0;
             const int hh_size = loc->getNumPeople();
@@ -561,7 +562,7 @@ void Community::location_transmission(map<Location*, int, Location::LocPtrComp> 
         }
         const int workplace_size = loc->getNumPeople();
         if (infectious_count > 0 and workplace_size > 1) {
-            const double T = _par->workplace_transmissibility * infectious_count/(workplace_size - 1.0);
+            const double T = (1.0 - social_distancing(_day)) * _par->workplace_transmissibility * infectious_count/(workplace_size - 1.0);
             for (Person* p: loc->getPeople()) {
                 if (gsl_rng_uniform(RNG) < T) {
                     p->infect((int) HOME, _day, loc->getID()); // infect() tests for whether person is infectable
