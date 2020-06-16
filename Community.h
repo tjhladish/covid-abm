@@ -46,7 +46,7 @@ class Community {
 
         //void setNoSecondaryTransmission() { _bNoSecondaryTransmission = true; }
 
-        double social_distancing(int) const;
+        double social_distancing(int);
         void vaccinate(CatchupVaccinationEvent cve);
         void targetVaccination(Person* p); // routine vaccination on target birthday
         void updateVaccination();          // for boosting and multi-does vaccines
@@ -99,6 +99,7 @@ class Community {
         static std::vector<Person*> _peopleByAge;
         static std::map<int, std::set<std::pair<Person*, Person*> > > _delayedBirthdays;
         static std::set<Person*> _revaccinate_set;          // not automatically re-vaccinated, just checked for boosting, multiple doses
+        std::map<TimedIntervention, std::vector<float>> timedInterventions;
 
         //bool _uniformSwap;                                            // use original swapping (==true); or parse swap file (==false)
 

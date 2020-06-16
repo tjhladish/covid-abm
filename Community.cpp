@@ -37,10 +37,10 @@ Community::Community(const Parameters* parameters) :
     _numNewlySymptomatic(parameters->runLength),
     _numVaccinatedCases(parameters->runLength),
     _numSevereCases(parameters->runLength),
-    _numHospPrev(parameters->runLength),
     _numHospInc(parameters->runLength),
-    _numIcuPrev(parameters->runLength),
-    _numIcuInc(parameters->runLength)
+    _numHospPrev(parameters->runLength),
+    _numIcuInc(parameters->runLength),
+    _numIcuPrev(parameters->runLength)
     {
     _par = parameters;
     _day = 0;
@@ -57,6 +57,7 @@ Community::Community(const Parameters* parameters) :
             e[(LocationType) locType] = {};
         }
     }
+    timedInterventions = _par->timedInterventions;
 }
 
 
@@ -505,8 +506,8 @@ void Community::within_household_transmission() {
 }
 
 
-double Community::social_distancing(int _day) const {
-    return _par->timedInterventionEffect(SOCIAL_DISTANCING, _day);
+double Community::social_distancing(int _day) {
+    return timedInterventions[SOCIAL_DISTANCING][_day];
 }
 
 
@@ -545,7 +546,7 @@ void Community::workplace_and_school_transmission() {
     //location_transmission(_location_map[WORK]);
     //if (not _par->timedInterventionEffect(SCHOOL_CLOSURE, _day)) location_transmission(_location_map[SCHOOL]);
     location_transmission(_isHot[_day][WORK]);
-    if (not _par->timedInterventionEffect(SCHOOL_CLOSURE, _day)) location_transmission(_isHot[_day][SCHOOL]);
+    if (not timedInterventions[SCHOOL_CLOSURE][_day]) location_transmission(_isHot[_day][SCHOOL]);
 }
 
 
@@ -556,7 +557,7 @@ void Community::location_transmission(map<Location*, int, Location::LocPtrComp> 
         Location* loc = hot.first;
         const int infectious_count = hot.second;
         // if non-essential businesses are closed, skip this workplace
-        if (loc->isNonEssential() and _par->timedInterventionEffect(NONESSENTIAL_BUSINESS_CLOSURE, _day)) {
+        if (loc->isNonEssential() and timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE][_day]) {
             continue;
         }
         const int workplace_size = loc->getNumPeople();
@@ -578,7 +579,7 @@ void Community::location_transmission(set<Location*, Location::LocPtrComp> &loca
     // Transmission for school employees is considered school transmission, not workplace transmission
     for (Location* loc: locations) { // TODO -- track 'hot' workplaces/schools
         // if non-essential businesses are closed, skip this workplace
-        if (loc->isNonEssential() and _par->timedInterventionEffect(NONESSENTIAL_BUSINESS_CLOSURE, _day)) {
+        if (loc->isNonEssential() and timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE][_day]) {
             continue;
         }
 
