@@ -91,8 +91,7 @@ Community::~Community() {
     if (_people.size() > 0) { for (Person* p: _people) delete p; }
 
     Person::reset_ID_counter();
-
-    for (auto &e: _isHot) e.clear();
+    _isHot.clear();
 
     for (unsigned int i = 0; i < _location.size(); i++ ) delete _location[i];
     _location.clear();
@@ -426,13 +425,13 @@ void Community::targetVaccination(Person* p) {
 
 
 void Community::reportCase(int onsetDate, int reportDate) {
-    _numDetectedCasesOnset[onsetDate]++;
-    _numDetectedCasesReport[reportDate]++;
+    if (onsetDate < _numDetectedCasesOnset.size()) _numDetectedCasesOnset[onsetDate]++;
+    if (reportDate < _numDetectedCasesReport.size()) _numDetectedCasesReport[reportDate]++;
 }
 
 
 void Community::reportDeath(int eventDate, int /*reportDate*/) {
-    _numDetectedDeaths[eventDate]++;
+    if (eventDate < _numDetectedDeaths.size()) _numDetectedDeaths[eventDate]++;
 }
 
 
@@ -603,7 +602,7 @@ void Community::location_transmission(set<Location*, Location::LocPtrComp> &loca
 
 void Community::updateHotLocations() {
     for (size_t locType = 0; locType < NUM_OF_LOCATION_TYPES; ++locType) {
-        _isHot[_day][(LocationType) locType] = {};
+        _isHot[_day][(LocationType) locType].clear();
     }
 }
 
