@@ -21,17 +21,26 @@ using namespace covid::standard;
 const Parameters* Community::_par;
 vector< map<LocationType, map<Location*, int, Location::LocPtrComp>>> Community::_isHot;
 set<Person*> Community::_revaccinate_set;
+vector<size_t> Community::_numDetectedCasesOnset;
+vector<size_t> Community::_numDetectedCasesReport;
+vector<size_t> Community::_numDetectedDeaths;
+
 //vector<Person*> Community::_peopleByAge;
 //map<int, set<pair<Person*,Person*> > > Community::_delayedBirthdays;
 
 int mod(int k, int n) { return ((k %= n) < 0) ? k+n : k; } // correct for non-negative n
+
 
 Community::Community(const Parameters* parameters) :
 //    _exposedQueue(MAX_INCUBATION, vector<Person*>(0)),
     _numNewlyInfected(parameters->runLength), // +1 not needed; runLength is already a valid size
     _numNewlySymptomatic(parameters->runLength),
     _numVaccinatedCases(parameters->runLength),
-    _numSevereCases(parameters->runLength)
+    _numSevereCases(parameters->runLength),
+    _numHospPrev(parameters->runLength),
+    _numHospInc(parameters->runLength),
+    _numIcuPrev(parameters->runLength),
+    _numIcuInc(parameters->runLength)
     {
     _par = parameters;
     _day = 0;
@@ -40,6 +49,9 @@ Community::Community(const Parameters* parameters) :
     //_uniformSwap = true;
 //    for (int a = 0; a<NUM_AGE_CLASSES; a++) _personAgeCohortSizes[a] = 0;
     _isHot.resize(_par->runLength);
+    _numDetectedCasesOnset.resize(_par->runLength);
+    _numDetectedCasesReport.resize(_par->runLength);
+    _numDetectedDeaths.resize(_par->runLength);
     for (auto &e: _isHot) {
         for (size_t locType = 0; locType < NUM_OF_LOCATION_TYPES; ++locType) {
             e[(LocationType) locType] = {};
@@ -350,10 +362,7 @@ Person* Community::getPersonByID(int id) {
 // infect - infects person id
 bool Community::infect(int id, int day) {
     Person* person = getPersonByID(id);
-
-    bool result =  person->infect(-1, day, 0);
-    if (result) _numNewlyInfected[_day]++;
-    return result;
+    return person->infect(-1, day, 0);
 }
 
 
@@ -415,10 +424,22 @@ void Community::targetVaccination(Person* p) {
 }
 
 
+void Community::reportCase(int onsetDate, int reportDate) {
+    _numDetectedCasesOnset[onsetDate]++;
+    _numDetectedCasesReport[reportDate]++;
+}
+
+
+void Community::reportDeath(int eventDate, int /*reportDate*/) {
+    _numDetectedDeaths[eventDate]++;
+}
+
+
 void Community::updateDiseaseStatus() {
     // TODO - add support for all disease outcomes
     for (Person* p: _people) {
         if (p->getNumNaturalInfections() == 0) continue;
+        if (p->getInfectedTime()==_day) _numNewlyInfected[_day]++;
         if (p->getSymptomTime()==_day) {                              // started showing symptoms today
             _numNewlySymptomatic[_day]++;
             if (p->isVaccinated()) {
@@ -428,6 +449,20 @@ void Community::updateDiseaseStatus() {
                 _numSevereCases[_day]++;     // if they're going to be severe
             }
         }
+
+        if (p->inHospital(_day)) {
+            _numHospPrev[_day]++;
+            if (p->getHospitalizedTime()==_day) {
+                _numHospInc[_day]++;
+            }
+            if (p->inIcu(_day)) {
+                _numIcuPrev[_day]++;
+                if (p->getIcuTime()==_day) {
+                    _numIcuInc[_day]++;
+                }
+            }
+        }
+
         /*if (p->getWithdrawnTime()==_day) {                            // started withdrawing
             p->getLocation(HOME_MORNING)->addPerson(p,WORK_DAY);       // stays at home at mid-day
             p->getLocation(WORK_DAY)->removePerson(p,WORK_DAY);        // does not go to work

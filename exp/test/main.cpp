@@ -73,6 +73,8 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->timedInterventions[SCHOOL_CLOSURE].resize(par->runLength, 0.0);
     par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(par->runLength, 0.0);
     par->timedInterventions[SOCIAL_DISTANCING].resize(par->runLength, 0.0);
+    par->reportingLag = 14;
+    par->symptomToTestLag = 2;
 
     //par->postSecondaryRelativeRisk = 0.1;
 
@@ -224,6 +226,27 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 //    const int desired_intervention_output = FORECAST_DURATION - 1;
     vector<double> metrics(0);// = tally_counts(par, community, pre_intervention_output);
 
+    const vector<size_t> infections       = community->getNumNewlyInfected();
+    const vector<size_t> reported_cases   = community->getNumDetectedCasesReport();
+    const vector<size_t> hospitalizations = community->getNumHospPrev();
+//    const vector<size_t> icu              = community->getNumIcuInc();
+    const vector<size_t> deaths           = community->getNumDetectedDeaths();
+
+    string header = "scenario replicate day infections deaths hosp_prev detected ne_closed";
+    const int scenario = 0;
+    const size_t replicate = rng_seed;
+    for (int day = 0; day < par->runLength; ++day) {
+        cerr
+            << scenario
+            << " " << replicate
+            << " " << day
+            << " " << infections[day]
+            << " " << deaths[day]
+            << " " << hospitalizations[day]
+            << " " << reported_cases[day]
+            << endl;
+    }
+
     stringstream ss;
     ss << mp->mpi_rank << " end " << hex << process_id << " " << dec << dif << " ";
 
@@ -247,7 +270,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 }*/
 
 
-int main(int argc, char* argv[]) {
+int main(int /*argc*/, char* /*argv*/[]) {
     vector<double> sim_args = {};
     size_t seed = 0;
     size_t serial = 0;

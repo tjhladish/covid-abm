@@ -43,14 +43,14 @@ enum ImmuneStateType {
     NUM_OF_IMMUNE_STATE_TYPES
 };
 
-/*enum OutcomeType {
+enum OutcomeType {
     ASYMPTOMATIC,
     MILD,
     SEVERE,
     CRITICAL,
     DEATH,
     NUM_OF_OUTCOME_TYPES
-};*/
+};
 
 enum PathogenicityModel {
     CONSTANT_PATHOGENICITY,
@@ -232,6 +232,8 @@ public:
     double VEH;                                             // vaccine efficacy against hospitalization, given disease
     PathogenicityModel pathogenicityModel;                  // use age-specific values, or constant?
     std::vector<double> reportedFraction;                   // Probability of being reported, given asymptomatic, mild, severe, critical, and fatal infection
+    size_t symptomToTestLag;                                // For people with mild disease who get infected, number of days until tested
+    size_t reportingLag;                                    // Number of days it takes for a test result to be reported after a sample is collected
     bool vaccineLeaky;                                      // if false, vaccine is all-or-none
     bool retroactiveMatureVaccine;                          // if true, infection causes leaky vaccine to jump from naive to mature protection
     double seroTestFalsePos;                                // probability that seroneg person tests positive -- leaky test

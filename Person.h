@@ -65,7 +65,14 @@ class Infection {
     int getIcuTime()            const { return icuBegin; }
     int getDeathTime()          const { return deathTime; }
 
-//    int getInfectiousEndTime()  const { return infectiousDuration; }
+    bool infected()             const { return infectedBegin     != INT_MIN; } // These functions check whether these things
+    bool infectious()           const { return infectiousBegin   != INT_MIN; } // happen at any point during this infection, e.g.
+    bool symptomatic()          const { return symptomBegin      != INT_MIN; } // have these been modified from their defaults?
+    bool severe()               const { return severeBegin       != INT_MIN; }
+    bool critical()             const { return criticalBegin     != INT_MIN; }
+    bool hospital()             const { return hospitalizedBegin != INT_MIN; }
+    bool icu()                  const { return icuBegin          != INT_MAX; }
+
     // if we ensure that death coincides with the end of symptoms/severity/criticality, then we don't also need to check deathtime
     bool isInfected(int now)    const { return infectedBegin <= now     and now < infectiousEnd;}
     bool isInfectious(int now)  const { return infectiousBegin <= now   and now < infectiousEnd;}
@@ -128,7 +135,7 @@ class Person {
         inline int getCriticalTime(int infectionsago=0)     const { return getInfection(infectionsago)->criticalBegin; }
 //        inline int getCriticalDuration(int infectionsago=0) const { return getInfection(infectionsago)->criticalDuration; }
 
-        inline int getHospitalizationTime(int infectionsago=0) const { return getInfection(infectionsago)->hospitalizedBegin; }
+        inline int getHospitalizedTime(int infectionsago=0) const { return getInfection(infectionsago)->hospitalizedBegin; }
         inline int getIcuTime(int infectionsago=0) const { return getInfection(infectionsago)->icuBegin; }
         inline int getDeathTime(int infectionsago=0)        const { return getInfection(infectionsago)->deathTime; }
 

@@ -37,6 +37,8 @@ void Parameters::define_defaults() {
     reportedFraction = {0.0, 0.01, 0.5, 0.8, 1.0};      // fraction of asymptomatic, mild, severe, critical, and deaths reported
     numDailyExposed.push_back(0.0);                     // default: no introductions
 
+    symptomToTestLag = 2;
+    reportingLag = 10;
     numInitialExposed  = 0;
     numInitialInfected = 0;
 

@@ -189,6 +189,10 @@ void Person::processDeath(Infection &infection, const int deathTime) {
     infection.severeEnd         = min(infection.severeEnd, deathTime);
     infection.hospitalizedBegin = min(infection.hospitalizedBegin, deathTime);
     infection.criticalEnd       = min(infection.criticalEnd, deathTime);
+    if (gsl_rng_uniform(RNG) < _par->reportedFraction[DEATH]) {
+        const int report_lag = 0; // TODO -- maybe add a lag later
+        Community::reportDeath(deathTime, deathTime + report_lag);
+    }
 }
 
 
@@ -281,6 +285,19 @@ bool Person::infect(int sourceid, int time, int sourceloc) {
 //cerr << endl;
     } else {
 //cerr << "asymptomatic\n";
+    }
+
+    // Detection/reporting!  TODO -- currently, being hospitalized does not affect the probability of detection
+    // could check infection.icu() and infection.hospital() and do something different in those cases
+    if (infection.critical() and gsl_rng_uniform(RNG) < _par->reportedFraction[CRITICAL]) {
+        Community::reportCase(infection.criticalBegin, infection.criticalBegin + _par->reportingLag);
+    } else if (infection.severe() and gsl_rng_uniform(RNG) < _par->reportedFraction[SEVERE]) {
+        Community::reportCase(infection.severeBegin, infection.severeBegin + _par->reportingLag);
+    } else if (infection.symptomatic() and gsl_rng_uniform(RNG) < _par->reportedFraction[MILD]) {
+        Community::reportCase(infection.symptomBegin, infection.symptomBegin + _par->symptomToTestLag + _par->reportingLag);
+    } else if (infection.infected() and gsl_rng_uniform(RNG) < _par->reportedFraction[ASYMPTOMATIC]) {
+        const int tracing_lag = gsl_rng_uniform_int(RNG, INFECTIOUS_PERIOD); // extra delay, e.g. time during infection someone would be identified by chance screening
+        Community::reportCase(infection.infectiousBegin, infection.infectiousBegin + tracing_lag + _par->reportingLag);
     }
 
     // Flag locations with (non-historical) infections, so that we know to look there for human->mosquito transmission
