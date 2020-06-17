@@ -326,10 +326,24 @@ vector<int> simulate_epidemic(const Parameters* par, Community* community, const
 
     map<string, vector<int> > periodic_incidence = construct_tally();
     vector<int> periodic_prevalence(NUM_OF_PREVALENCE_REPORTING_TYPES, 0);
+    size_t prev_rc_ct = 0;
+    const float may15_threshold = 180.0*community->getNumPeople()/1e5;
+    const int may15_julian = 136;
 
     for (; date.day() < par->runLength; date.increment()) {
         update_vaccinations(par, community, date);
         advance_simulator(par, community, date, process_id, periodic_incidence, periodic_prevalence, epi_sizes);
+        const vector<size_t> reported_cases   = community->getNumDetectedCasesReport();
+        const vector<size_t> deaths = community->getNumDetectedDeaths();
+
+        const size_t rc_ct = accumulate(reported_cases.begin(), reported_cases.begin()+date.day()+1, 0);
+        if (prev_rc_ct < may15_threshold and rc_ct >= may15_threshold) date.setJulianDay(may15_julian);
+        prev_rc_ct = rc_ct;
+
+        cerr << date.day() << " " << date.julianMonth() << "/" << date.dayOfMonth()
+                           << " " << rc_ct
+                           << " " << accumulate(deaths.begin(), deaths.begin()+date.day()+1, 0)
+                           << endl;
 /*        if ((date.julianDay() == ((sero_prev_aggregation_julian_start+364) % 365 ) + 1)) { // +1 because julianDay is [1,365])), avg(avg(interventions are specified on [0,364]
             // tally current seroprevalence stats
             int vaccinated_tally = 0;
