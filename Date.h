@@ -52,6 +52,8 @@ class Date {
     bool startOfJulianYear() const { return julianDay() == 1; }     // is it Jan 1
     bool endOfJulianYear()   const { return julianDay() == 365; }   // is it Dec 31
 
+    void setJulianDay (int julian_day) { _offset = julian_day - day() - 1; }
+
     void increment() {
         if(endOfMonth()) _month_ct++;
         _simulation_day++;
@@ -69,7 +71,7 @@ class Date {
     }
 
   private:
-    const int _offset;
+    int _offset;
     int _simulation_day;
     int _month_ct;
 };
