@@ -34,7 +34,7 @@ void Parameters::define_defaults() {
     annualIntroductionsCoef = 1;                        // multiplier to rescale external introductions to something sensible
     annualIntroductions = {1.0};
     daysImmune = 365;
-    reportedFraction = {0.0, 0.01, 0.5, 0.8, 1.0};      // fraction of asymptomatic, mild, severe, critical, and deaths reported
+    reportedFraction = {0.0, 0.2, 0.8, 0.8, 0.8};       // fraction of asymptomatic, mild, severe, critical, and deaths reported
     numDailyExposed.push_back(0.0);                     // default: no introductions
 
     symptomToTestLag = 2;
