@@ -114,7 +114,7 @@ static const float CRITICAL_FRACTION = 0.5;                   // fraction of sev
 static const float SEVERE_TO_HOSPITAL = 0.8;                  // general population, probability of going to hospital if severe
 static const float LTC_SEVERE_TO_HOSPITAL = 0.5;              // probability long-term-care residents who are severe go to hospital (if hosp available)
 static const float CRITICAL_TO_ICU_IF_HOSP = 1.0;             // probability already-hospitalized patients go to ICU when critical (if ICU available)
-static const float CRITICAL_TO_ICU_IF_NOT_HOSP = 0.5;         // probability non-hospitalized severe patients go to ICU when critical (if ICU available)
+static const float CRITICAL_TO_ICU_IF_NOT_HOSP = 0.8;         // probability non-hospitalized severe patients go to ICU when critical (if ICU available)
 
 static const int INFECTIOUSNESS_ONSET = 3;                    // delay of infectiousness after infectious exposure
 static const int INFECTIOUS_PERIOD = 7;                       // independent of disease outcome
@@ -130,6 +130,11 @@ static const int SYMPTOM_DURATION_SEVERE = PRE_SEVERE_SYMPTOMATIC + SEVERE_DURAT
 // critical symptoms warrant intensive care (which may or may not occur)
 static const int PRE_CRITICAL_SEVERE = 4;                     // when critical disease occurs, delay from severe onset
 static const int CRITICAL_DURATION = 10;                      // duration of critical disease
+
+// these icu mortality numbers should be replaced with empirical data, should that become available.
+// currently generated in R: cumsum(rev(dexp(0:9, rate=0.5)/sum(dexp(0:9, rate=0.5))))
+static const std::vector<double> ICU_MORTALITY_BY_DAY_CDF = { 0.004400701, 0.011656231, 0.023618577, 0.043341152, 0.075858180,
+                                                              0.129469696, 0.217860143, 0.363591353, 0.603861499, 1.000000000 };
 static const int POST_CRITICAL_SEVERE = 10;                   // number of days after critical disease that severe symptoms remain
 static const int SEVERE_DURATION_CRITICAL = PRE_CRITICAL_SEVERE + CRITICAL_DURATION + POST_CRITICAL_SEVERE;
 static const int SYMPTOM_DURATION_CRITICAL = PRE_SEVERE_SYMPTOMATIC + SEVERE_DURATION_CRITICAL + POST_SEVERE_SYMPTOMATIC;

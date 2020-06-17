@@ -267,7 +267,9 @@ bool Person::infect(int sourceid, int time, int sourceloc) {
                     if (death) {
 //cerr << "death ";
                         // uniform randomly chose a day from the critical duration when death happens
-                        processDeath(infection, infection.criticalBegin + gsl_rng_uniform_int(RNG, infection.criticalEnd - infection.criticalBegin));
+                        //processDeath(infection, infection.criticalBegin + gsl_rng_uniform_int(RNG, infection.criticalEnd - infection.criticalBegin));
+                        processDeath(infection, infection.criticalBegin + Parameters::sampler(ICU_MORTALITY_BY_DAY_CDF, gsl_rng_uniform(RNG)));
+                        //processDeath(infection, infection.criticalEnd);
                     }
                 } else {
                     death = gsl_rng_uniform(RNG) < NON_ICU_CRITICAL_MORTALITY;
