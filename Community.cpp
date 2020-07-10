@@ -225,15 +225,14 @@ bool Community::loadPopulation(string populationFilename, string immunityFilenam
     }
 
     // keep track of all age cohorts for aging and mortality
-//    _personAgeCohort.clear();
-//    _personAgeCohort.resize(NUM_AGE_CLASSES, vector<Person*>(0));
+    _personAgeCohort.clear();
+    _personAgeCohort.resize(NUM_AGE_CLASSES, vector<Person*>(0));
 
-/*    for (Person* p: _people) {
+    for (Person* p: _people) {
         int age = p->getAge();
         assert(age<NUM_AGE_CLASSES);
         _personAgeCohort[age].push_back(p);
-        _personAgeCohortSizes[age]++;
-    }*/
+    }
 
 /*    if (swapFilename == "") {
         _uniformSwap = true;
@@ -438,39 +437,41 @@ void Community::reportDeath(int eventDate, int /*reportDate*/) {
 void Community::updateDiseaseStatus() {
     // TODO - add support for all disease outcomes
     for (Person* p: _people) {
-        if (p->getNumNaturalInfections() == 0) continue;
-        if (p->getInfectedTime()==_day) _numNewlyInfected[_day]++;
-        if (p->getSymptomTime()==_day) {                              // started showing symptoms today
-            _numNewlySymptomatic[_day]++;
-            if (p->isVaccinated()) {
-                _numVaccinatedCases[_day]++;
-            }
-            if (p->isSevere(_day)) {                          // symptoms will be severe at onset
-                _numSevereCases[_day]++;     // if they're going to be severe
-            }
-        }
-
-        if (p->inHospital(_day)) {
-            _numHospPrev[_day]++;
-            if (p->getHospitalizedTime()==_day) {
-                _numHospInc[_day]++;
-            }
-            if (p->inIcu(_day)) {
-                _numIcuPrev[_day]++;
-                if (p->getIcuTime()==_day) {
-                    _numIcuInc[_day]++;
+        if (p->isSurveilledPerson()) {
+            if (p->getNumNaturalInfections() == 0) continue;              // no infection/outcomes to tally
+            if (p->getInfectedTime()==_day) _numNewlyInfected[_day]++;
+            if (p->getSymptomTime()==_day) {                              // started showing symptoms today
+                _numNewlySymptomatic[_day]++;
+                if (p->isVaccinated()) {
+                    _numVaccinatedCases[_day]++;
                 }
             }
-        }
 
-        /*if (p->getWithdrawnTime()==_day) {                            // started withdrawing
-            p->getLocation(HOME_MORNING)->addPerson(p,WORK_DAY);       // stays at home at mid-day
-            p->getLocation(WORK_DAY)->removePerson(p,WORK_DAY);        // does not go to work
-        } else if (p->isWithdrawn(_day-1) and
-        p->getRecoveryTime()==_day) {                                 // just stopped withdrawing
-            p->getLocation(WORK_DAY)->addPerson(p,WORK_DAY);           // goes back to work
-            p->getLocation(HOME_MORNING)->removePerson(p,WORK_DAY);    // stops staying at home
-        }*/
+//                if (p->isSevere(_day)) {                                  // symptoms will be severe at onset
+//                    _numSevereCases[_day]++;                              // if they're going to be severe
+//                }
+            if (p->inHospital(_day)) {
+                _numHospPrev[_day]++;
+                if (p->getHospitalizedTime()==_day) {
+                    _numHospInc[_day]++;
+                }
+                if (p->inIcu(_day)) {
+                    _numIcuPrev[_day]++;
+                    if (p->getIcuTime()==_day) {
+                        _numIcuInc[_day]++;
+                    }
+                }
+            }
+
+            /*if (p->getWithdrawnTime()==_day) {                            // started withdrawing
+                p->getLocation(HOME_MORNING)->addPerson(p,WORK_DAY);       // stays at home at mid-day
+                p->getLocation(WORK_DAY)->removePerson(p,WORK_DAY);        // does not go to work
+            } else if (p->isWithdrawn(_day-1) and
+            p->getRecoveryTime()==_day) {                                 // just stopped withdrawing
+                p->getLocation(WORK_DAY)->addPerson(p,WORK_DAY);           // goes back to work
+                p->getLocation(HOME_MORNING)->removePerson(p,WORK_DAY);    // stops staying at home
+            }*/
+        }
     }
     return;
 }

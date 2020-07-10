@@ -73,6 +73,13 @@ class Community {
         void reset();                                                // reset the state of the community
         const std::vector<Location*> getLocations() const { return _location; }
         const std::vector<Person*> getAgeCohort(unsigned int age) const { assert(age<_personAgeCohort.size()); return _personAgeCohort[age]; }
+        std::vector<float> getTimedIntervention(TimedIntervention ti) const { return timedInterventions.at(ti); }
+        void updateTimedIntervention(TimedIntervention ti, size_t date, float val) {
+            const size_t current_size = timedInterventions.at(ti).size();
+            timedInterventions.at(ti).resize(date);              // truncate
+            timedInterventions.at(ti).resize(current_size, val); // new values
+        }
+        float getTimedIntervention(TimedIntervention ti, size_t day) const { return timedInterventions.at(ti)[day]; }
 
     protected:
         static const Parameters* _par;

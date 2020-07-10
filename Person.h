@@ -190,6 +190,7 @@ class Person {
         Infection& initializeNewInfection(int time, int sourceloc, int sourceid);
 
         static void reset_ID_counter() { NEXT_ID = 1; }
+        bool isSurveilledPerson() { return id < _par->numSurveilledPeople; }
 
     protected:
         size_t id;                                                  // unique identifier

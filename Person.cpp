@@ -189,9 +189,12 @@ void Person::processDeath(Infection &infection, const int deathTime) {
     infection.severeEnd         = min(infection.severeEnd, deathTime);
     infection.hospitalizedBegin = min(infection.hospitalizedBegin, deathTime);
     infection.criticalEnd       = min(infection.criticalEnd, deathTime);
-    if (gsl_rng_uniform(RNG) < _par->reportedFraction[DEATH]) {
-        const int report_lag = 0; // TODO -- maybe add a lag later
-        Community::reportDeath(deathTime, deathTime + report_lag);
+
+    if (isSurveilledPerson()) {
+        if (gsl_rng_uniform(RNG) < _par->reportedFraction[DEATH]) {
+            const int report_lag = 0; // TODO -- maybe add a lag later
+            Community::reportDeath(deathTime, deathTime + report_lag);
+        }
     }
 }
 
@@ -291,6 +294,9 @@ bool Person::infect(int sourceid, int time, int sourceloc) {
 
     // Detection/reporting!  TODO -- currently, being hospitalized does not affect the probability of detection
     // could check infection.icu() and infection.hospital() and do something different in those cases
+// TODO -- there is a weird thing here: because critical detection is tested first, that means we tend to detect later as well
+//if (_par->mmodsScenario == NUM_OF_MMODS_SCENARIOS or getID() < 1e5) {
+if (isSurveilledPerson()) {
     if (infection.critical() and gsl_rng_uniform(RNG) < _par->reportedFraction[CRITICAL]) {
         Community::reportCase(infection.criticalBegin, infection.criticalBegin + _par->reportingLag);
     } else if (infection.severe() and gsl_rng_uniform(RNG) < _par->reportedFraction[SEVERE]) {
@@ -301,7 +307,7 @@ bool Person::infect(int sourceid, int time, int sourceloc) {
         const int tracing_lag = gsl_rng_uniform_int(RNG, INFECTIOUS_PERIOD); // extra delay, e.g. time during infection someone would be identified by chance screening
         Community::reportCase(infection.infectiousBegin, infection.infectiousBegin + tracing_lag + _par->reportingLag);
     }
-
+}
     // Flag locations with (non-historical) infections, so that we know to look there for human->mosquito transmission
     // Negative days are historical (pre-simulation) events, and thus we don't care about modeling transmission
     for (int day = std::max(infection.infectiousBegin, 0); day < infection.infectiousEnd; day++) {

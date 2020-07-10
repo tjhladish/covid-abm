@@ -24,39 +24,28 @@ const string output_dir("/ufrc/longini/tjhladish/");
 //const string imm_dir(output_dir + "");
 
 const int RESTART_BURNIN    = 0;
-const int FORECAST_DURATION = 365;
+const int FORECAST_DURATION = 500;
 const bool RUN_FORECAST     = true;
 const int TOTAL_DURATION    = RUN_FORECAST ? RESTART_BURNIN + FORECAST_DURATION : RESTART_BURNIN;
 const int JULIAN_TALLY_DATE = 146; // intervention julian date - 1
 
 //Parameters* define_simulator_parameters(vector<double> args, const unsigned long int rng_seed) {
-Parameters* define_simulator_parameters(vector<double> args, const unsigned long int rng_seed, const unsigned long int serial, const string process_id) {
+Parameters* define_simulator_parameters(vector<double> args, const unsigned long int rng_seed, const unsigned long int serial, const string /*process_id*/) {
     Parameters* par = new Parameters();
     par->define_defaults();
+    const MmodsScenario ms = (MmodsScenario) args[0];
+    assert(ms <= NUM_OF_MMODS_SCENARIOS);
+    if (ms < NUM_OF_MMODS_SCENARIOS) { par->numSurveilledPeople = 10e5; } // default is INT_MAX
     par->serial = serial;
 
-    //00   "mild_rf",
-    //01   "p95_mrf",
-    //02   "severe_rf",
-    //03   "sec_path",
-    //04   "sec_sev",
-    //05   "pss_ratio",
-    //06   "exp_coef",
-    //07   "num_mos",
-
-    //08   "realization",
-    //09   "vector_control",
-    //10   "campaign_duration",
-    //11   "timing",
-    //12   "vc_coverage",
-    //13   "vc_efficacy",
     const float T = 0.25;
 
     par->household_transmissibility = T;
     par->workplace_transmissibility = T;
     par->social_transmissibility    = T;
     //hospitalizedFraction = {0.0, 0.15, 0.9};
-    par->reportedFraction = {0.0, 0.01, 0.5, 0.8, 1.0};      // fraction of asymptomatic, mild, severe, critical, and deaths reported
+    //par->reportedFraction = {0.0, 0.01, 0.5, 0.8, 1.0};      // fraction of asymptomatic, mild, severe, critical, and deaths reported
+    par->reportedFraction = {0.0, 0.2, 0.8, 0.8, 0.8};      // fraction of asymptomatic, mild, severe, critical, and deaths reported
     par->randomseed              = rng_seed;
     par->dailyOutput             = false; // turn on for daily prevalence figure, probably uncomment filter in simulator.h for daily output to get only rel. days
     par->periodicOutput          = false;
@@ -70,26 +59,28 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->annualIntroductionsCoef = 1;
 
     par->pathogenicityModel = ORIGINAL_LOGISTIC;
-    par->timedInterventions[SCHOOL_CLOSURE].resize(par->runLength, 0.0);
-    par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(par->runLength, 0.0);
-    par->timedInterventions[SOCIAL_DISTANCING].resize(par->runLength, 0.0);
+
+    par->mmodsScenario = ms;      // MMODS_CLOSED, MMODS_2WEEKS, MMODS_1PERCENT, MMODS_OPEN
+
+    // These are only initial values for time-structured interventions.  They can be changed dynamically.
+    par->timedInterventions[SCHOOL_CLOSURE].resize(30, 0.0);
+    par->timedInterventions[SCHOOL_CLOSURE].resize(par->runLength, 1.0);
+
+    par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(30, 0.0);
+    par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(par->runLength, 1.0);
+
+    par->timedInterventions[SOCIAL_DISTANCING].resize(30, 0.0);
+    par->timedInterventions[SOCIAL_DISTANCING].resize(par->runLength, 0.5);
+
     par->reportingLag = 14;
     par->symptomToTestLag = 2;
-
-    //par->postSecondaryRelativeRisk = 0.1;
-
-    //par->severeFraction    = 0.5;
-    //par->criticalFraction  = 0.5;
-    //par->criticalMortality = 0.5;
 
     par->daysImmune = 730;
     par->VES = 0.0;
 
     //par->hospitalizedFraction = 0.25; // fraction of cases assumed to be hospitalized
 
-    par->numDailyExposed = {1.0};
-
-    par->annualIntroductions = {1.0};
+    par->probDailyExposure = {3.0e-05};
 
     par->populationFilename       = pop_dir    + "/population-"         + SIM_POP + ".txt";
     par->locationFilename         = pop_dir    + "/locations-"          + SIM_POP + ".txt";
@@ -190,16 +181,16 @@ vector<double> tally_counts(const Parameters* par, Community* community, int pre
 
 vector<double> simulator(vector<double> args, const unsigned long int rng_seed, const unsigned long int serial, const ABC::MPI_par* mp = nullptr) {
     gsl_rng_set(RNG, rng_seed); // seed the rng using sys time and the process id
-
     // initialize bookkeeping for run
     time_t start, end;
     time (&start);
     //const string process_id = report_process_id(args, serial, mp, start);
     //vector<double> abc_args(&args[0], &args[8]);
     vector<double> abc_args(args);
-    const unsigned int realization = 0; //(int) args[9];
+    //const unsigned int realization = 0; //(int) args[9];
 
-    const string process_id = report_process_id(abc_args, serial, start) + "." + to_string(realization);
+    //const string process_id = report_process_id(abc_args, serial, start) + "." + to_string(realization);
+    const string process_id = to_string(rng_seed);
     report_process_id(args, serial, start);
 
     cerr << "SCENARIO " << rng_seed;
@@ -231,21 +222,23 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     const vector<size_t> hospitalizations = community->getNumHospPrev();
 //    const vector<size_t> icu              = community->getNumIcuInc();
     const vector<size_t> deaths           = community->getNumDetectedDeaths();
+    const vector<float> lockdown          = community->getTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE);
 
-    string header = "scenario replicate day infections deaths hosp_prev detected ne_closed";
-    const int scenario = 0;
-    const size_t replicate = rng_seed;
-    for (int day = 0; day < par->runLength; ++day) {
-        cerr
-            << scenario
-            << " " << replicate
-            << " " << day
-            << " " << infections[day]
-            << " " << deaths[day]
-            << " " << hospitalizations[day]
-            << " " << reported_cases[day]
-            << endl;
-    }
+//    string header = "scenario replicate day infections deaths hosp_prev detected ne_closed";
+//    const int scenario = 0;
+//    const size_t replicate = rng_seed;
+//    for (int day = 0; day < par->runLength; ++day) {
+//        cerr
+//            << scenario
+//            << " " << replicate
+//            << " " << day
+//            << " " << infections[day]
+//            << " " << deaths[day]
+//            << " " << hospitalizations[day]
+//            << " " << reported_cases[day]
+//            << " " << lockdown[day]
+//            << endl;
+//    }
 
     stringstream ss;
     ss << mp->mpi_rank << " end " << hex << process_id << " " << dec << dif << " ";
@@ -270,9 +263,10 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 }*/
 
 
-int main(int /*argc*/, char* /*argv*/[]) {
-    vector<double> sim_args = {};
-    size_t seed = 0;
+int main(int argc, char* argv[]) {
+    assert(argc == 3);
+    vector<double> sim_args = {atof(argv[1])};
+    size_t seed = atoi(argv[2]);
     size_t serial = 0;
 
     simulator(sim_args, seed, serial);

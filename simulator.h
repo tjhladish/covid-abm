@@ -223,12 +223,8 @@ void update_vaccinations(const Parameters* par, Community* community, const Date
 int seed_epidemic(const Parameters* par, Community* community, const Date &date) {
     int introduced_infection_ct = 0;
     const int numperson = community->getNumPeople();
-    const int ai_year_lookup = date.year() % par->annualIntroductions.size();
-    const double intros = par->annualIntroductions[ai_year_lookup];
-    //const int de_year_lookup = date.year() % par->numDailyExposed.size();
-    //const double weight = par->dailyExposed[de_year_lookup];
-    const double annual_intros_weight = par->annualIntroductionsCoef;
-    const double expected_num_exposed = /*weight * */ annual_intros_weight * intros;
+    const size_t dailyExposedIdx = date.day() % par->probDailyExposure.size();
+    const double expected_num_exposed = par->probDailyExposure[dailyExposedIdx] * numperson;
     if (expected_num_exposed > 0) {
         assert(expected_num_exposed <= numperson);
         const int num_exposed = gsl_ran_poisson(RNG, expected_num_exposed);
@@ -327,36 +323,68 @@ vector<int> simulate_epidemic(const Parameters* par, Community* community, const
     map<string, vector<int> > periodic_incidence = construct_tally();
     vector<int> periodic_prevalence(NUM_OF_PREVALENCE_REPORTING_TYPES, 0);
     size_t prev_rc_ct = 0;
-    const float may15_threshold = 180.0*community->getNumPeople()/1e5;
-    const int may15_julian = 136;
+    const float may15_threshold = par->mmodsScenario == NUM_OF_MMODS_SCENARIOS ? 180.0*community->getNumPeople()/1e5 : 180.0;
+    const int may15 = 135;
+    const int nov15 = 319;
+    size_t peak_height = 0;
+    size_t peak_time = 0;
+    bool hit_may15_target = false;
+    bool intervention_trigger = true;
 
-    for (; date.day() < par->runLength; date.increment()) {
+//    for (; date.day() < par->runLength and date.julianDay() < nov15; date.increment()) {
+    for (; date.day() < (signed) par->runLength; date.increment()) {
+        if (par->mmodsScenario < NUM_OF_MMODS_SCENARIOS and date.julianDay() >= nov15) break;
         update_vaccinations(par, community, date);
-        advance_simulator(par, community, date, process_id, periodic_incidence, periodic_prevalence, epi_sizes);
-        const vector<size_t> reported_cases   = community->getNumDetectedCasesReport();
+        //advance_simulator(par, community, date, process_id, periodic_incidence, periodic_prevalence, epi_sizes);
+        community->tick(date.day());
+        seed_epidemic(par, community, date);
+        const vector<size_t> infections       = community->getNumNewlyInfected();
+        const vector<size_t> all_reported_cases   = community->getNumDetectedCasesReport();
+        const size_t reported_cases = all_reported_cases[date.day()];
+        const vector<size_t> hospitalizations = community->getNumHospPrev();
+
+        if (reported_cases >= peak_height) {
+            peak_height = reported_cases;
+            peak_time = date.day();
+        }
+
         const vector<size_t> deaths = community->getNumDetectedDeaths();
 
-        const size_t rc_ct = accumulate(reported_cases.begin(), reported_cases.begin()+date.day()+1, 0);
-        if (prev_rc_ct < may15_threshold and rc_ct >= may15_threshold) date.setJulianDay(may15_julian);
+        const size_t rc_ct = accumulate(all_reported_cases.begin(), all_reported_cases.begin()+date.day()+1, 0);
+        if (par->mmodsScenario < NUM_OF_MMODS_SCENARIOS and prev_rc_ct < may15_threshold and rc_ct >= may15_threshold) {
+            hit_may15_target = true;
+            date.setJulianDay(may15);
+            if (par->mmodsScenario == MMODS_OPEN) {
+                community->updateTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, date.day(), 0.0);
+                community->updateTimedIntervention(SOCIAL_DISTANCING, date.day(), 0.0);
+            }
+        }
         prev_rc_ct = rc_ct;
 
-        cerr << date.day() << " " << date.julianMonth() << "/" << date.dayOfMonth()
-                           << " " << rc_ct
-                           << " " << accumulate(deaths.begin(), deaths.begin()+date.day()+1, 0)
-                           << endl;
-/*        if ((date.julianDay() == ((sero_prev_aggregation_julian_start+364) % 365 ) + 1)) { // +1 because julianDay is [1,365])), avg(avg(interventions are specified on [0,364]
-            // tally current seroprevalence stats
-            int vaccinated_tally = 0;
-            vector<double> inf_ct_tally(5,0.0);         // [0,4] past infections
-            for (Person* p: community->getPeople()) {
-                // ignoring possible seroconversion due to vaccine
-                vaccinated_tally += p->isVaccinated();
-                const int ct = p->getNumNaturalInfections();
-                ++inf_ct_tally[ct];
-            }
-            double N = community->getNumPeople();
-            cerr << "vaccinated N, fraction: " << vaccinated_tally << " " << (double) vaccinated_tally / N << endl;
-        }*/
+        if (intervention_trigger and par->mmodsScenario == MMODS_2WEEKS and hit_may15_target and date.day() >= (signed) peak_time + 14) {
+                community->updateTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, date.day(), 0.0);
+                community->updateTimedIntervention(SOCIAL_DISTANCING, date.day(), 0.0);
+                intervention_trigger = false;
+        } else if (intervention_trigger and par->mmodsScenario == MMODS_1PERCENT and hit_may15_target and reported_cases <= 0.01*peak_height) {
+                community->updateTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, date.day(), 0.0);
+                community->updateTimedIntervention(SOCIAL_DISTANCING, date.day(), 0.0);
+                intervention_trigger = false;
+        }
+        if (date.endOfMonth()) cerr << "hit\tscen\trep\t\tsday\tdate\tinfinc\tcinf\trcases\tcrcases\trdeath\tcrdeath\thosprev\tclosed\n";
+        cerr << hit_may15_target
+             << "\t" << par->mmodsScenario
+             << "\t" << process_id
+             << "\t" << date.day()
+             << "\t" << date.julianMonth() << "/" << date.dayOfMonth()
+             << "\t" << infections[date.day()]
+             << "\t" << setprecision(2) << accumulate(infections.begin(), infections.begin()+date.day()+1, 0.0)/community->getNumPeople()
+             << "\t" << reported_cases
+             << "\t" << rc_ct
+             << "\t" << deaths[date.day()]
+             << "\t" << accumulate(deaths.begin(), deaths.begin()+date.day()+1, 0)
+             << "\t" << hospitalizations[date.day()]
+             << "\t" << community->getTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, date.day())
+             << endl;
     }
     return epi_sizes;
 }

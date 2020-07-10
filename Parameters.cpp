@@ -35,7 +35,8 @@ void Parameters::define_defaults() {
     annualIntroductions = {1.0};
     daysImmune = 365;
     reportedFraction = {0.0, 0.2, 0.8, 0.8, 0.8};       // fraction of asymptomatic, mild, severe, critical, and deaths reported
-    numDailyExposed.push_back(0.0);                     // default: no introductions
+//    numDailyExposed.push_back(0.0);                     // default: no introductions
+    probDailyExposure.push_back(0.0);                   // default: no introductions
 
     symptomToTestLag = 2;
     reportingLag = 10;
@@ -57,6 +58,8 @@ void Parameters::define_defaults() {
     vaccineBoostingInterval = 730;
     retroactiveMatureVaccine = false;
 
+    numSurveilledPeople = INT_MAX;
+
     startDayOfYear = 1;
 
     dailyOutput   = false;
@@ -73,6 +76,7 @@ void Parameters::define_defaults() {
     seroTestFalseNeg = 0.0;
 
     define_susceptibility_and_pathogenicity();
+    mmodsScenario = NUM_OF_MMODS_SCENARIOS; // default to no MMODS scenario
 }
 
 

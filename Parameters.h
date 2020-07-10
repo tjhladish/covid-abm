@@ -73,6 +73,14 @@ enum TimedIntervention {
     NUM_OF_TIMED_INTERVNETIONS
 };
 
+enum MmodsScenario {
+    MMODS_CLOSED,   //0
+    MMODS_2WEEKS,   //1
+    MMODS_1PERCENT, //2
+    MMODS_OPEN,     //3
+    NUM_OF_MMODS_SCENARIOS
+};
+
 extern const gsl_rng* RNG;// = gsl_rng_alloc (gsl_rng_taus2);
 
 static const std::vector<std::string> MONTH_NAMES = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
@@ -224,7 +232,7 @@ public:
     double timedInterventionEffect(TimedIntervention ti, size_t day) const;
 
     unsigned long int randomseed;
-    int runLength;
+    size_t runLength;
     double household_transmissibility;                      // per-day probability of transmission between a co-habitating dyad
     double workplace_transmissibility;                      // per-day probability of transmission, scaled by the fraction of infectious co-workers
     double social_transmissibility;                         // per-day probability of transmission, scaled by the fraction of infectious social contacts
@@ -244,7 +252,8 @@ public:
     double seroTestFalsePos;                                // probability that seroneg person tests positive -- leaky test
     double seroTestFalseNeg;                                // probability that seropos person tests negative -- leaky test
     size_t numInitialExposed;                               // serotypes
-    std::vector<double> numDailyExposed;                    // dimension is days
+//    std::vector<double> numDailyExposed;                    // dimension is days
+    std::vector<double> probDailyExposure;                  // per person, per day probability of exposure
     size_t numInitialInfected;                              // serotypes
 
     std::string populationFilename;
@@ -267,6 +276,7 @@ public:
     int vaccineTargetAge;
     double vaccineTargetCoverage;
     int vaccineTargetStartDate;
+    size_t numSurveilledPeople;
 
                                                             // e.g. school closures, non-essential business closures, social distancing
     std::map<TimedIntervention, std::vector<float>> timedInterventions;
@@ -282,6 +292,7 @@ public:
     unsigned long int serial;
 
     VaccineSeroConstraint vaccineSeroConstraint;
+    MmodsScenario mmodsScenario;
 };
 
 #endif
