@@ -76,7 +76,7 @@ enum TimedIntervention {
 enum MmodsScenario {
     MMODS_CLOSED,   //0
     MMODS_2WEEKS,   //1
-    MMODS_1PERCENT, //2
+    MMODS_5PERCENT, //2
     MMODS_OPEN,     //3
     NUM_OF_MMODS_SCENARIOS
 };
@@ -117,7 +117,7 @@ transmission from asymp is 0.5*trans from symp
 */
 
 static const float SEVERE_FRACTION = 0.1;                     // fraction of cases become severe
-static const float CRITICAL_FRACTION = 0.5;                   // fraction of severe cases that become critical
+static const float CRITICAL_FRACTION = 0.25;                  // was 0.5; fraction of severe cases that become critical
 
 static const float SEVERE_TO_HOSPITAL = 0.8;                  // general population, probability of going to hospital if severe
 static const float LTC_SEVERE_TO_HOSPITAL = 0.5;              // probability long-term-care residents who are severe go to hospital (if hosp available)

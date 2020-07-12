@@ -45,7 +45,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->social_transmissibility    = T;
     //hospitalizedFraction = {0.0, 0.15, 0.9};
     //par->reportedFraction = {0.0, 0.01, 0.5, 0.8, 1.0};      // fraction of asymptomatic, mild, severe, critical, and deaths reported
-    par->reportedFraction = {0.0, 0.2, 0.8, 0.8, 0.8};      // fraction of asymptomatic, mild, severe, critical, and deaths reported
+    par->reportedFraction = {0.0, 0.2, 0.8, 0.8, 1.0};      // fraction of asymptomatic, mild, severe, critical, and deaths reported
     par->randomseed              = rng_seed;
     par->dailyOutput             = false; // turn on for daily prevalence figure, probably uncomment filter in simulator.h for daily output to get only rel. days
     par->periodicOutput          = false;
@@ -63,6 +63,10 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->mmodsScenario = ms;      // MMODS_CLOSED, MMODS_2WEEKS, MMODS_1PERCENT, MMODS_OPEN
 
     // These are only initial values for time-structured interventions.  They can be changed dynamically.
+//    par->timedInterventions[SCHOOL_CLOSURE].resize(par->runLength, 0.0);
+//    par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(par->runLength, 0.0);
+//    par->timedInterventions[SOCIAL_DISTANCING].resize(par->runLength, 0.0);
+
     par->timedInterventions[SCHOOL_CLOSURE].resize(30, 0.0);
     par->timedInterventions[SCHOOL_CLOSURE].resize(par->runLength, 1.0);
 
@@ -80,7 +84,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
 
     //par->hospitalizedFraction = 0.25; // fraction of cases assumed to be hospitalized
 
-    par->probDailyExposure = {3.0e-05};
+    par->probDailyExposure = {1.0e-05};
 
     par->populationFilename       = pop_dir    + "/population-"         + SIM_POP + ".txt";
     par->locationFilename         = pop_dir    + "/locations-"          + SIM_POP + ".txt";
