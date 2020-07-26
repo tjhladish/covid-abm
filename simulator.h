@@ -361,6 +361,7 @@ vector<int> simulate_epidemic(const Parameters* par, Community* community, const
         const size_t reported_cases             = all_reported_cases[date.day()];
         trailing_averages[date.day()]           = calc_trailing_avg(all_reported_cases, date.day(), 7); // <= 7-day trailing average
         const vector<size_t> hospitalizations   = community->getNumHospPrev();
+        const vector<size_t> severe_prev =  community->getNumSeverePrev();
 
         const double trailing_avg = trailing_averages[date.day()];
         if (trailing_avg > 0 and trailing_avg >= peak_height) {
@@ -394,7 +395,7 @@ vector<int> simulate_epidemic(const Parameters* par, Community* community, const
             community->updateTimedIntervention(SOCIAL_DISTANCING, date.day(), 0.2);
             intervention_trigger = false;
         }
-        if (date.endOfMonth()) cerr << "hit\tscen\trep\tsday\tdate\tinfinc\tcinf\trcases\trcta7\tcrcases\trdeath\tcrdeath\thosprev\tclosed\n";
+        if (date.endOfMonth()) cerr << "hit\tscen\trep\tsday\tdate\tinfinc\tcinf\trcases\trcta7\tcrcases\trdeath\tcrdeath\tsevprev\thosprev\tclosed\n";
         cerr << hit_may15_target
              << "\t" << par->mmodsScenario
              << "\t" << process_id
@@ -407,6 +408,7 @@ vector<int> simulate_epidemic(const Parameters* par, Community* community, const
              << "\t" << rc_ct
              << "\t" << deaths[date.day()]
              << "\t" << accumulate(deaths.begin(), deaths.begin()+date.day()+1, 0)
+             << "\t" << severe_prev[date.day()]
              << "\t" << hospitalizations[date.day()]
              << "\t" << community->getTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, date.day())
              << "\t" << (date.day() == peak_time)

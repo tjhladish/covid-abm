@@ -14,24 +14,21 @@ class Location;
 class Infection {
     friend class Person;
     Infection() {
-        infectedBegin     = INT_MIN;
+        infectedBegin     = INT_MAX;
+        infectiousBegin   = INT_MAX;
+        symptomBegin      = INT_MAX;
+        severeBegin       = INT_MAX;
+        hospitalizedBegin = INT_MAX;
+        criticalBegin     = INT_MAX;
+        icuBegin          = INT_MAX;
+        deathTime         = INT_MAX;
+
         infectedPlace     = INT_MIN;
         infectedByID      = INT_MIN;
-        infectiousBegin   = INT_MIN;
         infectiousEnd     = INT_MIN;
-
-        symptomBegin      = INT_MIN;
         symptomEnd        = INT_MIN;
-
-        severeBegin       = INT_MIN;
         severeEnd         = INT_MIN;
-        hospitalizedBegin = INT_MIN;
-
-        criticalBegin     = INT_MIN;
         criticalEnd       = INT_MIN;
-        icuBegin          = INT_MIN;
-
-        deathTime         = INT_MAX;        // this ONE should default to INT_MAX, the others INT_MIN
     };
 
     int infectedBegin;                      // when infected?
@@ -65,12 +62,12 @@ class Infection {
     int getIcuTime()            const { return icuBegin; }
     int getDeathTime()          const { return deathTime; }
 
-    bool infected()             const { return infectedBegin     != INT_MIN; } // These functions check whether these things
-    bool infectious()           const { return infectiousBegin   != INT_MIN; } // happen at any point during this infection, e.g.
-    bool symptomatic()          const { return symptomBegin      != INT_MIN; } // have these been modified from their defaults?
-    bool severe()               const { return severeBegin       != INT_MIN; }
-    bool critical()             const { return criticalBegin     != INT_MIN; }
-    bool hospital()             const { return hospitalizedBegin != INT_MIN; }
+    bool infected()             const { return infectedBegin     != INT_MAX; } // These functions check whether these things
+    bool infectious()           const { return infectiousBegin   != INT_MAX; } // happen at any point during this infection, e.g.
+    bool symptomatic()          const { return symptomBegin      != INT_MAX; } // have these been modified from their defaults?
+    bool severe()               const { return severeBegin       != INT_MAX; }
+    bool critical()             const { return criticalBegin     != INT_MAX; }
+    bool hospital()             const { return hospitalizedBegin != INT_MAX; }
     bool icu()                  const { return icuBegin          != INT_MAX; }
 
     // if we ensure that death coincides with the end of symptoms/severity/criticality, then we don't also need to check deathtime
