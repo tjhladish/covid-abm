@@ -528,7 +528,9 @@ void Community::between_household_transmission() {
                 for (Location* neighbor: loc->getNeighbors()) {
                     if (neighbor->getRiskAversion() > social_distancing(_day)) {
                         const double T = _par->social_transmissibility * hh_prev;
-                        for (Person* p: loc->getPeople()) {
+                        // Because we are challenging each person in the neighbor hh, this may be
+                        // an overestimate of how much transmission should occur between households
+                        for (Person* p: neighbor->getPeople()) {
                             if (gsl_rng_uniform(RNG) < T) {
                                 p->infect((int) HOUSE, _day, loc->getID()); // infect() tests for whether person is infectable
                             }
