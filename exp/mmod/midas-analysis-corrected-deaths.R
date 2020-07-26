@@ -1,4 +1,4 @@
-importData = read.csv("mmod_v2.2.csv", header=T, sep='\t', stringsAsFactors = F)
+importData = read.csv("mmod_v2.3.csv", header=T, sep='\t', stringsAsFactors = F)
 
 #0 = "closed"
 #1 = "2weeks"
@@ -22,19 +22,19 @@ hospQuantile <- aggregate(peak_hosp$x, by = list(peak_hosp$scen), FUN = 'quantil
 outbreakQuantile <- aggregate(prob_outbreak$x, by = list(prob_outbreak$scen), FUN = 'quantile', probs = seq(0, 1, 0.01))
 
 #row 1 = "closed", row 2 = "onepercent", row 3 = open", row 4 = "twoweeks"
-closedQuantiles <- data.frame(quartile = 0:100, intervention = "closed", cumu_infections = infectionsQuantile$x[infectionsQuantile$Group.1 == 0], 
+closedQuantiles <- data.frame(quantile = 0:100, intervention = "closed", cumu_infections = infectionsQuantile$x[infectionsQuantile$Group.1 == 0], 
                               cumu_deaths = deathsQuantile$x[deathsQuantile$Group.1 == 0], peak_hosp = hospQuantile$x[hospQuantile$Group.1 == 0], 
                               prob_outbreak = outbreakQuantile$x[outbreakQuantile$Group.1 == 0], days_closed = daysQuantile$x[daysQuantile$Group.1 == 0])
-twoWeeksQuantiles <- data.frame(quartile = 0:100, intervention = "2weeks", cumu_infections = infectionsQuantile$x[infectionsQuantile$Group.1 == 1], 
+twoWeeksQuantiles <- data.frame(quantile = 0:100, intervention = "2weeks", cumu_infections = infectionsQuantile$x[infectionsQuantile$Group.1 == 1], 
                                 cumu_deaths = deathsQuantile$x[deathsQuantile$Group.1 == 1], peak_hosp = hospQuantile$x[hospQuantile$Group.1 == 1], 
                                 prob_outbreak = outbreakQuantile$x[outbreakQuantile$Group.1 == 1], days_closed = daysQuantile$x[daysQuantile$Group.1 == 1])
-onePercentQuantiles <- data.frame(quartile = 0:100, intervention = "5percent", cumu_infections = infectionsQuantile$x[infectionsQuantile$Group.1 == 2], 
+onePercentQuantiles <- data.frame(quantile = 0:100, intervention = "5percent", cumu_infections = infectionsQuantile$x[infectionsQuantile$Group.1 == 2], 
                                   cumu_deaths = deathsQuantile$x[deathsQuantile$Group.1 == 2], peak_hosp = hospQuantile$x[hospQuantile$Group.1 == 2], 
                                   prob_outbreak = outbreakQuantile$x[outbreakQuantile$Group.1 == 2], days_closed = daysQuantile$x[daysQuantile$Group.1 == 2])
-openQuantiles <- data.frame(quartile = 0:100, intervention = "open", cumu_infections = infectionsQuantile$x[infectionsQuantile$Group.1 == 3], 
+openQuantiles <- data.frame(quantile = 0:100, intervention = "open", cumu_infections = infectionsQuantile$x[infectionsQuantile$Group.1 == 3], 
                             cumu_deaths = deathsQuantile$x[deathsQuantile$Group.1 == 3], peak_hosp = hospQuantile$x[hospQuantile$Group.1 == 3], 
                             prob_outbreak = outbreakQuantile$x[outbreakQuantile$Group.1 == 3], days_closed = daysQuantile$x[daysQuantile$Group.1 == 3])
 
-analysisOutput <- data.frame(team = "UF", round = 1, rbind(closedQuantiles, twoWeeksQuantiles, onePercentQuantiles, openQuantiles))
+analysisOutput <- data.frame(team = "UF", round = 2, rbind(closedQuantiles, twoWeeksQuantiles, onePercentQuantiles, openQuantiles))
 
-write.csv(analysisOutput, file = "MIDAS-v2.2.csv", row.names = FALSE)
+write.csv(analysisOutput, file = "MIDAS-v2.3.csv", row.names = FALSE)

@@ -376,7 +376,7 @@ vector<int> simulate_epidemic(const Parameters* par, Community* community, const
             date.setJulianDay(may15);
             if (par->mmodsScenario == MMODS_OPEN) {
                 community->updateTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, date.day(), 0.0);
-                community->updateTimedIntervention(SOCIAL_DISTANCING, date.day(), 0.0);
+                community->updateTimedIntervention(SOCIAL_DISTANCING, date.day(), 0.2);
             }
         }
         prev_rc_ct = rc_ct;
