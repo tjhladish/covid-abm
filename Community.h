@@ -55,7 +55,7 @@ class Community {
         std::vector<size_t> getNumNewlyInfected() { return _numNewlyInfected; }
         std::vector<size_t> getNumNewlySymptomatic() { return _numNewlySymptomatic; }
         std::vector<size_t> getNumVaccinatedCases() { return _numVaccinatedCases; }
-        std::vector<size_t> getNumSevereCases() { return _numSevereCases; }
+        std::vector<size_t> getNumSeverePrev() { return _numSeverePrev; }
         std::vector<size_t> getNumHospInc() { return _numHospInc; }
         std::vector<size_t> getNumHospPrev() { return _numHospPrev; }
         std::vector<size_t> getNumIcuInc() { return _numIcuInc; }
@@ -94,7 +94,7 @@ class Community {
         std::vector<size_t> _numNewlyInfected;
         std::vector<size_t> _numNewlySymptomatic;
         std::vector<size_t> _numVaccinatedCases;
-        std::vector<size_t> _numSevereCases;
+        std::vector<size_t> _numSeverePrev;
         std::vector<size_t> _numHospInc;
         std::vector<size_t> _numHospPrev;
         std::vector<size_t> _numIcuInc;

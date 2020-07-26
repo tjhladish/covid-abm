@@ -36,7 +36,7 @@ Community::Community(const Parameters* parameters) :
     _numNewlyInfected(parameters->runLength), // +1 not needed; runLength is already a valid size
     _numNewlySymptomatic(parameters->runLength),
     _numVaccinatedCases(parameters->runLength),
-    _numSevereCases(parameters->runLength),
+    _numSeverePrev(parameters->runLength),
     _numHospInc(parameters->runLength),
     _numHospPrev(parameters->runLength),
     _numIcuInc(parameters->runLength),
@@ -447,9 +447,10 @@ void Community::updateDiseaseStatus() {
                 }
             }
 
-//                if (p->isSevere(_day)) {                                  // symptoms will be severe at onset
-//                    _numSevereCases[_day]++;                              // if they're going to be severe
-//                }
+            if (p->isSevere(_day)) {
+                _numSeverePrev[_day]++;
+            }
+
             if (p->inHospital(_day)) {
                 _numHospPrev[_day]++;
                 if (p->getHospitalizedTime()==_day) {
