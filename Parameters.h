@@ -278,6 +278,8 @@ public:
     int vaccineTargetStartDate;
     size_t numSurveilledPeople;
 
+    bool traceContacts;                                     // should we keep track of who infected whom
+
                                                             // e.g. school closures, non-essential business closures, social distancing
     std::map<TimedIntervention, std::vector<float>> timedInterventions;
 

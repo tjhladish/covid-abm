@@ -17,6 +17,8 @@
 #include "Parameters.h"
 
 using namespace covid::standard;
+using covid::util::mean;
+using covid::util::choice;
 
 const Parameters* Community::_par;
 vector< map<LocationType, map<Location*, int, Location::LocPtrComp>>> Community::_isHot;
@@ -423,6 +425,30 @@ void Community::targetVaccination(Person* p) {
 }
 
 
+vector<double> Community::getMeanNumSecondaryInfections() const {
+    // this is not how many secondary infections occurred on day=index,
+    // but how many secondary infections will ultimately be caused by each person
+    // who got infected on day=index
+    vector<vector<double>> daily_secondary_infections;
+    //vector<vector<double>> daily_secondary_infections(_par->runLength);
+    for (Person* p: _people) {
+        for (const Infection* inf: p->getInfectionHistory()) {
+            const int infection_onset = inf->getInfectedTime();
+            assert(infection_onset >= 0);
+            //assert(infection_onset >= 0 and infection_onset < daily_secondary_infections.size());
+            if (infection_onset >= daily_secondary_infections.size()) { daily_secondary_infections.resize(infection_onset+1); }
+            daily_secondary_infections[infection_onset].push_back(inf->secondary_infection_tally());
+        }
+    }
+    vector<double> daily_Rt(daily_secondary_infections.size());
+    for (size_t day = 0; day < daily_secondary_infections.size(); ++day) {
+        daily_Rt[day] = mean(daily_secondary_infections[day]);
+        cerr << "day, incidence, Rt: " << day << " " << daily_secondary_infections[day].size() << " " << daily_Rt[day] << endl;
+    }
+    return daily_Rt;
+}
+
+
 void Community::reportCase(int onsetDate, int reportDate) {
     if (onsetDate < _numDetectedCasesOnset.size()) _numDetectedCasesOnset[onsetDate]++;
     if (reportDate < _numDetectedCasesReport.size()) _numDetectedCasesReport[reportDate]++;
@@ -485,20 +511,40 @@ void Community::flagInfectedLocation(LocationType locType, Location* _pLoc, int 
 }
 
 
+Infection* Community::trace_contact(int &infectee_id, vector<Person*> &source_candidates, int infectious_count) {
+    // This function currently assumes all co-located infected people are equally likely
+    // to be the cause of transmission.  May be something we want to relax in the future.
+    Infection* infection = nullptr;
+    vector<Person*> infected_candidates;
+    for (Person* p: source_candidates) {
+        if(p->isInfectious(_day) and not p->inHospital(_day) and not p->isDead(_day)) {
+            infected_candidates.push_back(p);
+        }
+    }
+
+    assert(infected_candidates.size() == infectious_count);
+    Person* infectee = choice(RNG, infected_candidates);
+    infectee_id = infectee->getID();
+    return infectee->getInfection();
+}
+
+
 void Community::within_household_transmission() {
-    //for (Location* loc: _location_map[HOUSE]) { // TODO -- tracking 'hot' households will avoid looping through the vast majority
-    //for (Location* loc: _isHot[_day][HOUSE]) {
     for (const auto hot: _isHot[_day][HOUSE]) {
         Location* loc = hot.first;
         int infectious_count = hot.second;
-//        for (Person* p: loc->getPeople()) { // if isHot is a map with a count, we wouldn't need this loop at all
-//            infectious_count += p->isInfectious(_day) and not p->inHospital(_day);
-//        }
         if (infectious_count > 0) {
             const double T = 1.0 - pow(1.0 - _par->household_transmissibility, infectious_count);
             for (Person* p: loc->getPeople()) {
                 if (gsl_rng_uniform(RNG) < T) {
-                    p->infect((int) HOUSE, _day, loc->getID()); // infect() tests for whether person is infectable
+                    int infectee_id = INT_MIN;
+                    Infection* infection = nullptr;
+                    if (_par->traceContacts) {
+                        vector<Person*> source_candidates = loc->getPeople(); // members of this household
+                        infection = trace_contact(infectee_id, source_candidates, infectious_count);
+                    }
+                    Infection* transmission = p->infect(infectee_id, _day, loc->getID()); // infect() tests for whether person is infectable
+                    if (infection and transmission) { infection->log_transmission(transmission); } // are we contact tracing, and did transmission occur?
                 }
             }
         }
@@ -533,6 +579,15 @@ void Community::between_household_transmission() {
                         // an overestimate of how much transmission should occur between households
                         for (Person* p: neighbor->getPeople()) {
                             if (gsl_rng_uniform(RNG) < T) {
+                                int infectee_id = INT_MIN;
+                                Infection* infection = nullptr;
+                                if (_par->traceContacts) {
+                                    vector<Person*> source_candidates = loc->getPeople(); // The origin household
+                                    infection = trace_contact(infectee_id, source_candidates, infectious_count);
+                                }
+                                Infection* transmission = p->infect(infectee_id, _day, loc->getID()); // infect() tests for whether person is infectable
+                                if (infection and transmission) { infection->log_transmission(transmission); } // are we contact tracing, and did transmission occur?
+
                                 p->infect((int) HOUSE, _day, loc->getID()); // infect() tests for whether person is infectable
                             }
                         }
@@ -569,34 +624,14 @@ void Community::location_transmission(map<Location*, int, Location::LocPtrComp> 
             const double T = (1.0 - social_distancing(_day)) * _par->workplace_transmissibility * infectious_count/(workplace_size - 1.0);
             for (Person* p: loc->getPeople()) {
                 if (gsl_rng_uniform(RNG) < T) {
-                    p->infect((int) HOME, _day, loc->getID()); // infect() tests for whether person is infectable
-                }
-            }
-        }
-    }
-    return;
-}
-
-
-void Community::location_transmission(set<Location*, Location::LocPtrComp> &locations) {
-    // TODO -- right now, school and workplace transmission are handled separately
-    // Transmission for school employees is considered school transmission, not workplace transmission
-    for (Location* loc: locations) { // TODO -- track 'hot' workplaces/schools
-        // if non-essential businesses are closed, skip this workplace
-        if (loc->isNonEssential() and timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE][_day]) {
-            continue;
-        }
-
-        int infectious_count = 0;
-        for (Person* p: loc->getPeople()) { // if isHot is a map with a count, we wouldn't need this loop at all
-            infectious_count += p->isInfectious(_day) and not p->isSevere(_day);
-        }
-        const int workplace_size = loc->getNumPeople();
-        if (infectious_count > 0 and workplace_size > 1) {
-            const double T = _par->workplace_transmissibility * infectious_count/(workplace_size - 1.0);
-            for (Person* p: loc->getPeople()) {
-                if (gsl_rng_uniform(RNG) < T) {
-                    p->infect((int) HOME, _day, loc->getID()); // infect() tests for whether person is infectable
+                    int infectee_id = INT_MIN;
+                    Infection* infection = nullptr;
+                    if (_par->traceContacts) {
+                        vector<Person*> source_candidates = loc->getPeople(); // employees/students at this location
+                        infection = trace_contact(infectee_id, source_candidates, infectious_count);
+                    }
+                    Infection* transmission = p->infect(infectee_id, _day, loc->getID()); // infect() tests for whether person is infectable
+                    if (infection and transmission) { infection->log_transmission(transmission); } // are we contact tracing, and did transmission occur?
                 }
             }
         }

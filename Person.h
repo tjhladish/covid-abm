@@ -49,6 +49,7 @@ class Infection {
     int icuBegin;
 
     int deathTime;
+    std::vector<Infection*> infections_caused;
 
   public:
     bool isLocallyAcquired()    const { return infectedByID != -1; }
@@ -79,6 +80,15 @@ class Infection {
     bool inHospital(int now)    const { return hospitalizedBegin <= now and now < severeEnd;}
     bool inIcu(int now)         const { return icuBegin <= now          and now < criticalEnd;}
     bool isDead(int now)        const { return deathTime <= now; }
+
+    void log_transmission(Infection* inf) { infections_caused.push_back(inf); }
+    size_t secondary_infection_tally () const { return infections_caused.size(); }
+    std::vector<int> generation_times () const {
+        std::vector<int> times;
+        for (Infection* other: infections_caused) { times.push_back(other->getInfectedTime() - getInfectedTime()); }
+        return times;
+    }
+    std::vector<Infection*> get_infections_caused() { return infections_caused; }
 };
 
 class Person {
@@ -136,7 +146,7 @@ class Person {
         inline int getIcuTime(int infectionsago=0) const { return getInfection(infectionsago)->icuBegin; }
         inline int getDeathTime(int infectionsago=0)        const { return getInfection(infectionsago)->deathTime; }
 
-        const Infection* getInfection(int infectionsago=0) const { return infectionHistory[getNumNaturalInfections() - 1 - infectionsago]; }
+        Infection* getInfection(int infectionsago=0) const { return infectionHistory[getNumNaturalInfections() - 1 - infectionsago]; }
         //inline void setRecoveryTime(int time, int infectionsago=0) { infectionHistory[getNumNaturalInfections() - 1 - infectionsago]->recoveryTime = time; }
         inline int getNumNaturalInfections() const { return infectionHistory.size(); }
 
@@ -146,7 +156,7 @@ class Person {
         int daysSinceVaccination(int time) const { assert( vaccineHistory.size() > 0); return time - vaccineHistory.back(); } // isVaccinated() should be called first
         double vaccineProtection(const int time) const;
 
-        bool infect(int sourceid, int time, int sourceloc);
+        Infection* infect(int sourceid, int time, int sourceloc);
         void processDeath(Infection &infection, const int time);
         inline bool infect(int time) {return infect(INT_MIN, time, INT_MIN);}
 

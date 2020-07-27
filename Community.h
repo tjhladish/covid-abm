@@ -42,7 +42,6 @@ class Community {
         void between_household_transmission();
         void workplace_and_school_transmission();
         void location_transmission(std::map<Location*, int, Location::LocPtrComp> &locations);
-        void location_transmission(std::set<Location*, Location::LocPtrComp> &locations);
 
         //void setNoSecondaryTransmission() { _bNoSecondaryTransmission = true; }
 
@@ -63,8 +62,10 @@ class Community {
         std::vector<size_t> getNumDetectedCasesOnset() { return _numDetectedCasesOnset; }
         std::vector<size_t> getNumDetectedCasesReport() { return _numDetectedCasesReport; }
         std::vector<size_t> getNumDetectedDeaths() { return _numDetectedDeaths; }
+        std::vector<double> getMeanNumSecondaryInfections() const ;
 
         static void flagInfectedLocation(LocationType locType, Location* _pLoc, int day);
+        Infection* trace_contact(int &infectee_id, vector<Person*> &source_candidates, int infectious_count);
         static void reportCase(int onsetDate, int reportDate);
         static void reportDeath(int eventDate, int reportDate);
 

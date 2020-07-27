@@ -202,11 +202,11 @@ void Person::processDeath(Infection &infection, const int deathTime) {
 
 // infect - infect this individual
 // returns true if infection occurs
-bool Person::infect(int sourceid, int time, int sourceloc) {
+Infection* Person::infect(int sourceid, int time, int sourceloc) {
     // Bail now if this person can not become infected
     // Not quite the same as "susceptible"--this person may be e.g. partially immune
     // due to natural infection or vaccination
-    if (not isInfectable(time)) return false;
+    if (not isInfectable(time)) return nullptr;
     const double remaining_efficacy = remainingEfficacy(time);  // due to vaccination; needs to be called before initializing new infection (still true?)
 
     // Create a new infection record
@@ -310,7 +310,9 @@ if (isSurveilledPerson()) {
 }
     // Flag locations with (non-historical) infections, so that we know to look there for human->mosquito transmission
     // Negative days are historical (pre-simulation) events, and thus we don't care about modeling transmission
+
     for (int day = std::max(infection.infectiousBegin, 0); day < infection.infectiousEnd; day++) {
+        if (infection.hospital() and day >= infection.getHospitalizedTime()) break;
         Community::flagInfectedLocation(HOUSE, getHomeLoc(), day);
         if (getDayLoc()) Community::flagInfectedLocation(getDayLoc()->getType(), getDayLoc(), day); // TODO -- people never stop going to work/school when sick
     }
@@ -318,7 +320,7 @@ if (isSurveilledPerson()) {
     // if the antibody-primed vaccine-induced immunity can be acquired retroactively, upgrade this person from naive to mature
     if (_par->retroactiveMatureVaccine) naiveVaccineProtection = false;
 
-    return true;
+    return &infection;
 }
 
 

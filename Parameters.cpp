@@ -60,6 +60,7 @@ void Parameters::define_defaults() {
 
     numSurveilledPeople = INT_MAX;
 
+    traceContacts = false;
     startDayOfYear = 1;
 
     dailyOutput   = false;

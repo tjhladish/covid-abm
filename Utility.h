@@ -90,6 +90,11 @@ namespace covid {
             cout << my_vector.back();
         }
 
+        template <typename T> inline
+        T choice(const gsl_rng* RNG, vector<T> &V) {
+            return V[gsl_rng_uniform_int(RNG, V.size())];
+        }
+
         inline double string2double(const std::string& s){ std::istringstream i(s); double x = 0; i >> x; return x; }
 
         template <typename T> inline T sum(vector<T> list) { T sum=0; for (unsigned int i=0; i<list.size(); i++) sum += list[i]; return sum;}

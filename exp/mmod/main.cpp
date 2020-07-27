@@ -60,6 +60,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
 
     par->pathogenicityModel = ORIGINAL_LOGISTIC;
 
+    par->traceContacts = false;
     par->mmodsScenario = ms;      // MMODS_CLOSED, MMODS_2WEEKS, MMODS_1PERCENT, MMODS_OPEN
 
     // These are only initial values for time-structured interventions.  They can be changed dynamically.
@@ -213,7 +214,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
     seed_epidemic(par, community);
     simulate_epidemic(par, community, process_id);
-
+    //community->getMeanNumSecondaryInfections();
     time (&end);
     double dif = difftime (end,start);
 
