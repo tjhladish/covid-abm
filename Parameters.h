@@ -235,6 +235,7 @@ public:
     size_t runLength;
     double household_transmissibility;                      // per-day probability of transmission between a co-habitating dyad
     double workplace_transmissibility;                      // per-day probability of transmission, scaled by the fraction of infectious co-workers
+    double school_transmissibility;                         // per-day probability of transmission, scaled by the fraction of infectious students/staff
     double social_transmissibility;                         // per-day probability of transmission, scaled by the fraction of infectious social contacts
     vector<float> susceptibilityByAge;                      // probability of infection given exposure, index by year of age
     vector<float> pathogenicityByAge;                       // probability of clinical disease given infection, index by year of age

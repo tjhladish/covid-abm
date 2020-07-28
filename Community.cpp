@@ -535,18 +535,7 @@ void Community::within_household_transmission() {
         int infectious_count = hot.second;
         if (infectious_count > 0) {
             const double T = 1.0 - pow(1.0 - _par->household_transmissibility, infectious_count);
-            for (Person* p: loc->getPeople()) {
-                if (gsl_rng_uniform(RNG) < T) {
-                    int infectee_id = INT_MIN;
-                    Infection* infection = nullptr;
-                    if (_par->traceContacts) {
-                        vector<Person*> source_candidates = loc->getPeople(); // members of this household
-                        infection = trace_contact(infectee_id, source_candidates, infectious_count);
-                    }
-                    Infection* transmission = p->infect(infectee_id, _day, loc->getID()); // infect() tests for whether person is infectable
-                    if (infection and transmission) { infection->log_transmission(transmission); } // are we contact tracing, and did transmission occur?
-                }
-            }
+            _transmission(loc, loc->getPeople(), T, infectious_count);
         }
     }
     return;
@@ -559,38 +548,19 @@ double Community::social_distancing(int _day) {
 
 
 void Community::between_household_transmission() {
-    for (Location* loc: _location_map[HOUSE]) { // TODO -- tracking 'hot' households will avoid looping through the vast majority
-        if (_isHot[_day][HOUSE].count(loc) == 0) continue;
-        // TODO -- it would make more sense to call this risk loving, instead of risk aversion.  this is not intuitive right now
+    for (auto hot : _isHot[_day][HOUSE]) {
+        Location* loc = hot.first;
+        const int infectious_count = hot.second;
+        // TODO -- it would make more sense to call this risk loving (but that would be weird in this context), instead of risk aversion.
+        // this is not intuitive right now
         if (loc->getRiskAversion() > social_distancing(_day)) { // this household is not cautious enough to avoid interactions
-            int infectious_count = 0;
             const int hh_size = loc->getNumPeople();
-
-            for (Person* p: loc->getPeople()) { // if isHot is a map with a count, we wouldn't need this loop at all
-                infectious_count += p->isInfectious(_day) and not p->isSevere(_day);
-            }
-
             const float hh_prev = (float) infectious_count / hh_size;
             if (hh_prev > 0.0) {
                 for (Location* neighbor: loc->getNeighbors()) {
                     if (neighbor->getRiskAversion() > social_distancing(_day)) {
                         const double T = _par->social_transmissibility * hh_prev;
-                        // Because we are challenging each person in the neighbor hh, this may be
-                        // an overestimate of how much transmission should occur between households
-                        for (Person* p: neighbor->getPeople()) {
-                            if (gsl_rng_uniform(RNG) < T) {
-                                int infectee_id = INT_MIN;
-                                Infection* infection = nullptr;
-                                if (_par->traceContacts) {
-                                    vector<Person*> source_candidates = loc->getPeople(); // The origin household
-                                    infection = trace_contact(infectee_id, source_candidates, infectious_count);
-                                }
-                                Infection* transmission = p->infect(infectee_id, _day, loc->getID()); // infect() tests for whether person is infectable
-                                if (infection and transmission) { infection->log_transmission(transmission); } // are we contact tracing, and did transmission occur?
-
-                                p->infect((int) HOUSE, _day, loc->getID()); // infect() tests for whether person is infectable
-                            }
-                        }
+                        _transmission(loc, neighbor->getPeople(), T, infectious_count);
                     }
                 }
             }
@@ -600,19 +570,24 @@ void Community::between_household_transmission() {
 }
 
 
-void Community::workplace_and_school_transmission() {
-    // some (== non-essential) workplaces may be closed, but schools are either all open or all closed
-    //location_transmission(_location_map[WORK]);
-    //if (not _par->timedInterventionEffect(SCHOOL_CLOSURE, _day)) location_transmission(_location_map[SCHOOL]);
-    location_transmission(_isHot[_day][WORK]);
-    if (not timedInterventions[SCHOOL_CLOSURE][_day]) location_transmission(_isHot[_day][SCHOOL]);
+void Community::school_transmission() {
+    // Transmission for school employees is considered school transmission, not workplace transmission
+    for (auto hot : _isHot[_day][SCHOOL]) {
+        Location* loc = hot.first;
+        const int infectious_count = hot.second;
+        const int school_size = loc->getNumPeople();
+        if (infectious_count > 0 and school_size > 1) {
+            const double T = (1.0 - timedInterventions[SCHOOL_CLOSURE][_day]) * _par->school_transmissibility * infectious_count/(school_size - 1.0);
+            _transmission(loc, loc->getPeople(), T, infectious_count);
+        }
+    }
+    return;
 }
 
 
-void Community::location_transmission(map<Location*, int, Location::LocPtrComp> &locations) {
-    // TODO -- right now, school and workplace transmission are handled separately
+void Community::workplace_transmission() {
     // Transmission for school employees is considered school transmission, not workplace transmission
-    for (auto hot : locations) {
+    for (auto hot : _isHot[_day][WORK]) {
         Location* loc = hot.first;
         const int infectious_count = hot.second;
         // if non-essential businesses are closed, skip this workplace
@@ -622,21 +597,26 @@ void Community::location_transmission(map<Location*, int, Location::LocPtrComp> 
         const int workplace_size = loc->getNumPeople();
         if (infectious_count > 0 and workplace_size > 1) {
             const double T = (1.0 - social_distancing(_day)) * _par->workplace_transmissibility * infectious_count/(workplace_size - 1.0);
-            for (Person* p: loc->getPeople()) {
-                if (gsl_rng_uniform(RNG) < T) {
-                    int infectee_id = INT_MIN;
-                    Infection* infection = nullptr;
-                    if (_par->traceContacts) {
-                        vector<Person*> source_candidates = loc->getPeople(); // employees/students at this location
-                        infection = trace_contact(infectee_id, source_candidates, infectious_count);
-                    }
-                    Infection* transmission = p->infect(infectee_id, _day, loc->getID()); // infect() tests for whether person is infectable
-                    if (infection and transmission) { infection->log_transmission(transmission); } // are we contact tracing, and did transmission occur?
-                }
-            }
+            _transmission(loc, loc->getPeople(), T, infectious_count);
         }
     }
     return;
+}
+
+
+void Community::_transmission(Location* source_loc, vector<Person*> at_risk_group, const double T, const int infectious_count) {
+    vector<Person*> source_candidates = source_loc->getPeople();
+    for (Person* p: at_risk_group) {
+        if (gsl_rng_uniform(RNG) < T) {
+            int infectee_id = INT_MIN;
+            Infection* infection = nullptr;
+            if (_par->traceContacts) {
+                infection = trace_contact(infectee_id, source_candidates, infectious_count);
+            }
+            Infection* transmission = p->infect(infectee_id, _day, source_loc->getID()); // infect() tests for whether person is infectable
+            if (infection and transmission) { infection->log_transmission(transmission); } // are we contact tracing, and did transmission occur?
+        }
+    }
 }
 
 
@@ -650,7 +630,8 @@ void Community::updateHotLocations() {
 void Community::tick(int day) {
     _day = day;
     within_household_transmission();
-    workplace_and_school_transmission(); // does not currently include schools or churches
+    workplace_transmission();
+    if (not timedInterventions[SCHOOL_CLOSURE][_day]) school_transmission();
     between_household_transmission();
 // TODO - nursing home interactions
 

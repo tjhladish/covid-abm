@@ -38,10 +38,12 @@ class Community {
         void updateDiseaseStatus();
         void updateHotLocations();
         void tick(int day);                                           // simulate one day
+
         void within_household_transmission();
         void between_household_transmission();
-        void workplace_and_school_transmission();
-        void location_transmission(std::map<Location*, int, Location::LocPtrComp> &locations);
+        void workplace_transmission();
+        void school_transmission();
+        //void location_transmission(std::map<Location*, int, Location::LocPtrComp> &locations);
 
         //void setNoSecondaryTransmission() { _bNoSecondaryTransmission = true; }
 
@@ -110,6 +112,7 @@ class Community {
         std::map<TimedIntervention, std::vector<float>> timedInterventions;
 
         //bool _uniformSwap;                                            // use original swapping (==true); or parse swap file (==false)
+        void _transmission(Location* source_loc, vector<Person*> at_risk_group, const double T, const int infectious_count); // generic helper function
 
         void expandExposedQueues();
 //        void _advanceTimers();

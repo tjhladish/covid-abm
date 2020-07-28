@@ -16,6 +16,7 @@ void Parameters::define_defaults() {
     runLength = 100;
     household_transmissibility = 0.15;
     workplace_transmissibility = 0.15;
+    school_transmissibility = 0.15;
     social_transmissibility = 0.15;
     VES = 0.7;
     VES_NAIVE = 0.0;
