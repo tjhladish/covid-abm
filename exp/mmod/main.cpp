@@ -35,14 +35,15 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->define_defaults();
     const MmodsScenario ms = (MmodsScenario) args[0];
     assert(ms <= NUM_OF_MMODS_SCENARIOS);
-    if (ms < NUM_OF_MMODS_SCENARIOS) { par->numSurveilledPeople = 10e5; } // default is INT_MAX
+    if (ms < NUM_OF_MMODS_SCENARIOS) { par->numSurveilledPeople = 1e5; } // default is INT_MAX
     par->serial = serial;
 
     const float T = 0.25;
 
     par->household_transmissibility = T;
     par->workplace_transmissibility = T;
-    par->social_transmissibility    = T;
+    par->school_transmissibility    = T;
+    par->social_transmissibility    = T/10.0;
     //hospitalizedFraction = {0.0, 0.15, 0.9};
     //par->reportedFraction = {0.0, 0.01, 0.5, 0.8, 1.0};      // fraction of asymptomatic, mild, severe, critical, and deaths reported
     par->reportedFraction = {0.0, 0.2, 0.8, 0.8, 1.0};      // fraction of asymptomatic, mild, severe, critical, and deaths reported
@@ -55,12 +56,12 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->yearlyOutput            = true;
     par->abcVerbose              = false; // needs to be false to get WHO daily output
     par->runLength               = TOTAL_DURATION;
-    par->startDayOfYear          = 1;
+    par->startDayOfYear          = 45;
     par->annualIntroductionsCoef = 1;
 
     par->pathogenicityModel = ORIGINAL_LOGISTIC;
 
-    par->traceContacts = false;
+    par->traceContacts = true;
     par->mmodsScenario = ms;      // MMODS_CLOSED, MMODS_2WEEKS, MMODS_1PERCENT, MMODS_OPEN
 
     // These are only initial values for time-structured interventions.  They can be changed dynamically.
@@ -84,7 +85,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->VES = 0.0;
 
     //par->hospitalizedFraction = 0.25; // fraction of cases assumed to be hospitalized
-
+    par->numInitialInfected = 1;
     par->probDailyExposure = {1.0e-05};
 
     par->populationFilename       = pop_dir    + "/population-"         + SIM_POP + ".txt";
