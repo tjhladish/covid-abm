@@ -348,6 +348,7 @@ vector<int> simulate_epidemic(const Parameters* par, Community* community, const
     vector<double> trailing_averages(par->runLength);
     bool hit_may15_target = false;
     bool intervention_trigger = true;
+    const double pop_at_risk = min(community->getNumPeople(), par->numSurveilledPeople);
 
 //    for (; date.day() < par->runLength and date.julianDay() < nov15; date.increment()) {
     for (; date.day() < (signed) par->runLength; date.increment()) {
@@ -402,7 +403,7 @@ vector<int> simulate_epidemic(const Parameters* par, Community* community, const
              << "\t" << date.day()
              << "\t" << date.julianMonth() << "/" << date.dayOfMonth()
              << "\t" << infections[date.day()]
-             << "\t" << setprecision(2) << accumulate(infections.begin(), infections.begin()+date.day()+1, 0.0)/community->getNumPeople()
+             << "\t" << setprecision(2) << accumulate(infections.begin(), infections.begin()+date.day()+1, 0.0)/pop_at_risk
              << "\t" << setprecision(4) << reported_cases
              << "\t" << trailing_avg
              << "\t" << rc_ct
