@@ -83,9 +83,12 @@ enum MmodsScenario {
 
 extern const gsl_rng* RNG;// = gsl_rng_alloc (gsl_rng_taus2);
 
+static const std::vector<std::string> DAY_NAMES = {"MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"};
 static const std::vector<std::string> MONTH_NAMES = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
-static const std::vector<int> DAYS_IN_MONTH = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-static const std::vector<int> END_DAY_OF_MONTH = {31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365};
+static const std::vector<size_t> COMMON_DAYS_IN_MONTH = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+static const std::vector<size_t> COMMON_END_DAY_OF_MONTH = {31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365};
+static const std::vector<size_t> LEAP_DAYS_IN_MONTH = {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+static const std::vector<size_t> LEAP_END_DAY_OF_MONTH = {31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335, 366};
 /*
 // transmission-related probabilities
 susceptibility -- use fuction wrapper for generality so we can potentially use age in the future, but just a single value in par for now
@@ -284,7 +287,8 @@ public:
                                                             // e.g. school closures, non-essential business closures, social distancing
     std::map<TimedIntervention, std::vector<float>> timedInterventions;
 
-    int startDayOfYear;
+    size_t startDayOfYear;
+    size_t julianYear;
     bool dailyOutput;
     bool periodicOutput;
     int periodicOutputInterval;

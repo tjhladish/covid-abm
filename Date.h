@@ -1,5 +1,6 @@
 #ifndef __DATE_H
 #define __DATE_H
+#include "Parameters.h"
 
 enum DayOfWeekType {
     MONDAY,
@@ -15,48 +16,71 @@ enum DayOfWeekType {
 
 class Date {
   public:
-    Date():_offset(0),_simulation_day(0) {};
-    Date(const Parameters* par):_offset(par->startDayOfYear-1),_simulation_day(0) {};
+    Date():_simulation_day(0),_month_ct(0),_year_ct(0),_julian_day(1),_julian_year(1) {};
+    Date(const Parameters* par):_simulation_day(0),_month_ct(0),_year_ct(0),_julian_day(par->startDayOfYear),_julian_year(par->julianYear) {};
 
-    int offset()             const { return _offset; }
-    inline int day()         const { return _simulation_day; }                // [0, ...]
-    int julianDay()          const { return ((day() + offset()) % 365) + 1; } // [1, 365]
-    int dayOfMonth()         const { return julianMonth() == 1 ?              // [1, {29,30,31}]
+    inline int day()         const { return _simulation_day; }                                     // [0, ...]
+    size_t julianDay()       const { return _julian_day; }                                         // [1, {365, 366}]
+    size_t dayOfMonth()      const { return julianMonth() == 1 ?                                   // [1, {29,30,31}]
                                             julianDay() :
-                                            julianDay() - END_DAY_OF_MONTH[julianMonth()-2]; }
-    int nDayPeriod(int n)    const { return (int) day()/n; }                  // [0, ...]
-    int week()               const { return (int) day()/7; }                  // [0, ...]
-    int julianWeek()         const { return (int) ((julianDay()-1)/7) + 1; }  // [1, 53]
-    int month()              const { return _month_ct; }                      // [0, ...]
-    int julianMonth()        const {                                          // [1, 12]
-        vector<int>::const_iterator it;
+                                            julianDay() - end_day_of_month()[julianMonth()-2]; }
+    size_t nDayPeriod(int n)    const { return (int) day()/n; }                                    // [0, ...]
+    size_t week()               const { return (int) day()/NUM_OF_DAYS_IN_WEEK; }                  // [0, ...]
+    size_t julianWeek()      const { return (int) ((julianDay()-1)/NUM_OF_DAYS_IN_WEEK) + 1; }     // [1, 53]
+    size_t month()              const { return _month_ct; }                                        // [0, ...]
+    size_t julianMonth()        const {                                                            // [1, 12]
+        vector<size_t>::const_iterator it;
         // find first month that hasn't ended (hint: it's this month)
         // julianDay()-1 because this isn't upper_or_equal_bound, which would be convenient
-        it = upper_bound(END_DAY_OF_MONTH.begin(), END_DAY_OF_MONTH.end(), julianDay()-1);
-        return it - END_DAY_OF_MONTH.begin() + 1; // +1 b/c [1, 12], not [0, 11]
+        const vector<size_t> end_dom = end_day_of_month();
+        it = upper_bound(end_dom.begin(), end_dom.end(), julianDay()-1);
+        return it - end_dom.begin() + 1; // +1 b/c [1, 12], not [0, 11]
     }
-    DayOfWeekType dayOfWeek() const { return (DayOfWeekType) ((day() + offset()) % NUM_OF_DAYS_IN_WEEK); } // [0,6] --> [MON,SUN]
+
+    static DayOfWeekType dayOfWeek(int y, int m, int d) {
+        // John Conway's "Doomsday Algorithm"
+        // static int t[] = {0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4}; // week starting Sunday
+        static int t[] = {6, 2, 1, 4, 6, 2, 4, 0, 3, 5, 1, 3};   // week starting Monday
+        y -= m < 3;
+        return (DayOfWeekType) ((y + y/4 - y/100 + y/400 + t[m-1] + d) % 7);
+    }
+
+    DayOfWeekType dayOfWeek() const { return dayOfWeek(julianYear(), julianMonth(), dayOfMonth()); }
+
+
+    string dayOfWeekName(int y, int m, int d) const { return DAY_NAMES[dayOfWeek(y, m, d)]; }
+    string dayOfWeekName()   const { return DAY_NAMES[dayOfWeek()]; }
     string monthName()       const { return MONTH_NAMES[julianMonth()-1]; }
-    int year()               const { return (int) (day()/365); }
+    size_t year()            const { return _year_ct; }
 
     bool endOfPeriod(int n)  const { return (day()+1) % n == 0; }
     bool endOfWeek()         const { return (day()+1) % 7 == 0; }
     bool endOfMonth()        const {
-        vector<int>::const_iterator it;
+        vector<size_t>::const_iterator it;
         // find out if today corresponds to a month-end
-        it = find(END_DAY_OF_MONTH.begin(), END_DAY_OF_MONTH.end(), julianDay());
-        return it != END_DAY_OF_MONTH.end();
+        const vector<size_t> end_dom = end_day_of_month();
+        it = find(end_dom.begin(), end_dom.end(), julianDay());
+        return it != end_dom.end();
     }
-    bool startOfYear()       const { return day() % 365 == 0; }     // is it beginning of 365 day period
-    bool endOfYear()         const { return (day()+1) % 365 == 0; } // is it end of 365 day period
-    bool startOfJulianYear() const { return julianDay() == 1; }     // is it Jan 1
-    bool endOfJulianYear()   const { return julianDay() == 365; }   // is it Dec 31
+    vector<size_t> end_day_of_month() const { return isLeap() ? LEAP_END_DAY_OF_MONTH : COMMON_END_DAY_OF_MONTH; }
+    bool startOfYear()       const { return startOfJulianYear(); }
+    bool endOfYear()         const { return endOfJulianYear(); }                               // is it end of {365,366} day period
+    bool startOfJulianYear() const { return julianDay() == 1; }                                // is it Jan 1
+    bool endOfJulianYear()   const { return julianDay() == num_days_in_year(julianYear()); }   // is it Dec 31
 
-    void setJulianDay (int julian_day) { _offset = julian_day - day() - 1; }
+    void setJulianDay (int jd) { _julian_day = jd; }
+    void setJulianYear (int julian_year) { _julian_year = julian_year; }
+
+    size_t julianYear () const { return _julian_year; }
 
     void increment() {
         if(endOfMonth()) _month_ct++;
         _simulation_day++;
+        _julian_day++;
+        if (_julian_day > num_days_in_year(_julian_year)) {
+            _julian_day = 1;
+            _julian_year++;
+        }
     }
 
     void print() {
@@ -70,10 +94,42 @@ class Date {
         cerr << endl;
     }
 
+    bool isLeap() const {
+        return Date::isLeap(julianYear());
+    }
+
+    static bool isLeap (size_t julian_year) {
+        if (julian_year % 4 != 0) {
+            return false;
+        } else if (julian_year % 100 != 0) {
+            return true;
+        } else if (julian_year % 400 != 0) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    static size_t num_days_in_year(size_t julian_year) {
+        if (isLeap(julian_year)) {
+            return LEAP_END_DAY_OF_MONTH.back();
+        } else {
+            return COMMON_END_DAY_OF_MONTH.back();
+        }
+    }
+
+    string mdy() {
+        stringstream ss;
+        ss << setfill('0') << setw(2) << julianMonth() << "/" << setw(2) << dayOfMonth() << "/" << julianYear();
+        return ss.str();
+    }
+
   private:
-    int _offset;
     int _simulation_day;
-    int _month_ct;
+    size_t _month_ct;
+    size_t _year_ct;
+    size_t _julian_day;
+    size_t _julian_year;
 };
 
 #endif

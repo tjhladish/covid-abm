@@ -23,11 +23,12 @@ const string pop_dir = HOME_DIR + "/work/covid-abm/pop-" + SIM_POP;
 const string output_dir("/ufrc/longini/tjhladish/");
 //const string imm_dir(output_dir + "");
 
-const int RESTART_BURNIN    = 0;
-const int FORECAST_DURATION = 500;
-const bool RUN_FORECAST     = true;
-const int TOTAL_DURATION    = RUN_FORECAST ? RESTART_BURNIN + FORECAST_DURATION : RESTART_BURNIN;
-const int JULIAN_TALLY_DATE = 146; // intervention julian date - 1
+const int RESTART_BURNIN       = 0;
+const int FORECAST_DURATION    = 500;
+const bool RUN_FORECAST        = true;
+const int TOTAL_DURATION       = RUN_FORECAST ? RESTART_BURNIN + FORECAST_DURATION : RESTART_BURNIN;
+const size_t JULIAN_TALLY_DATE = 146; // intervention julian date - 1
+const size_t JULIAN_START_YEAR = 2020;
 
 //Parameters* define_simulator_parameters(vector<double> args, const unsigned long int rng_seed) {
 Parameters* define_simulator_parameters(vector<double> args, const unsigned long int rng_seed, const unsigned long int serial, const string /*process_id*/) {
@@ -56,6 +57,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->yearlyOutput            = true;
     par->abcVerbose              = false; // needs to be false to get WHO daily output
     par->runLength               = TOTAL_DURATION;
+    par->julianYear              = JULIAN_START_YEAR;
     par->startDayOfYear          = 45;
     par->annualIntroductionsCoef = 1;
 
@@ -151,7 +153,8 @@ void append_if_finite(vector<double> &vec, double val) {
     }
 }
 
-int julian_to_sim_day (const Parameters* par, const int julian, const int intervention_year) {
+
+int julian_to_sim_day (const Parameters* par, const size_t julian, const int intervention_year) {
     int startDate = intervention_year*365 + julian - par->startDayOfYear;
     if (julian < par->startDayOfYear) { // start intervention in following year
         startDate += 365;
@@ -171,7 +174,7 @@ vector<double> tally_counts(const Parameters* par, Community* community, int pre
     vector<size_t> s_tally(num_years+1, 0);
 
     vector<double> metrics(num_years, 0.0);
-    for (int t=discard_days; t<par->runLength; t++) {
+    for (size_t t=discard_days; t<par->runLength; t++) {
         // use epidemic years, instead of calendar years
         const int y = (t-discard_days)/365;
         s_tally[y] += symptomatic[t];

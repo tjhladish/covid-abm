@@ -396,14 +396,16 @@ vector<int> simulate_epidemic(const Parameters* par, Community* community, const
             community->updateTimedIntervention(SOCIAL_DISTANCING, date.day(), 0.2);
             intervention_trigger = false;
         }
-        if (date.endOfMonth()) cerr << "hit\tscen\trep\tsday\tdate\tinfinc\tcinf\trcases\trcta7\tcrcases\trdeath\tcrdeath\tsevprev\thosprev\tclosed\n";
-        cerr << hit_may15_target
-             << "\t" << par->mmodsScenario
-             << "\t" << process_id
-             << "\t" << date.day()
-             << "\t" << date.julianMonth() << "/" << date.dayOfMonth()
-             << "\t" << infections[date.day()]
-             << "\t" << setprecision(2) << accumulate(infections.begin(), infections.begin()+date.day()+1, 0.0)/pop_at_risk
+        if (date.dayOfMonth()==1) cerr << "hit scen rep        sday date        infinc  cinf\trcases\trcta7\tcrcases\trdeath\tcrdeath\tsevprev\thosprev\tclosed\tnewpeak\n";
+        //cerr << left << setw(4) << hit_may15_target
+        cerr << setw(4) << hit_may15_target
+             << setw(5) << par->mmodsScenario
+             << setw(11) << process_id
+             << setw(4) << date.day()
+             //<< " " << right << setfill('0') << setw(2) << date.julianMonth() << "/" << setw(2) << date.dayOfMonth() << "/" << date.julianYear() << setfill(' ')
+             << " " << date.mdy()
+             << right << setw(8) << infections[date.day()]
+             << "  " << setw(7) << setprecision(2) << left << accumulate(infections.begin(), infections.begin()+date.day()+1, 0.0)/pop_at_risk
              << "\t" << setprecision(4) << reported_cases
              << "\t" << trailing_avg
              << "\t" << rc_ct
@@ -412,7 +414,7 @@ vector<int> simulate_epidemic(const Parameters* par, Community* community, const
              << "\t" << severe_prev[date.day()]
              << "\t" << hospitalizations[date.day()]
              << "\t" << community->getTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, date.day())
-             << "\t" << (date.day() == peak_time)
+             << "\t" << (date.day() == (signed) peak_time)
              << endl;
     }
     return epi_sizes;
