@@ -435,8 +435,7 @@ vector<double> Community::getMeanNumSecondaryInfections() const {
         for (const Infection* inf: p->getInfectionHistory()) {
             const int infection_onset = inf->getInfectedTime();
             assert(infection_onset >= 0);
-            //assert(infection_onset >= 0 and infection_onset < daily_secondary_infections.size());
-            if (infection_onset >= daily_secondary_infections.size()) { daily_secondary_infections.resize(infection_onset+1); }
+            if ((unsigned) infection_onset >= daily_secondary_infections.size()) { daily_secondary_infections.resize(infection_onset+1); }
             daily_secondary_infections[infection_onset].push_back(inf->secondary_infection_tally());
         }
     }
@@ -450,13 +449,16 @@ vector<double> Community::getMeanNumSecondaryInfections() const {
 
 
 void Community::reportCase(int onsetDate, int reportDate) {
-    if (onsetDate < _numDetectedCasesOnset.size()) _numDetectedCasesOnset[onsetDate]++;
-    if (reportDate < _numDetectedCasesReport.size()) _numDetectedCasesReport[reportDate]++;
+    assert(onsetDate >= 0);
+    assert(reportDate >= 0);
+    if ((unsigned) onsetDate < _numDetectedCasesOnset.size()) _numDetectedCasesOnset[onsetDate]++;
+    if ((unsigned) reportDate < _numDetectedCasesReport.size()) _numDetectedCasesReport[reportDate]++;
 }
 
 
 void Community::reportDeath(int eventDate, int /*reportDate*/) {
-    if (eventDate < _numDetectedDeaths.size()) _numDetectedDeaths[eventDate]++;
+    assert(eventDate >= 0);
+    if ((unsigned) eventDate < _numDetectedDeaths.size()) _numDetectedDeaths[eventDate]++;
 }
 
 
@@ -506,15 +508,15 @@ void Community::updateDiseaseStatus() {
 
 void Community::flagInfectedLocation(LocationType locType, Location* _pLoc, int day) {
     // pass in location type in case we want to model e.g. nursing home workers not going to work, but residents staying put
-    //if (day < _par->runLength) _isHot[day].insert(_pLoc);
-    if (day < _par->runLength) _isHot[day][locType][_pLoc]++;
+    assert(day >= 0);
+    if ((unsigned) day < _par->runLength) _isHot[day][locType][_pLoc]++;
 }
 
 
 Infection* Community::trace_contact(int &infectee_id, vector<Person*> &source_candidates, int infectious_count) {
+    // Identify who was the source of an exposure event (tracing backward)
     // This function currently assumes all co-located infected people are equally likely
     // to be the cause of transmission.  May be something we want to relax in the future.
-    Infection* infection = nullptr;
     vector<Person*> infected_candidates;
     for (Person* p: source_candidates) {
         if(p->isInfectious(_day) and not p->inHospital(_day) and not p->isDead(_day)) {
@@ -522,7 +524,7 @@ Infection* Community::trace_contact(int &infectee_id, vector<Person*> &source_ca
         }
     }
 
-    assert(infected_candidates.size() == infectious_count);
+    assert((signed) infected_candidates.size() == infectious_count);
     Person* infectee = choice(RNG, infected_candidates);
     infectee_id = infectee->getID();
     return infectee->getInfection();
