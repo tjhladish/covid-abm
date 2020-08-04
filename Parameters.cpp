@@ -9,6 +9,7 @@
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_roots.h>
 #include <climits> // INT_MAX
+#include "Date.h"
 
 void Parameters::define_defaults() {
     serial = 0;
@@ -40,7 +41,8 @@ void Parameters::define_defaults() {
     probDailyExposure.push_back(0.0);                   // default: no introductions
 
     symptomToTestLag = 2;
-    reportingLag = 10;
+    defaultReportingLag = 10;
+    rlm = nullptr;                                       // reporting lag model
     numInitialExposed  = 0;
     numInitialInfected = 0;
 
@@ -97,6 +99,16 @@ void Parameters::define_susceptibility_and_pathogenicity() {
 //    for (size_t i = 0; i < susceptibilityByAge.size(); ++i) {
 //        cerr << i << "\t" << susceptibilityByAge[i] << "\t" << pathogenicityByAge[i] << endl;
 //    }
+}
+
+
+void Parameters::createReportingLagModel(std::string filename) {
+    rlm = new ReportingLagModel(filename);
+}
+
+
+size_t ReportingLagModel::sample(const gsl_rng* RNG, const Date* date) const {
+    return sample(RNG, date->to_string({"yyyy", "mm", "dd"}, "-"));
 }
 
 

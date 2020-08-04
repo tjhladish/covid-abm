@@ -21,6 +21,7 @@ using covid::util::mean;
 using covid::util::choice;
 
 const Parameters* Community::_par;
+Date* Community::_date;
 vector< map<LocationType, map<Location*, int, Location::LocPtrComp>>> Community::_isHot;
 set<Person*> Community::_revaccinate_set;
 vector<size_t> Community::_numDetectedCasesOnset;
@@ -33,7 +34,7 @@ vector<size_t> Community::_numDetectedDeaths;
 int mod(int k, int n) { return ((k %= n) < 0) ? k+n : k; } // correct for non-negative n
 
 
-Community::Community(const Parameters* parameters) :
+Community::Community(const Parameters* parameters, Date* date) :
 //    _exposedQueue(MAX_INCUBATION, vector<Person*>(0)),
     _numNewlyInfected(parameters->runLength), // +1 not needed; runLength is already a valid size
     _numNewlySymptomatic(parameters->runLength),
@@ -45,6 +46,7 @@ Community::Community(const Parameters* parameters) :
     _numIcuPrev(parameters->runLength)
     {
     _par = parameters;
+    _date = date;
     _day = 0;
     //_mortality = NULL;
     //_bNoSecondaryTransmission = false;
@@ -60,6 +62,16 @@ Community::Community(const Parameters* parameters) :
         }
     }
     timedInterventions = _par->timedInterventions;
+}
+
+
+Date* Community::get_date() {
+    if (_date) {
+        return _date;
+    } else {
+        cerr << "ERROR: Community::_date not defined in Community::get_date()\n";
+        exit(-1);
+    }
 }
 
 
@@ -90,6 +102,7 @@ void Community::reset() { // used for r-zero calculations, to reset pop after a 
 
 
 Community::~Community() {
+    if (_date) delete _date;
     if (_people.size() > 0) { for (Person* p: _people) delete p; }
 
     Person::reset_ID_counter();
@@ -361,9 +374,9 @@ Person* Community::getPersonByID(int id) {
 
 
 // infect - infects person id
-bool Community::infect(int id, int day) {
+bool Community::infect(int id) {
     Person* person = getPersonByID(id);
-    return person->infect(-1, day, 0);
+    return person->infect(-1, _date, 0);
 }
 
 
@@ -448,7 +461,7 @@ vector<double> Community::getMeanNumSecondaryInfections() const {
 }
 
 
-void Community::reportCase(int onsetDate, int reportDate) {
+void Community::reportCase(int onsetDate, long int reportDate) { // long int b/c reportDate can be a bit greater than max int
     assert(onsetDate >= 0);
     assert(reportDate >= 0);
     if ((unsigned) onsetDate < _numDetectedCasesOnset.size()) _numDetectedCasesOnset[onsetDate]++;
@@ -456,7 +469,7 @@ void Community::reportCase(int onsetDate, int reportDate) {
 }
 
 
-void Community::reportDeath(int eventDate, int /*reportDate*/) {
+void Community::reportDeath(int eventDate, long int /*reportDate*/) {
     assert(eventDate >= 0);
     if ((unsigned) eventDate < _numDetectedDeaths.size()) _numDetectedDeaths[eventDate]++;
 }
@@ -615,7 +628,7 @@ void Community::_transmission(Location* source_loc, vector<Person*> at_risk_grou
             if (_par->traceContacts) {
                 infection = trace_contact(infectee_id, source_candidates, infectious_count);
             }
-            Infection* transmission = p->infect(infectee_id, _day, source_loc->getID()); // infect() tests for whether person is infectable
+            Infection* transmission = p->infect(infectee_id, _date, source_loc->getID()); // infect() tests for whether person is infectable
             if (infection and transmission) { infection->log_transmission(transmission); } // are we contact tracing, and did transmission occur?
         }
     }
@@ -629,8 +642,8 @@ void Community::updateHotLocations() {
 }
 
 
-void Community::tick(int day) {
-    _day = day;
+void Community::tick() {
+    _day = _date->day();
     within_household_transmission();
     workplace_transmission();
     if (not timedInterventions[SCHOOL_CLOSURE][_day]) school_transmission();

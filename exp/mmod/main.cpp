@@ -80,7 +80,8 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->timedInterventions[SOCIAL_DISTANCING].resize(30, 0.0);
     par->timedInterventions[SOCIAL_DISTANCING].resize(par->runLength, 0.5);
 
-    par->reportingLag = 14;
+    //par->defaultReportingLag = 14;
+    par->createReportingLagModel(pop_dir + "/case_report_delay.csv");
     par->symptomToTestLag = 2;
 
     par->daysImmune = 730;

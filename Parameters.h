@@ -11,7 +11,10 @@
 #include <bitset>
 #include <assert.h>
 #include <gsl/gsl_rng.h>
+#include <climits>
 #include "Utility.h"
+
+class Date;
 
 enum TimePeriod {
     HOME,
@@ -81,14 +84,66 @@ enum MmodsScenario {
     NUM_OF_MMODS_SCENARIOS
 };
 
-extern const gsl_rng* RNG;// = gsl_rng_alloc (gsl_rng_taus2);
+struct GammaPars {
+    GammaPars() {};
+    GammaPars(double _a, double _b) : a(_a), b(_b) {};
+    // gamma distribution parameterization used by GSL
+    double a; // shape
+    double b; // scale
+};
 
-static const std::vector<std::string> DAY_NAMES = {"MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"};
-static const std::vector<std::string> MONTH_NAMES = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
-static const std::vector<size_t> COMMON_DAYS_IN_MONTH = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-static const std::vector<size_t> COMMON_END_DAY_OF_MONTH = {31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365};
-static const std::vector<size_t> LEAP_DAYS_IN_MONTH = {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-static const std::vector<size_t> LEAP_END_DAY_OF_MONTH = {31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335, 366};
+class ReportingLagModel {
+  public:
+    ReportingLagModel() {};
+    ReportingLagModel(std::string filename) { read_csv(filename); };
+    void insert_lag (std::string ymd, double a_shape, double b_scale) {
+        dated_lags[ymd] = GammaPars(a_shape, b_scale);
+    }
+    std::string earliest_date() const { return dated_lags.begin()->first; }
+    std::string latest_date()   const { return dated_lags.rbegin()->first; }
+
+    void read_csv(std::string filename) {
+        std::vector<std::vector<std::string>> reporting_lag_data = covid::util::read_2D_vector_file(filename, ',');
+        bool header = true;
+        for (size_t i = header; i < reporting_lag_data.size(); ++i) {
+            vector<string> row = reporting_lag_data[i];
+            assert(row.size() == 5);
+            string date    = row[0];
+            double a_shape = stod(row[3]);
+            double b_scale = stod(row[4]);
+            insert_lag(date, a_shape, b_scale);
+        }
+
+    }
+
+    size_t sample(const gsl_rng* REPORTING_RNG, std::string ymd) const {
+        if (ymd < earliest_date()) {
+            return INT_MAX;
+        } else if (ymd > latest_date()) {
+            GammaPars gp = dated_lags.rbegin()->second;
+            return (size_t) round(gsl_ran_gamma(REPORTING_RNG, gp.a, gp.b));
+        } else if (dated_lags.count(ymd) > 0) {
+            GammaPars gp = dated_lags.at(ymd);
+            return (size_t) round(gsl_ran_gamma(REPORTING_RNG, gp.a, gp.b));
+        } else {
+            cerr << "ERROR: The date provided to ReportingLagModel::sample() (" << ymd
+                 << ") is in the range of known dates, but lag parameters are not known for that date.\n";
+            exit(-1);
+        }
+    }
+
+    size_t sample(const gsl_rng* REPORTING_RNG, const Date* date) const;
+
+  private:
+    std::map<std::string, GammaPars> dated_lags;
+};
+
+
+extern const gsl_rng* RNG;// = gsl_rng_alloc (gsl_rng_taus2);
+// use a second RNG for stochastic reporting; this allows for more powerful analysis of
+// the effects of different reporting models
+extern const gsl_rng* REPORTING_RNG; // = gsl_rng_alloc (gsl_rng_mt19937);
+
 /*
 // transmission-related probabilities
 susceptibility -- use fuction wrapper for generality so we can potentially use age in the future, but just a single value in par for now
@@ -220,6 +275,7 @@ public:
 
     Parameters() { define_defaults(); }
     Parameters(int argc, char *argv[]) { define_defaults(); readParameters(argc, argv); }
+    ~Parameters() { if (rlm) delete rlm; }
 
     void define_defaults();
     void readParameters(int argc, char *argv[]);
@@ -250,7 +306,17 @@ public:
     PathogenicityModel pathogenicityModel;                  // use age-specific values, or constant?
     std::vector<double> reportedFraction;                   // Probability of being reported, given asymptomatic, mild, severe, critical, and fatal infection
     size_t symptomToTestLag;                                // For people with mild disease who get infected, number of days until tested
-    size_t reportingLag;                                    // Number of days it takes for a test result to be reported after a sample is collected
+    void createReportingLagModel(std::string filename);
+    size_t defaultReportingLag;                             // Number of days it takes for a test result to be reported after a sample is collected;
+                                                            // only used if an explicit reporting lag model is not defined
+    ReportingLagModel* rlm;
+    size_t reportingLag (const gsl_rng* REPORTING_RNG, const Date *date) const {
+        if (rlm) {
+            return rlm->sample(REPORTING_RNG, date);
+        } else {
+            return defaultReportingLag;
+        }
+    }
     bool vaccineLeaky;                                      // if false, vaccine is all-or-none
     bool retroactiveMatureVaccine;                          // if true, infection causes leaky vaccine to jump from naive to mature protection
     double seroTestFalsePos;                                // probability that seroneg person tests positive -- leaky test

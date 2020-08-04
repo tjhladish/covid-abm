@@ -119,35 +119,23 @@ class Person {
 //        void copyImmunity(const Person *p);
         void resetImmunity();
 
-//        bool isSusceptible() const;                  // is susceptible (and is alive)
         bool isCrossProtected(int time) const; // assumes binary cross-immunity
         bool isVaccineProtected(int time) const;
-
-//        inline Location* getLocation(TimePeriod timeofday) const { return _pLocation[(int) timeofday]; }
-//        inline void setLocation(Location* p, TimePeriod timeofday) { _pLocation[(int) timeofday] = p; }
 
         inline int getInfectedByID(int infectionsago=0)     const { return getInfection(infectionsago)->infectedByID; }
         inline int getInfectedPlace(int infectionsago=0)    const { return getInfection(infectionsago)->infectedPlace; }
         inline int getInfectedTime(int infectionsago=0)     const { return getInfection(infectionsago)->infectedBegin; }
 
         inline int getInfectiousTime(int infectionsago=0)   const { return getInfection(infectionsago)->infectiousBegin; }
-//        inline int getInfectiousDuration(int infectionsago=0)   const { return getInfection(infectionsago)->infectiousDuration; }
-
         inline int getSymptomTime(int infectionsago=0)      const { return getInfection(infectionsago)->symptomBegin; }
-//        inline int getSymptomDuration(int infectionsago=0)      const { return getInfection(infectionsago)->symptomDuration; }
-
         inline int getSevereTime(int infectionsago=0)       const { return getInfection(infectionsago)->severeBegin; }
-//        inline int getSevereDuration(int infectionsago=0)   const { return getInfection(infectionsago)->severeDuration; }
-
         inline int getCriticalTime(int infectionsago=0)     const { return getInfection(infectionsago)->criticalBegin; }
-//        inline int getCriticalDuration(int infectionsago=0) const { return getInfection(infectionsago)->criticalDuration; }
 
         inline int getHospitalizedTime(int infectionsago=0) const { return getInfection(infectionsago)->hospitalizedBegin; }
         inline int getIcuTime(int infectionsago=0) const { return getInfection(infectionsago)->icuBegin; }
         inline int getDeathTime(int infectionsago=0)        const { return getInfection(infectionsago)->deathTime; }
 
         Infection* getInfection(int infectionsago=0) const { return infectionHistory[getNumNaturalInfections() - 1 - infectionsago]; }
-        //inline void setRecoveryTime(int time, int infectionsago=0) { infectionHistory[getNumNaturalInfections() - 1 - infectionsago]->recoveryTime = time; }
         inline int getNumNaturalInfections() const { return infectionHistory.size(); }
 
         int getNumVaccinations() const { return vaccineHistory.size(); }
@@ -156,9 +144,9 @@ class Person {
         int daysSinceVaccination(int time) const { assert( vaccineHistory.size() > 0); return time - vaccineHistory.back(); } // isVaccinated() should be called first
         double vaccineProtection(const int time) const;
 
-        Infection* infect(int sourceid, int time, int sourceloc);
+        Infection* infect(int sourceid, const Date* date, int sourceloc);
         void processDeath(Infection &infection, const int time);
-        inline bool infect(int time) {return infect(INT_MIN, time, INT_MIN);}
+        inline bool infect(const Date* date) {return infect(INT_MIN, date, INT_MIN);}
 
         // TODO -- the following functions assume that only the most recent infection needs to be inspected
         bool inHospital(int time) const { return infectionHistory.size() > 0 and infectionHistory.back()->inHospital(time); }
@@ -172,14 +160,6 @@ class Person {
         bool isSevere(int time)         const { return infectionHistory.size() > 0 and infectionHistory.back()->isSevere(time); }
         bool isCritical(int time)       const { return infectionHistory.size() > 0 and infectionHistory.back()->isCritical(time); }
 
-
-
-//        bool isNewlyInfected(int time) const;                           // became infected today?
-//        bool isInfectious(int time) const;
-//        bool isInfected(int time) const;                                // either exposed or infectious
-//        bool isSymptomatic(int time) const;                             // has symptoms
-//        bool isSevere(int time) const;                                  // used for estimating hospitalizations
-//        bool isCritical(int time) const;                                // used for estimating ICU demand
         bool isVaccinated() const { return vaccineHistory.size() > 0; } // has been vaccinated
         bool isInfectable(int time) const;
         double remainingEfficacy(const int time) const;
@@ -191,8 +171,6 @@ class Person {
         bool vaccinate(int time);                                     // vaccinate this person
         static void setPar(const Parameters* par) { _par = par; }
 
-        //static const double _fIncubationDistribution[MAX_INCUBATION];
-
         Infection& initializeNewInfection();
         Infection& initializeNewInfection(int time, int sourceloc, int sourceid);
 
@@ -203,12 +181,9 @@ class Person {
         size_t id;                                                  // unique identifier
         Location* home_loc;                                                // family membership
         Location* day_loc;                                                 // ID of location of work
-//        Location *_pLocation[(int) NUM_OF_TIME_PERIODS];            // where this person is at morning, day, and evening
         int age;                                                    // age in years
         SexType sex;                                                // sex (gender)
         bool long_term_care;                                        // resident of nursing home, etc.
-//        bool dead;                                                  // is dead
-//        bool vaccinated;                                            // has been vaccinated
         bool naiveVaccineProtection; // if vaccinated, do we use the naive or non-naive VE_S?
 
         ImmuneStateType immune_state;

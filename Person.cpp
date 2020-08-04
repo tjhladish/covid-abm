@@ -202,7 +202,8 @@ void Person::processDeath(Infection &infection, const int deathTime) {
 
 // infect - infect this individual
 // returns true if infection occurs
-Infection* Person::infect(int sourceid, int time, int sourceloc) {
+Infection* Person::infect(int sourceid, const Date* date, int sourceloc) {
+    const int time = date->day();
     // Bail now if this person can not become infected
     // Not quite the same as "susceptible"--this person may be e.g. partially immune
     // due to natural infection or vaccination
@@ -295,17 +296,17 @@ Infection* Person::infect(int sourceid, int time, int sourceloc) {
     // Detection/reporting!  TODO -- currently, being hospitalized does not affect the probability of detection
     // could check infection.icu() and infection.hospital() and do something different in those cases
 // TODO -- there is a weird thing here: because critical detection is tested first, that means we tend to detect later as well
-//if (_par->mmodsScenario == NUM_OF_MMODS_SCENARIOS or getID() < 1e5) {
 if (isSurveilledPerson()) {
+    const size_t reporting_lag = _par->reportingLag(REPORTING_RNG, date);
     if (infection.critical() and gsl_rng_uniform(RNG) < _par->reportedFraction[CRITICAL]) {
-        Community::reportCase(infection.criticalBegin, infection.criticalBegin + _par->reportingLag);
+        Community::reportCase(infection.criticalBegin, infection.criticalBegin + reporting_lag);
     } else if (infection.severe() and gsl_rng_uniform(RNG) < _par->reportedFraction[SEVERE]) {
-        Community::reportCase(infection.severeBegin, infection.severeBegin + _par->reportingLag);
+        Community::reportCase(infection.severeBegin, infection.severeBegin + reporting_lag);
     } else if (infection.symptomatic() and gsl_rng_uniform(RNG) < _par->reportedFraction[MILD]) {
-        Community::reportCase(infection.symptomBegin, infection.symptomBegin + _par->symptomToTestLag + _par->reportingLag);
+        Community::reportCase(infection.symptomBegin, infection.symptomBegin + _par->symptomToTestLag + reporting_lag);
     } else if (infection.infected() and gsl_rng_uniform(RNG) < _par->reportedFraction[ASYMPTOMATIC]) {
         const int tracing_lag = gsl_rng_uniform_int(RNG, INFECTIOUS_PERIOD); // extra delay, e.g. time during infection someone would be identified by chance screening
-        Community::reportCase(infection.infectiousBegin, infection.infectiousBegin + tracing_lag + _par->reportingLag);
+        Community::reportCase(infection.infectiousBegin, infection.infectiousBegin + tracing_lag + reporting_lag);
     }
 }
     // Flag locations with (non-historical) infections, so that we know to look there for human->mosquito transmission

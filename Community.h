@@ -20,8 +20,10 @@ class Person;
 
 class Community {
     public:
-        Community(const Parameters* parameters);
-        virtual ~Community();
+        Community(const Parameters* parameters, Date* date);
+        ~Community();
+
+        Date* get_date();
         bool loadPopulation(std::string populationFilename, std::string immunityFilename = "");
         bool loadLocations(std::string locationFilename, std::string networkFilename = "");
         size_t getNumPeople() const { return _people.size(); }
@@ -32,20 +34,17 @@ class Community {
         size_t getNumNaive();
         //void populate(Person **parray, int targetpop);
         Person* getPersonByID(int id);
-        bool infect(int id, int day);
+        bool infect(int id);
         int getDay() { return _day; }                                // what day is it?
         //void swapImmuneStates();
         void updateDiseaseStatus();
         void updateHotLocations();
-        void tick(int day);                                           // simulate one day
+        void tick();                                                   // simulate one day
 
         void within_household_transmission();
         void between_household_transmission();
         void workplace_transmission();
         void school_transmission();
-        //void location_transmission(std::map<Location*, int, Location::LocPtrComp> &locations);
-
-        //void setNoSecondaryTransmission() { _bNoSecondaryTransmission = true; }
 
         double social_distancing(int);
         void vaccinate(CatchupVaccinationEvent cve);
@@ -68,8 +67,8 @@ class Community {
 
         static void flagInfectedLocation(LocationType locType, Location* _pLoc, int day);
         Infection* trace_contact(int &infectee_id, vector<Person*> &source_candidates, int infectious_count);
-        static void reportCase(int onsetDate, int reportDate);
-        static void reportDeath(int eventDate, int reportDate);
+        static void reportCase(int onsetDate, long int reportDate);
+        static void reportDeath(int eventDate, long int reportDate);
 
 //        int ageIntervalSize(int ageMin, int ageMax) { return std::accumulate(_personAgeCohortSizes+ageMin, _personAgeCohortSizes+ageMax,0); }
 
@@ -86,6 +85,7 @@ class Community {
 
     protected:
         static const Parameters* _par;
+        static Date* _date;
         std::vector<Person*> _people;                                          // the array index is equal to the ID
         std::vector< std::vector<Person*> > _personAgeCohort;                  // array of pointers to people of the same age
         //int _personAgeCohortSizes[NUM_AGE_CLASSES];                            // size of each age cohort

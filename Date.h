@@ -13,6 +13,13 @@ enum DayOfWeekType {
     NUM_OF_DAYS_IN_WEEK
 };
 
+static const std::vector<std::string> DAY_NAMES = {"MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"};
+static const std::vector<std::string> MONTH_NAMES = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+static const std::vector<size_t> COMMON_DAYS_IN_MONTH = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+static const std::vector<size_t> COMMON_END_DAY_OF_MONTH = {31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365};
+static const std::vector<size_t> LEAP_DAYS_IN_MONTH = {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+static const std::vector<size_t> LEAP_END_DAY_OF_MONTH = {31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335, 366};
+
 
 class Date {
   public:
@@ -118,9 +125,23 @@ class Date {
         }
     }
 
-    string mdy() {
+    string to_string(vector<string> format, string sep="/", bool zero_pad = true) const {
         stringstream ss;
-        ss << setfill('0') << setw(2) << julianMonth() << "/" << setw(2) << dayOfMonth() << "/" << julianYear();
+        for (size_t i = 0; i<format.size(); ++i) {
+            string part = format[i];
+            if (zero_pad) { ss << setfill('0'); }
+            if (part == "yyyy") {
+                ss << setw(4) << julianYear();
+            } else if (part == "mm") {
+                ss << setw(2) << julianMonth();
+            } else if (part == "dd") {
+                ss << setw(2) << dayOfMonth();
+            } else {
+                cerr << "ERROR: Date::date_string() format argument \"" << part << "\" not supported.  Please use yyyy, mm, and/or dd.\n";
+                exit (-1);
+            }
+            if (i < format.size() - 1) { ss << sep; }
+        }
         return ss.str();
     }
 
