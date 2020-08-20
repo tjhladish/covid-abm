@@ -214,7 +214,7 @@ Infection* Person::infect(int sourceid, const Date* date, int sourceloc) {
     Infection& infection = initializeNewInfection(time, sourceloc, sourceid);
 
     double symptomatic_probability = _par->pathogenicityByAge[age];             // may be modified by vaccination
-    const double severe_given_case = SEVERE_FRACTION;           // might become age-, sex- or co-morbidity-structured in the future
+    const double severe_given_case = _par->severeFractionByAge[age];            // might become sex- or co-morbidity-structured in the future
     const double critical_given_severe = CRITICAL_FRACTION;
 
     const double effective_VEP = isVaccinated() ? _par->VEP*remaining_efficacy : 0.0;        // reduced symptoms due to vaccine

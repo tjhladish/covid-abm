@@ -11,10 +11,12 @@
 #include <climits> // INT_MAX
 #include "Date.h"
 
+using namespace covid::util;
+
 void Parameters::define_defaults() {
     serial = 0;
     randomseed = 5489;
-    runLength = 100;
+    runLength = 0;
     household_transmissibility = 0.15;
     workplace_transmissibility = 0.15;
     school_transmissibility = 0.15;
@@ -86,6 +88,7 @@ void Parameters::define_defaults() {
 
 void Parameters::define_susceptibility_and_pathogenicity() {
     // values from EDT1 of https://www.medrxiv.org/content/10.1101/2020.03.24.20043018v2.full.pdf
+    // now published in Nat Med
     vector<size_t> bin_upper = {9, 19, 29, 39, 49, 59, 69, NUM_AGE_CLASSES-1};
     vector<float> susceptibilities = {0.33, 0.37, 0.69, 0.81, 0.74, 0.8, 0.89, 0.77};
     vector<float> pathogenicities = {0.4, 0.25, 0.37, 0.42, 0.51, 0.59, 0.72, 0.76};
@@ -96,6 +99,15 @@ void Parameters::define_susceptibility_and_pathogenicity() {
         pathogenicityByAge.resize(upper_age+1, pathogenicities[i]);
     }
 
+    // https://www.cdc.gov/mmwr/volumes/69/wr/mm6915e3.htm
+    bin_upper = {4, 17, 49, 64, 74, 84, NUM_AGE_CLASSES-1};
+    vector<float> severe_fraction = {0.003, 0.001, 0.025, 0.074, 0.122, 0.158, 0.172};
+
+    for (size_t i = 0; i < bin_upper.size(); ++i) {
+        const size_t upper_age = bin_upper[i];
+        severeFractionByAge.resize(upper_age+1, severe_fraction[i]);
+    }
+
 //    for (size_t i = 0; i < susceptibilityByAge.size(); ++i) {
 //        cerr << i << "\t" << susceptibilityByAge[i] << "\t" << pathogenicityByAge[i] << endl;
 //    }
@@ -104,6 +116,37 @@ void Parameters::define_susceptibility_and_pathogenicity() {
 
 void Parameters::createReportingLagModel(std::string filename) {
     rlm = new ReportingLagModel(filename);
+}
+
+
+void Parameters::createSocialDistancingModel(std::string filename, float mobility_logit_shift, float mobility_logit_stretch) {
+    // expects that the mobility data being read in has a first column with increasing, consecutive dates
+    // and a second column with the mobility numbers (on [0,1])
+    timedInterventions[SOCIAL_DISTANCING].clear();
+    //timedInterventions[SOCIAL_DISTANCING].resize(run_length, 0.0);
+
+    const string sim_start_date = Date::to_ymd(julianYear, startDayOfYear);
+
+    std::vector<std::vector<std::string>> mobility_data = covid::util::read_2D_vector_file(filename, ',');
+    bool header = true;
+    for (size_t i = header; i < mobility_data.size(); ++i) {
+        vector<string> row = mobility_data[i];
+        assert(row.size() >= 2);
+        const string date     = row[0];
+        const double mobility = stod(row[1]);
+        if (date < sim_start_date) {
+            continue;
+        } else if (date > sim_start_date and timedInterventions[SOCIAL_DISTANCING].size() == 0) {
+            cerr << "ERROR: simulation starts on " << sim_start_date << ", and mobility input file starts too late (on " << date << ")\n";
+            exit(19);
+        } else {
+            const double SD = covid::util::logistic((covid::util::logit(mobility) + mobility_logit_shift) * mobility_logit_stretch);
+//cerr << "storing " << date << ", " << mobility << " as " << SD << endl;
+            timedInterventions[SOCIAL_DISTANCING].push_back(SD);
+        }
+    }
+    const double last_value = timedInterventions[SOCIAL_DISTANCING].back();
+    timedInterventions[SOCIAL_DISTANCING].resize(runLength, last_value);
 }
 
 

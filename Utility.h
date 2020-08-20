@@ -128,6 +128,9 @@ namespace covid {
             return stats;
         }
 
+        inline double logit(const double p) { assert(p <= 1.0); assert (p >= 0.0); return log( p / (1.0 - p) ); }
+        inline double logistic(const double l) { return 1.0 / (1.0 + exp(-l)); }
+
         template <typename T> inline
         T min_element(vector<T> list) {
             T element = list[0];

@@ -26,23 +26,42 @@ class Date {
     Date():_simulation_day(0),_month_ct(0),_year_ct(0),_julian_day(1),_julian_year(1) {};
     Date(const Parameters* par):_simulation_day(0),_month_ct(0),_year_ct(0),_julian_day(par->startDayOfYear),_julian_year(par->julianYear) {};
 
-    inline int day()         const { return _simulation_day; }                                     // [0, ...]
-    size_t julianDay()       const { return _julian_day; }                                         // [1, {365, 366}]
-    size_t dayOfMonth()      const { return julianMonth() == 1 ?                                   // [1, {29,30,31}]
-                                            julianDay() :
-                                            julianDay() - end_day_of_month()[julianMonth()-2]; }
-    size_t nDayPeriod(int n)    const { return (int) day()/n; }                                    // [0, ...]
-    size_t week()               const { return (int) day()/NUM_OF_DAYS_IN_WEEK; }                  // [0, ...]
-    size_t julianWeek()      const { return (int) ((julianDay()-1)/NUM_OF_DAYS_IN_WEEK) + 1; }     // [1, 53]
-    size_t month()              const { return _month_ct; }                                        // [0, ...]
-    size_t julianMonth()        const {                                                            // [1, 12]
+    inline int day()            const { return _simulation_day; }                                   // [0, ...]
+    size_t julianDay()          const { return _julian_day; }                                       // [1, {365, 366}]
+    static size_t dayOfMonth(size_t julian_day, size_t julian_year) {                               // [1, {29,30,31}]
+                                        const size_t jm = julianMonth(julian_day, julian_year);
+                                        return jm == 1 ? julian_day : julian_day - end_day_of_month(julian_year)[jm - 2];
+    }
+
+    size_t dayOfMonth()         const { return dayOfMonth(julianDay(), julianYear()); }
+//    size_t dayOfMonth()         const { return julianMonth() == 1 ?
+//                                               julianDay() :
+//                                               julianDay() - end_day_of_month()[julianMonth()-2]; }
+    size_t nDayPeriod(int n)    const { return (int) day()/n; }                                     // [0, ...]
+    size_t week()               const { return (int) day()/NUM_OF_DAYS_IN_WEEK; }                   // [0, ...]
+    size_t julianWeek()         const { return (int) ((julianDay()-1)/NUM_OF_DAYS_IN_WEEK) + 1; }   // [1, 53]
+    size_t month()              const { return _month_ct; }                                         // [0, ...]
+    static size_t julianMonth(size_t julian_day, size_t julian_year) {                              // [1, 12]
+        vector<size_t>::const_iterator it;
+        // find first month that hasn't ended (hint: it's this month)
+        // julianDay()-1 because this isn't upper_or_equal_bound, which would be convenient
+        const vector<size_t> end_dom = end_day_of_month(julian_year);
+        it = upper_bound(end_dom.begin(), end_dom.end(), julian_day-1);
+        return it - end_dom.begin() + 1; // +1 b/c [1, 12], not [0, 11]
+    }
+
+    size_t julianMonth()     const {                                                                // [1, 12]
+        return julianMonth(julianDay(), julianYear());
+    }
+
+/*    size_t julianMonth()     const {                                                                // [1, 12]
         vector<size_t>::const_iterator it;
         // find first month that hasn't ended (hint: it's this month)
         // julianDay()-1 because this isn't upper_or_equal_bound, which would be convenient
         const vector<size_t> end_dom = end_day_of_month();
         it = upper_bound(end_dom.begin(), end_dom.end(), julianDay()-1);
         return it - end_dom.begin() + 1; // +1 b/c [1, 12], not [0, 11]
-    }
+    }*/
 
     static DayOfWeekType dayOfWeek(int y, int m, int d) {
         // John Conway's "Doomsday Algorithm"
@@ -69,7 +88,9 @@ class Date {
         it = find(end_dom.begin(), end_dom.end(), julianDay());
         return it != end_dom.end();
     }
-    vector<size_t> end_day_of_month() const { return isLeap() ? LEAP_END_DAY_OF_MONTH : COMMON_END_DAY_OF_MONTH; }
+    static vector<size_t> end_day_of_month(size_t year) { return isLeap(year) ? LEAP_END_DAY_OF_MONTH : COMMON_END_DAY_OF_MONTH; }
+    //vector<size_t> end_day_of_month() const { return isLeap() ? LEAP_END_DAY_OF_MONTH : COMMON_END_DAY_OF_MONTH; }
+    vector<size_t> end_day_of_month() const { return end_day_of_month(julianYear()); }
     bool startOfYear()       const { return startOfJulianYear(); }
     bool endOfYear()         const { return endOfJulianYear(); }                               // is it end of {365,366} day period
     bool startOfJulianYear() const { return julianDay() == 1; }                                // is it Jan 1
@@ -125,6 +146,7 @@ class Date {
         }
     }
 
+    // generic function to get date strings that look like 2020-03-15, 03/15/2020, 315 (but why?), etc.
     string to_string(vector<string> format, string sep="/", bool zero_pad = true) const {
         stringstream ss;
         for (size_t i = 0; i<format.size(); ++i) {
@@ -142,6 +164,35 @@ class Date {
             }
             if (i < format.size() - 1) { ss << sep; }
         }
+        return ss.str();
+    }
+
+    // assumes yyyy-mm-dd format
+    static size_t to_julian_day(string date_string) {
+        vector<string> parts = covid::util::split(date_string, '-');
+        assert(parts.size() == 3);
+        size_t julian_year  = (size_t) stoi(parts[0]);
+        size_t julian_month = (size_t) stoi(parts[1]);
+        size_t julian_day   = (size_t) stoi(parts[2]);
+        assert(julian_month >= 1);
+        assert(julian_month <= 12);
+        if (julian_month == 1) {
+            return julian_day;
+        } else if (isLeap(julian_year)) {
+            return LEAP_END_DAY_OF_MONTH[julian_month - 2] + julian_day;
+        } else {
+            return COMMON_END_DAY_OF_MONTH[julian_month - 2] + julian_day;
+        }
+    }
+
+    // assumes yyyy-mm-dd format
+    static string to_ymd (size_t julian_year, int julian_day) {
+        string sep = "-";
+        stringstream ss;
+        ss << setfill('0')
+           << setw(4) << julian_year << sep
+           << setw(2) << julianMonth(julian_day, julian_year) << sep
+           << setw(2) << dayOfMonth(julian_day, julian_year);
         return ss.str();
     }
 

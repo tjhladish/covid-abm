@@ -174,13 +174,14 @@ transmission from asymp is 0.5*trans from symp
 .duration of symptoms 14 days for mild, (1 week mild, 2w severe, 1w mild) for severe, 10 more days critical, in the middle of severe period
 */
 
-static const float SEVERE_FRACTION = 0.1;                     // fraction of cases become severe
-static const float CRITICAL_FRACTION = 0.25;                  // was 0.5; fraction of severe cases that become critical
+//static const float SEVERE_FRACTION = 0.1;                   // fraction of cases become severe
+static const float CRITICAL_FRACTION = 0.33;                  // fraction of severe cases that become critical
+                                                              // https://www.cdc.gov/mmwr/volumes/69/wr/mm6932e3.htm?s
 
 static const float SEVERE_TO_HOSPITAL = 0.8;                  // general population, probability of going to hospital if severe
-static const float LTC_SEVERE_TO_HOSPITAL = 0.5;              // probability long-term-care residents who are severe go to hospital (if hosp available)
+static const float LTC_SEVERE_TO_HOSPITAL = 0.25;             // probability long-term-care residents who are severe go to hospital (if hosp available)
 static const float CRITICAL_TO_ICU_IF_HOSP = 1.0;             // probability already-hospitalized patients go to ICU when critical (if ICU available)
-static const float CRITICAL_TO_ICU_IF_NOT_HOSP = 0.8;         // probability non-hospitalized severe patients go to ICU when critical (if ICU available)
+static const float CRITICAL_TO_ICU_IF_NOT_HOSP = 0.6;         // probability non-hospitalized severe patients go to ICU when critical (if ICU available)
 
 static const int INFECTIOUSNESS_ONSET = 3;                    // delay of infectiousness after infectious exposure
 static const int INFECTIOUS_PERIOD = 7;                       // independent of disease outcome
@@ -204,7 +205,8 @@ static const std::vector<double> ICU_MORTALITY_BY_DAY_CDF = { 0.004400701, 0.011
 static const int POST_CRITICAL_SEVERE = 10;                   // number of days after critical disease that severe symptoms remain
 static const int SEVERE_DURATION_CRITICAL = PRE_CRITICAL_SEVERE + CRITICAL_DURATION + POST_CRITICAL_SEVERE;
 static const int SYMPTOM_DURATION_CRITICAL = PRE_SEVERE_SYMPTOMATIC + SEVERE_DURATION_CRITICAL + POST_SEVERE_SYMPTOMATIC;
-static const float ICU_CRITICAL_MORTALITY = 0.2;              // probability of dying while in ICU, distributed uniformly across days in ICU
+static const float ICU_CRITICAL_MORTALITY = 0.4;              // probability of dying while in ICU, distributed uniformly across days in ICU
+                                                              // 0.4 based on ARDS from here https://ccforum.biomedcentral.com/articles/10.1186/s13054-020-03006-1
 static const float NON_ICU_CRITICAL_MORTALITY = 1.0;          // probability of dying when becoming critical if intensive care is not received
 
 // from Person.h
@@ -298,6 +300,7 @@ public:
     double social_transmissibility;                         // per-day probability of transmission, scaled by the fraction of infectious social contacts
     vector<float> susceptibilityByAge;                      // probability of infection given exposure, index by year of age
     vector<float> pathogenicityByAge;                       // probability of clinical disease given infection, index by year of age
+    vector<float> severeFractionByAge;                      // probability of severe disease given clinical disease, index by year of age
     double VES;                                             // vaccine efficacy for susceptibility (can be leaky or all-or-none)
     double VES_NAIVE;                                       // VES for initially immunologically naive people
     double VEI;                                             // vaccine efficacy to reduce infectiousness
@@ -317,6 +320,8 @@ public:
             return defaultReportingLag;
         }
     }
+
+    void createSocialDistancingModel(std::string filename, float mobility_logit_shift, float mobility_logit_stretch);
     bool vaccineLeaky;                                      // if false, vaccine is all-or-none
     bool retroactiveMatureVaccine;                          // if true, infection causes leaky vaccine to jump from naive to mature protection
     double seroTestFalsePos;                                // probability that seroneg person tests positive -- leaky test

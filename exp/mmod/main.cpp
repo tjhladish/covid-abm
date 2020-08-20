@@ -24,7 +24,7 @@ const string output_dir("/ufrc/longini/tjhladish/");
 //const string imm_dir(output_dir + "");
 
 const int RESTART_BURNIN       = 0;
-const int FORECAST_DURATION    = 500;
+const int FORECAST_DURATION    = 186;
 const bool RUN_FORECAST        = true;
 const int TOTAL_DURATION       = RUN_FORECAST ? RESTART_BURNIN + FORECAST_DURATION : RESTART_BURNIN;
 const size_t JULIAN_TALLY_DATE = 146; // intervention julian date - 1
@@ -39,7 +39,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     if (ms < NUM_OF_MMODS_SCENARIOS) { par->numSurveilledPeople = 1e5; } // default is INT_MAX
     par->serial = serial;
 
-    const float T = 0.25;
+    const float T = args[1]; //0.2;
 
     par->household_transmissibility = T;
     par->workplace_transmissibility = T;
@@ -47,7 +47,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->social_transmissibility    = T/10.0;
     //hospitalizedFraction = {0.0, 0.15, 0.9};
     //par->reportedFraction = {0.0, 0.01, 0.5, 0.8, 1.0};      // fraction of asymptomatic, mild, severe, critical, and deaths reported
-    par->reportedFraction = {0.0, 0.2, 0.8, 0.8, 1.0};      // fraction of asymptomatic, mild, severe, critical, and deaths reported
+    par->reportedFraction = {0.0, 0.2, 0.75, 0.75, 0.75};      // fraction of asymptomatic, mild, severe, critical, and deaths reported
     par->randomseed              = rng_seed;
     par->dailyOutput             = false; // turn on for daily prevalence figure, probably uncomment filter in simulator.h for daily output to get only rel. days
     par->periodicOutput          = false;
@@ -71,14 +71,26 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
 //    par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(par->runLength, 0.0);
 //    par->timedInterventions[SOCIAL_DISTANCING].resize(par->runLength, 0.0);
 
+    par->timedInterventions[SCHOOL_CLOSURE].clear();
     par->timedInterventions[SCHOOL_CLOSURE].resize(30, 0.0);
     par->timedInterventions[SCHOOL_CLOSURE].resize(par->runLength, 1.0);
 
-    par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(30, 0.0);
-    par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(par->runLength, 1.0);
+    par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].clear();
+    par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(45, 0.0);
+    par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(75, 1.0);
+    par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(par->runLength, 0.0);
 
-    par->timedInterventions[SOCIAL_DISTANCING].resize(30, 0.0);
-    par->timedInterventions[SOCIAL_DISTANCING].resize(par->runLength, 0.5);
+    const float mobility_logit_shift   = -2.7;
+    const float mobility_logit_stretch = 2;
+    // using createSocialDistancingModel() defines timedInterventions[SOCIAL_DISTANCING] values
+    // NB: startDayOfYear, runLength, and julianYear must be defined in par before a social distancing model can be meaningfully created!
+    // TODO - make that dependency something the user doesn't have to know or think about
+    //par->createSocialDistancingModel(pop_dir + "/safegraph_mobility_index.csv", mobility_logit_shift, mobility_logit_stretch);
+    // plot(as.Date(d$date), shiftstretch(1-d$smooth_ma7, shift=-2.7, stretch=2), ylim=c(0,1), type='l')
+    par->createSocialDistancingModel(pop_dir + "/sgmi_fl_comp.csv", mobility_logit_shift, mobility_logit_stretch);
+
+//    par->timedInterventions[SOCIAL_DISTANCING].resize(30, 0.0);
+//    par->timedInterventions[SOCIAL_DISTANCING].resize(par->runLength, 0.0);
 
     //par->defaultReportingLag = 14;
     par->createReportingLagModel(pop_dir + "/case_report_delay.csv");
@@ -265,17 +277,19 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     return metrics;
 }
 
-/*void usage() {
-    cerr << "\n\tUsage: ./abc_sql abc_config_sql.json --process\n\n";
+void usage() {
+    cerr << "\n\tUsage: ./abc_sql <MMOD_scenario> <rng_seed> <transmissibility>" << endl;
+/*    cerr << "\n\tUsage: ./abc_sql abc_config_sql.json --process\n\n";
     cerr << "\t       ./abc_sql abc_config_sql.json --simulate\n\n";
     cerr << "\t       ./abc_sql abc_config_sql.json --simulate -n <number of simulations per database write>\n\n";
-
-}*/
+*/
+}
 
 
 int main(int argc, char* argv[]) {
-    assert(argc == 3);
-    vector<double> sim_args = {atof(argv[1])};
+    if (argc != 4) { usage(); }
+//    assert(argc == 4);
+    vector<double> sim_args = {atof(argv[1]), atof(argv[3])};
     size_t seed = atoi(argv[2]);
     size_t serial = 0;
 

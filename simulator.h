@@ -363,7 +363,7 @@ vector<int> simulate_epidemic(const Parameters* par, Community* community, const
             community->updateTimedIntervention(SOCIAL_DISTANCING, date->day(), 0.2);
             intervention_trigger = false;
         }
-        if (date->dayOfMonth()==1) cerr << "hit scen rep        sday date        infinc  cinf\trcases\trcta7\tcrcases\trdeath\tcrdeath\tsevprev\thosprev\tclosed\tnewpeak\n";
+        if (date->dayOfMonth()==1) cerr << "hit scen rep        sday date        infinc  cinf\trcases\trcta7\tcrcases\trdeath\tcrdeath\tsevprev\thosprev\tclosed\tsocdist\n";
         //cerr << left << setw(4) << hit_may15_target
         cerr << setw(4) << hit_may15_target
              << setw(5) << par->mmodsScenario
@@ -380,7 +380,8 @@ vector<int> simulate_epidemic(const Parameters* par, Community* community, const
              << "\t" << severe_prev[date->day()]
              << "\t" << hospitalizations[date->day()]
              << "\t" << community->getTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, date->day())
-             << "\t" << (date->day() == (signed) peak_time)
+             //<< "\t" << (date->day() == (signed) peak_time) // new peak observed?
+             << "\t" << par->timedInterventions.at(SOCIAL_DISTANCING).at(date->day())
              << endl;
     }
     return epi_sizes;
