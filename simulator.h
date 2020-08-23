@@ -53,10 +53,10 @@ const gsl_rng* REPORTING_RNG = gsl_rng_alloc(gsl_rng_mt19937);
 // Predeclare local functions
 Community* build_community(const Parameters* par);
 void seed_epidemic(const Parameters* par, Community* community);
-vector<int> simulate_epidemic(const Parameters* par, Community* community, const string process_id = "0");
+vector<string> simulate_epidemic(const Parameters* par, Community* community, const string process_id = "0");
 void write_immunity_file(const Community* community, const string label, string filename, int runLength);
 void write_immunity_by_age_file(const Community* community, const int year, string filename="");
-void write_daily_buffer( vector<string>& buffer, const string process_id, string filename);
+void write_daily_buffer( vector<string>& buffer, const string process_id, string filename="", bool overwrite=false);
 
 Community* build_community(const Parameters* par) {
     Date* date = new Date(par);
@@ -300,7 +300,7 @@ size_t tally_decreases(const vector<T> &vals) {
 }
 
 
-vector<int> simulate_epidemic(const Parameters* par, Community* community, const string process_id) {
+vector<string> simulate_epidemic(const Parameters* par, Community* community, const string process_id) {
     vector<int> epi_sizes;
     vector<string> daily_output_buffer;
 
@@ -317,6 +317,8 @@ vector<int> simulate_epidemic(const Parameters* par, Community* community, const
     bool intervention_trigger = true;
     const double pop_at_risk = min(community->getNumPeople(), par->numSurveilledPeople);
 
+    vector<string> plot_log_buffer = {"date,sd,cinf,closed,rcase,rdeath,Rt"};
+
     Date* date = community->get_date();
     for (; date->day() < (signed) par->runLength; date->increment()) {
         if (par->mmodsScenario < NUM_OF_MMODS_SCENARIOS and date->julianDay() >= nov15) break;
@@ -330,6 +332,7 @@ vector<int> simulate_epidemic(const Parameters* par, Community* community, const
         trailing_averages[date->day()]           = calc_trailing_avg(all_reported_cases, date->day(), 7); // <= 7-day trailing average
         const vector<size_t> hospitalizations   = community->getNumHospPrev();
         const vector<size_t> severe_prev =  community->getNumSeverePrev();
+        const double cinf = accumulate(infections.begin(), infections.begin()+date->day()+1, 0.0)/pop_at_risk;
 
         const double trailing_avg = trailing_averages[date->day()];
         if (trailing_avg > 0 and trailing_avg >= peak_height) {
@@ -337,7 +340,7 @@ vector<int> simulate_epidemic(const Parameters* par, Community* community, const
             peak_time = date->day();
         }
 
-        const vector<size_t> deaths = community->getNumDetectedDeaths();
+        const vector<size_t> rdeaths = community->getNumDetectedDeaths();
 
         const size_t rc_ct = accumulate(all_reported_cases.begin(), all_reported_cases.begin()+date->day()+1, 0);
         if (par->mmodsScenario < NUM_OF_MMODS_SCENARIOS and prev_rc_ct < may15_threshold and rc_ct >= may15_threshold) {
@@ -371,20 +374,31 @@ vector<int> simulate_epidemic(const Parameters* par, Community* community, const
              << setw(4) << date->day()
              << " " << date->to_string({"yyyy", "mm", "dd"}, "-")
              << right << setw(8) << infections[date->day()]
-             << "  " << setw(7) << setprecision(2) << left << accumulate(infections.begin(), infections.begin()+date->day()+1, 0.0)/pop_at_risk
+             << "  " << setw(7) << setprecision(2) << left << cinf
              << "\t" << setprecision(4) << reported_cases
              << "\t" << trailing_avg
              << "\t" << rc_ct
-             << "\t" << deaths[date->day()]
-             << "\t" << accumulate(deaths.begin(), deaths.begin()+date->day()+1, 0)
+             << "\t" << rdeaths[date->day()]
+             << "\t" << accumulate(rdeaths.begin(), rdeaths.begin()+date->day()+1, 0)
              << "\t" << severe_prev[date->day()]
              << "\t" << hospitalizations[date->day()]
              << "\t" << community->getTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, date->day())
              //<< "\t" << (date->day() == (signed) peak_time) // new peak observed?
              << "\t" << par->timedInterventions.at(SOCIAL_DISTANCING).at(date->day())
              << endl;
+
+         stringstream ss;
+         ss << date->to_string({"yyyy", "mm", "dd"}, "-") << ","
+            << par->timedInterventions.at(SOCIAL_DISTANCING).at(date->day()) << ","
+            << cinf << ","
+            << community->getTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, date->day())<< ","
+            << reported_cases << ","
+            << rdeaths[date->day()];
+         plot_log_buffer.push_back(ss.str());
     }
-    return epi_sizes;
+//  write_daily_buffer(plot_log_buffer, process_id, "plot_log.csv");
+    //return epi_sizes;
+    return plot_log_buffer;
 }
 
 
@@ -394,7 +408,7 @@ bool fileExists(const std::string& filename) {
 }
 
 
-void write_daily_buffer( vector<string>& buffer, const string process_id, string filename = "" ) {
+void write_daily_buffer(vector<string>& buffer, const string process_id, string filename, bool overwrite) {
     if (filename == "") {
         stringstream ss_filename;
         ss_filename << "daily_output." << process_id;
@@ -404,7 +418,7 @@ void write_daily_buffer( vector<string>& buffer, const string process_id, string
     string all_output;
     for (const auto &line : buffer) all_output += (line + "\n");
 
-    if (fileExists(filename)) {
+    if (fileExists(filename) and not overwrite) {
         cerr << "WARNING: Daily output file already exists: " << filename << endl << "WARNING: Aborting write.\n";
         return;
     }

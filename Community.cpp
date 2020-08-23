@@ -38,6 +38,7 @@ Community::Community(const Parameters* parameters, Date* date) :
 //    _exposedQueue(MAX_INCUBATION, vector<Person*>(0)),
     _numNewlyInfected(parameters->runLength), // +1 not needed; runLength is already a valid size
     _numNewlySymptomatic(parameters->runLength),
+    _numNewlyDead(parameters->runLength),
     _numVaccinatedCases(parameters->runLength),
     _numSeverePrev(parameters->runLength),
     _numHospInc(parameters->runLength),
@@ -92,11 +93,13 @@ void Community::reset() { // used for r-zero calculations, to reset pop after a 
 //    _exposedQueue.clear();
     _numNewlyInfected.clear();
     _numNewlySymptomatic.clear();
+    _numNewlyDead.clear();
     _numVaccinatedCases.clear();
 
 //    _exposedQueue.resize(MAX_INCUBATION, vector<Person*>(0));
     _numNewlyInfected.resize(_par->runLength);
     _numNewlySymptomatic.resize(_par->runLength);
+    _numNewlyDead.resize(_par->runLength);
     _numVaccinatedCases.resize(_par->runLength);
 }
 
@@ -110,6 +113,7 @@ Community::~Community() {
 
     for (unsigned int i = 0; i < _location.size(); i++ ) delete _location[i];
     _location.clear();
+    Location::reset_ID_counter();
 
     for (auto& kv: _location_map) {
         kv.second.clear();
@@ -120,6 +124,7 @@ Community::~Community() {
     _personAgeCohort.clear();
     _numNewlyInfected.clear();
     _numNewlySymptomatic.clear();
+    _numNewlyDead.clear();
     _numVaccinatedCases.clear();
 }
 
@@ -438,7 +443,7 @@ void Community::targetVaccination(Person* p) {
 }
 
 
-vector<double> Community::getMeanNumSecondaryInfections() const {
+vector<pair<size_t,double>> Community::getMeanNumSecondaryInfections() const {
     // this is not how many secondary infections occurred on day=index,
     // but how many secondary infections will ultimately be caused by each person
     // who got infected on day=index
@@ -449,13 +454,14 @@ vector<double> Community::getMeanNumSecondaryInfections() const {
             const int infection_onset = inf->getInfectedTime();
             assert(infection_onset >= 0);
             if ((unsigned) infection_onset >= daily_secondary_infections.size()) { daily_secondary_infections.resize(infection_onset+1); }
+            // number of secondary infections resulting from the infection that started on this date
             daily_secondary_infections[infection_onset].push_back(inf->secondary_infection_tally());
         }
     }
-    vector<double> daily_Rt(daily_secondary_infections.size());
+    vector<pair<size_t, double>> daily_Rt(daily_secondary_infections.size());
     for (size_t day = 0; day < daily_secondary_infections.size(); ++day) {
-        daily_Rt[day] = mean(daily_secondary_infections[day]);
-        cerr << "day, incidence, Rt: " << day << " " << daily_secondary_infections[day].size() << " " << daily_Rt[day] << endl;
+        daily_Rt[day] = make_pair(daily_secondary_infections[day].size(), mean(daily_secondary_infections[day]));
+        cerr << "day, incidence, Rt: " << day << " " << daily_Rt[day].first << " " << daily_Rt[day].second << endl;
     }
     return daily_Rt;
 }
@@ -505,6 +511,9 @@ void Community::updateDiseaseStatus() {
                 }
             }
 
+            if (p->isNewlyDead(_day)) {
+                _numNewlyDead[_day]++;
+            }
             /*if (p->getWithdrawnTime()==_day) {                            // started withdrawing
                 p->getLocation(HOME_MORNING)->addPerson(p,WORK_DAY);       // stays at home at mid-day
                 p->getLocation(WORK_DAY)->removePerson(p,WORK_DAY);        // does not go to work

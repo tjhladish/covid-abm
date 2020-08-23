@@ -45,6 +45,7 @@ void Parameters::define_defaults() {
     symptomToTestLag = 2;
     defaultReportingLag = 10;
     rlm = nullptr;                                       // reporting lag model
+    deathReportingLag = 4;
     numInitialExposed  = 0;
     numInitialInfected = 0;
 

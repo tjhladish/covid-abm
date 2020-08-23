@@ -54,6 +54,7 @@ class Community {
         void setVESs(std::vector<double> f);
         std::vector<size_t> getNumNewlyInfected() { return _numNewlyInfected; }
         std::vector<size_t> getNumNewlySymptomatic() { return _numNewlySymptomatic; }
+        std::vector<size_t> getNumNewlyDead() { return _numNewlyDead; }
         std::vector<size_t> getNumVaccinatedCases() { return _numVaccinatedCases; }
         std::vector<size_t> getNumSeverePrev() { return _numSeverePrev; }
         std::vector<size_t> getNumHospInc() { return _numHospInc; }
@@ -63,7 +64,7 @@ class Community {
         std::vector<size_t> getNumDetectedCasesOnset() { return _numDetectedCasesOnset; }
         std::vector<size_t> getNumDetectedCasesReport() { return _numDetectedCasesReport; }
         std::vector<size_t> getNumDetectedDeaths() { return _numDetectedDeaths; }
-        std::vector<double> getMeanNumSecondaryInfections() const ;
+        std::vector<pair<size_t, double>> getMeanNumSecondaryInfections() const ;
 
         static void flagInfectedLocation(LocationType locType, Location* _pLoc, int day);
         Infection* trace_contact(int &infectee_id, vector<Person*> &source_candidates, int infectious_count);
@@ -95,7 +96,8 @@ class Community {
         std::vector< std::vector<Person*> > _exposedQueue;                     // queue of people with n days of latency left
         int _day;                                                              // current day
         std::vector<size_t> _numNewlyInfected;
-        std::vector<size_t> _numNewlySymptomatic;
+        std::vector<size_t> _numNewlySymptomatic;                                // true cases, no lag
+        std::vector<size_t> _numNewlyDead;                                       // true cases, no lag
         std::vector<size_t> _numVaccinatedCases;
         std::vector<size_t> _numSeverePrev;
         std::vector<size_t> _numHospInc;

@@ -180,8 +180,8 @@ static const float CRITICAL_FRACTION = 0.33;                  // fraction of sev
 
 static const float SEVERE_TO_HOSPITAL = 0.8;                  // general population, probability of going to hospital if severe
 static const float LTC_SEVERE_TO_HOSPITAL = 0.25;             // probability long-term-care residents who are severe go to hospital (if hosp available)
-static const float CRITICAL_TO_ICU_IF_HOSP = 1.0;             // probability already-hospitalized patients go to ICU when critical (if ICU available)
-static const float CRITICAL_TO_ICU_IF_NOT_HOSP = 0.6;         // probability non-hospitalized severe patients go to ICU when critical (if ICU available)
+static const float CRITICAL_TO_ICU_IF_HOSP = 0.8;             // probability already-hospitalized patients go to ICU when critical (if ICU available)
+static const float CRITICAL_TO_ICU_IF_NOT_HOSP = 0.5;         // probability non-hospitalized severe patients go to ICU when critical (if ICU available)
 
 static const int INFECTIOUSNESS_ONSET = 3;                    // delay of infectiousness after infectious exposure
 static const int INFECTIOUS_PERIOD = 7;                       // independent of disease outcome
@@ -321,6 +321,7 @@ public:
         }
     }
 
+    size_t deathReportingLag;                               // number of days from when death occurs to when it's reported
     void createSocialDistancingModel(std::string filename, float mobility_logit_shift, float mobility_logit_stretch);
     bool vaccineLeaky;                                      // if false, vaccine is all-or-none
     bool retroactiveMatureVaccine;                          // if true, infection causes leaky vaccine to jump from naive to mature protection

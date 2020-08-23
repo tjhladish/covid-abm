@@ -1,10 +1,10 @@
 {
     "smc_iterations"            : 1,
-    "num_samples"               : 3200,
+    "num_samples"               : 9600,
     "predictive_prior_fraction" : 1.0,
     "pls_training_fraction"     : 1.0,
 
-    "database_filename"         : "covid_vac_v1.1.sqlite",
+    "database_filename"         : "covid_vac_v1.2.sqlite",
 
     "parameters" : [
         {"name"       : "vaccine",
@@ -43,17 +43,17 @@
          "short_name" : "vac_day",
          "dist_type"  : "PSEUDO",
          "num_type"   : "INT",
-         "par1"       : 200,
-         "par2"       : 200,
-         "step"       : 0},
+         "par1"       : 0,
+         "par2"       : 2,
+         "step"       : 1},
 
         {"name"       : "vaccine_social_distancing",
          "short_name" : "vsd",
          "dist_type"  : "PSEUDO",
          "num_type"   : "FLOAT",
-         "par1"       : 0.0,
-         "par2"       : 0.2,
-         "step"       : 0.2},
+         "par1"       : 0.03,
+         "par2"       : 0.14,
+         "step"       : 0.11},
 
         {"name"       : "realization",
          "dist_type"  : "PSEUDO",
@@ -115,6 +115,20 @@
         {"name" : "rc49", "num_type" : "INT", "value" : 0},
         {"name" : "rc50", "num_type" : "INT", "value" : 0},
         {"name" : "rc51", "num_type" : "INT", "value" : 0},
+        {"name" : "rc52", "num_type" : "INT", "value" : 0},
+        {"name" : "rc53", "num_type" : "INT", "value" : 0},
+        {"name" : "rc54", "num_type" : "INT", "value" : 0},
+        {"name" : "rc55", "num_type" : "INT", "value" : 0},
+        {"name" : "rc56", "num_type" : "INT", "value" : 0},
+        {"name" : "rc57", "num_type" : "INT", "value" : 0},
+        {"name" : "rc58", "num_type" : "INT", "value" : 0},
+        {"name" : "rc59", "num_type" : "INT", "value" : 0},
+        {"name" : "rc60", "num_type" : "INT", "value" : 0},
+        {"name" : "rc61", "num_type" : "INT", "value" : 0},
+        {"name" : "rc62", "num_type" : "INT", "value" : 0},
+        {"name" : "rc63", "num_type" : "INT", "value" : 0},
+        {"name" : "rc64", "num_type" : "INT", "value" : 0},
+        {"name" : "rc65", "num_type" : "INT", "value" : 0},
 
         {"name" : "Rt00", "num_type" : "INT", "value" : 0},
         {"name" : "Rt01", "num_type" : "INT", "value" : 0},
@@ -167,6 +181,20 @@
         {"name" : "Rt48", "num_type" : "INT", "value" : 0},
         {"name" : "Rt49", "num_type" : "INT", "value" : 0},
         {"name" : "Rt50", "num_type" : "INT", "value" : 0},
-        {"name" : "Rt51", "num_type" : "INT", "value" : 0}
-     ]
+        {"name" : "Rt51", "num_type" : "INT", "value" : 0},
+        {"name" : "Rt52", "num_type" : "INT", "value" : 0},
+        {"name" : "Rt53", "num_type" : "INT", "value" : 0},
+        {"name" : "Rt54", "num_type" : "INT", "value" : 0},
+        {"name" : "Rt55", "num_type" : "INT", "value" : 0},
+        {"name" : "Rt56", "num_type" : "INT", "value" : 0},
+        {"name" : "Rt57", "num_type" : "INT", "value" : 0},
+        {"name" : "Rt58", "num_type" : "INT", "value" : 0},
+        {"name" : "Rt59", "num_type" : "INT", "value" : 0},
+        {"name" : "Rt60", "num_type" : "INT", "value" : 0},
+        {"name" : "Rt61", "num_type" : "INT", "value" : 0},
+        {"name" : "Rt62", "num_type" : "INT", "value" : 0},
+        {"name" : "Rt63", "num_type" : "INT", "value" : 0},
+        {"name" : "Rt64", "num_type" : "INT", "value" : 0},
+        {"name" : "Rt65", "num_type" : "INT", "value" : 0}
+      ]
 }

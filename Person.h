@@ -159,6 +159,7 @@ class Person {
         bool isSymptomatic(int time)    const { return infectionHistory.size() > 0 and infectionHistory.back()->isSymptomatic(time); }
         bool isSevere(int time)         const { return infectionHistory.size() > 0 and infectionHistory.back()->isSevere(time); }
         bool isCritical(int time)       const { return infectionHistory.size() > 0 and infectionHistory.back()->isCritical(time); }
+        bool isNewlyDead(int time)      const { return infectionHistory.size() > 0 and time == infectionHistory.back()->deathTime; }
 
         bool isVaccinated() const { return vaccineHistory.size() > 0; } // has been vaccinated
         bool isInfectable(int time) const;
@@ -174,7 +175,7 @@ class Person {
         Infection& initializeNewInfection();
         Infection& initializeNewInfection(int time, int sourceloc, int sourceid);
 
-        static void reset_ID_counter() { NEXT_ID = 1; }
+        static void reset_ID_counter() { NEXT_ID = 0; }
         bool isSurveilledPerson() { return id < _par->numSurveilledPeople; }
 
     protected:

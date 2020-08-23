@@ -16,6 +16,8 @@ class Location {
         struct LocPtrComp { bool operator()(const Location* A, const Location* B) const { return A->getID() < B->getID(); } };
 
         int getID() const { return _ID; }
+        static void reset_ID_counter() { NEXT_ID = 0; } // for use by community destructor
+
         void setType(LocationType t) { _type = t; }
         void setEssential(bool e) { _essential = e; }
         bool isEssential() const { return _essential; }

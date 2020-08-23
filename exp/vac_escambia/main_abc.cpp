@@ -24,7 +24,7 @@ const string output_dir("/ufrc/longini/tjhladish/");
 //const string imm_dir(output_dir + "");
 
 const int RESTART_BURNIN       = 0;
-const int FORECAST_DURATION    = 364;
+const int FORECAST_DURATION    = 462;
 const bool RUN_FORECAST        = true;
 const int TOTAL_DURATION       = RUN_FORECAST ? RESTART_BURNIN + FORECAST_DURATION : RESTART_BURNIN;
 const size_t JULIAN_TALLY_DATE = 146; // intervention julian date - 1
@@ -64,10 +64,12 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     //par->mmodsScenario = ms;      // MMODS_CLOSED, MMODS_2WEEKS, MMODS_1PERCENT, MMODS_OPEN
 
     // These are only initial values for time-structured interventions.  They can be changed dynamically.
+    par->timedInterventions[SCHOOL_CLOSURE].clear();
     par->timedInterventions[SCHOOL_CLOSURE].resize(30, 0.0);
     const size_t aug31 = 243 - par->startDayOfYear;
-    const size_t school_closed_duration = aug31 < par->runLength ? aug31 : par->runLength;
-    par->timedInterventions[SCHOOL_CLOSURE].resize(school_closed_duration, 1.0);
+//    const size_t school_closed_duration = aug31 < par->runLength ? aug31 : par->runLength;
+//    par->timedInterventions[SCHOOL_CLOSURE].resize(school_closed_duration, 1.0);
+    par->timedInterventions[SCHOOL_CLOSURE].resize(aug31, 1.0);
     par->timedInterventions[SCHOOL_CLOSURE].resize(par->runLength, 0.0);
 
     par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].clear();
@@ -212,13 +214,19 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     cerr << "SCENARIO " << rng_seed;
     for (auto _p: args) { cerr << " " << _p; } cerr << endl;
 
+    const vector<size_t> VAC_DATES = {56, 140, 200};
+
     Parameters* par = define_simulator_parameters(args, rng_seed, serial, process_id);
     const bool vaccine        = (bool) args[0];
     const double vac_efficacy = args[1];
     const double vac_coverage = args[2]; 
     const int vac_mech        = (int) args[3];
-    const int vac_day         = (int) args[4];
-    //const double vac_soc_dist = args[5]; // social distancing in effect post vaccination campaign
+    const int vac_date        = VAC_DATES[(size_t) args[4]];
+    const double vac_soc_dist = args[5]; // social distancing in effect post vaccination campaign
+    const int vac_sim_day = vac_date - par->startDayOfYear + 1;
+
+    par->timedInterventions[SOCIAL_DISTANCING].resize(vac_sim_day);
+    par->timedInterventions[SOCIAL_DISTANCING].resize(par->runLength, vac_soc_dist);
 
     Community* community = build_community(par);
 
@@ -230,7 +238,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
         for (int catchup_age = target; catchup_age <= catchup_to; catchup_age++) {
             //const int vacDate = julian_to_sim_day(par, JULIAN_TALLY_DATE + 1, RESTART_BURNIN);
-            par->catchupVaccinationEvents.emplace_back(catchup_age, vac_day, catchup_coverage);
+            par->catchupVaccinationEvents.emplace_back(catchup_age, vac_sim_day, catchup_coverage);
         }
 
 //        par->vaccineTargetAge = target;

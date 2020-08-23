@@ -28,12 +28,7 @@ Person::Person() {
     age = -1;
     home_loc = nullptr;
     day_loc = nullptr;
-//    home_id = -1;
-//    day_id = -1;
-//    for(int i=0; i<(int) NUM_OF_TIME_PERIODS; i++) _pLocation[i] = NULL;
     immune_state = NAIVE;
-    //dead = false;
-    //vaccinated = false;
     naiveVaccineProtection = false;
 }
 
@@ -192,8 +187,7 @@ void Person::processDeath(Infection &infection, const int deathTime) {
 
     if (isSurveilledPerson()) {
         if (gsl_rng_uniform(RNG) < _par->reportedFraction[DEATH]) {
-            const int report_lag = 0; // TODO -- maybe add a lag later
-            Community::reportDeath(deathTime, deathTime + report_lag);
+            Community::reportDeath(deathTime, deathTime + _par->deathReportingLag);
         }
     }
 }

@@ -24,7 +24,7 @@ const string output_dir("/ufrc/longini/tjhladish/");
 //const string imm_dir(output_dir + "");
 
 const int RESTART_BURNIN       = 0;
-const int FORECAST_DURATION    = 186;
+const int FORECAST_DURATION    = 200;
 const bool RUN_FORECAST        = true;
 const int TOTAL_DURATION       = RUN_FORECAST ? RESTART_BURNIN + FORECAST_DURATION : RESTART_BURNIN;
 const size_t JULIAN_TALLY_DATE = 146; // intervention julian date - 1
@@ -89,12 +89,10 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     // plot(as.Date(d$date), shiftstretch(1-d$smooth_ma7, shift=-2.7, stretch=2), ylim=c(0,1), type='l')
     par->createSocialDistancingModel(pop_dir + "/sgmi_fl_comp.csv", mobility_logit_shift, mobility_logit_stretch);
 
-//    par->timedInterventions[SOCIAL_DISTANCING].resize(30, 0.0);
-//    par->timedInterventions[SOCIAL_DISTANCING].resize(par->runLength, 0.0);
-
     //par->defaultReportingLag = 14;
     par->createReportingLagModel(pop_dir + "/case_report_delay.csv");
     par->symptomToTestLag = 2;
+    par->deathReportingLag = 4;
 
     par->daysImmune = 730;
     par->VES = 0.0;
@@ -230,8 +228,17 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     Community* community = build_community(par);
 
     seed_epidemic(par, community);
-    simulate_epidemic(par, community, process_id);
-    //community->getMeanNumSecondaryInfections();
+    vector<string> plot_log_buffer = simulate_epidemic(par, community, process_id);
+    vector<double> Rt = community->getMeanNumSecondaryInfections();
+
+    assert(Rt.size()+1 == plot_log_buffer.size()); // there's a header line
+    for (size_t i = 1; i < plot_log_buffer.size(); ++i) {
+        plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt[i-1]);
+    }
+    bool overwrite = true;
+    write_daily_buffer(plot_log_buffer, process_id, "plot_log.csv", overwrite);
+    system("Rscript simvis.R");
+
     time (&end);
     double dif = difftime (end,start);
 
