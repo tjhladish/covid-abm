@@ -475,9 +475,9 @@ void Community::reportCase(int onsetDate, long int reportDate) { // long int b/c
 }
 
 
-void Community::reportDeath(int eventDate, long int /*reportDate*/) {
-    assert(eventDate >= 0);
-    if ((unsigned) eventDate < _numDetectedDeaths.size()) _numDetectedDeaths[eventDate]++;
+void Community::reportDeath(int /*eventDate*/, long int reportDate) {
+    assert(reportDate >= 0);
+    if ((unsigned) reportDate < _numDetectedDeaths.size()) _numDetectedDeaths[reportDate]++;
 }
 
 
