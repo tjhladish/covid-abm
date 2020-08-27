@@ -87,12 +87,13 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     // TODO - make that dependency something the user doesn't have to know or think about
     //par->createSocialDistancingModel(pop_dir + "/safegraph_mobility_index.csv", mobility_logit_shift, mobility_logit_stretch);
     // plot(as.Date(d$date), shiftstretch(1-d$smooth_ma7, shift=-2.7, stretch=2), ylim=c(0,1), type='l')
-    par->createSocialDistancingModel(pop_dir + "/sgmi_fl_comp.csv", mobility_logit_shift, mobility_logit_stretch);
+    //par->createSocialDistancingModel(pop_dir + "/sgmi_fl_comp.csv", mobility_logit_shift, mobility_logit_stretch);
+    par->createSocialDistancingModel(pop_dir + "/sgmi_escambia_comp.csv", mobility_logit_shift, mobility_logit_stretch);
 
     //par->defaultReportingLag = 14;
     par->createReportingLagModel(pop_dir + "/case_report_delay.csv");
     par->symptomToTestLag = 2;
-    par->deathReportingLag = 4;
+    par->deathReportingLag = 6; //4;
 
     par->daysImmune = 730;
     par->VES = 0.0;
@@ -229,15 +230,16 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
     seed_epidemic(par, community);
     vector<string> plot_log_buffer = simulate_epidemic(par, community, process_id);
-    vector<double> Rt = community->getMeanNumSecondaryInfections();
+    vector<pair<size_t, double>> Rt = community->getMeanNumSecondaryInfections();
 
     assert(Rt.size()+1 == plot_log_buffer.size()); // there's a header line
     for (size_t i = 1; i < plot_log_buffer.size(); ++i) {
-        plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt[i-1]);
+        plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt[i-1].second);
     }
     bool overwrite = true;
     write_daily_buffer(plot_log_buffer, process_id, "plot_log.csv", overwrite);
-    system("Rscript simvis.R");
+    int retval = system("Rscript simvis.R");
+    if (retval == -1) { cerr << "System call to `Rscript simvis.R` failed\n"; }
 
     time (&end);
     double dif = difftime (end,start);
