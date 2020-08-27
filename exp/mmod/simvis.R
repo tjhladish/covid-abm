@@ -1,8 +1,10 @@
 d = read.csv("plot_log.csv")
 d$date = as.Date(d$date)
-ed = read.csv("tschart-escambia.csv")
-ed$ChartDate = as.Date(ed$ChartDate)
-#ed = read.csv("ts-escambia.csv"); ed$ChartDate = ed$EventDate 
+ed = read.csv("rcasedeath-escambia.csv")
+ed$Date = as.Date(ed$Date)
+#ed = read.csv("tschart-escambia.csv")
+#ed$Date = as.Date(ed$ChartDate)
+#ed = read.csv("ts-escambia.csv"); ed$Date = ed$EventDate
 
 ticks <- seq(as.Date('2020-03-01'), d$date[length(d$date)]+5, by = "months") # so much stupid
 
@@ -21,15 +23,15 @@ plot(d$date, d$cinf, col='darkslateblue', type='l', xlab='', ylab='Cumulative in
 axis(1, at=ticks, labels=F)
 
 plot(d$date, cumsum(d$rcase), col='royalblue3', type='l', xlab='', ylab='Reported cases', xaxt='n')
-lines(ed$ChartDate, cumsum(ed$rcase))
+lines(ed$Date, cumsum(ed$rcase))
 axis(1, at=ticks, labels=F)
 
 plot(d$date, cumsum(d$rdeath), col='green4', type='l', xlab='', ylab='Reported deaths')
-lines(ed$ChartDate, cumsum(ed$rdeath))
+lines(ed$Date, cumsum(ed$rdeath))
 
 #plot(d$date, d$rcase, col='royalblue3', type='l', xlab='')
-#lines(ed$ChartDate), ed$rcase)
+#lines(ed$Date), ed$rcase)
 #
 #plot(d$date, d$rdeath, col='green4', type='l', xlab='')
-#lines(ed$ChartDate), ed$rdeath)
+#lines(ed$Date), ed$rdeath)
 dev.off()
