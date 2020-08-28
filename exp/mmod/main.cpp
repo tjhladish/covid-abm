@@ -95,6 +95,11 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->symptomToTestLag = 2;
     par->deathReportingLag = 6; //4;
 
+    const double max_icu_mortality_reduction = 1.0/3.0; // primarily due to use of dexamethasone
+    const size_t icu_mortality_inflection_sim_day = Date::to_julian_day("2020-07-01") - par->startDayOfYear;
+    const double icu_mortality_reduction_slope = 0.5; // change takes ~2 weeks
+    par->createIcuMortalityReductionModel(max_icu_mortality_reduction, icu_mortality_inflection_sim_day, icu_mortality_reduction_slope);
+
     par->daysImmune = 730;
     par->VES = 0.0;
 

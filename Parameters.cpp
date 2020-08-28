@@ -115,6 +115,28 @@ void Parameters::define_susceptibility_and_pathogenicity() {
 }
 
 
+double Parameters::icuMortality(size_t sim_day) const {
+    const size_t imr_size = icuMortalityReduction.size();
+    //assert(imr_size == 0 or sim_day < (signed) imr_size);
+    if (imr_size == 0) {
+        return ICU_CRITICAL_MORTALITY;
+    } else {
+        // if it's a day off the end of the vector, use the last value
+        double const imr = icuMortalityReduction.size() > sim_day ? icuMortalityReduction[sim_day] : icuMortalityReduction.back();
+        return ICU_CRITICAL_MORTALITY * (1.0 - imr);
+    }
+}
+
+
+void Parameters::createIcuMortalityReductionModel(double maximum_val, double inflection_sim_day, double slope) {
+    icuMortalityReduction = vector<double>(runLength);
+    for (size_t sim_day = 0; sim_day < runLength; ++sim_day) {
+        icuMortalityReduction[sim_day] = maximum_val * logistic( slope*(sim_day - inflection_sim_day) );
+        //cerr << "mortality reduction: " << Date::to_ymd(2020, sim_day + startDayOfYear) << " " << icuMortalityReduction[sim_day] << endl;
+    }
+}
+
+
 void Parameters::createReportingLagModel(std::string filename) {
     rlm = new ReportingLagModel(filename);
 }

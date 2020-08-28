@@ -261,13 +261,12 @@ Infection* Person::infect(int sourceid, const Date* date, int sourceloc) {
                     // Patient goes to intensive care
                     infection.icuBegin = infection.criticalBegin;
                     if (not hosp) { infection.hospitalizedBegin = infection.icuBegin; } // if they weren't hospitalized before, they are now
-                    death = gsl_rng_uniform(RNG) < ICU_CRITICAL_MORTALITY;
+                    death = gsl_rng_uniform(RNG) < _par->icuMortality(infection.icuBegin);
                     if (death) {
 //cerr << "death ";
                         // uniform randomly chose a day from the critical duration when death happens
-                        //processDeath(infection, infection.criticalBegin + gsl_rng_uniform_int(RNG, infection.criticalEnd - infection.criticalBegin));
-                        processDeath(infection, infection.criticalBegin + Parameters::sampler(ICU_MORTALITY_BY_DAY_CDF, gsl_rng_uniform(RNG)));
-                        //processDeath(infection, infection.criticalEnd);
+                        //processDeath(infection, infection.criticalBegin + Parameters::sampler(ICU_MORTALITY_BY_DAY_CDF, gsl_rng_uniform(RNG)));
+                        processDeath(infection, infection.criticalBegin + _par->sampleIcuTimeToDeath());
                     }
                 } else {
                     death = gsl_rng_uniform(RNG) < NON_ICU_CRITICAL_MORTALITY;

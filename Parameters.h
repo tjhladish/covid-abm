@@ -200,12 +200,12 @@ static const int CRITICAL_DURATION = 10;                      // duration of cri
 
 // these icu mortality numbers should be replaced with empirical data, should that become available.
 // currently generated in R: cumsum(rev(dexp(0:9, rate=0.5)/sum(dexp(0:9, rate=0.5))))
-static const std::vector<double> ICU_MORTALITY_BY_DAY_CDF = { 0.004400701, 0.011656231, 0.023618577, 0.043341152, 0.075858180,
-                                                              0.129469696, 0.217860143, 0.363591353, 0.603861499, 1.000000000 };
+//static const std::vector<double> ICU_MORTALITY_BY_DAY_CDF = { 0.004400701, 0.011656231, 0.023618577, 0.043341152, 0.075858180,
+//                                                              0.129469696, 0.217860143, 0.363591353, 0.603861499, 1.000000000 };
 static const int POST_CRITICAL_SEVERE = 10;                   // number of days after critical disease that severe symptoms remain
 static const int SEVERE_DURATION_CRITICAL = PRE_CRITICAL_SEVERE + CRITICAL_DURATION + POST_CRITICAL_SEVERE;
 static const int SYMPTOM_DURATION_CRITICAL = PRE_SEVERE_SYMPTOMATIC + SEVERE_DURATION_CRITICAL + POST_SEVERE_SYMPTOMATIC;
-static const float ICU_CRITICAL_MORTALITY = 0.4;              // probability of dying while in ICU, distributed uniformly across days in ICU
+static const float ICU_CRITICAL_MORTALITY = 0.4;              // baseline probability of dying while in ICU, distributed uniformly across days in ICU
                                                               // 0.4 based on ARDS from here https://ccforum.biomedcentral.com/articles/10.1186/s13054-020-03006-1
 static const float NON_ICU_CRITICAL_MORTALITY = 1.0;          // probability of dying when becoming critical if intensive care is not received
 
@@ -290,6 +290,14 @@ public:
         return index;
     };
 
+    int sampleIcuTimeToDeath() const {
+    // parameterization based on what you need to produce findings of median = 7, IQR = [3,11]
+    // https://www.thelancet.com/journals/lanres/article/PIIS2213-2600(20)30079-5/fulltext
+        const double prob_of_daily_survival = 0.2;
+        const size_t num_days_survive_until_death = 2;
+        return gsl_ran_negative_binomial(RNG, num_days_survive_until_death, prob_of_daily_survival);
+    }
+
     double timedInterventionEffect(TimedIntervention ti, size_t day) const;
 
     unsigned long int randomseed;
@@ -320,6 +328,9 @@ public:
             return defaultReportingLag;
         }
     }
+
+    void createIcuMortalityReductionModel(double maximum_val, double inflection_sim_day, double slope);
+    double icuMortality(size_t sim_day) const;
 
     size_t deathReportingLag;                               // number of days from when death occurs to when it's reported
     void createSocialDistancingModel(std::string filename, float mobility_logit_shift, float mobility_logit_stretch);
@@ -358,6 +369,7 @@ public:
 
                                                             // e.g. school closures, non-essential business closures, social distancing
     std::map<TimedIntervention, std::vector<float>> timedInterventions;
+    std::vector<double> icuMortalityReduction;              // time-varying reduction (from 0) in ICU mortality due to improved Tx
 
     size_t startDayOfYear;
     size_t julianYear;
