@@ -62,8 +62,10 @@ loc$locid <- loc$locid - 1
 loc$x <- round(loc$x, 5)
 loc$y <- round(loc$y, 5)
 loc <- loc %>%
-  select(locid, x, y, type, essential, hfid) %>%
-  mutate(hfid = ifelse(is.na(hfid), -1, hfid))
+  select(locid, x, y, type, essential, hfid)
+
+loc$hfid <- loc$hfid - 1
+loc$hfid[is.na(loc$hfid)] <- -1
 
 message("Preview for loc")
 print(head(loc))
