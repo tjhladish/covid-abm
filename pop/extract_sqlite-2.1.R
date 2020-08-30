@@ -67,7 +67,7 @@ loc <- loc %>%
 
 message("Preview for loc")
 print(head(loc))
-fwrite(loc, paste0(out_folder, "locations-", cnt, ".txt"), sep = " ")
+fwrite(loc, paste0(out_folder, "locations-", cnt, ".txt"), sep = " ", scipen = 10)
 
 ## Persons
 sql <- "SELECT p.pid, r.locid AS home_id, p.sex, p.age, m.locid AS day_id, p.undlycond
@@ -87,9 +87,9 @@ pers$undlycond[is.na(pers$undlycond)] <- -1
 message("Preview for pers")
 print(head(pers))
 fwrite(pers %>% select(-undlycond), 
-       paste0(out_folder, "population-", cnt, ".txt"), sep = " ")
+       paste0(out_folder, "population-", cnt, ".txt"), sep = " ", scipen = 10)
 fwrite(pers %>% select(-home_id, -day_id), 
-       paste0(out_folder, "comorbidity-", cnt, ".txt"), sep = " ")
+       paste0(out_folder, "comorbidity-", cnt, ".txt"), sep = " ", scipen = 10)
 
 rm(hh_nonnh, loc, pers, wp)
 
@@ -102,7 +102,7 @@ hh_network$locid2 <- hh_network$locid2 - 1
 message("Preview for hh_network")
 print(head(hh_network))
 fwrite(hh_network, paste0(out_folder, "network-", cnt, ".txt"), 
-       sep = " ", col.names = F)
+       sep = " ", col.names = F, scipen = 10)
 
 rm(hh_network)
 
@@ -115,7 +115,7 @@ nb_network$locid2 <- nb_network$locid2 - 1
 message("Preview for nb_network")
 print(head(nb_network))
 fwrite(nb_network, paste0(out_folder, "network_nb-", cnt, ".txt"), 
-       sep = " ", col.names = F)
+       sep = " ", col.names = F, scipen = 10)
 
 rm(nb_network)
 
