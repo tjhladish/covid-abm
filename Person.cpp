@@ -30,6 +30,8 @@ Person::Person() {
     day_loc = nullptr;
     immune_state = NAIVE;
     naiveVaccineProtection = false;
+    long_term_care = false;
+    comorbidity = HEALTHY;
 }
 
 
@@ -182,14 +184,7 @@ void Person::processDeath(Infection &infection, const int deathTime) {
     infection.infectiousEnd     = min(infection.infectiousEnd, deathTime);
     infection.symptomEnd        = min(infection.symptomEnd, deathTime);
     infection.severeEnd         = min(infection.severeEnd, deathTime);
-    infection.hospitalizedBegin = min(infection.hospitalizedBegin, deathTime);
     infection.criticalEnd       = min(infection.criticalEnd, deathTime);
-
-    if (isSurveilledPerson()) {
-        if (gsl_rng_uniform(RNG) < _par->reportedFraction[DEATH]) {
-            Community::reportDeath(deathTime, deathTime + _par->deathReportingLag);
-        }
-    }
 }
 
 
@@ -208,8 +203,8 @@ Infection* Person::infect(int sourceid, const Date* date, int sourceloc) {
     Infection& infection = initializeNewInfection(time, sourceloc, sourceid);
 
     double symptomatic_probability = _par->pathogenicityByAge[age];             // may be modified by vaccination
-    const double severe_given_case = _par->severeFractionByAge[age];            // might become sex- or co-morbidity-structured in the future
-    const double critical_given_severe = CRITICAL_FRACTION;
+    const double severe_given_case = _par->probSeriousOutcome.at(SEVERE)[comorbidity][age];
+    const double critical_given_severe = _par->probSeriousOutcome.at(CRITICAL)[comorbidity][age];
 
     const double effective_VEP = isVaccinated() ? _par->VEP*remaining_efficacy : 0.0;        // reduced symptoms due to vaccine
     symptomatic_probability *= (1.0 - effective_VEP);
@@ -261,11 +256,10 @@ Infection* Person::infect(int sourceid, const Date* date, int sourceloc) {
                     // Patient goes to intensive care
                     infection.icuBegin = infection.criticalBegin;
                     if (not hosp) { infection.hospitalizedBegin = infection.icuBegin; } // if they weren't hospitalized before, they are now
-                    death = gsl_rng_uniform(RNG) < _par->icuMortality(infection.icuBegin);
+                    death = gsl_rng_uniform(RNG) < _par->icuMortality(comorbidity, age, infection.icuBegin);
                     if (death) {
 //cerr << "death ";
                         // uniform randomly chose a day from the critical duration when death happens
-                        //processDeath(infection, infection.criticalBegin + Parameters::sampler(ICU_MORTALITY_BY_DAY_CDF, gsl_rng_uniform(RNG)));
                         processDeath(infection, infection.criticalBegin + _par->sampleIcuTimeToDeath());
                     }
                 } else {
@@ -288,26 +282,48 @@ Infection* Person::infect(int sourceid, const Date* date, int sourceloc) {
 
     // Detection/reporting!  TODO -- currently, being hospitalized does not affect the probability of detection
     // could check infection.icu() and infection.hospital() and do something different in those cases
-// TODO -- there is a weird thing here: because critical detection is tested first, that means we tend to detect later as well
-if (isSurveilledPerson()) {
-    const size_t reporting_lag = _par->reportingLag(REPORTING_RNG, date);
-    if (infection.critical() and gsl_rng_uniform(RNG) < _par->reportedFraction[CRITICAL]) {
-        Community::reportCase(infection.criticalBegin, infection.criticalBegin + reporting_lag);
-    } else if (infection.severe() and gsl_rng_uniform(RNG) < _par->reportedFraction[SEVERE]) {
-        Community::reportCase(infection.severeBegin, infection.severeBegin + reporting_lag);
-    } else if (infection.symptomatic() and gsl_rng_uniform(RNG) < _par->reportedFraction[MILD]) {
-        Community::reportCase(infection.symptomBegin, infection.symptomBegin + _par->symptomToTestLag + reporting_lag);
-    } else if (infection.infected() and gsl_rng_uniform(RNG) < _par->reportedFraction[ASYMPTOMATIC]) {
-        const int tracing_lag = gsl_rng_uniform_int(RNG, INFECTIOUS_PERIOD); // extra delay, e.g. time during infection someone would be identified by chance screening
-        Community::reportCase(infection.infectiousBegin, infection.infectiousBegin + tracing_lag + reporting_lag);
+    if (isSurveilledPerson()) {
+        bool detected = false;
+        int sample_collection_date = 0;
+        long int report_date = 0;
+        const size_t reporting_lag = _par->reportingLag(REPORTING_RNG, date);
+        if (infection.infected() and gsl_rng_uniform(RNG) < _par->probFirstDetection[ASYMPTOMATIC]) {
+            // extra delay, e.g. time during infection someone would be identified by chance screening
+            const int tracing_lag = gsl_rng_uniform_int(RNG, INFECTIOUS_PERIOD);
+            sample_collection_date = infection.infectiousBegin;
+            report_date =  + tracing_lag + reporting_lag;
+            detected = true;
+        } else if (infection.symptomatic() and gsl_rng_uniform(RNG) < _par->probFirstDetection[MILD]) {
+            sample_collection_date = infection.symptomBegin;
+            report_date = sample_collection_date + _par->symptomToTestLag + reporting_lag;
+            detected = true;
+        } else  if (infection.severe() and gsl_rng_uniform(RNG) < _par->probFirstDetection[SEVERE]) {
+            sample_collection_date = infection.severeBegin;
+            report_date = sample_collection_date + reporting_lag;
+            detected = true;
+        } else if (infection.critical() and gsl_rng_uniform(RNG) < _par->probFirstDetection[CRITICAL]) {
+            sample_collection_date = infection.criticalBegin;
+            report_date = sample_collection_date + reporting_lag;
+            detected = true;
+        } else if (infection.fatal() and gsl_rng_uniform(RNG) < _par->probFirstDetection[DEATH]) {
+            sample_collection_date = infection.deathTime;
+            report_date = sample_collection_date + _par->deathReportingLag;
+            detected = true;
+        }
+
+        if (detected) {
+            Community::reportCase(sample_collection_date, report_date);
+            if (infection.fatal()) {
+                Community::reportDeath(sample_collection_date, infection.deathTime + _par->deathReportingLag);
+            }
+        }
     }
-}
     // Flag locations with (non-historical) infections, so that we know to look there for human->mosquito transmission
     // Negative days are historical (pre-simulation) events, and thus we don't care about modeling transmission
 
     for (int day = std::max(infection.infectiousBegin, 0); day < infection.infectiousEnd; day++) {
         if (infection.hospital() and day >= infection.getHospitalizedTime()) break;
-        Community::flagInfectedLocation(HOUSE, getHomeLoc(), day);
+        Community::flagInfectedLocation(getHomeLoc()->getType(), getHomeLoc(), day); // home loc can be a HOUSE or NURSINGHOME
         if (getDayLoc()) Community::flagInfectedLocation(getDayLoc()->getType(), getDayLoc(), day); // TODO -- people never stop going to work/school when sick
     }
 

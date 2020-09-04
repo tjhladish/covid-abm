@@ -129,8 +129,8 @@ Community::~Community() {
 }
 
 
-bool Community::loadPopulation(string populationFilename, string immunityFilename) {
-    ifstream iss(populationFilename.c_str());
+bool Community::loadPopulation(string populationFilename, string comorbidityFilename, string immunityFilename) {
+    ifstream iss(populationFilename);
 
     if (!iss) {
         cerr << "ERROR: " << populationFilename << " not found." << endl;
@@ -170,12 +170,10 @@ bool Community::loadPopulation(string populationFilename, string immunityFilenam
                 exit(-1);
             }
             p->setHomeLoc(_location[hid]);
-//            p->setLocation(_location[hid], HOME);
-//            p->setLocation(_location[did], DAY);
-            _location[hid]->addPerson(p); // TODO -- currently locations that can be a home *AND* a workplace cannot exist
+            _location[hid]->addPerson(p);
             if (did >= 0) {
                 p->setDayLoc(_location[did]); // currently just any non-home daytime location--may be a school; -1 == NA
-                _location[did]->addPerson(p); // distinguish between the reasons why someone is there without querying the person
+                _location[did]->addPerson(p);
             }
             if (_location[hid]->getType() == NURSINGHOME) p->setLongTermCare(true);
             //assert(age<NUM_AGE_CLASSES);
@@ -187,11 +185,39 @@ bool Community::loadPopulation(string populationFilename, string immunityFilenam
     //_peopleByAge = _people;
     //sort(_peopleByAge.begin(), _peopleByAge.end(), PerPtrComp());
 
+    if (comorbidityFilename.length()>0) {
+        iss.open(comorbidityFilename);
+
+        if (!iss) {
+            cerr << "ERROR: " << comorbidityFilename << " not found." << endl;
+            return false;
+        }
+
+        bool com;
+        while ( getline(iss,buffer) ) {
+            line.clear();
+            line.str(buffer);
+            /*
+            pid sex age undlycond
+            0 1 33 0
+            1 2 27 0
+            2 2 58 0
+            3 1 63 0
+            4 2 49 1
+            */
+            if (line >> id >> sex >> age >> com ) { //>> empstat) {
+                if (com) { // comorbidity default is false, so only need to handle true
+                    getPersonByID(id)->setComorbidity(COMORBID);
+                }
+            }
+        }
+    }
+
     if (immunityFilename.length()>0) {
         cerr << "ERROR: Reading in immunity file not currently supported." << endl;
         return false;
 /*
-        ifstream immiss(immunityFilename.c_str());
+        ifstream immiss(immunityFilename);
         if (!immiss) {
             cerr << "ERROR: " << immunityFilename << " not found." << endl;
             return false;
@@ -257,7 +283,7 @@ bool Community::loadPopulation(string populationFilename, string immunityFilenam
 /*    if (swapFilename == "") {
         _uniformSwap = true;
     } else {
-        iss.open(swapFilename.c_str());
+        iss.open(swapFilename);
         if (!iss) {
             cerr << "ERROR: " << swapFilename << " not found." << endl;
             return false;
@@ -284,7 +310,7 @@ bool Community::loadPopulation(string populationFilename, string immunityFilenam
 
 
 bool Community::loadLocations(string locationFilename,string networkFilename) {
-    ifstream iss(locationFilename.c_str());
+    ifstream iss(locationFilename);
     if (!iss) {
         cerr << "ERROR: locations file " << locationFilename << " not found." << endl;
         return false;
@@ -292,26 +318,30 @@ bool Community::loadLocations(string locationFilename,string networkFilename) {
     _location.clear();
 
     char buffer[500];
-    int locID;
+    int locID, hfid;
     string locTypeStr;
     string essentialStr;
     double locX, locY;
     istringstream line(buffer);
+    map<Location*, int> house_hospitalID_lookup;
+    map<int, Location*> hospitalPtr_lookup;
 
     while (iss) {
         iss.getline(buffer,500);
         line.clear();
         line.str(buffer);
         //if (line >> locID >> locTypeStr >> locX >> locY) {
-        if (line >> locID >> locX >> locY >> locTypeStr >> essentialStr) {
+        //if (line >> locID >> locX >> locY >> locTypeStr >> essentialStr) {
+        if (line >> locID >> locX >> locY >> locTypeStr >> essentialStr >> hfid) {
             if (locID != (signed) _location.size()) {
                 cerr << "ERROR: Location ID's must be sequential integers starting at 0" << endl;
+                cerr << "locID vs _location.size(): " << locID << " " << _location.size() << endl;
                 return false;
             }
             const LocationType locType = (locTypeStr == "h") ? HOUSE :
                                          (locTypeStr == "w") ? WORK :
                                          (locTypeStr == "s") ? SCHOOL :
-                                         (locTypeStr == "t") ? HOSPITAL :
+                                         (locTypeStr == "hf") ? HOSPITAL :
                                          (locTypeStr == "n") ? NURSINGHOME :
                                              NUM_OF_LOCATION_TYPES;
 
@@ -321,8 +351,8 @@ bool Community::loadLocations(string locationFilename,string networkFilename) {
             }
 
             const int essential = (essentialStr == "y" or essentialStr == "NA") ? 1 :
-                                  (essentialStr == "n") ? 0 :
-                                      -1;
+                                  (essentialStr == "n") ? 0 : -1;
+
             if (essential == -1) {
                 cerr << "ERROR: Unknown value for \"essential\" status: " << essentialStr << " from location file: " << locationFilename << endl;
                 return false;
@@ -336,11 +366,18 @@ bool Community::loadLocations(string locationFilename,string networkFilename) {
             newLoc->setEssential((bool) essential);
             _location.push_back(newLoc);
             _location_map[locType].insert(newLoc);
+
+            // temp look-up structures so we can quickly map houses to their associated hospitals.
+            // those hospital pointers don't necessarily exist until we're done processing locations
+            if (locType == HOSPITAL) { hospitalPtr_lookup[newLoc->getID()] = newLoc; }
+            if (hfid >= 0) { house_hospitalID_lookup[newLoc] = hfid; } // true for houses, nursinghomes, maybe others in the future
         }
     }
     iss.close();
 
-    iss.open(networkFilename.c_str());
+    for (const auto& kv: house_hospitalID_lookup) { kv.first->setHospital(hospitalPtr_lookup.at(kv.second)); }
+
+    iss.open(networkFilename);
     if (!iss) {
         cerr << "ERROR: network file " << networkFilename << " not found." << endl;
         return false;
@@ -448,7 +485,6 @@ vector<pair<size_t,double>> Community::getMeanNumSecondaryInfections() const {
     // but how many secondary infections will ultimately be caused by each person
     // who got infected on day=index
     vector<vector<double>> daily_secondary_infections;
-    //vector<vector<double>> daily_secondary_infections(_par->runLength);
     for (Person* p: _people) {
         for (const Infection* inf: p->getInfectionHistory()) {
             const int infection_onset = inf->getInfectedTime();
@@ -470,6 +506,7 @@ vector<pair<size_t,double>> Community::getMeanNumSecondaryInfections() const {
 void Community::reportCase(int onsetDate, long int reportDate) { // long int b/c reportDate can be a bit greater than max int
     assert(onsetDate >= 0);
     assert(reportDate >= 0);
+    // onset == sample collection date; FL doesn't report when symptoms began
     if ((unsigned) onsetDate < _numDetectedCasesOnset.size()) _numDetectedCasesOnset[onsetDate]++;
     if ((unsigned) reportDate < _numDetectedCasesReport.size()) _numDetectedCasesReport[reportDate]++;
 }
@@ -535,16 +572,20 @@ void Community::flagInfectedLocation(LocationType locType, Location* _pLoc, int 
 }
 
 
-Infection* Community::trace_contact(int &infectee_id, vector<Person*> &source_candidates, int infectious_count) {
+Infection* Community::trace_contact(int &infectee_id, Location* source_loc, int infectious_count) {
     // Identify who was the source of an exposure event (tracing backward)
     // This function currently assumes all co-located infected people are equally likely
     // to be the cause of transmission.  May be something we want to relax in the future.
     vector<Person*> infected_candidates;
-    for (Person* p: source_candidates) {
+    for (Person* p: source_loc->getPeople()) {
         if(p->isInfectious(_day) and not p->inHospital(_day) and not p->isDead(_day)) {
             infected_candidates.push_back(p);
         }
     }
+
+    /*if ((signed) infected_candidates.size() != infectious_count) {
+        cerr << "size vs count, day: " << infected_candidates.size() << " " << infectious_count << ", " << _day << endl;
+    }*/
 
     assert((signed) infected_candidates.size() == infectious_count);
     Person* infectee = choice(RNG, infected_candidates);
@@ -629,13 +670,12 @@ void Community::workplace_transmission() {
 
 
 void Community::_transmission(Location* source_loc, vector<Person*> at_risk_group, const double T, const int infectious_count) {
-    vector<Person*> source_candidates = source_loc->getPeople();
     for (Person* p: at_risk_group) {
         if (gsl_rng_uniform(RNG) < T) {
             int infectee_id = INT_MIN;
             Infection* infection = nullptr;
             if (_par->traceContacts) {
-                infection = trace_contact(infectee_id, source_candidates, infectious_count);
+                infection = trace_contact(infectee_id, source_loc, infectious_count);
             }
             Infection* transmission = p->infect(infectee_id, _date, source_loc->getID()); // infect() tests for whether person is infectable
             if (infection and transmission) { infection->log_transmission(transmission); } // are we contact tracing, and did transmission occur?

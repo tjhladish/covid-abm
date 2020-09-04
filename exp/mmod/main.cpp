@@ -16,7 +16,8 @@ using covid::util::max_element;
 time_t GLOBAL_START_TIME;
 
 string calculate_process_id(vector<double> &args, string &argstring);
-const string SIM_POP = "escambia";
+//const string SIM_POP = "escambia";
+const string SIM_POP = "dade";
 //const string SIM_POP = "florida";
 const string HOME_DIR(std::getenv("HOME"));
 const string pop_dir = HOME_DIR + "/work/covid-abm/pop/" + SIM_POP;
@@ -47,7 +48,9 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->social_transmissibility    = T/10.0;
     //hospitalizedFraction = {0.0, 0.15, 0.9};
     //par->reportedFraction = {0.0, 0.01, 0.5, 0.8, 1.0};      // fraction of asymptomatic, mild, severe, critical, and deaths reported
-    par->reportedFraction = {0.0, 0.2, 0.75, 0.75, 0.75};      // fraction of asymptomatic, mild, severe, critical, and deaths reported
+    //par->reportedFraction = {0.0, 0.2, 0.75, 0.75, 0.75};      // fraction of asymptomatic, mild, severe, critical, and deaths reported
+    par->probFirstDetection = {0.0, 0.15, 0.6, 0.1, 0.01};      // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
+    //par->probDetection = {0.0, 0.4, 0.8, 0.3, 0.1};      // probability of first being detected while {asymp, mild, severe, crit, dead}
     par->randomseed              = rng_seed;
     par->dailyOutput             = false; // turn on for daily prevalence figure, probably uncomment filter in simulator.h for daily output to get only rel. days
     par->periodicOutput          = false;
@@ -87,27 +90,31 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     // TODO - make that dependency something the user doesn't have to know or think about
     //par->createSocialDistancingModel(pop_dir + "/safegraph_mobility_index.csv", mobility_logit_shift, mobility_logit_stretch);
     // plot(as.Date(d$date), shiftstretch(1-d$smooth_ma7, shift=-2.7, stretch=2), ylim=c(0,1), type='l')
-    //par->createSocialDistancingModel(pop_dir + "/sgmi_fl_comp.csv", mobility_logit_shift, mobility_logit_stretch);
-    par->createSocialDistancingModel(pop_dir + "/sgmi_escambia_comp.csv", mobility_logit_shift, mobility_logit_stretch);
+    par->createSocialDistancingModel(pop_dir + "/../florida/sgmi_fl_comp.csv", mobility_logit_shift, mobility_logit_stretch);
+    //par->createSocialDistancingModel(pop_dir + "/sgmi_escambia_comp.csv", mobility_logit_shift, mobility_logit_stretch);
+    //par->createSocialDistancingModel(pop_dir + "/sgmi_dade_comp.csv", mobility_logit_shift, mobility_logit_stretch);
 
     //par->defaultReportingLag = 14;
     par->createReportingLagModel(pop_dir + "/case_report_delay.csv");
     par->symptomToTestLag = 2;
-    par->deathReportingLag = 6; //4;
+    par->deathReportingLag = 7; //4;
 
     const double max_icu_mortality_reduction = 1.0/3.0; // primarily due to use of dexamethasone
-    const size_t icu_mortality_inflection_sim_day = Date::to_julian_day("2020-07-01") - par->startDayOfYear;
-    const double icu_mortality_reduction_slope = 0.5; // change takes ~2 weeks
+    const size_t icu_mortality_inflection_sim_day = Date::to_julian_day("2020-06-25") - par->startDayOfYear;
+    const double icu_mortality_reduction_slope = 0.5; // 0.5 -> change takes ~2 weeks
     par->createIcuMortalityReductionModel(max_icu_mortality_reduction, icu_mortality_inflection_sim_day, icu_mortality_reduction_slope);
+    par->icuMortalityFraction = 0.5;                        // to be fit; fraction of all deaths that occur in ICUs;
+                                                            // used for interpreting empirical mortality data, *not within simulation*
 
     par->daysImmune = 730;
     par->VES = 0.0;
 
     //par->hospitalizedFraction = 0.25; // fraction of cases assumed to be hospitalized
-    par->numInitialInfected = 1;
+    par->numInitialInfected = 700; // TODO -- make this a per capita value
     par->probDailyExposure = {1.0e-05};
 
     par->populationFilename       = pop_dir    + "/population-"         + SIM_POP + ".txt";
+    par->comorbidityFilename      = pop_dir    + "/comorbidity-"        + SIM_POP + ".txt";
     par->locationFilename         = pop_dir    + "/locations-"          + SIM_POP + ".txt";
     par->networkFilename          = pop_dir    + "/network-"            + SIM_POP + ".txt";
 
@@ -223,6 +230,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     for (auto _p: args) { cerr << " " << _p; } cerr << endl;
 
     Parameters* par = define_simulator_parameters(args, rng_seed, serial, process_id);
+    vector<double> reported_frac = par->toReportedFraction(par->probFirstDetection);
+    cerr_vector(reported_frac);
     //00   "mild_rf",
     //02   "severe_rf",
     //03   "sec_path",

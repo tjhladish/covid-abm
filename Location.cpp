@@ -21,12 +21,24 @@ Location::Location()
     _type = NUM_OF_LOCATION_TYPES; // compileable, but not sensible value, because it must be set elsewhere
     _essential = true;
     _riskAversion = 0.0;
+    _hospital = nullptr;
 }
 
 
 Location::~Location() {
     _person.clear();
     _neighbors.clear();
+}
+
+
+void Location::dumper() const {
+    cerr << "Location ID: " << _ID << endl;
+    cerr << "\ttype: " << _type << endl;
+    cerr << "\tcoords: " << _coord.first << ", " << _coord.second << endl;
+    cerr << "\tessential: " << _essential << endl;
+    cerr << "\trisk aversion: " << _riskAversion << endl;
+    cerr << "\tpeople: "; for (auto p: _person) { cerr << p->getID() << " "; } cerr << endl;
+    cerr << "\tneighbors: "; for (auto l: _neighbors) { cerr << l->getID() << " "; } cerr << endl;
 }
 
 

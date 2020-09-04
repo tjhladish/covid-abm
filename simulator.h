@@ -69,7 +69,7 @@ cerr << "Reading locations ... ";
     }
 cerr << "done.\n";
 cerr << "Reading population ... ";
-    if (!community->loadPopulation(par->populationFilename)) {
+    if (!community->loadPopulation(par->populationFilename, par->comorbidityFilename)) {
         cerr << "ERROR: Could not load population" << endl;
         exit(-1);
     }
@@ -121,7 +121,7 @@ void _reporter(stringstream& ss, map<string, vector<int> > &periodic_incidence, 
         ss << process_id << dec << " " << par->serial << label << value << " ";
         for (auto v: periodic_incidence[key]) ss << v << " ";
         if(key=="daily") for (auto v: periodic_prevalence) ss << v << " ";
-        for (auto v: par->reportedFraction) ss << v << " ";
+        for (auto v: par->probFirstDetection) ss << v << " ";
 }
 
 

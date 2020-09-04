@@ -24,7 +24,7 @@ class Community {
         ~Community();
 
         Date* get_date();
-        bool loadPopulation(std::string populationFilename, std::string immunityFilename = "");
+        bool loadPopulation(std::string populationFilename, std::string comorbidityFilename = "", std::string immunityFilename = "");
         bool loadLocations(std::string locationFilename, std::string networkFilename = "");
         size_t getNumPeople() const { return _people.size(); }
         std::vector<Person*> getPeople() const { return _people; }
@@ -32,7 +32,6 @@ class Community {
         size_t getNumInfectious(int day);
         size_t getNumSymptomatic(int day);
         size_t getNumNaive();
-        //void populate(Person **parray, int targetpop);
         Person* getPersonByID(int id);
         bool infect(int id);
         int getDay() { return _day; }                                // what day is it?
@@ -67,7 +66,7 @@ class Community {
         std::vector<pair<size_t, double>> getMeanNumSecondaryInfections() const ;
 
         static void flagInfectedLocation(LocationType locType, Location* _pLoc, int day);
-        Infection* trace_contact(int &infectee_id, vector<Person*> &source_candidates, int infectious_count);
+        Infection* trace_contact(int &infectee_id, Location* source_loc, int infectious_count);
         static void reportCase(int onsetDate, long int reportDate);
         static void reportDeath(int eventDate, long int reportDate);
 
@@ -90,7 +89,6 @@ class Community {
         std::vector<Person*> _people;                                          // the array index is equal to the ID
         std::vector< std::vector<Person*> > _personAgeCohort;                  // array of pointers to people of the same age
         //int _personAgeCohortSizes[NUM_AGE_CLASSES];                            // size of each age cohort
-        //double *_fMortality;                                                 // mortality by year, starting from 0
         std::vector<Location*> _location;                                      // the array index is equal to the ID
         std::map<LocationType, std::set<Location*, Location::LocPtrComp>> _location_map; //
         std::vector< std::vector<Person*> > _exposedQueue;                     // queue of people with n days of latency left

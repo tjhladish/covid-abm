@@ -38,9 +38,11 @@ void Parameters::define_defaults() {
     annualIntroductionsCoef = 1;                        // multiplier to rescale external introductions to something sensible
     annualIntroductions = {1.0};
     daysImmune = 365;
-    reportedFraction = {0.0, 0.2, 0.8, 0.8, 0.8};       // fraction of asymptomatic, mild, severe, critical, and deaths reported
+    //reportedFraction = {0.0, 0.2, 0.8, 0.8, 0.8};       // fraction of asymptomatic, mild, severe, critical, and deaths reported
+    probFirstDetection = {0.0, 0.1, 0.6, 0.3, 0.1};       // prob of detection if not detected earlier {asymptomatic, mild, severe, critical, deaths}
 //    numDailyExposed.push_back(0.0);                     // default: no introductions
     probDailyExposure.push_back(0.0);                   // default: no introductions
+    icuMortalityFraction = 0.5;                         // fraction of empirical deaths that are assumed to have occured in ICUs
 
     symptomToTestLag = 2;
     defaultReportingLag = 10;
@@ -101,30 +103,62 @@ void Parameters::define_susceptibility_and_pathogenicity() {
     }
 
     // https://www.cdc.gov/mmwr/volumes/69/wr/mm6915e3.htm
-    bin_upper = {4, 17, 49, 64, 74, 84, NUM_AGE_CLASSES-1};
-    vector<float> severe_fraction = {0.003, 0.001, 0.025, 0.074, 0.122, 0.158, 0.172};
+    //bin_upper = {4, 17, 49, 64, 74, 84, NUM_AGE_CLASSES-1};
+    //vector<float> severe_fraction = {0.003, 0.001, 0.025, 0.074, 0.122, 0.158, 0.172};
+
+    //for (size_t i = 0; i < bin_upper.size(); ++i) {
+    //    const size_t upper_age = bin_upper[i];
+    //    severeFractionByAge.resize(upper_age+1, severe_fraction[i]);
+    //}
+
+    // https://www.cdc.gov/mmwr/volumes/69/wr/mm6924e2.htm
+    // SEVERE, CRITICAL, DEATH
+    bin_upper = {9, 19, 29, 39, 49, 59, 69, 79, NUM_AGE_CLASSES-1};
+
+    // based on hospital admissions (including ICU)
+    //                                      9,      19,      29,      39,      49,      59,      69,      79,     120
+    vector<float> severe_com_neg   = {0.03689, 0.02279, 0.02688, 0.04445, 0.06441, 0.09570, 0.15355, 0.27867, 0.30095};
+    vector<float> severe_com_pos   = {0.22294, 0.14884, 0.17505, 0.24209, 0.29597, 0.36328, 0.49908, 0.64716, 0.62338};
+
+    // icu admissions (out of entire cohort, not just those hospitalized)
+    vector<float> critical_com_neg = {0.00703, 0.00337, 0.00302, 0.00725, 0.01267, 0.02053, 0.03675, 0.07110, 0.05189};
+    vector<float> critical_com_pos = {0.05008, 0.03468, 0.03369, 0.05298, 0.06374, 0.08276, 0.10870, 0.11933, 0.07465};
+
+    vector<float> fatal_com_neg    = {0.00088, 0.00079, 0.00130, 0.00113, 0.00353, 0.00908, 0.02361, 0.10218, 0.29805};
+    vector<float> fatal_com_pos    = {0.00646, 0.00771, 0.01370, 0.02767, 0.04458, 0.07837, 0.16704, 0.31670, 0.49668};
+
+    probSeriousOutcome[SEVERE]   = vector<vector<float>>(NUM_OF_COMORBID_TYPES, vector<float>());
+    probSeriousOutcome[CRITICAL] = vector<vector<float>>(NUM_OF_COMORBID_TYPES, vector<float>());
+    probSeriousOutcome[DEATH]    = vector<vector<float>>(NUM_OF_COMORBID_TYPES, vector<float>());
 
     for (size_t i = 0; i < bin_upper.size(); ++i) {
         const size_t upper_age = bin_upper[i];
-        severeFractionByAge.resize(upper_age+1, severe_fraction[i]);
+        //probSeriousOutcome[SEVERE  ][HEALTHY ].resize(upper_age+1, 0.5*severe_com_neg[i]);
+        //probSeriousOutcome[SEVERE  ][COMORBID].resize(upper_age+1, 0.5*severe_com_pos[i]);
+        probSeriousOutcome[SEVERE  ][HEALTHY ].resize(upper_age+1, severe_com_neg[i]);
+        probSeriousOutcome[SEVERE  ][COMORBID].resize(upper_age+1, severe_com_pos[i]);
+        probSeriousOutcome[CRITICAL][HEALTHY ].resize(upper_age+1, critical_com_neg[i]/severe_com_neg[i]);
+        probSeriousOutcome[CRITICAL][COMORBID].resize(upper_age+1, critical_com_pos[i]/severe_com_pos[i]);
     }
 
-//    for (size_t i = 0; i < susceptibilityByAge.size(); ++i) {
-//        cerr << i << "\t" << susceptibilityByAge[i] << "\t" << pathogenicityByAge[i] << endl;
-//    }
+    // numbers for people over age 59 suggest a majority die outside of ICU
+    // the model separately handles deaths outside of ICU (with mortality = 1.0)
+    bin_upper = {9, 19, 29, 39, 49, NUM_AGE_CLASSES-1};
+    for (size_t i = 0; i < bin_upper.size(); ++i) {
+        const size_t upper_age = bin_upper[i];
+        probSeriousOutcome[DEATH][HEALTHY ].resize(upper_age+1, icuMortalityFraction*fatal_com_neg[i]/critical_com_neg[i]);
+        probSeriousOutcome[DEATH][COMORBID].resize(upper_age+1, icuMortalityFraction*fatal_com_pos[i]/critical_com_pos[i]);
+    }
 }
 
 
-double Parameters::icuMortality(size_t sim_day) const {
-    const size_t imr_size = icuMortalityReduction.size();
-    //assert(imr_size == 0 or sim_day < (signed) imr_size);
-    if (imr_size == 0) {
-        return ICU_CRITICAL_MORTALITY;
-    } else {
+double Parameters::icuMortality(ComorbidType comorbidity, size_t age, size_t sim_day) const {
+    double imr = 0.0;
+    if (icuMortalityReduction.size() > 0) {
         // if it's a day off the end of the vector, use the last value
-        double const imr = icuMortalityReduction.size() > sim_day ? icuMortalityReduction[sim_day] : icuMortalityReduction.back();
-        return ICU_CRITICAL_MORTALITY * (1.0 - imr);
+        imr = icuMortalityReduction.size() > sim_day ? icuMortalityReduction[sim_day] : icuMortalityReduction.back();
     }
+    return probSeriousOutcome.at(DEATH)[comorbidity][age] * (1.0 - imr);
 }
 
 

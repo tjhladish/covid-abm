@@ -70,6 +70,7 @@ class Infection {
     bool critical()             const { return criticalBegin     != INT_MAX; }
     bool hospital()             const { return hospitalizedBegin != INT_MAX; }
     bool icu()                  const { return icuBegin          != INT_MAX; }
+    bool fatal()                const { return deathTime         != INT_MAX; }
 
     // if we ensure that death coincides with the end of symptoms/severity/criticality, then we don't also need to check deathtime
     bool isInfected(int now)    const { return infectedBegin <= now     and now < infectiousEnd;}
@@ -77,7 +78,7 @@ class Infection {
     bool isSymptomatic(int now) const { return symptomBegin <= now      and now < symptomEnd; }
     bool isSevere(int now)      const { return severeBegin <= now       and now < severeEnd; }
     bool isCritical(int now)    const { return criticalBegin <= now     and now < criticalEnd; }
-    bool inHospital(int now)    const { return hospitalizedBegin <= now and now < severeEnd;}
+    bool inHospital(int now)    const { return hospitalizedBegin <= now and now < severeEnd;} // if fatal, severe state ends upon death
     bool inIcu(int now)         const { return icuBegin <= now          and now < criticalEnd;}
     bool isDead(int now)        const { return deathTime <= now; }
 
@@ -106,15 +107,15 @@ class Person {
         bool getLongTermCare() { return long_term_care; }
         void setLongTermCare(bool b) { long_term_care = b; }
 
+        ComorbidType hasComorbidity() { return comorbidity; }
+        void setComorbidity(ComorbidType status) { comorbidity = status; }
+
         Location* getHomeLoc() { return home_loc; }
         void setHomeLoc(Location* loc) { home_loc = loc; }
         Location* getDayLoc() { return day_loc; }
         void setDayLoc(Location* loc) { day_loc = loc; }
 
-//        int getHomeID() const { return home_id; }
-//        void setHomeID(int n) { home_id = n; }
-//        int getDayID() const { return day_id; }
-//        void setDayID(int n) { day_id = n; }
+        Location* getHospital() const { return home_loc->getHospital(); }
 //        void setImmunity() { immune = true; }
 //        void copyImmunity(const Person *p);
         void resetImmunity();
@@ -166,10 +167,10 @@ class Person {
         double remainingEfficacy(const int time) const;
 
         bool isNaive() const { return immune_state == NAIVE; }
-                                                                      // does this person's immune state permit vaccination?
-                                                                      // NB: inaccurate test results are possible
+                                                                        // does this person's immune state permit vaccination?
+                                                                        // NB: inaccurate test results are possible
         bool isSeroEligible(VaccineSeroConstraint vsc, double falsePos, double falseNeg) const;
-        bool vaccinate(int time);                                     // vaccinate this person
+        bool vaccinate(int time);                                       // vaccinate this person
         static void setPar(const Parameters* par) { _par = par; }
 
         Infection& initializeNewInfection();
@@ -179,13 +180,14 @@ class Person {
         bool isSurveilledPerson() { return id < _par->numSurveilledPeople; }
 
     protected:
-        size_t id;                                                  // unique identifier
-        Location* home_loc;                                                // family membership
-        Location* day_loc;                                                 // ID of location of work
-        int age;                                                    // age in years
-        SexType sex;                                                // sex (gender)
-        bool long_term_care;                                        // resident of nursing home, etc.
-        bool naiveVaccineProtection; // if vaccinated, do we use the naive or non-naive VE_S?
+        size_t id;                                                      // unique identifier
+        Location* home_loc;                                             // family membership
+        Location* day_loc;                                              // ID of location of work
+        int age;                                                        // age in years
+        SexType sex;                                                    // sex (gender)
+        bool long_term_care;                                            // resident of nursing home, etc.
+        ComorbidType comorbidity;                                       // person has a relevant comorbidity
+        bool naiveVaccineProtection;                                    // if vaccinated, do we use the naive or non-naive VE_S?
 
         ImmuneStateType immune_state;
         std::vector<Infection*> infectionHistory;

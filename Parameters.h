@@ -55,6 +55,12 @@ enum OutcomeType {
     NUM_OF_OUTCOME_TYPES
 };
 
+enum ComorbidType{
+    HEALTHY,
+    COMORBID,
+    NUM_OF_COMORBID_TYPES
+};
+
 enum PathogenicityModel {
     CONSTANT_PATHOGENICITY,
     ORIGINAL_LOGISTIC,
@@ -175,13 +181,13 @@ transmission from asymp is 0.5*trans from symp
 */
 
 //static const float SEVERE_FRACTION = 0.1;                   // fraction of cases become severe
-static const float CRITICAL_FRACTION = 0.33;                  // fraction of severe cases that become critical
+//static const float CRITICAL_FRACTION = 0.33;                  // fraction of severe cases that become critical
                                                               // https://www.cdc.gov/mmwr/volumes/69/wr/mm6932e3.htm?s
 
 static const float SEVERE_TO_HOSPITAL = 0.8;                  // general population, probability of going to hospital if severe
 static const float LTC_SEVERE_TO_HOSPITAL = 0.25;             // probability long-term-care residents who are severe go to hospital (if hosp available)
-static const float CRITICAL_TO_ICU_IF_HOSP = 0.8;             // probability already-hospitalized patients go to ICU when critical (if ICU available)
-static const float CRITICAL_TO_ICU_IF_NOT_HOSP = 0.5;         // probability non-hospitalized severe patients go to ICU when critical (if ICU available)
+static const float CRITICAL_TO_ICU_IF_HOSP = 0.9;             // probability already-hospitalized patients go to ICU when critical (if ICU available)
+static const float CRITICAL_TO_ICU_IF_NOT_HOSP = 0.75;         // probability non-hospitalized severe patients go to ICU when critical (if ICU available)
 
 static const int INFECTIOUSNESS_ONSET = 3;                    // delay of infectiousness after infectious exposure
 static const int INFECTIOUS_PERIOD = 7;                       // independent of disease outcome
@@ -198,14 +204,10 @@ static const int SYMPTOM_DURATION_SEVERE = PRE_SEVERE_SYMPTOMATIC + SEVERE_DURAT
 static const int PRE_CRITICAL_SEVERE = 4;                     // when critical disease occurs, delay from severe onset
 static const int CRITICAL_DURATION = 10;                      // duration of critical disease
 
-// these icu mortality numbers should be replaced with empirical data, should that become available.
-// currently generated in R: cumsum(rev(dexp(0:9, rate=0.5)/sum(dexp(0:9, rate=0.5))))
-//static const std::vector<double> ICU_MORTALITY_BY_DAY_CDF = { 0.004400701, 0.011656231, 0.023618577, 0.043341152, 0.075858180,
-//                                                              0.129469696, 0.217860143, 0.363591353, 0.603861499, 1.000000000 };
 static const int POST_CRITICAL_SEVERE = 10;                   // number of days after critical disease that severe symptoms remain
 static const int SEVERE_DURATION_CRITICAL = PRE_CRITICAL_SEVERE + CRITICAL_DURATION + POST_CRITICAL_SEVERE;
 static const int SYMPTOM_DURATION_CRITICAL = PRE_SEVERE_SYMPTOMATIC + SEVERE_DURATION_CRITICAL + POST_SEVERE_SYMPTOMATIC;
-static const float ICU_CRITICAL_MORTALITY = 0.4;              // baseline probability of dying while in ICU, distributed uniformly across days in ICU
+//static const float ICU_CRITICAL_MORTALITY = 0.4;              // baseline probability of dying while in ICU, distributed uniformly across days in ICU
                                                               // 0.4 based on ARDS from here https://ccforum.biomedcentral.com/articles/10.1186/s13054-020-03006-1
 static const float NON_ICU_CRITICAL_MORTALITY = 1.0;          // probability of dying when becoming critical if intensive care is not received
 
@@ -290,6 +292,18 @@ public:
         return index;
     };
 
+    static vector<double> toReportedFraction(vector<double> rho_detect) {
+        vector<double> reported_fraction;
+        for (double rho: rho_detect) {
+            if (reported_fraction.size() == 0) {
+                reported_fraction.push_back(rho);
+            } else {
+                reported_fraction.push_back(1.0 - (1.0 - rho)*(1.0 - reported_fraction.back()));
+            }
+        }
+        return reported_fraction;
+    }
+
     int sampleIcuTimeToDeath() const {
     // parameterization based on what you need to produce findings of median = 7, IQR = [3,11]
     // https://www.thelancet.com/journals/lanres/article/PIIS2213-2600(20)30079-5/fulltext
@@ -309,13 +323,15 @@ public:
     vector<float> susceptibilityByAge;                      // probability of infection given exposure, index by year of age
     vector<float> pathogenicityByAge;                       // probability of clinical disease given infection, index by year of age
     vector<float> severeFractionByAge;                      // probability of severe disease given clinical disease, index by year of age
+    map<OutcomeType, vector< vector<float>>> probSeriousOutcome;        // look up probability of severe, critical, fatal outcomes by age & comorbid status
     double VES;                                             // vaccine efficacy for susceptibility (can be leaky or all-or-none)
     double VES_NAIVE;                                       // VES for initially immunologically naive people
     double VEI;                                             // vaccine efficacy to reduce infectiousness
     double VEP;                                             // vaccine efficacy for pathogenicity
     double VEH;                                             // vaccine efficacy against hospitalization, given disease
     PathogenicityModel pathogenicityModel;                  // use age-specific values, or constant?
-    std::vector<double> reportedFraction;                   // Probability of being reported, given asymptomatic, mild, severe, critical, and fatal infection
+    //std::vector<double> reportedFraction;                   // Prob of being reported, given asymptomatic, mild, severe, critical, and fatal infection
+    std::vector<double> probFirstDetection;                 // Probability of being *first* detected while {asymp, mild, severe, crit, dead}
     size_t symptomToTestLag;                                // For people with mild disease who get infected, number of days until tested
     void createReportingLagModel(std::string filename);
     size_t defaultReportingLag;                             // Number of days it takes for a test result to be reported after a sample is collected;
@@ -330,7 +346,9 @@ public:
     }
 
     void createIcuMortalityReductionModel(double maximum_val, double inflection_sim_day, double slope);
-    double icuMortality(size_t sim_day) const;
+    double icuMortality(ComorbidType comorbidity, size_t age, size_t sim_day) const;
+    double icuMortalityFraction;                            // fraction of all deaths that occur in ICUs;
+                                                            // used for interpreting empirical mortality data, *not within simulation*
 
     size_t deathReportingLag;                               // number of days from when death occurs to when it's reported
     void createSocialDistancingModel(std::string filename, float mobility_logit_shift, float mobility_logit_stretch);
@@ -344,6 +362,7 @@ public:
     size_t numInitialInfected;                              // serotypes
 
     std::string populationFilename;
+    std::string comorbidityFilename;
     std::string locationFilename;
     std::string networkFilename;
     std::string peopleOutputFilename;
