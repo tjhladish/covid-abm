@@ -309,7 +309,7 @@ public:
     // https://www.thelancet.com/journals/lanres/article/PIIS2213-2600(20)30079-5/fulltext
         const double prob_of_daily_survival = 0.2;
         const size_t num_days_survive_until_death = 2;
-        return gsl_ran_negative_binomial(RNG, num_days_survive_until_death, prob_of_daily_survival);
+        return gsl_ran_negative_binomial(RNG, prob_of_daily_survival, num_days_survive_until_death);
     }
 
     double timedInterventionEffect(TimedIntervention ti, size_t day) const;
