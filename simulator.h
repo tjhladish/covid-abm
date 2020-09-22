@@ -74,7 +74,7 @@ cerr << "Reading population ... ";
         exit(-1);
     }
 
-//cerr << "done.\n  Now sleeping for 20s so ram usage can be checked.\n";
+cerr << "done.\n"; //  Now sleeping for 20s so ram usage can be checked.\n";
 //sleep(20);
     if (!par->abcVerbose) {
         cerr << community->getNumPeople() << " people" << endl;
@@ -92,11 +92,27 @@ void seed_epidemic(const Parameters* par, Community* community) {
     // epidemic may be seeded with initial exposure OR initial infection
     bool attempt_initial_infection = true;
     // Normal usage, to simulate epidemic
+    const size_t pop_size = community->getNumPeople();
     if (par->numInitialExposed > 0) {
         attempt_initial_infection = false;
-        for (size_t i=0; i<par->numInitialExposed; i++)
-            community->infect(gsl_rng_uniform_int(RNG, community->getNumPeople()));
+        for (size_t i=0; i<par->numInitialExposed; i++) {
+            community->infect(gsl_rng_uniform_int(RNG, pop_size));
+        }
+    } else if (par->probInitialExposure > 0.0) {
+        // determine how many people are exposed
+        size_t k = gsl_ran_binomial(RNG, par->probInitialExposure, pop_size);
+        vector<size_t> pids(community->getNumPeople());
+        iota(pids.begin(), pids.end(), 0);
+        vector<size_t> exposed_group = choose_k(RNG, pids, k);
+
+        size_t inf_ct = 0;
+        for (auto pid: exposed_group) {
+            Infection* inf = community->infect(pid);
+            if (inf) { inf_ct++; }
+        }
+        cerr << "pop size, sampled size, infected size: " << pop_size << ", " << k << ", " << inf_ct << endl;
     }
+
     if (attempt_initial_infection) {
         // Useful for estimating R0
         if(par->numInitialInfected > 0) {
@@ -104,7 +120,7 @@ void seed_epidemic(const Parameters* par, Community* community) {
 
             // must infect initialInfected persons -- this bit is mysterious
             while (community->getNumInfected(0) < count + par->numInitialInfected) {
-                community->infect(gsl_rng_uniform_int(RNG, community->getNumPeople()));
+                community->infect(gsl_rng_uniform_int(RNG, pop_size));
             }
         }
     }

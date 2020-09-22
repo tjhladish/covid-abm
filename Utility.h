@@ -95,6 +95,16 @@ namespace covid {
             return V[gsl_rng_uniform_int(RNG, V.size())];
         }
 
+        template <typename T> inline
+        vector<T> choose_k(const gsl_rng* RNG, vector<T> &V, size_t k) {
+            T* samples = new T[k];
+            // int gsl_ran_choose(const gsl_rng * r, void * dest, size_t k, void * src, size_t n, size_t size)
+            gsl_ran_choose(RNG, samples, k, V.data(), V.size(), sizeof(T));
+            vector<T> sample_vec(samples, samples+k);
+            delete[] samples;
+            return sample_vec;
+        }
+
         inline double string2double(const std::string& s){ std::istringstream i(s); double x = 0; i >> x; return x; }
 
         template <typename T> inline T sum(vector<T> list) { T sum=0; for (unsigned int i=0; i<list.size(); i++) sum += list[i]; return sum;}

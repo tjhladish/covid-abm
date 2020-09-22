@@ -64,8 +64,6 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->startDayOfYear          = 45;
     par->annualIntroductionsCoef = 1;
 
-    par->pathogenicityModel = ORIGINAL_LOGISTIC;
-
     par->traceContacts = true;
     par->mmodsScenario = ms;      // MMODS_CLOSED, MMODS_2WEEKS, MMODS_1PERCENT, MMODS_OPEN
 
@@ -90,9 +88,9 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     // TODO - make that dependency something the user doesn't have to know or think about
     //par->createSocialDistancingModel(pop_dir + "/safegraph_mobility_index.csv", mobility_logit_shift, mobility_logit_stretch);
     // plot(as.Date(d$date), shiftstretch(1-d$smooth_ma7, shift=-2.7, stretch=2), ylim=c(0,1), type='l')
-    par->createSocialDistancingModel(pop_dir + "/../florida/sgmi_fl_comp.csv", mobility_logit_shift, mobility_logit_stretch);
+    //par->createSocialDistancingModel(pop_dir + "/../florida/sgmi_fl_comp.csv", mobility_logit_shift, mobility_logit_stretch);
     //par->createSocialDistancingModel(pop_dir + "/sgmi_escambia_comp.csv", mobility_logit_shift, mobility_logit_stretch);
-    //par->createSocialDistancingModel(pop_dir + "/sgmi_dade_comp.csv", mobility_logit_shift, mobility_logit_stretch);
+    par->createSocialDistancingModel(pop_dir + "/sgmi_dade_comp.csv", mobility_logit_shift, mobility_logit_stretch);
 
     //par->defaultReportingLag = 14;
     par->createReportingLagModel(pop_dir + "/case_report_delay.csv");
@@ -105,13 +103,15 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->createIcuMortalityReductionModel(max_icu_mortality_reduction, icu_mortality_inflection_sim_day, icu_mortality_reduction_slope);
     par->icuMortalityFraction = 0.5;                        // to be fit; fraction of all deaths that occur in ICUs;
                                                             // used for interpreting empirical mortality data, *not within simulation*
+    par->define_susceptibility_and_pathogenicity();
 
     par->daysImmune = 730;
     par->VES = 0.0;
 
     //par->hospitalizedFraction = 0.25; // fraction of cases assumed to be hospitalized
-    par->numInitialInfected = 700; // TODO -- make this a per capita value
-    par->probDailyExposure = {1.0e-05};
+    //par->numInitialInfected = 10; // TODO -- make this a per capita value
+    par->probInitialExposure = {1.0e-04};
+    par->probDailyExposure   = {1.0e-05};
 
     par->populationFilename       = pop_dir    + "/population-"         + SIM_POP + ".txt";
     par->comorbidityFilename      = pop_dir    + "/comorbidity-"        + SIM_POP + ".txt";
@@ -231,14 +231,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
     Parameters* par = define_simulator_parameters(args, rng_seed, serial, process_id);
     vector<double> reported_frac = par->toReportedFraction(par->probFirstDetection);
-    cerr_vector(reported_frac);
-    //00   "mild_rf",
-    //02   "severe_rf",
-    //03   "sec_path",
-    //04   "sec_sev",
-    //05   "pss_ratio",
-    //06   "exp_coef",
-    //08   "realization",
+    cerr_vector(reported_frac); cerr << endl;
 
     Community* community = build_community(par);
 

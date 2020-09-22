@@ -38,7 +38,6 @@ void Parameters::define_defaults() {
     annualIntroductionsCoef = 1;                        // multiplier to rescale external introductions to something sensible
     annualIntroductions = {1.0};
     daysImmune = 365;
-    //reportedFraction = {0.0, 0.2, 0.8, 0.8, 0.8};       // fraction of asymptomatic, mild, severe, critical, and deaths reported
     probFirstDetection = {0.0, 0.1, 0.6, 0.3, 0.1};       // prob of detection if not detected earlier {asymptomatic, mild, severe, critical, deaths}
 //    numDailyExposed.push_back(0.0);                     // default: no introductions
     probDailyExposure.push_back(0.0);                   // default: no introductions
@@ -50,8 +49,8 @@ void Parameters::define_defaults() {
     deathReportingLag = 4;
     numInitialExposed  = 0;
     numInitialInfected = 0;
-
-    pathogenicityModel = ORIGINAL_LOGISTIC;
+    probInitialExposure = 0.0;
+    //probInitialInfection = 0.0;
 
     catchupVaccinationEvents.clear();
     vaccineTargetAge = 9;
@@ -84,13 +83,13 @@ void Parameters::define_defaults() {
     seroTestFalsePos = 0.0;
     seroTestFalseNeg = 0.0;
 
-    define_susceptibility_and_pathogenicity();
     mmodsScenario = NUM_OF_MMODS_SCENARIOS; // default to no MMODS scenario
 }
 
 
 void Parameters::define_susceptibility_and_pathogenicity() {
-    // values from EDT1 of https://www.medrxiv.org/content/10.1101/2020.03.24.20043018v2.full.pdf
+    // values from Extended Data Fig. 4 of
+    // https://www.nature.com/articles/s41591-020-0962-9#Sec12
     // now published in Nat Med
     vector<size_t> bin_upper = {9, 19, 29, 39, 49, 59, 69, NUM_AGE_CLASSES-1};
     vector<float> susceptibilities = {0.33, 0.37, 0.69, 0.81, 0.74, 0.8, 0.89, 0.77};

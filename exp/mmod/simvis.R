@@ -1,8 +1,8 @@
 d = read.csv("plot_log.csv")
 d$date = as.Date(d$date)
-ed = read.csv("rcasedeath-florida.csv")
+#ed = read.csv("rcasedeath-florida.csv")
 #ed = read.csv("rcasedeath-escambia.csv")
-#ed = read.csv("rcasedeath-dade.csv")
+ed = read.csv("rcasedeath-dade.csv")
 ed$Date = as.Date(ed$Date)
 
 ticks <- seq(as.Date('2020-03-01'), d$date[length(d$date)]+5, by = "months") # so much stupid

@@ -51,12 +51,15 @@ class Infection {
     int deathTime;
     std::vector<Infection*> infections_caused;
 
+    static const Parameters* _par;
+
   public:
     bool isLocallyAcquired()    const { return infectedByID != -1; }
 
     int getInfectedTime()       const { return infectedBegin; }
     int getInfectiousTime()     const { return infectiousBegin; }
     int getSymptomTime()        const { return symptomBegin; }
+    int getSymptomEndTime()     const { return symptomEnd; }
     int getSevereTime()         const { return severeBegin; }
     int getHospitalizedTime()   const { return hospitalizedBegin; }
     int getCriticalTime()       const { return criticalBegin; }
@@ -84,12 +87,32 @@ class Infection {
 
     void log_transmission(Infection* inf) { infections_caused.push_back(inf); }
     size_t secondary_infection_tally () const { return infections_caused.size(); }
+    std::vector<Infection*> get_infections_caused() { return infections_caused; }
+
     std::vector<int> generation_times () const {
         std::vector<int> times;
         for (Infection* other: infections_caused) { times.push_back(other->getInfectedTime() - getInfectedTime()); }
         return times;
     }
-    std::vector<Infection*> get_infections_caused() { return infections_caused; }
+
+    void dumper() const {
+        cerr << "Infection attributes:" << endl;
+        cerr << "\tinfectedBegin    : " << infectedBegin            << endl;
+        cerr << "\tinfectedPlace    : " << infectedPlace            << endl;
+        cerr << "\tinfectedByID     : " << infectedByID             << endl;
+        cerr << "\tinfectiousBegin  : " << infectiousBegin          << endl;
+        cerr << "\tinfectiousEnd    : " << infectiousEnd            << endl;
+        cerr << "\tsymptomBegin     : " << symptomBegin             << endl;
+        cerr << "\tsymptomEnd       : " << symptomEnd               << endl;
+        cerr << "\tsevereBegin      : " << severeBegin              << endl;
+        cerr << "\tsevereEnd        : " << severeEnd                << endl;
+        cerr << "\thospitalizedBegin: " << hospitalizedBegin        << endl;
+        cerr << "\tcriticalBegin    : " << criticalBegin            << endl;
+        cerr << "\tcriticalEnd      : " << criticalEnd              << endl;
+        cerr << "\ticuBegin         : " << icuBegin                 << endl;
+        cerr << "\tdeathTime        : " << deathTime                << endl;
+        cerr << "\tinfections_caused: " << infections_caused.size() << endl;
+    }
 };
 
 class Person {
@@ -174,7 +197,7 @@ class Person {
         static void setPar(const Parameters* par) { _par = par; }
 
         Infection& initializeNewInfection();
-        Infection& initializeNewInfection(int time, int sourceloc, int sourceid);
+        Infection& initializeNewInfection(int time, size_t incubation_period, int sourceloc, int sourceid);
 
         static void reset_ID_counter() { NEXT_ID = 0; }
         bool isSurveilledPerson() { return id < _par->numSurveilledPeople; }

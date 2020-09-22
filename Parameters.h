@@ -61,13 +61,6 @@ enum ComorbidType{
     NUM_OF_COMORBID_TYPES
 };
 
-enum PathogenicityModel {
-    CONSTANT_PATHOGENICITY,
-    ORIGINAL_LOGISTIC,
-    GEOMETRIC_PATHOGENICITY,
-    NUM_OF_PRIMARY_PATHOGENICITY_MODELS
-};
-
 enum VaccineSeroConstraint {
     VACCINATE_SERONEGATIVE_ONLY,
     VACCINATE_SEROPOSITIVE_ONLY,
@@ -180,57 +173,65 @@ transmission from asymp is 0.5*trans from symp
 .duration of symptoms 14 days for mild, (1 week mild, 2w severe, 1w mild) for severe, 10 more days critical, in the middle of severe period
 */
 
-//static const float SEVERE_FRACTION = 0.1;                   // fraction of cases become severe
-//static const float CRITICAL_FRACTION = 0.33;                  // fraction of severe cases that become critical
-                                                              // https://www.cdc.gov/mmwr/volumes/69/wr/mm6932e3.htm?s
-
 static const float SEVERE_TO_HOSPITAL = 0.8;                  // general population, probability of going to hospital if severe
 static const float LTC_SEVERE_TO_HOSPITAL = 0.25;             // probability long-term-care residents who are severe go to hospital (if hosp available)
 static const float CRITICAL_TO_ICU_IF_HOSP = 0.9;             // probability already-hospitalized patients go to ICU when critical (if ICU available)
-static const float CRITICAL_TO_ICU_IF_NOT_HOSP = 0.75;         // probability non-hospitalized severe patients go to ICU when critical (if ICU available)
+static const float CRITICAL_TO_ICU_IF_NOT_HOSP = 0.75;        // probability non-hospitalized severe patients go to ICU when critical (if ICU available)
 
-static const int INFECTIOUSNESS_ONSET = 3;                    // delay of infectiousness after infectious exposure
-static const int INFECTIOUS_PERIOD = 7;                       // independent of disease outcome
-static const int SYMPTOM_ONSET = 5;                           // delay of symptoms after infectious exposure
-static const int SYMPTOM_DURATION_MILD = 14;                  // number of days symptoms remain for people who do not become severe
+// symptom onset gamma parameters: https://elifesciences.org/articles/57149
+static const float SYMPTOM_ONSET_MEAN = 4.91;
+static const float SYMPTOM_ONSET_GAMMA_SHAPE = 3.05;          // shape parameter for sampling incubation period
+                                                              // scale parameter for sampling incubation period
+static const float SYMPTOM_ONSET_GAMMA_SCALE = SYMPTOM_ONSET_MEAN/SYMPTOM_ONSET_GAMMA_SHAPE;
+
+// number of days symptoms remain for people who do not become severe
+// fit to data from https://doi.org/10.1111/joim.13089
+static const float SYMPTOM_DURATION_MILD_GAMMA_SHAPE = 4.070483;
+static const float SYMPTOM_DURATION_MILD_GAMMA_SCALE = 2.825217;
+
+// expected fraction of incubation period spent non-infectious, used to sample from binomial
+// https://www.ams.edu.sg/view-pdf.aspx?file=media%5c5556_fi_331.pdf&ofile=Period+of+Infectivity+Position+Statement+(final)+23-5-20+(logos).pdf
+// (↑↑↑ ref for 2.3 day asymptomatic transmission mean)
+static const float INFECTIOUSNESS_ONSET_FRACTION = 1.0 - (2.3/SYMPTOM_ONSET_MEAN);
+
+// https://www.ams.edu.sg/view-pdf.aspx?file=media%5c5556_fi_331.pdf&ofile=Period+of+Infectivity+Position+Statement+(final)+23-5-20+(logos).pdf
+static const int SYMPTOMATIC_INFECTIOUS_PERIOD = 7;           // independent of disease outcome
 
 // severe symptoms warrant hospitalization (which may or may not occur)
-static const int PRE_SEVERE_SYMPTOMATIC = 7;                  // when severe disease occurs, delay from symptom onset
-static const int SEVERE_DURATION = 14;                        // duration of severe disease
-static const int POST_SEVERE_SYMPTOMATIC = 7;                 // number of days after severe disease that symptoms remain
-static const int SYMPTOM_DURATION_SEVERE = PRE_SEVERE_SYMPTOMATIC + SEVERE_DURATION + POST_SEVERE_SYMPTOMATIC;
+// when severe disease occurs, delay from symptom onset
+// fit to data from https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7171478/
+static const float PRE_SEVERE_SYMPTOMATIC_GAMMA_SHAPE = 0.812130;
+static const float PRE_SEVERE_SYMPTOMATIC_GAMMA_SCALE = 7.199686;
 
-// critical symptoms warrant intensive care (which may or may not occur)
-static const int PRE_CRITICAL_SEVERE = 4;                     // when critical disease occurs, delay from severe onset
-static const int CRITICAL_DURATION = 10;                      // duration of critical disease
+// Empirical hospital lenght-of-stay calculated based on github data (distribution_general_world.csv, distribution_icu_world.csv) provided by
+// https://bmcmedicine.biomedcentral.com/articles/10.1186/s12916-020-01726-3#Sec13
+// As that data was for total hospital stay, we subtracted off the density for ICU stays, assuming that 1/3 of hospital stays result in ICU
+// stays (https://www.cdc.gov/mmwr/volumes/69/wr/mm6932e3.htm?s).
+static const vector<double> SEVERE_ONLY_DURATION_CDF =
+    {0.037435, 0.139665, 0.256730, 0.374955, 0.491195, 0.594245, 0.683795, 0.757310, 0.812225, 0.855110,
+     0.886960, 0.909490, 0.925635, 0.935870, 0.943265, 0.949685, 0.954360, 0.958955, 0.963360, 0.967855,
+     0.971540, 0.975125, 0.978495, 0.981425, 0.984275, 0.986235, 0.988115, 0.989515, 0.991115, 0.992335,
+     0.993585, 0.994790, 0.995595, 0.996245, 0.996965, 0.997490, 0.997980, 0.998385, 0.998670, 0.998810,
+     0.999055, 0.999170, 0.999255, 0.999305, 0.999335, 0.999420, 0.999545, 0.999585, 0.999585, 0.999645,
+     0.999660, 0.999740, 0.999830, 0.999905, 0.999920, 0.999935, 0.999960, 0.999970, 0.999980, 0.999985,
+     0.999985, 0.999985, 0.999985, 0.999985, 0.999985, 0.999985, 0.999985, 0.999985, 0.999985, 0.999985,
+     1.000000};
 
-static const int POST_CRITICAL_SEVERE = 10;                   // number of days after critical disease that severe symptoms remain
-static const int SEVERE_DURATION_CRITICAL = PRE_CRITICAL_SEVERE + CRITICAL_DURATION + POST_CRITICAL_SEVERE;
-static const int SYMPTOM_DURATION_CRITICAL = PRE_SEVERE_SYMPTOMATIC + SEVERE_DURATION_CRITICAL + POST_SEVERE_SYMPTOMATIC;
-//static const float ICU_CRITICAL_MORTALITY = 0.4;              // baseline probability of dying while in ICU, distributed uniformly across days in ICU
-                                                              // 0.4 based on ARDS from here https://ccforum.biomedcentral.com/articles/10.1186/s13054-020-03006-1
+// As above, empirical ICU lenght-of-stay calculated based on github data (distribution_icu_world.csv) provided by
+// https://bmcmedicine.biomedcentral.com/articles/10.1186/s12916-020-01726-3#Sec13
+static const vector<double> CRITICAL_DURATION_CDF =
+    {0.02395, 0.08514, 0.15554, 0.23370, 0.31259, 0.39308, 0.46988, 0.54266, 0.60962, 0.67088,
+     0.72574, 0.77359, 0.81612, 0.85151, 0.88142, 0.90602, 0.92574, 0.94139, 0.95484, 0.96481,
+     0.97280, 0.97898, 0.98391, 0.98735, 0.99029, 0.99231, 0.99374, 0.99496, 0.99584, 0.99670,
+     0.99723, 0.99767, 0.99810, 0.99848, 0.99869, 0.99893, 0.99915, 0.99924, 0.99939, 0.99947,
+     0.99955, 0.99962, 0.99969, 0.99977, 0.99980, 0.99984, 0.99986, 0.99987, 0.99990, 0.99990,
+     0.99993, 0.99995, 0.99995, 0.99995, 0.99995, 0.99995, 0.99996, 0.99997, 0.99998, 1.00000};
+
+
 static const float NON_ICU_CRITICAL_MORTALITY = 1.0;          // probability of dying when becoming critical if intensive care is not received
 
 // from Person.h
 static const int NUM_AGE_CLASSES = 121;                       // maximum age+1 for a person
-
-
-// for some serotypes, the fraction who are symptomatic upon primary infection
-/*static const std::vector<double> SYMPTOMATIC_BY_AGE = {
-    0.05189621,	0.05189621,	0.05189621,	0.05189621,	0.05189621,	0.1017964,	0.1017964,	0.1017964,   //  0-  7
-    0.1017964,	0.1017964,	0.2774451,	0.2774451,	0.2774451,	0.2774451,	0.2774451,	0.4870259,   //  8- 15
-    0.4870259,	0.4870259,	0.4870259,	0.4870259,	0.4870259,	0.4870259,	0.4870259,	0.4870259,   // 16- 23
-    0.4870259,	0.8522954,	0.8522954,	0.8522954,	0.8522954,	0.8522954,	0.8522954,	0.8522954,   // 24- 31
-    0.8522954,	0.8522954,	0.8522954,	0.9600798,	0.9600798,	0.9600798,	0.9600798,	0.9600798,   // 32- 39
-    0.9600798,	0.9600798,	0.9600798,	0.9600798,	0.9600798,	1.0000000,	1.0000000,	1.0000000,   // 40- 47
-    1.0000000,	1.0000000,	1.0000000,	1.0000000,	1.0000000,	1.0000000,	1.0000000,	1.0000000,   // 48- 55
-    1.0000000,	1.0000000,	1.0000000,	1.0000000,	1.0000000,	1.0000000,	1.0000000,	1.0000000,   // 56- 59
-    1.0000000,	1.0000000,	1.0000000,	1.0000000,	1.0000000,	1.0000000,	1.0000000,	1.0000000,   // 64- 71
-    1.0000000,	1.0000000,	1.0000000,	1.0000000,	1.0000000,	1.0000000,	1.0000000,	1.0000000,   // 72- 79
-    1.0000000,	1.0000000,	1.0000000,	1.0000000,	1.0000000,	1.0000000,	1.0000000,	1.0000000,   // 80- 87
-    1.0000000,	1.0000000,	1.0000000,	1.0000000,	1.0000000,	1.0000000,	1.0000000,	1.0000000,   // 88- 85
-    1.0000000,	1.0000000,	1.0000000,	1.0000000,	1.0000000};                                      // 96-100
-*/
 
 
 namespace covid {
@@ -287,7 +288,7 @@ public:
     void loadAnnualIntroductions(std::string annualIntrosFilename);
     void define_susceptibility_and_pathogenicity();
 
-    static int sampler (const std::vector<double> CDF, const double rand, unsigned int index = 0) {
+    static size_t sampler (const std::vector<double> CDF, const double rand, size_t index = 0) {
         while (index < CDF.size() and CDF[index] < rand) index++;
         return index;
     };
@@ -329,9 +330,22 @@ public:
     double VEI;                                             // vaccine efficacy to reduce infectiousness
     double VEP;                                             // vaccine efficacy for pathogenicity
     double VEH;                                             // vaccine efficacy against hospitalization, given disease
-    PathogenicityModel pathogenicityModel;                  // use age-specific values, or constant?
-    //std::vector<double> reportedFraction;                   // Prob of being reported, given asymptomatic, mild, severe, critical, and fatal infection
     std::vector<double> probFirstDetection;                 // Probability of being *first* detected while {asymp, mild, severe, crit, dead}
+    size_t symptom_onset() const { // aka incubation period
+        return 1 + floor(gsl_ran_gamma(RNG, SYMPTOM_ONSET_GAMMA_SHAPE, SYMPTOM_ONSET_GAMMA_SCALE));
+    }
+    size_t infectiousness_onset(size_t incubation_pd) const {
+        return gsl_ran_binomial(RNG, INFECTIOUSNESS_ONSET_FRACTION, incubation_pd - 1) + 1;
+    }
+    size_t pre_severe_symptomatic() const {
+        return 1 + floor(gsl_ran_gamma(RNG, PRE_SEVERE_SYMPTOMATIC_GAMMA_SHAPE, PRE_SEVERE_SYMPTOMATIC_GAMMA_SCALE));
+    }
+    size_t symptom_duration_mild() const {
+        return 1 + floor(gsl_ran_gamma(RNG, SYMPTOM_DURATION_MILD_GAMMA_SHAPE, SYMPTOM_DURATION_MILD_GAMMA_SCALE));
+    }
+    size_t severe_only_duration() const { return sampler(SEVERE_ONLY_DURATION_CDF, gsl_rng_uniform(RNG)); }
+    size_t critical_duration()    const { return sampler(CRITICAL_DURATION_CDF, gsl_rng_uniform(RNG)); }
+
     size_t symptomToTestLag;                                // For people with mild disease who get infected, number of days until tested
     void createReportingLagModel(std::string filename);
     size_t defaultReportingLag;                             // Number of days it takes for a test result to be reported after a sample is collected;
@@ -347,7 +361,7 @@ public:
 
     void createIcuMortalityReductionModel(double maximum_val, double inflection_sim_day, double slope);
     double icuMortality(ComorbidType comorbidity, size_t age, size_t sim_day) const;
-    double icuMortalityFraction;                            // fraction of all deaths that occur in ICUs;
+    double icuMortalityFraction;                            // fraction of all deaths that occur in ICUs; Pr{ICU|death}, *NOT* Pr{death|ICU}
                                                             // used for interpreting empirical mortality data, *not within simulation*
 
     size_t deathReportingLag;                               // number of days from when death occurs to when it's reported
@@ -356,10 +370,12 @@ public:
     bool retroactiveMatureVaccine;                          // if true, infection causes leaky vaccine to jump from naive to mature protection
     double seroTestFalsePos;                                // probability that seroneg person tests positive -- leaky test
     double seroTestFalseNeg;                                // probability that seropos person tests negative -- leaky test
-    size_t numInitialExposed;                               // serotypes
+    size_t numInitialExposed;                               // for general use
+    size_t numInitialInfected;                              // for R0 estimation
+    double probInitialExposure;                             // for general use, to scale intial exposures with pop size
+//    double probInitialInfection;
 //    std::vector<double> numDailyExposed;                    // dimension is days
     std::vector<double> probDailyExposure;                  // per person, per day probability of exposure
-    size_t numInitialInfected;                              // serotypes
 
     std::string populationFilename;
     std::string comorbidityFilename;

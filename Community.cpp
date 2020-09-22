@@ -416,7 +416,7 @@ Person* Community::getPersonByID(int id) {
 
 
 // infect - infects person id
-bool Community::infect(int id) {
+Infection* Community::infect(int id) {
     Person* person = getPersonByID(id);
     return person->infect(-1, _date, 0);
 }
@@ -583,9 +583,17 @@ Infection* Community::trace_contact(int &infectee_id, Location* source_loc, int 
         }
     }
 
-    /*if ((signed) infected_candidates.size() != infectious_count) {
-        cerr << "size vs count, day: " << infected_candidates.size() << " " << infectious_count << ", " << _day << endl;
-    }*/
+    if ((signed) infected_candidates.size() != infectious_count) {
+        cerr << "found vs expected, day " << _day << ": " << infected_candidates.size() << " " << infectious_count << endl;
+        cerr << "new lookup value (should == expected): " << _isHot[_day][HOUSE][source_loc] << endl;
+        cerr << "Problematic location:\n";
+        source_loc->dumper();
+        for (Person* p: source_loc->getPeople()) {
+            if(p->isInfectious(_day) and not p->inHospital(_day) and not p->isDead(_day)) {
+                p->getInfection()->dumper();
+            }
+        }
+    }
 
     assert((signed) infected_candidates.size() == infectious_count);
     Person* infectee = choice(RNG, infected_candidates);
@@ -598,6 +606,7 @@ void Community::within_household_transmission() {
     for (const auto hot: _isHot[_day][HOUSE]) {
         Location* loc = hot.first;
         int infectious_count = hot.second;
+        //cerr << "\t\t\t\thousehold, count: " << loc->getID() << ", " << infectious_count << endl;
         if (infectious_count > 0) {
             const double T = 1.0 - pow(1.0 - _par->household_transmissibility, infectious_count);
             _transmission(loc, loc->getPeople(), T, infectious_count);

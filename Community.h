@@ -33,7 +33,7 @@ class Community {
         size_t getNumSymptomatic(int day);
         size_t getNumNaive();
         Person* getPersonByID(int id);
-        bool infect(int id);
+        Infection*  infect(int id);
         int getDay() { return _day; }                                // what day is it?
         //void swapImmuneStates();
         void updateDiseaseStatus();
