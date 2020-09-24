@@ -625,6 +625,11 @@ Infection* Community::trace_contact(int &infectee_id, Location* source_loc, int 
 }
 
 
+double Community::social_distancing(int _day) {
+    return timedInterventions[SOCIAL_DISTANCING][_day];
+}
+
+
 void Community::within_household_transmission() {
     for (const auto hot: _isHot[_day][HOUSE]) {
         Location* loc = hot.first;
@@ -636,11 +641,6 @@ void Community::within_household_transmission() {
         }
     }
     return;
-}
-
-
-double Community::social_distancing(int _day) {
-    return timedInterventions[SOCIAL_DISTANCING][_day];
 }
 
 
@@ -667,21 +667,6 @@ void Community::between_household_transmission() {
 }
 
 
-void Community::school_transmission() {
-    // Transmission for school employees is considered school transmission, not workplace transmission
-    for (auto hot : _isHot[_day][SCHOOL]) {
-        Location* loc = hot.first;
-        const int infectious_count = hot.second;
-        const int school_size = loc->getNumPeople();
-        if (infectious_count > 0 and school_size > 1) {
-            const double T = (1.0 - timedInterventions[SCHOOL_CLOSURE][_day]) * _par->school_transmissibility * infectious_count/(school_size - 1.0);
-            _transmission(loc, loc->getPeople(), T, infectious_count);
-        }
-    }
-    return;
-}
-
-
 void Community::workplace_transmission() {
     // Transmission for school employees is considered school transmission, not workplace transmission
     for (auto hot : _isHot[_day][WORK]) {
@@ -694,6 +679,21 @@ void Community::workplace_transmission() {
         const int workplace_size = loc->getNumPeople();
         if (infectious_count > 0 and workplace_size > 1) {
             const double T = (1.0 - social_distancing(_day)) * _par->workplace_transmissibility * infectious_count/(workplace_size - 1.0);
+            _transmission(loc, loc->getPeople(), T, infectious_count);
+        }
+    }
+    return;
+}
+
+
+void Community::school_transmission() {
+    // Transmission for school employees is considered school transmission, not workplace transmission
+    for (auto hot : _isHot[_day][SCHOOL]) {
+        Location* loc = hot.first;
+        const int infectious_count = hot.second;
+        const int school_size = loc->getNumPeople();
+        if (infectious_count > 0 and school_size > 1) {
+            const double T = (1.0 - timedInterventions[SCHOOL_CLOSURE][_day]) * _par->school_transmissibility * infectious_count/(school_size - 1.0);
             _transmission(loc, loc->getPeople(), T, infectious_count);
         }
     }
@@ -754,11 +754,10 @@ void Community::updateHotLocations() {
 void Community::tick() {
     _day = _date->day();
     within_household_transmission();
-    nursinghome_transmission();
+    between_household_transmission();
     workplace_transmission();
     if (not timedInterventions[SCHOOL_CLOSURE][_day]) school_transmission();
-    between_household_transmission();
-// TODO - nursing home interactions
+    nursinghome_transmission();
 
 //    if (isWeekday(dow)) {
 //        school_transmission();
