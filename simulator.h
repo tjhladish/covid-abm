@@ -201,8 +201,8 @@ void update_vaccinations(const Parameters* par, Community* community, const Date
     //const int boostInterval = par->vaccineBoostingInterval;
     for (CatchupVaccinationEvent cve: par->catchupVaccinationEvents) {
         // Normal, initial vaccination -- boosting, multiple doses handled in Community::tick()
-        if (date->day() == cve.simDay) {
-            if (not par->abcVerbose) cerr << "vaccinating " << cve.coverage*100 << "% of age " << cve.age << " on day " << cve.simDay << endl;
+        if (date->day() >= (signed) cve.campaignStart and date->day() < (signed) (cve.campaignStart + cve.campaignDuration)) {
+            if (not par->abcVerbose) cerr << "vaccinating " << cve.coverage*100 << "% of age " << cve.age << " over " << cve.campaignDuration << " days starting on day " << cve.campaignStart << endl;
             community->vaccinate(cve);
         }
     }

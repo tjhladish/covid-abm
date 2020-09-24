@@ -224,6 +224,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     const int vac_date        = VAC_DATES[(size_t) args[4]];
     const double vac_soc_dist = args[5]; // social distancing in effect post vaccination campaign
     const int vac_sim_day = vac_date - par->startDayOfYear + 1;
+    assert(vac_sim_day >= 0);
+    const size_t vac_campaign_duration = 30;
 
     par->timedInterventions[SOCIAL_DISTANCING].resize(vac_sim_day);
     par->timedInterventions[SOCIAL_DISTANCING].resize(par->runLength, vac_soc_dist);
@@ -238,7 +240,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
         for (int catchup_age = target; catchup_age <= catchup_to; catchup_age++) {
             //const int vacDate = julian_to_sim_day(par, JULIAN_TALLY_DATE + 1, RESTART_BURNIN);
-            par->catchupVaccinationEvents.emplace_back(catchup_age, vac_sim_day, catchup_coverage);
+            par->catchupVaccinationEvents.emplace_back(vac_sim_day, vac_campaign_duration, catchup_age, catchup_coverage);
         }
 
 //        par->vaccineTargetAge = target;

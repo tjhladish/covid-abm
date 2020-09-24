@@ -431,14 +431,18 @@ void Community::vaccinate(CatchupVaccinationEvent cve) {
     assert(cve.coverage >= 0.0 and cve.coverage <= 1.0);
     assert(cve.age <= (signed) _personAgeCohort.size());
 
+    const size_t duration = cve.campaignDuration;
     for (Person* p: _personAgeCohort[cve.age]) {
         assert(p != NULL);
-        if (!p->isVaccinated()
-            and cve.coverage > gsl_rng_uniform(RNG)
-            and p->isSeroEligible(_par->vaccineSeroConstraint, _par->seroTestFalsePos, _par->seroTestFalseNeg)
-           ) {
-            p->vaccinate(cve.simDay);
-            if (_par->vaccineBoosting or p->getNumVaccinations() < _par->numVaccineDoses) _revaccinate_set.insert(p);
+        // is today this person's vaccination day (during a multi-day campaign)?
+        if (p->getID() % duration == _day % duration) {
+            if (!p->isVaccinated()
+                and cve.coverage > gsl_rng_uniform(RNG)
+                and p->isSeroEligible(_par->vaccineSeroConstraint, _par->seroTestFalsePos, _par->seroTestFalseNeg)
+               ) {
+                p->vaccinate(_day);
+                if (_par->vaccineBoosting or p->getNumVaccinations() < _par->numVaccineDoses) _revaccinate_set.insert(p);
+            }
         }
     }
 }

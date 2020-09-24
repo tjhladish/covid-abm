@@ -256,7 +256,7 @@ static const vector<double> CRITICAL_DURATION_CDF =
      0.99993, 0.99995, 0.99995, 0.99995, 0.99995, 0.99995, 0.99996, 0.99997, 0.99998, 1.00000};
 
 
-static const float NON_ICU_CRITICAL_MORTALITY = 1.0;          // probability of dying when becoming critical if intensive care is not received
+static const float NON_ICU_CRITICAL_MORTALITY = 0.9;          // probability of dying when becoming critical if intensive care is not received
 
 // from Person.h
 static const int NUM_AGE_CLASSES = 121;                       // maximum age+1 for a person
@@ -296,9 +296,10 @@ struct DynamicParameter {
 
 struct CatchupVaccinationEvent {
     CatchupVaccinationEvent(){};
-    CatchupVaccinationEvent(int a, int s, double c): age(a), simDay(s), coverage(c) {};
-    int age;
-    int simDay;
+    CatchupVaccinationEvent(size_t cs, size_t cd, size_t a, double c): campaignStart(cs), campaignDuration(cd), age(a), coverage(c) {};
+    size_t campaignStart;
+    size_t campaignDuration;
+    size_t age;
     double coverage;
 };
 
