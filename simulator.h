@@ -383,8 +383,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
             intervention_trigger = false;
         }
         if (date->dayOfMonth()==1) cerr << "hit scen rep        sday date        infinc  cinf\trcases\trcta7\tcrcases\trdeath\tcrdeath\tsevprev\thosprev\tclosed\tsocdist\n";
-        //cerr << left << setw(4) << hit_may15_target
-        cerr << setw(4) << hit_may15_target
+        cerr << left << setw(4) << hit_may15_target
              << setw(5) << par->mmodsScenario
              << setw(11) << process_id
              << setw(4) << date->day()

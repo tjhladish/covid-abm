@@ -42,10 +42,12 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
 
     const float T = args[1]; //0.2;
 
-    par->household_transmissibility = T;
-    par->workplace_transmissibility = T;
-    par->school_transmissibility    = T;
-    par->social_transmissibility    = T/10.0;
+    par->household_transmissibility   = T;
+    par->social_transmissibility      = T/10.0; // assumes complete graphs between households
+    par->workplace_transmissibility   = T;
+    par->school_transmissibility      = T;
+    par->hospital_transmissibility    = T/10.0;
+    par->nursinghome_transmissibility = 2*T;
     //hospitalizedFraction = {0.0, 0.15, 0.9};
     //par->reportedFraction = {0.0, 0.01, 0.5, 0.8, 1.0};      // fraction of asymptomatic, mild, severe, critical, and deaths reported
     //par->reportedFraction = {0.0, 0.2, 0.75, 0.75, 0.75};      // fraction of asymptomatic, mild, severe, critical, and deaths reported

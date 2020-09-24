@@ -18,9 +18,11 @@ void Parameters::define_defaults() {
     randomseed = 5489;
     runLength = 0;
     household_transmissibility = 0.15;
+    social_transmissibility = 0.15;
     workplace_transmissibility = 0.15;
     school_transmissibility = 0.15;
-    social_transmissibility = 0.15;
+    hospital_transmissibility = 0.015;
+    nursinghome_transmissibility = 0.3;
     VES = 0.7;
     VES_NAIVE = 0.0;
     VEI = 0.0;

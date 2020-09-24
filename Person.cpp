@@ -318,10 +318,14 @@ Infection* Person::infect(int sourceid, const Date* date, int sourceloc) {
     // Flag locations with (non-historical) infections, so that we know to look there for human->mosquito transmission
     // Negative days are historical (pre-simulation) events, and thus we don't care about modeling transmission
     for (int day = std::max(infection.infectiousBegin, 0); day < infection.infectiousEnd; day++) {
-        if (not infection.inHospital(day)) {
-            // TODO - getHomeLoc() needs to be re-written as getDayLoc() to allow for hospital transmission
+        if (infection.inHospital(day)) {
+            Location* hospital = getHospital();
+            Community::flagInfectedLocation(hospital->getType(), hospital, day);
+        } else {
             Community::flagInfectedLocation(getHomeLoc()->getType(), getHomeLoc(), day); // home loc can be a HOUSE or NURSINGHOME
-            if (getDayLoc()) Community::flagInfectedLocation(getDayLoc()->getType(), getDayLoc(), day); // TODO -- people do not stop going to work/school when mild/moderately sick
+            if (getDayLoc()) {
+                Community::flagInfectedLocation(getDayLoc()->getType(), getDayLoc(), day); // TODO -- people do not stop going to work/school when mild/moderately sick
+            }
         }
     }
 

@@ -37,12 +37,12 @@ void Location::dumper() const {
     cerr << "\tcoords: " << _coord.first << ", " << _coord.second << endl;
     cerr << "\tessential: " << _essential << endl;
     cerr << "\trisk aversion: " << _riskAversion << endl;
-    cerr << "\tpeople: "; for (auto p: _person) { cerr << p->getID() << " "; } cerr << endl;
+    cerr << "\tpeople: "; /*for (auto p: _person) { cerr << p->getID() << " "; }*/ cerr << _person.size(); cerr << endl;
     cerr << "\tneighbors: "; for (auto l: _neighbors) { cerr << l->getID() << " "; } cerr << endl;
 }
 
 
-bool Location::removePerson(Person* p) {
+bool Location::removePerson(Person* p) { // TODO -- consider implications of using set for container, to make removing faster
     for (unsigned int i=0; i<_person.size(); i++) {
         if (_person[i] == p) {
             _person[i] = _person.back();

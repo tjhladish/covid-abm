@@ -139,6 +139,8 @@ class Person {
         void setDayLoc(Location* loc) { day_loc = loc; }
 
         Location* getHospital() const { return home_loc->getHospital(); }
+        void goToHospital() { getHospital()->addPerson(this); }
+        void leaveHospital() { getHospital()->removePerson(this); }
 //        void setImmunity() { immune = true; }
 //        void copyImmunity(const Person *p);
         void resetImmunity();
@@ -201,6 +203,19 @@ class Person {
 
         static void reset_ID_counter() { NEXT_ID = 0; }
         bool isSurveilledPerson() { return id < _par->numSurveilledPeople; }
+
+        void dumper() const {
+            cerr << "Person ID: " << id << endl;
+            cerr << "\thome loc: " << home_loc->getID() << endl;
+            cerr << "\tday loc: " << (day_loc ? day_loc->getID() : -1) << endl;
+            cerr << "\tday loc type: " << (day_loc ? day_loc->getType() : NUM_OF_LOCATION_TYPES) << endl;
+            cerr << "\thospital: " << getHospital()->getID() << endl;
+            cerr << "\tage: " << age << endl;
+            cerr << "\tsex: " << sex << endl;
+            cerr << "\tltc: " << long_term_care << endl;
+            cerr << "\tinfection history size: " << infectionHistory.size() << endl;
+        }
+
 
     protected:
         size_t id;                                                      // unique identifier

@@ -36,7 +36,7 @@ class Community {
         Infection*  infect(int id);
         int getDay() { return _day; }                                // what day is it?
         //void swapImmuneStates();
-        void updateDiseaseStatus();
+        void updatePersonStatus();
         void updateHotLocations();
         void tick();                                                   // simulate one day
 
@@ -44,6 +44,8 @@ class Community {
         void between_household_transmission();
         void workplace_transmission();
         void school_transmission();
+        void hospital_transmission();
+        void nursinghome_transmission();
 
         double social_distancing(int);
         void vaccinate(CatchupVaccinationEvent cve);

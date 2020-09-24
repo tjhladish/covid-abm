@@ -29,6 +29,19 @@ enum SexType {
     NUM_OF_SEX_TYPES
 };
 
+inline std::ostream& operator<<(std::ostream& out, const SexType value){
+    const char* s = 0;
+#define PROCESS_VAL(p) case(p): s = #p; break;
+    switch(value){
+        PROCESS_VAL(UNKNOWN);
+        PROCESS_VAL(MALE);
+        PROCESS_VAL(FEMALE);
+        PROCESS_VAL(NUM_OF_SEX_TYPES);
+    }
+#undef PROCESS_VAL
+    return out << s;
+}
+
 enum LocationType {
     HOUSE,
     WORK,
@@ -37,6 +50,21 @@ enum LocationType {
     NURSINGHOME,
     NUM_OF_LOCATION_TYPES
 };
+
+inline std::ostream& operator<<(std::ostream& out, const LocationType value){
+    const char* s = 0;
+#define PROCESS_VAL(p) case(p): s = #p; break;
+    switch(value){
+        PROCESS_VAL(HOUSE);
+        PROCESS_VAL(WORK);
+        PROCESS_VAL(SCHOOL);
+        PROCESS_VAL(HOSPITAL);
+        PROCESS_VAL(NURSINGHOME);
+        PROCESS_VAL(NUM_OF_LOCATION_TYPES);
+    }
+#undef PROCESS_VAL
+    return out << s;
+}
 
 enum ImmuneStateType {
     NAIVE,
@@ -318,9 +346,11 @@ public:
     unsigned long int randomseed;
     size_t runLength;
     double household_transmissibility;                      // per-day probability of transmission between a co-habitating dyad
+    double social_transmissibility;                         // per-day probability of transmission, scaled by the fraction of infectious social contacts
     double workplace_transmissibility;                      // per-day probability of transmission, scaled by the fraction of infectious co-workers
     double school_transmissibility;                         // per-day probability of transmission, scaled by the fraction of infectious students/staff
-    double social_transmissibility;                         // per-day probability of transmission, scaled by the fraction of infectious social contacts
+    double hospital_transmissibility;                       // per-day probability of transmission, scaled by the fraction of infectious staff/patients
+    double nursinghome_transmissibility;                    // per-day probability of transmission, scaled by the fraction of infectious staff/residents
     vector<float> susceptibilityByAge;                      // probability of infection given exposure, index by year of age
     vector<float> pathogenicityByAge;                       // probability of clinical disease given infection, index by year of age
     vector<float> severeFractionByAge;                      // probability of severe disease given clinical disease, index by year of age

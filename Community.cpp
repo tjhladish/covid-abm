@@ -518,9 +518,19 @@ void Community::reportDeath(int /*eventDate*/, long int reportDate) {
 }
 
 
-void Community::updateDiseaseStatus() {
+void Community::updatePersonStatus() {
     // TODO - add support for all disease outcomes
     for (Person* p: _people) {
+        Location* day_loc = p->getDayLoc();
+        if (p->inHospital(_day)) {
+            if (p->getHospitalizedTime()==_day) {
+                // health care employees may already be at the facility where they would receive treatment
+                if (day_loc != p->getHospital()) { p->goToHospital(); }
+            }
+        } else if (_day > 0 and p->inHospital(_day - 1)) { // they were in hospital yeserday, but no longer
+            if (day_loc != p->getHospital()) { p->leaveHospital(); }
+        }
+
         if (p->isSurveilledPerson()) {
             if (p->getNumNaturalInfections() == 0) continue;              // no infection/outcomes to tally
             if (p->getInfectedTime()==_day) _numNewlyInfected[_day]++;
@@ -576,20 +586,33 @@ Infection* Community::trace_contact(int &infectee_id, Location* source_loc, int 
     // Identify who was the source of an exposure event (tracing backward)
     // This function currently assumes all co-located infected people are equally likely
     // to be the cause of transmission.  May be something we want to relax in the future.
+    const bool loc_is_hospital = source_loc->getType() == HOSPITAL;
     vector<Person*> infected_candidates;
     for (Person* p: source_loc->getPeople()) {
-        if(p->isInfectious(_day) and not p->inHospital(_day) and not p->isDead(_day)) {
+        if(p->isInfectious(_day)
+          // possibilities:
+          // 1.) We're not looking at a hospital, and this person isn't in a hospital (and thus is here)
+          // 2.) We are looking at a hospital, and this person is infected and working at this hospital
+          // 3.) We are looking at a hospital, and this person normally works here, but has been admitted here
+          // 4.) We are looking at a hospital, and this person normally works here, but has been admitted elsewhere <-- the tricky one
+          // 5.) We are looking at a hospital, and this person normally works elsewhere, but has been admitted here
+          and (not p->inHospital(_day) or (loc_is_hospital and source_loc == p->getHospital()))
+          and not p->isDead(_day)) {
             infected_candidates.push_back(p);
         }
     }
 
     if ((signed) infected_candidates.size() != infectious_count) {
         cerr << "found vs expected, day " << _day << ": " << infected_candidates.size() << " " << infectious_count << endl;
-        cerr << "new lookup value (should == expected): " << _isHot[_day][HOUSE][source_loc] << endl;
+        cerr << "new lookup value (should == expected): " << _isHot[_day][source_loc->getType()][source_loc] << endl;
         cerr << "Problematic location:\n";
         source_loc->dumper();
         for (Person* p: source_loc->getPeople()) {
-            if(p->isInfectious(_day) and not p->inHospital(_day) and not p->isDead(_day)) {
+            if(p->isInfectious(_day)
+              and (not p->inHospital(_day) or (loc_is_hospital and source_loc == p->getHospital()))
+              and not p->isDead(_day)) {
+                cerr << "\nInfected person " << p->getID() << " normal day loc: " << (p->getDayLoc() ? p->getDayLoc()->getID() : -1) << endl;
+                cerr << "Hospitalized?: " << p->inHospital(_day) << endl;
                 p->getInfection()->dumper();
             }
         }
@@ -678,6 +701,34 @@ void Community::workplace_transmission() {
 }
 
 
+void Community::hospital_transmission() {
+    for (auto hot : _isHot[_day][HOSPITAL]) {
+        Location* loc = hot.first;
+        const int infectious_count = hot.second;
+        const int hospital_census = loc->getNumPeople(); // workers + patients
+        if (infectious_count > 0 and hospital_census > 1) {
+            const double T = _par->hospital_transmissibility * infectious_count/(hospital_census - 1.0);
+            _transmission(loc, loc->getPeople(), T, infectious_count);
+        }
+    }
+    return;
+}
+
+
+void Community::nursinghome_transmission() {
+    for (auto hot : _isHot[_day][NURSINGHOME]) {
+        Location* loc = hot.first;
+        const int infectious_count = hot.second;
+        const int nursinghome_census = loc->getNumPeople(); // workers + residents
+        if (infectious_count > 0 and nursinghome_census > 1) {
+            const double T = _par->nursinghome_transmissibility * infectious_count/(nursinghome_census - 1.0);
+            _transmission(loc, loc->getPeople(), T, infectious_count);
+        }
+    }
+    return;
+}
+
+
 void Community::_transmission(Location* source_loc, vector<Person*> at_risk_group, const double T, const int infectious_count) {
     for (Person* p: at_risk_group) {
         if (gsl_rng_uniform(RNG) < T) {
@@ -703,6 +754,7 @@ void Community::updateHotLocations() {
 void Community::tick() {
     _day = _date->day();
     within_household_transmission();
+    nursinghome_transmission();
     workplace_transmission();
     if (not timedInterventions[SCHOOL_CLOSURE][_day]) school_transmission();
     between_household_transmission();
@@ -715,7 +767,13 @@ void Community::tick() {
 
     //updateVaccination();
 
-    updateDiseaseStatus();                                            // make people stay home or return to work
+    updatePersonStatus();                                            // make people stay home or return to work
+    // Hospital transmission should happen after updating person status,
+    // b/c that's when hospitals find out they are receiving a patient.
+    // People cannot transmit in a hospital and outside of a hospital on the same day,
+    // as transmission for other locations checks whether the person will be admitted
+    // on this day.
+    hospital_transmission();
     updateHotLocations();
 
     return;
