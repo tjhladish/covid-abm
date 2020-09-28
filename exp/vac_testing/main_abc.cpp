@@ -24,27 +24,31 @@ const string output_dir("/ufrc/longini/tjhladish/");
 //const string imm_dir(output_dir + "");
 
 const int RESTART_BURNIN       = 0;
-const int FORECAST_DURATION    = 462;
+const int FORECAST_DURATION    = 364;
+const int OVERRUN              = 14; // to get accurate Rt estimates near the end of the forecast duration
 const bool RUN_FORECAST        = true;
-const int TOTAL_DURATION       = RUN_FORECAST ? RESTART_BURNIN + FORECAST_DURATION : RESTART_BURNIN;
-const size_t JULIAN_TALLY_DATE = 146; // intervention julian date - 1
+const int TOTAL_DURATION       = RUN_FORECAST ? RESTART_BURNIN + FORECAST_DURATION + OVERRUN : RESTART_BURNIN;
+//const size_t JULIAN_TALLY_DATE = 146; // intervention julian date - 1
 const size_t JULIAN_START_YEAR = 2020;
 
 //Parameters* define_simulator_parameters(vector<double> args, const unsigned long int rng_seed) {
-Parameters* define_simulator_parameters(vector<double> args, const unsigned long int rng_seed, const unsigned long int serial, const string /*process_id*/) {
+Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned long int rng_seed, const unsigned long int serial, const string /*process_id*/) {
     Parameters* par = new Parameters();
     par->define_defaults();
     par->serial = serial;
 
-    const float T = 0.225;
+    const float T = 0.205;
 
-    par->household_transmissibility = T;
-    par->workplace_transmissibility = T;
-    par->school_transmissibility    = T;
-    par->social_transmissibility    = T/10.0;
+    par->household_transmissibility   = T;
+    par->social_transmissibility      = T/10.0; // assumes complete graphs between households
+    par->workplace_transmissibility   = T;
+    par->school_transmissibility      = T;
+    par->hospital_transmissibility    = T/10.0;
+    par->nursinghome_transmissibility = 2*T;
     //hospitalizedFraction = {0.0, 0.15, 0.9};
     //par->reportedFraction = {0.0, 0.01, 0.5, 0.8, 1.0};      // fraction of asymptomatic, mild, severe, critical, and deaths reported
-    par->reportedFraction = {0.0, 0.2, 0.75, 0.75, 0.75};      // fraction of asymptomatic, mild, severe, critical, and deaths reported
+    //par->reportedFraction = {0.0, 0.2, 0.75, 0.75, 0.75};      // fraction of asymptomatic, mild, severe, critical, and deaths reported
+    par->probFirstDetection = {0.0, 0.15, 0.6, 0.1, 0.01};      // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
     par->randomseed              = rng_seed;
     par->dailyOutput             = false; // turn on for daily prevalence figure, probably uncomment filter in simulator.h for daily output to get only rel. days
     par->periodicOutput          = false;
@@ -56,49 +60,43 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->runLength               = TOTAL_DURATION;
     par->julianYear              = JULIAN_START_YEAR;
     par->startDayOfYear          = 45;
-//    par->startDayOfYear          = 1;
     par->annualIntroductionsCoef = 1;
 
-    //par->pathogenicityModel = ORIGINAL_LOGISTIC;
     par->traceContacts = true;
-    //par->mmodsScenario = ms;      // MMODS_CLOSED, MMODS_2WEEKS, MMODS_1PERCENT, MMODS_OPEN
 
-    // These are only initial values for time-structured interventions.  They can be changed dynamically.
-    par->timedInterventions[SCHOOL_CLOSURE].clear();
-    par->timedInterventions[SCHOOL_CLOSURE].resize(30, 0.0);
-    const size_t aug31 = 243 - par->startDayOfYear;
-//    const size_t school_closed_duration = aug31 < par->runLength ? aug31 : par->runLength;
-//    par->timedInterventions[SCHOOL_CLOSURE].resize(school_closed_duration, 1.0);
-    par->timedInterventions[SCHOOL_CLOSURE].resize(aug31, 1.0);
-    par->timedInterventions[SCHOOL_CLOSURE].resize(par->runLength, 0.0);
-
-    par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].clear();
-    par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(45, 0.0);
-    par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(75, 1.0);
-    par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(par->runLength, 0.0);
-
-    const float mobility_logit_shift   = -2.7;
-    const float mobility_logit_stretch = 2;
+    //const float mobility_logit_shift   = -2.7;
+    //const float mobility_logit_stretch = 2;
     // using createSocialDistancingModel() defines timedInterventions[SOCIAL_DISTANCING] values
     // NB: startDayOfYear, runLength, and julianYear must be defined in par before a social distancing model can be meaningfully created!
     // TODO - make that dependency something the user doesn't have to know or think about
     //par->createSocialDistancingModel(pop_dir + "/safegraph_mobility_index.csv", mobility_logit_shift, mobility_logit_stretch);
     // plot(as.Date(d$date), shiftstretch(1-d$smooth_ma7, shift=-2.7, stretch=2), ylim=c(0,1), type='l')
-    par->createSocialDistancingModel(pop_dir + "/sgmi_fl_comp.csv", mobility_logit_shift, mobility_logit_stretch);
+    //par->createSocialDistancingModel(pop_dir + "/../florida/sgmi_fl_comp.csv", mobility_logit_shift, mobility_logit_stretch);
+    //par->createSocialDistancingModel(pop_dir + "/sgmi_escambia_comp.csv", mobility_logit_shift, mobility_logit_stretch);
+    //par->createSocialDistancingModel(pop_dir + "/sgmi_dade_comp.csv", mobility_logit_shift, mobility_logit_stretch);
 
     //par->defaultReportingLag = 14;
     par->createReportingLagModel(pop_dir + "/case_report_delay.csv");
     par->symptomToTestLag = 2;
-    par->deathReportingLag = 4;
+    par->deathReportingLag = 7;
+
+    const double max_icu_mortality_reduction = 1.0/3.0; // primarily due to use of dexamethasone
+    const size_t icu_mortality_inflection_sim_day = Date::to_julian_day("2020-06-25") - par->startDayOfYear;
+    const double icu_mortality_reduction_slope = 0.5; // 0.5 -> change takes ~2 weeks
+    par->createIcuMortalityReductionModel(max_icu_mortality_reduction, icu_mortality_inflection_sim_day, icu_mortality_reduction_slope);
+    par->icuMortalityFraction = 0.5;                        // to be fit; fraction of all deaths that occur in ICUs;
+                                                            // used for interpreting empirical mortality data, *not within simulation*
+    par->define_susceptibility_and_pathogenicity();
 
     par->daysImmune = 730;
     par->VES = 0.0;
 
     //par->hospitalizedFraction = 0.25; // fraction of cases assumed to be hospitalized
-    par->numInitialInfected = 1;
-    par->probDailyExposure = {1.0e-05};
+    par->probInitialExposure = {1.0e-04};
+    par->probDailyExposure   = {1.0e-05};
 
     par->populationFilename       = pop_dir    + "/population-"         + SIM_POP + ".txt";
+    par->comorbidityFilename      = pop_dir    + "/comorbidity-"        + SIM_POP + ".txt";
     par->locationFilename         = pop_dir    + "/locations-"          + SIM_POP + ".txt";
     par->networkFilename          = pop_dir    + "/network-"            + SIM_POP + ".txt";
 
@@ -172,7 +170,7 @@ int julian_to_sim_day (const Parameters* par, const size_t julian, const int int
 
 
 vector<double> tally_counts(const Parameters* par, Community* community, int discard_days) {
-    const size_t num_weeks = (par->runLength - discard_days)/7;
+    const size_t num_weeks = (par->runLength - discard_days - OVERRUN)/7;
 
     //vector<size_t> infected    = community->getNumNewlyInfected();
     //vector< vector<int> > severe      = community->getNumSevereCases();
@@ -183,7 +181,7 @@ vector<double> tally_counts(const Parameters* par, Community* community, int dis
     vector<size_t> Rt_incidence_tally(num_weeks, 0);
 
     vector<double> metrics(num_weeks*2, 0.0);
-    for (size_t t = discard_days; t < par->runLength; t++) {
+    for (size_t t = discard_days; t < par->runLength - OVERRUN; t++) {
         const size_t w = (t-discard_days)/7; // which reporting week are we in?
         metrics[w] += symptomatic[t];
         metrics[num_weeks + w] += R[t].first > 0 ? R[t].first*R[t].second : 0;
@@ -214,20 +212,42 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     cerr << "SCENARIO " << rng_seed;
     for (auto _p: args) { cerr << " " << _p; } cerr << endl;
 
-    const vector<size_t> VAC_DATES = {56, 140, 200};
+//    const vector<size_t> VAC_DATES = {56, 140, 200}; // julian dates
 
     Parameters* par = define_simulator_parameters(args, rng_seed, serial, process_id);
+    vector<double> reported_frac = par->toReportedFraction(par->probFirstDetection);
+    cerr_vector(reported_frac); cerr << endl;
     const bool vaccine        = (bool) args[0];
     const double vac_efficacy = args[1];
     const double vac_coverage = args[2]; 
     const int vac_mech        = (int) args[3];
-    const int vac_date        = VAC_DATES[(size_t) args[4]];
+    //const int vac_date        = VAC_DATES[(size_t) args[4]];
+    const int vac_sim_day     = (int) args[4];
     const double vac_soc_dist = args[5]; // social distancing in effect post vaccination campaign
-    const int vac_sim_day = vac_date - par->startDayOfYear + 1;
+    //const int vac_sim_day = vac_date - par->startDayOfYear + 1;
+    const bool pre_vac_lockdown = (bool) args[7];
     assert(vac_sim_day >= 0);
     const size_t vac_campaign_duration = 30;
 
-    par->timedInterventions[SOCIAL_DISTANCING].resize(vac_sim_day);
+    const double pandemic_soc_dist = 0.3;
+    par->timedInterventions[SCHOOL_CLOSURE].clear();
+    par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].clear();
+    par->timedInterventions[SOCIAL_DISTANCING].clear();
+
+    const size_t lockdown_duration = 14;
+    if (pre_vac_lockdown and vac_sim_day >= (signed) lockdown_duration) {
+        par->timedInterventions[SCHOOL_CLOSURE].resize(vac_sim_day - lockdown_duration, 0.0);
+        par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(vac_sim_day - lockdown_duration, 0.0);
+        par->timedInterventions[SOCIAL_DISTANCING].resize(vac_sim_day - lockdown_duration, pandemic_soc_dist);
+
+        par->timedInterventions[SCHOOL_CLOSURE].resize(vac_sim_day, 1.0);
+        par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(vac_sim_day, 1.0);
+        par->timedInterventions[SOCIAL_DISTANCING].resize(vac_sim_day, 1.0);
+    }
+
+    par->timedInterventions[SCHOOL_CLOSURE].resize(par->runLength, 0.0);
+    par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(par->runLength, 0.0);
+    par->timedInterventions[SOCIAL_DISTANCING].resize(vac_sim_day, pandemic_soc_dist);
     par->timedInterventions[SOCIAL_DISTANCING].resize(par->runLength, vac_soc_dist);
 
     Community* community = build_community(par);

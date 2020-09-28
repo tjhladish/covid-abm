@@ -429,7 +429,7 @@ void Community::vaccinate(CatchupVaccinationEvent cve) {
 
     // Valid coverage and age?
     assert(cve.coverage >= 0.0 and cve.coverage <= 1.0);
-    assert(cve.age <= (signed) _personAgeCohort.size());
+    assert(cve.age <= _personAgeCohort.size());
 
     const size_t duration = cve.campaignDuration;
     for (Person* p: _personAgeCohort[cve.age]) {
