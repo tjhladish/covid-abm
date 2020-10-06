@@ -24,12 +24,13 @@ const string pop_dir = HOME_DIR + "/work/covid-abm/pop/" + SIM_POP;
 const string output_dir("/ufrc/longini/tjhladish/");
 //const string imm_dir(output_dir + "");
 
-const int RESTART_BURNIN       = 0;
-const int FORECAST_DURATION    = 220;
-const bool RUN_FORECAST        = true;
-const int TOTAL_DURATION       = RUN_FORECAST ? RESTART_BURNIN + FORECAST_DURATION : RESTART_BURNIN;
-const size_t JULIAN_TALLY_DATE = 146; // intervention julian date - 1
-const size_t JULIAN_START_YEAR = 2020;
+const int RESTART_BURNIN          = 0;
+const int FORECAST_DURATION       = 220;
+const bool RUN_FORECAST           = true;
+const int TOTAL_DURATION          = RUN_FORECAST ? RESTART_BURNIN + FORECAST_DURATION : RESTART_BURNIN;
+const size_t JULIAN_TALLY_DATE    = 146; // intervention julian date - 1
+const size_t JULIAN_START_YEAR    = 2020;
+const double DEATH_UNDERREPORTING = 11807.0/20100.0; // FL Mar15-Sep5, https://www.nytimes.com/interactive/2020/05/05/us/coronavirus-death-toll-us.html
 
 //Parameters* define_simulator_parameters(vector<double> args, const unsigned long int rng_seed) {
 Parameters* define_simulator_parameters(vector<double> args, const unsigned long int rng_seed, const unsigned long int serial, const string /*process_id*/) {
