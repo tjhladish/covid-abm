@@ -32,6 +32,8 @@ const size_t JULIAN_TALLY_DATE    = 146; // intervention julian date - 1
 const size_t JULIAN_START_YEAR    = 2020;
 const double DEATH_UNDERREPORTING = 11807.0/20100.0; // FL Mar15-Sep5, https://www.nytimes.com/interactive/2020/05/05/us/coronavirus-death-toll-us.html
 
+int to_sim_day(int julian_start, string date) { return Date::to_julian_day(date) - julian_start; }
+
 //Parameters* define_simulator_parameters(vector<double> args, const unsigned long int rng_seed) {
 Parameters* define_simulator_parameters(vector<double> args, const unsigned long int rng_seed, const unsigned long int serial, const string /*process_id*/) {
     Parameters* par = new Parameters();
@@ -57,12 +59,12 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->monthlyOutput           = true;
     par->yearlyOutput            = true;
     par->abcVerbose              = false; // needs to be false to get WHO daily output
-    par->runLength               = TOTAL_DURATION;
     par->julianYear              = JULIAN_START_YEAR;
     par->startDayOfYear          = Date::to_julian_day("2020-02-15");;
+    par->runLength               = TOTAL_DURATION;
     par->annualIntroductionsCoef = 1;
 
-    par->traceContacts = true;
+    par->traceContacts = true; // needed for Rt calculation
     par->mmodsScenario = ms;      // MMODS_CLOSED, MMODS_2WEEKS, MMODS_1PERCENT, MMODS_OPEN
 
     {
@@ -74,7 +76,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
         // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
         const vector<double> initial_vals = {0.0, 0.00, 0.5, 0.1, 0.01};
         const vector<double> final_vals   = {0.0, 0.20, 0.5, 0.1, 0.01};
-        const int isd = Date::to_julian_day("2020-06-01") - par->startDayOfYear;
+        const int isd = to_sim_day(par->startDayOfYear, "2020-06-01");
         const vector<int> inflection_sim_day = {isd, isd, isd, isd, isd};
         const vector<double> slopes = {0.1, 0.1, 0.1, 0.1, 0.1}; // sign is determined based on initial/final values
 
@@ -97,12 +99,15 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
 //    par->timedInterventions[SOCIAL_DISTANCING].resize(par->runLength, 0.0);
 
     par->timedInterventions[SCHOOL_CLOSURE].clear();
-    par->timedInterventions[SCHOOL_CLOSURE].resize(30, 0.0);
-    par->timedInterventions[SCHOOL_CLOSURE].resize(par->runLength, 1.0);
+    par->timedInterventions[SCHOOL_CLOSURE].resize(to_sim_day(par->startDayOfYear, "2020-03-15"), 0.0);
+    const size_t aug31 = to_sim_day(par->startDayOfYear, "2020-08-31");
+    const size_t school_closed_duration = aug31 < par->runLength ? aug31 : par->runLength;
+    par->timedInterventions[SCHOOL_CLOSURE].resize(school_closed_duration, 1.0);
+    par->timedInterventions[SCHOOL_CLOSURE].resize(par->runLength, 0.5); // 50% reopening on Aug 31
 
     par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].clear();
-    par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(45, 0.0);
-    par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(75, 1.0);
+    par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(to_sim_day(par->startDayOfYear, "2020-04-03"), 0.0);
+    par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(to_sim_day(par->startDayOfYear, "2020-05-04"), 1.0);
     par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(par->runLength, 0.0);
 
     const float mobility_logit_shift   = -2.7;
@@ -122,8 +127,8 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->deathReportingLag = 9;
 
     const double max_icu_mortality_reduction = 0.4; // primarily due to use of dexamethasone
-    const size_t icu_mortality_inflection_sim_day = Date::to_julian_day("2020-06-25") - par->startDayOfYear;
-    const double icu_mortality_reduction_slope = 0.5; // 0.5 -> change takes ~2 weeks
+    const size_t icu_mortality_inflection_sim_day = to_sim_day(par->startDayOfYear, "2020-06-25");
+    const double icu_mortality_reduction_slope = 0.5; // 0.5 -> change takes ~2 weeks; 0.1 -> ~2 months
     par->createIcuMortalityReductionModel(max_icu_mortality_reduction, icu_mortality_inflection_sim_day, icu_mortality_reduction_slope);
     par->icuMortalityFraction = 0.5;                        // to be fit; fraction of all deaths that occur in ICUs;
                                                             // used for interpreting empirical mortality data, *not within simulation*
