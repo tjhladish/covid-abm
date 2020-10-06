@@ -1,5 +1,6 @@
 #ifndef __PARAMETERS_H
 #define __PARAMETERS_H
+#define varname(s) #s
 
 #include <iostream>
 #include <cstdlib>
@@ -361,7 +362,6 @@ public:
     double VEI;                                             // vaccine efficacy to reduce infectiousness
     double VEP;                                             // vaccine efficacy for pathogenicity
     double VEH;                                             // vaccine efficacy against hospitalization, given disease
-    std::vector<double> probFirstDetection;                 // Probability of being *first* detected while {asymp, mild, severe, crit, dead}
     size_t symptom_onset() const { // aka incubation period
         return 1 + floor(gsl_ran_gamma(RNG, SYMPTOM_ONSET_GAMMA_SHAPE, SYMPTOM_ONSET_GAMMA_SCALE));
     }
@@ -390,10 +390,20 @@ public:
         }
     }
 
+    double pathogenicityReduction;                          // == percentage of missed infections in empirical pathogenicity estimates
+                                                            // used for interpreting empirical pathogenicity data, *not within simulator*
+
     void createIcuMortalityReductionModel(double maximum_val, double inflection_sim_day, double slope);
     double icuMortality(ComorbidType comorbidity, size_t age, size_t sim_day) const;
     double icuMortalityFraction;                            // fraction of all deaths that occur in ICUs; Pr{ICU|death}, *NOT* Pr{death|ICU}
                                                             // used for interpreting empirical mortality data, *not within simulation*
+
+                                                            // sign of float determined by sizes of initial and final values
+    void createDetectionModel(const vector<double>& initial_vals, const vector<double>& final_vals,
+                              const vector<int>& inflection_sim_day, const vector<double>& slopes);
+    std::vector<std::vector<double>> probFirstDetection;    // Probability of being *first* detected while {asymp, mild, severe, crit, dead}
+                                                            // indexed by day and outcome severity
+
 
     size_t deathReportingLag;                               // number of days from when death occurs to when it's reported
     void createSocialDistancingModel(std::string filename, float mobility_logit_shift, float mobility_logit_stretch);

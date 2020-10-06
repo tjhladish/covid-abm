@@ -32,14 +32,13 @@ class Date {
                                         const size_t jm = julianMonth(julian_day, julian_year);
                                         return jm == 1 ? julian_day : julian_day - end_day_of_month(julian_year)[jm - 2];
     }
-
     size_t dayOfMonth()         const { return dayOfMonth(julianDay(), julianYear()); }
-//    size_t dayOfMonth()         const { return julianMonth() == 1 ?
-//                                               julianDay() :
-//                                               julianDay() - end_day_of_month()[julianMonth()-2]; }
+
     size_t nDayPeriod(int n)    const { return (int) day()/n; }                                     // [0, ...]
     size_t week()               const { return (int) day()/NUM_OF_DAYS_IN_WEEK; }                   // [0, ...]
-    size_t julianWeek()         const { return (int) ((julianDay()-1)/NUM_OF_DAYS_IN_WEEK) + 1; }   // [1, 53]
+    static size_t julianWeek(size_t julian_day) { return ((julian_day-1)/NUM_OF_DAYS_IN_WEEK) + 1; }// [1, 53]
+    size_t julianWeek()         const { return julianWeek(julianDay()); }
+
     size_t month()              const { return _month_ct; }                                         // [0, ...]
     static size_t julianMonth(size_t julian_day, size_t julian_year) {                              // [1, 12]
         vector<size_t>::const_iterator it;
@@ -53,15 +52,6 @@ class Date {
     size_t julianMonth()     const {                                                                // [1, 12]
         return julianMonth(julianDay(), julianYear());
     }
-
-/*    size_t julianMonth()     const {                                                                // [1, 12]
-        vector<size_t>::const_iterator it;
-        // find first month that hasn't ended (hint: it's this month)
-        // julianDay()-1 because this isn't upper_or_equal_bound, which would be convenient
-        const vector<size_t> end_dom = end_day_of_month();
-        it = upper_bound(end_dom.begin(), end_dom.end(), julianDay()-1);
-        return it - end_dom.begin() + 1; // +1 b/c [1, 12], not [0, 11]
-    }*/
 
     static DayOfWeekType dayOfWeek(int y, int m, int d) {
         // John Conway's "Doomsday Algorithm"

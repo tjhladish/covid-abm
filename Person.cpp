@@ -283,26 +283,26 @@ Infection* Person::infect(int sourceid, const Date* date, int sourceloc) {
         int sample_collection_date = 0;
         long int report_date = 0;
         const size_t reporting_lag = _par->reportingLag(REPORTING_RNG, date);
-        if (infection.infected() and gsl_rng_uniform(RNG) < _par->probFirstDetection[ASYMPTOMATIC]) {
+        if (infection.infected() and gsl_rng_uniform(RNG) < _par->probFirstDetection[time][ASYMPTOMATIC]) {
             // extra delay, e.g. time during infection someone would be identified by chance screening
             const size_t infectious_period = infection.infectiousEnd - infection.infectiousBegin;
             const int tracing_lag = gsl_rng_uniform_int(RNG, infectious_period);
             sample_collection_date = infection.infectiousBegin;
             report_date =  + tracing_lag + reporting_lag;
             detected = true;
-        } else if (infection.symptomatic() and gsl_rng_uniform(RNG) < _par->probFirstDetection[MILD]) {
+        } else if (infection.symptomatic() and gsl_rng_uniform(RNG) < _par->probFirstDetection[time][MILD]) {
             sample_collection_date = infection.symptomBegin;
             report_date = sample_collection_date + _par->symptomToTestLag + reporting_lag;
             detected = true;
-        } else  if (infection.severe() and gsl_rng_uniform(RNG) < _par->probFirstDetection[SEVERE]) {
+        } else  if (infection.severe() and gsl_rng_uniform(RNG) < _par->probFirstDetection[time][SEVERE]) {
             sample_collection_date = infection.severeBegin;
             report_date = sample_collection_date + reporting_lag;
             detected = true;
-        } else if (infection.critical() and gsl_rng_uniform(RNG) < _par->probFirstDetection[CRITICAL]) {
+        } else if (infection.critical() and gsl_rng_uniform(RNG) < _par->probFirstDetection[time][CRITICAL]) {
             sample_collection_date = infection.criticalBegin;
             report_date = sample_collection_date + reporting_lag;
             detected = true;
-        } else if (infection.fatal() and gsl_rng_uniform(RNG) < _par->probFirstDetection[DEATH]) {
+        } else if (infection.fatal() and gsl_rng_uniform(RNG) < _par->probFirstDetection[time][DEATH]) {
             sample_collection_date = infection.deathTime;
             report_date = sample_collection_date + _par->deathReportingLag;
             detected = true;

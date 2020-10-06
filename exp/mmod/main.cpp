@@ -16,8 +16,8 @@ using covid::util::max_element;
 time_t GLOBAL_START_TIME;
 
 string calculate_process_id(vector<double> &args, string &argstring);
-//const string SIM_POP = "escambia";
-const string SIM_POP = "dade";
+const string SIM_POP = "escambia";
+//const string SIM_POP = "dade";
 //const string SIM_POP = "florida";
 const string HOME_DIR(std::getenv("HOME"));
 const string pop_dir = HOME_DIR + "/work/covid-abm/pop/" + SIM_POP;
@@ -25,7 +25,7 @@ const string output_dir("/ufrc/longini/tjhladish/");
 //const string imm_dir(output_dir + "");
 
 const int RESTART_BURNIN       = 0;
-const int FORECAST_DURATION    = 200;
+const int FORECAST_DURATION    = 220;
 const bool RUN_FORECAST        = true;
 const int TOTAL_DURATION       = RUN_FORECAST ? RESTART_BURNIN + FORECAST_DURATION : RESTART_BURNIN;
 const size_t JULIAN_TALLY_DATE = 146; // intervention julian date - 1
@@ -48,11 +48,6 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->school_transmissibility      = T;
     par->hospital_transmissibility    = T/10.0;
     par->nursinghome_transmissibility = 2*T;
-    //hospitalizedFraction = {0.0, 0.15, 0.9};
-    //par->reportedFraction = {0.0, 0.01, 0.5, 0.8, 1.0};      // fraction of asymptomatic, mild, severe, critical, and deaths reported
-    //par->reportedFraction = {0.0, 0.2, 0.75, 0.75, 0.75};      // fraction of asymptomatic, mild, severe, critical, and deaths reported
-    par->probFirstDetection = {0.0, 0.15, 0.6, 0.1, 0.01};      // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
-    //par->probDetection = {0.0, 0.4, 0.8, 0.3, 0.1};      // probability of first being detected while {asymp, mild, severe, crit, dead}
     par->randomseed              = rng_seed;
     par->dailyOutput             = false; // turn on for daily prevalence figure, probably uncomment filter in simulator.h for daily output to get only rel. days
     par->periodicOutput          = false;
@@ -63,11 +58,37 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->abcVerbose              = false; // needs to be false to get WHO daily output
     par->runLength               = TOTAL_DURATION;
     par->julianYear              = JULIAN_START_YEAR;
-    par->startDayOfYear          = 45;
+    par->startDayOfYear          = Date::to_julian_day("2020-02-15");;
     par->annualIntroductionsCoef = 1;
 
     par->traceContacts = true;
     par->mmodsScenario = ms;      // MMODS_CLOSED, MMODS_2WEEKS, MMODS_1PERCENT, MMODS_OPEN
+
+    {
+        // Create model for how outcome-dependent detection probabilities change over time
+        //par->reportedFraction = {0.0, 0.01, 0.5, 0.8, 1.0};      // fraction of asymptomatic, mild, severe, critical, and deaths reported
+        //par->reportedFraction = {0.0, 0.2, 0.75, 0.75, 0.75};      // fraction of asymptomatic, mild, severe, critical, and deaths reported
+        //par->probFirstDetection = {0.0, 0.12, 0.55, 0.1, 0.01};      // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
+
+        // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
+        const vector<double> initial_vals = {0.0, 0.00, 0.5, 0.1, 0.01};
+        const vector<double> final_vals   = {0.0, 0.20, 0.5, 0.1, 0.01};
+        const int isd = Date::to_julian_day("2020-06-01") - par->startDayOfYear;
+        const vector<int> inflection_sim_day = {isd, isd, isd, isd, isd};
+        const vector<double> slopes = {0.1, 0.1, 0.1, 0.1, 0.1}; // sign is determined based on initial/final values
+
+        par->createDetectionModel(initial_vals, final_vals, inflection_sim_day, slopes);
+
+        vector<double> reported_frac_init  = par->toReportedFraction(initial_vals);
+        vector<double> reported_frac_final = par->toReportedFraction(final_vals);
+        cerr_vector(reported_frac_init); cerr << endl;
+        cerr_vector(reported_frac_final); cerr << endl;
+
+        //cerr << "Detection probability by day\n";
+        //for (size_t d = 0; d < par->probFirstDetection.size(); ++d) {
+        //    cerr << d; for (auto v: par->probFirstDetection[d]) cerr << " " << v; cerr << endl;
+        //}
+    }
 
     // These are only initial values for time-structured interventions.  They can be changed dynamically.
 //    par->timedInterventions[SCHOOL_CLOSURE].resize(par->runLength, 0.0);
@@ -90,29 +111,30 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     // TODO - make that dependency something the user doesn't have to know or think about
     //par->createSocialDistancingModel(pop_dir + "/safegraph_mobility_index.csv", mobility_logit_shift, mobility_logit_stretch);
     // plot(as.Date(d$date), shiftstretch(1-d$smooth_ma7, shift=-2.7, stretch=2), ylim=c(0,1), type='l')
-    //par->createSocialDistancingModel(pop_dir + "/../florida/sgmi_fl_comp.csv", mobility_logit_shift, mobility_logit_stretch);
+    par->createSocialDistancingModel(pop_dir + "/../florida/mobility_comp-florida.csv", mobility_logit_shift, mobility_logit_stretch);
     //par->createSocialDistancingModel(pop_dir + "/sgmi_escambia_comp.csv", mobility_logit_shift, mobility_logit_stretch);
-    par->createSocialDistancingModel(pop_dir + "/sgmi_dade_comp.csv", mobility_logit_shift, mobility_logit_stretch);
+    //par->createSocialDistancingModel(pop_dir + "/sgmi_dade_comp.csv", mobility_logit_shift, mobility_logit_stretch);
 
     //par->defaultReportingLag = 14;
     par->createReportingLagModel(pop_dir + "/case_report_delay.csv");
     par->symptomToTestLag = 2;
-    par->deathReportingLag = 7; //4;
+    par->deathReportingLag = 9;
 
-    const double max_icu_mortality_reduction = 1.0/3.0; // primarily due to use of dexamethasone
+    const double max_icu_mortality_reduction = 0.4; // primarily due to use of dexamethasone
     const size_t icu_mortality_inflection_sim_day = Date::to_julian_day("2020-06-25") - par->startDayOfYear;
     const double icu_mortality_reduction_slope = 0.5; // 0.5 -> change takes ~2 weeks
     par->createIcuMortalityReductionModel(max_icu_mortality_reduction, icu_mortality_inflection_sim_day, icu_mortality_reduction_slope);
     par->icuMortalityFraction = 0.5;                        // to be fit; fraction of all deaths that occur in ICUs;
                                                             // used for interpreting empirical mortality data, *not within simulation*
+    par->pathogenicityReduction = 0.2;                      // to be fit; fraction of infections missed in pathogenicity studies
+                                                            // used for interpreting input data, *not within simulation*
     par->define_susceptibility_and_pathogenicity();
 
     par->daysImmune = 730;
     par->VES = 0.0;
 
     //par->hospitalizedFraction = 0.25; // fraction of cases assumed to be hospitalized
-    //par->numInitialInfected = 10; // TODO -- make this a per capita value
-    par->probInitialExposure = {1.0e-04};
+    par->probInitialExposure = {5.0e-04};
     par->probDailyExposure   = {1.0e-05};
 
     par->populationFilename       = pop_dir    + "/population-"         + SIM_POP + ".txt";
@@ -214,6 +236,28 @@ vector<double> tally_counts(const Parameters* par, Community* community, int pre
     return metrics;
 }
 
+vector<double> calc_Rt_moving_average(vector<pair<size_t, double>> Rt_pairs, size_t window) {
+    assert(window % 2 == 1);
+    vector<double> Rt_ma(Rt_pairs.size(), 0.0);
+
+    size_t halfwindow = (window - 1)/2;
+    for (size_t i = 0; i < Rt_ma.size(); ++i) {
+        size_t window_ct = 0;
+        double infections = 0;
+        for (size_t wi = halfwindow >= i ? 0 : i - halfwindow;
+             wi < (i + halfwindow + 1 >= Rt_pairs.size() ? Rt_pairs.size() : i + halfwindow + 1);
+             ++wi) {
+            const size_t ct = Rt_pairs[wi].first;
+            const double Rt = Rt_pairs[wi].second;
+            window_ct += ct;
+            infections += ct*Rt;
+        }
+        Rt_ma[i] = infections / window_ct;
+//        cerr << "day, inf, ct, Rt_ma, Rt_count, Rt_val: " << i << " " << infections << " " << window_ct << " " << Rt_ma[i] << " " << Rt_pairs[i].first << " " << Rt_pairs[i].second << endl;
+    }
+    return Rt_ma;
+}
+
 vector<double> simulator(vector<double> args, const unsigned long int rng_seed, const unsigned long int serial, const ABC::MPI_par* mp = nullptr) {
     gsl_rng_set(RNG, rng_seed); // seed the rng using sys time and the process id
     // initialize bookkeeping for run
@@ -232,18 +276,18 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     for (auto _p: args) { cerr << " " << _p; } cerr << endl;
 
     Parameters* par = define_simulator_parameters(args, rng_seed, serial, process_id);
-    vector<double> reported_frac = par->toReportedFraction(par->probFirstDetection);
-    cerr_vector(reported_frac); cerr << endl;
 
     Community* community = build_community(par);
 
     seed_epidemic(par, community);
     vector<string> plot_log_buffer = simulate_epidemic(par, community, process_id);
     vector<pair<size_t, double>> Rt = community->getMeanNumSecondaryInfections();
+    vector<double> Rt_ma = calc_Rt_moving_average(Rt, 7);
 
     assert(Rt.size()+1 == plot_log_buffer.size()); // there's a header line
     for (size_t i = 1; i < plot_log_buffer.size(); ++i) {
-        plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt[i-1].second);
+        //plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt[i-1].second);
+        plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt_ma[i-1]);
     }
     bool overwrite = true;
     write_daily_buffer(plot_log_buffer, process_id, "plot_log.csv", overwrite);
@@ -253,16 +297,57 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     time (&end);
     double dif = difftime (end,start);
 
+    map<string, vector<vector<size_t>>> ages_by_outcome;
+    ages_by_outcome["cases"].resize(2*par->runLength/7);
+    ages_by_outcome["hosp"].resize(2*par->runLength/7);
+    ages_by_outcome["deaths"].resize(2*par->runLength/7);
+    // mean and median age of (actual) cases, hospitalizations, and deaths over time
+    vector<double> infections(NUM_AGE_CLASSES, 0.0);
+    vector<double> cases(NUM_AGE_CLASSES, 0.0);
+    vector<double> severe(NUM_AGE_CLASSES, 0.0);
+    vector<double> critical(NUM_AGE_CLASSES, 0.0);
+    vector<double> deaths(NUM_AGE_CLASSES, 0.0);
+
+    for (Person* p: community->getPeople()) {
+        if (p->getNumNaturalInfections() == 0) continue;
+        const size_t age = p->getAge();
+        infections[age]++;
+        Infection* inf = p->getInfection();
+//        if (inf->symptomatic()) cerr << "case week: " << inf->getSymptomTime()/7 << endl;
+//        if (inf->hospital())    cerr << "hosp week: " << inf->getHospitalizedTime()/7 << endl;
+//        if (inf->fatal())       cerr << "dead week: " << inf->getDeathTime()/7 << endl;
+        if (inf->symptomatic()) { ages_by_outcome["cases"][inf->getSymptomTime()/7].push_back(age); cases[age]++; }
+        if (inf->hospital())    { ages_by_outcome["hosp"][inf->getHospitalizedTime()/7].push_back(age); }
+        if (inf->severe())      { severe[age]++; }
+        if (inf->critical())    { critical[age]++; }
+        if (inf->fatal())       { ages_by_outcome["deaths"][inf->getDeathTime()/7].push_back(age); deaths[age]++; }
+    }
+    cerr << "week case_mean case_median hosp_mean hosp_median death_mean death_median\n";
+    for (size_t week = Date::julianWeek(par->startDayOfYear); week < par->runLength/7; ++week) {
+        cerr << week << " "
+             << mean(ages_by_outcome["cases"][week]) << " "
+             << median(ages_by_outcome["cases"][week]) << " "
+             << mean(ages_by_outcome["hosp"][week]) << " "
+             << median(ages_by_outcome["hosp"][week]) << " "
+             << mean(ages_by_outcome["deaths"][week]) << " "
+             << median(ages_by_outcome["deaths"][week]) << endl;
+    }
+
+//    cerr << "age death critical severe symptomatic infection\n";
+//    for (size_t age = 0; age < infections.size(); ++age) {
+//            cerr << age << " " << deaths[age] << " " << critical[age] << " " << severe[age]  << " " << cases[age] << " " << infections[age]  << endl;
+//    }
+
 //    const int pre_intervention_output = 5; // years
 //    const int desired_intervention_output = FORECAST_DURATION - 1;
     vector<double> metrics(0);// = tally_counts(par, community, pre_intervention_output);
 
-    const vector<size_t> infections       = community->getNumNewlyInfected();
-    const vector<size_t> reported_cases   = community->getNumDetectedCasesReport();
-    const vector<size_t> hospitalizations = community->getNumHospPrev();
+//    const vector<size_t> infections       = community->getNumNewlyInfected();
+//    const vector<size_t> reported_cases   = community->getNumDetectedCasesReport();
+//    const vector<size_t> hospitalizations = community->getNumHospPrev();
 //    const vector<size_t> icu              = community->getNumIcuInc();
-    const vector<size_t> deaths           = community->getNumDetectedDeaths();
-    const vector<float> lockdown          = community->getTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE);
+//    const vector<size_t> deaths           = community->getNumDetectedDeaths();
+//    const vector<float> lockdown          = community->getTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE);
 
 //    string header = "scenario replicate day infections deaths hosp_prev detected ne_closed";
 //    const int scenario = 0;
