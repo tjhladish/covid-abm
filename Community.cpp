@@ -501,7 +501,7 @@ vector<pair<size_t,double>> Community::getMeanNumSecondaryInfections() const {
     vector<pair<size_t, double>> daily_Rt(daily_secondary_infections.size());
     for (size_t day = 0; day < daily_secondary_infections.size(); ++day) {
         daily_Rt[day] = make_pair(daily_secondary_infections[day].size(), mean(daily_secondary_infections[day]));
-        cerr << "day, incidence, Rt: " << day << " " << daily_Rt[day].first << " " << daily_Rt[day].second << endl;
+//        cerr << "day, incidence, Rt: " << day << " " << daily_Rt[day].first << " " << daily_Rt[day].second << endl;
     }
     return daily_Rt;
 }

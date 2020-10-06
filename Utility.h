@@ -138,6 +138,42 @@ namespace covid {
             return stats;
         }
 
+        template<class T> inline
+        double calc_trailing_avg(const vector<T> &vals, size_t idx, size_t window) {
+            const size_t end = idx + 1;
+            const size_t start = idx < window ? 0 : end - window;
+            return accumulate(vals.begin() + start, vals.begin() + end, (double) 0.0) / (end - start);
+        }
+
+        template<class T> inline
+        vector<double> calc_trailing_avg(const vector<T> &vals, size_t window) {
+            assert(window > 0);
+            vector<double> ma(vals.size());
+            for (size_t idx = 0; idx < vals.size(); ++idx) {
+                const size_t end = idx + 1;
+                const size_t start = idx < window ? 0 : end - window;
+                ma[idx] = accumulate(vals.begin() + start, vals.begin() + end, (double) 0.0) / (end - start);
+            }
+            return ma;
+        }
+
+        template<class T> inline
+        vector<double> calc_centered_avg(const vector<T> &vals, size_t window) {
+            if (window %2 != 1) {
+                cerr << "Error: calc_centered_avg() expects a window size that is an odd natural number.  Received: " << window << endl;
+                exit(-1);
+            }
+
+            size_t halfwindow = (window - 1)/2;
+            vector<double> ma(vals.size());
+            for (size_t idx = 0; idx < vals.size(); ++idx) {
+                const size_t end = min(idx + halfwindow + 1, vals.size());
+                const size_t start = halfwindow >= idx ? 0 : idx - halfwindow;
+                ma[idx] = accumulate(vals.begin() + start, vals.begin() + end, (double) 0.0) / (end - start);
+            }
+            return ma;
+        }
+
         inline double logit(const double p) { assert(p <= 1.0); assert (p >= 0.0); return log( p / (1.0 - p) ); }
         inline double logistic(const double l) { return 1.0 / (1.0 + exp(-l)); }
 

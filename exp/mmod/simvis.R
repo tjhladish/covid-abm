@@ -1,8 +1,8 @@
 d = read.csv("plot_log.csv")
 d$date = as.Date(d$date)
-#ed = read.csv("rcasedeath-florida.csv")
+ed = read.csv("rcasedeath-florida.csv")
 #ed = read.csv("rcasedeath-escambia.csv")
-ed = read.csv("rcasedeath-dade.csv")
+#ed = read.csv("rcasedeath-dade.csv")
 ed$Date = as.Date(ed$Date)
 
 ticks <- seq(as.Date('2020-03-01'), d$date[length(d$date)]+5, by = "months") # so much stupid
@@ -23,8 +23,10 @@ axis(1, at=ticks, labels=F)
 
 d$crcase   = cumsum(d$rcase)
 d$crdeath  = cumsum(d$rdeath)
-ed$rcase = ed$rcase
-ed$rdeath = ed$rdeath
+escambia_fraction    = 0.0153 # fraction of FL pop that lives in Escambia
+death_underreporting = 20.1/11.8 # excess death / recognized COVID deaths
+ed$rcase = ed$rcase*escambia_fraction
+ed$rdeath = ed$rdeath*escambia_fraction*death_underreporting
 ed$crcase  = cumsum(ed$rcase)
 ed$crdeath = cumsum(ed$rdeath)
 

@@ -40,10 +40,11 @@ void Parameters::define_defaults() {
     annualIntroductionsCoef = 1;                        // multiplier to rescale external introductions to something sensible
     annualIntroductions = {1.0};
     daysImmune = 365;
-    probFirstDetection = {0.0, 0.1, 0.6, 0.3, 0.1};       // prob of detection if not detected earlier {asymptomatic, mild, severe, critical, deaths}
-//    numDailyExposed.push_back(0.0);                     // default: no introductions
+    //probFirstDetection = {0.0, 0.1, 0.6, 0.3, 0.1};     // prob of detection if not detected earlier {asymptomatic, mild, severe, critical, deaths}
+    //numDailyExposed.push_back(0.0);                     // default: no introductions
     probDailyExposure.push_back(0.0);                   // default: no introductions
     icuMortalityFraction = 0.5;                         // fraction of empirical deaths that are assumed to have occured in ICUs
+    pathogenicityReduction = 0.0;                       // fraction of empirical infections that were missed in pathogenicity studies
 
     symptomToTestLag = 2;
     defaultReportingLag = 10;
@@ -100,7 +101,7 @@ void Parameters::define_susceptibility_and_pathogenicity() {
     for (size_t i = 0; i < bin_upper.size(); ++i) {
         const size_t upper_age = bin_upper[i];
         susceptibilityByAge.resize(upper_age+1, susceptibilities[i]);
-        pathogenicityByAge.resize(upper_age+1, pathogenicities[i]);
+        pathogenicityByAge.resize(upper_age+1, (1.0 - pathogenicityReduction)*pathogenicities[i]);
     }
 
     // https://www.cdc.gov/mmwr/volumes/69/wr/mm6915e3.htm
@@ -153,6 +154,15 @@ void Parameters::define_susceptibility_and_pathogenicity() {
 }
 
 
+void Parameters::createIcuMortalityReductionModel(double maximum_val, double inflection_sim_day, double slope) {
+    icuMortalityReduction = vector<double>(runLength);
+    for (size_t sim_day = 0; sim_day < runLength; ++sim_day) {
+        icuMortalityReduction[sim_day] = maximum_val * logistic( slope*((double) sim_day - inflection_sim_day) );
+        //cerr << "mortality reduction: " << Date::to_ymd(2020, sim_day + startDayOfYear) << " " << icuMortalityReduction[sim_day] << endl;
+    }
+}
+
+
 double Parameters::icuMortality(ComorbidType comorbidity, size_t age, size_t sim_day) const {
     double imr = 0.0;
     if (icuMortalityReduction.size() > 0) {
@@ -163,11 +173,30 @@ double Parameters::icuMortality(ComorbidType comorbidity, size_t age, size_t sim
 }
 
 
-void Parameters::createIcuMortalityReductionModel(double maximum_val, double inflection_sim_day, double slope) {
-    icuMortalityReduction = vector<double>(runLength);
+void Parameters::createDetectionModel(const vector<double>& initial_vals, const vector<double>& final_vals, const vector<int>& inflection_sim_day, const vector<double>& slopes) {
+    assert(NUM_OF_OUTCOME_TYPES == initial_vals.size()
+             and initial_vals.size() == final_vals.size()
+             and final_vals.size() == inflection_sim_day.size()
+             and inflection_sim_day.size() == slopes.size());
+
+    for (size_t outcome = 0; outcome < NUM_OF_OUTCOME_TYPES; ++outcome) {
+        assert(initial_vals[outcome] >= 0.0 and initial_vals[outcome] <= 1.0);
+        assert(final_vals[outcome] >= 0.0 and final_vals[outcome] <= 1.0);
+    }
+
+    probFirstDetection = vector<vector<double>>(runLength, vector<double>(NUM_OF_OUTCOME_TYPES, 0.0));
     for (size_t sim_day = 0; sim_day < runLength; ++sim_day) {
-        icuMortalityReduction[sim_day] = maximum_val * logistic( slope*(sim_day - inflection_sim_day) );
-        //cerr << "mortality reduction: " << Date::to_ymd(2020, sim_day + startDayOfYear) << " " << icuMortalityReduction[sim_day] << endl;
+        vector<double> probs(NUM_OF_OUTCOME_TYPES);
+        for (size_t outcome = 0; outcome < NUM_OF_OUTCOME_TYPES; ++outcome) {
+            const double initial_v = initial_vals[outcome];
+            const double final_v   = final_vals[outcome];
+            // sign of slope needs to reflect whether an increase or decrease from initial to final has been requested
+            //const double slope     = final_v > initial_v ? slopes[outcome] : -1 * slopes[outcome];
+            const double slope     = slopes[outcome];
+            probs[outcome] = (final_v - initial_v) * logistic( slope*((double) sim_day - inflection_sim_day[outcome]) ) + initial_v;
+//if (outcome == 2) cerr << "d, f, i, s, p: " << (int) sim_day - inflection_sim_day[outcome] << " " << final_v << " " << initial_v << " " << slope << " " << probs[outcome] << endl;
+        }
+        probFirstDetection[sim_day] = probs;
     }
 }
 
