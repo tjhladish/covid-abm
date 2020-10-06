@@ -29,8 +29,9 @@ const string output_dir("/ufrc/longini/tjhladish/");
 //const int TOTAL_DURATION       = RUN_FORECAST ? RESTART_BURNIN + FORECAST_DURATION : RESTART_BURNIN;
 //const size_t JULIAN_TALLY_DATE = 146; // intervention julian date - 1
 const size_t JULIAN_START_YEAR = 2020;
-const size_t NUM_FITTED_WEEKS = 26;
+const size_t NUM_FITTED_WEEKS = 28;
 const size_t FIRST_FITTED_JULIAN_DAY = Date::to_julian_day("2020-03-02");
+const double DEATH_UNDERREPORTING = 11807.0/20100.0; // FL Mar15-Sep5, https://www.nytimes.com/interactive/2020/05/05/us/coronavirus-death-toll-us.html
 
 //Parameters* define_simulator_parameters(vector<double> args, const unsigned long int rng_seed) {
 Parameters* define_simulator_parameters(vector<double> args, const unsigned long int rng_seed, const unsigned long int serial, const string /*process_id*/) {
@@ -211,8 +212,11 @@ vector<double> tally_counts(const Parameters* par, Community* community) {
     for (size_t t=discard_days; t<par->runLength; t++) {
         const size_t w = (t-discard_days)/7;
         metrics[w] += all_reported_cases[t];
-        metrics[NUM_FITTED_WEEKS + w] += reported_deaths[t];
+        metrics[NUM_FITTED_WEEKS + w] += reported_deaths[t]*DEATH_UNDERREPORTING;
     }
+
+    // rescale metrics to be per 10k population
+    for (auto& val: metrics) { val *= 1e4/community->getNumPeople(); }
 
     return metrics;
 }

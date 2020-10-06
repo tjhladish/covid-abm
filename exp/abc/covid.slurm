@@ -12,7 +12,7 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --mem-per-cpu=1000
 #SBATCH --time=1:00:00
-#SBATCH --array=0-99
+#SBATCH --array=0-24
 #SBATCH --partition=hpg2-compute
 
 module load gcc/7.3.0 gsl
