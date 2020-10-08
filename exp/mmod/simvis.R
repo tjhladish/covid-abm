@@ -24,9 +24,9 @@ axis(1, at=ticks, labels=F)
 d$crcase   = cumsum(d$rcase)
 d$crdeath  = cumsum(d$rdeath)
 escambia_fraction    = 0.0153 # fraction of FL pop that lives in Escambia
-death_underreporting = 20.1/11.8 # excess death / recognized COVID deaths
+#death_underreporting = 20.1/11.8 # excess death / recognized COVID deaths
 ed$rcase = ed$rcase*escambia_fraction
-ed$rdeath = ed$rdeath*escambia_fraction*death_underreporting
+ed$rdeath = ed$rdeath*escambia_fraction#*death_underreporting
 ed$crcase  = cumsum(ed$rcase)
 ed$crdeath = cumsum(ed$rdeath)
 
