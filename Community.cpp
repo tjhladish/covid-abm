@@ -26,6 +26,7 @@ vector< map<LocationType, map<Location*, int, Location::LocPtrComp>>> Community:
 set<Person*> Community::_revaccinate_set;
 vector<size_t> Community::_numDetectedCasesOnset;
 vector<size_t> Community::_numDetectedCasesReport;
+vector<size_t> Community::_numDetectedHospitalizations;
 vector<size_t> Community::_numDetectedDeaths;
 
 //vector<Person*> Community::_peopleByAge;
@@ -56,6 +57,7 @@ Community::Community(const Parameters* parameters, Date* date) :
     _isHot.resize(_par->runLength);
     _numDetectedCasesOnset.resize(_par->runLength);
     _numDetectedCasesReport.resize(_par->runLength);
+    _numDetectedHospitalizations.resize(_par->runLength);
     _numDetectedDeaths.resize(_par->runLength);
     for (auto &e: _isHot) {
         for (size_t locType = 0; locType < NUM_OF_LOCATION_TYPES; ++locType) {
@@ -488,31 +490,36 @@ vector<pair<size_t,double>> Community::getMeanNumSecondaryInfections() const {
     // this is not how many secondary infections occurred on day=index,
     // but how many secondary infections will ultimately be caused by each person
     // who got infected on day=index
-    vector<vector<double>> daily_secondary_infections;
+    vector<vector<double>> daily_secondary_infections(_par->runLength);
     for (Person* p: _people) {
         for (const Infection* inf: p->getInfectionHistory()) {
             const int infection_onset = inf->getInfectedTime();
             assert(infection_onset >= 0);
-            if ((unsigned) infection_onset >= daily_secondary_infections.size()) { daily_secondary_infections.resize(infection_onset+1); }
             // number of secondary infections resulting from the infection that started on this date
             daily_secondary_infections[infection_onset].push_back(inf->secondary_infection_tally());
         }
     }
-    vector<pair<size_t, double>> daily_Rt(daily_secondary_infections.size());
+    vector<pair<size_t, double>> daily_Rt(daily_secondary_infections.size(), {0, 0.0});
     for (size_t day = 0; day < daily_secondary_infections.size(); ++day) {
-        daily_Rt[day] = make_pair(daily_secondary_infections[day].size(), mean(daily_secondary_infections[day]));
+        if (daily_secondary_infections[day].size()) {
+            daily_Rt[day] = make_pair(daily_secondary_infections[day].size(), mean(daily_secondary_infections[day]));
+        }
 //        cerr << "day, incidence, Rt: " << day << " " << daily_Rt[day].first << " " << daily_Rt[day].second << endl;
     }
     return daily_Rt;
 }
 
 
-void Community::reportCase(int onsetDate, long int reportDate) { // long int b/c reportDate can be a bit greater than max int
+void Community::reportCase(int onsetDate, long int reportDate, bool hospitalized) { // long int b/c reportDate can be a bit greater than max int
     assert(onsetDate >= 0);
     assert(reportDate >= 0);
     // onset == sample collection date; FL doesn't report when symptoms began
-    if ((unsigned) onsetDate < _numDetectedCasesOnset.size()) _numDetectedCasesOnset[onsetDate]++;
-    if ((unsigned) reportDate < _numDetectedCasesReport.size()) _numDetectedCasesReport[reportDate]++;
+    if ((unsigned) onsetDate < _numDetectedCasesOnset.size()) { _numDetectedCasesOnset[onsetDate]++; }
+    if ((unsigned) reportDate < _numDetectedCasesReport.size()) {
+        _numDetectedCasesReport[reportDate]++;
+        // it's not clear exactly how to interpret the date on which the state reports a hospitalization
+        if (hospitalized) { _numDetectedHospitalizations[reportDate]++; }
+    }
 }
 
 

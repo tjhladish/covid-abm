@@ -280,6 +280,7 @@ Infection* Person::infect(int sourceid, const Date* date, int sourceloc) {
     // could check infection.icu() and infection.hospital() and do something different in those cases
     if (isSurveilledPerson()) {
         bool detected = false;
+        OutcomeType detected_state = NUM_OF_OUTCOME_TYPES;
         int sample_collection_date = 0;
         long int report_date = 0;
         const size_t reporting_lag = _par->reportingLag(REPORTING_RNG, date);
@@ -289,27 +290,33 @@ Infection* Person::infect(int sourceid, const Date* date, int sourceloc) {
             const int tracing_lag = gsl_rng_uniform_int(RNG, infectious_period);
             sample_collection_date = infection.infectiousBegin;
             report_date =  + tracing_lag + reporting_lag;
+            detected_state = ASYMPTOMATIC;
             detected = true;
         } else if (infection.symptomatic() and gsl_rng_uniform(RNG) < _par->probFirstDetection[time][MILD]) {
-            sample_collection_date = infection.symptomBegin;
-            report_date = sample_collection_date + _par->symptomToTestLag + reporting_lag;
+            sample_collection_date = infection.symptomBegin + _par->symptomToTestLag;
+            report_date = sample_collection_date + reporting_lag;
+            detected_state = MILD;
             detected = true;
-        } else  if (infection.severe() and gsl_rng_uniform(RNG) < _par->probFirstDetection[time][SEVERE]) {
+        } else if (infection.severe() and gsl_rng_uniform(RNG) < _par->probFirstDetection[time][SEVERE]) {
             sample_collection_date = infection.severeBegin;
             report_date = sample_collection_date + reporting_lag;
+            detected_state = SEVERE;
             detected = true;
         } else if (infection.critical() and gsl_rng_uniform(RNG) < _par->probFirstDetection[time][CRITICAL]) {
             sample_collection_date = infection.criticalBegin;
             report_date = sample_collection_date + reporting_lag;
+            detected_state = CRITICAL;
             detected = true;
         } else if (infection.fatal() and gsl_rng_uniform(RNG) < _par->probFirstDetection[time][DEATH]) {
             sample_collection_date = infection.deathTime;
             report_date = sample_collection_date + _par->deathReportingLag;
+            detected_state = DEATH;
             detected = true;
         }
 
         if (detected) {
-            Community::reportCase(sample_collection_date, report_date);
+            infection.detect(detected_state, report_date);
+            Community::reportCase(sample_collection_date, report_date, infection.hospital());
             if (infection.fatal()) {
                 Community::reportDeath(sample_collection_date, infection.deathTime + _par->deathReportingLag);
             }

@@ -45,6 +45,7 @@ void Parameters::define_defaults() {
     probDailyExposure.push_back(0.0);                   // default: no introductions
     icuMortalityFraction = 0.5;                         // fraction of empirical deaths that are assumed to have occured in ICUs
     pathogenicityReduction = 0.0;                       // fraction of empirical infections that were missed in pathogenicity studies
+    susceptibilityCorrection = 0.0;                     // 0.0 means use published age-specific susceptibility values; 1.0 means 100% susceptibility
 
     symptomToTestLag = 2;
     defaultReportingLag = 10;
@@ -100,7 +101,8 @@ void Parameters::define_susceptibility_and_pathogenicity() {
 
     for (size_t i = 0; i < bin_upper.size(); ++i) {
         const size_t upper_age = bin_upper[i];
-        susceptibilityByAge.resize(upper_age+1, susceptibilities[i]);
+        // susceptibilityCorrection of 0 --> published value; 1 --> 100% susceptible
+        susceptibilityByAge.resize(upper_age+1, 1.0 - (1.0 - susceptibilityCorrection)*(1.0 - susceptibilities[i]));
         pathogenicityByAge.resize(upper_age+1, (1.0 - pathogenicityReduction)*pathogenicities[i]);
     }
 

@@ -64,12 +64,13 @@ class Community {
         std::vector<size_t> getNumIcuPrev() { return _numIcuPrev; }
         std::vector<size_t> getNumDetectedCasesOnset() { return _numDetectedCasesOnset; }
         std::vector<size_t> getNumDetectedCasesReport() { return _numDetectedCasesReport; }
+        std::vector<size_t> getNumDetectedHospitalizations() { return _numDetectedHospitalizations; }
         std::vector<size_t> getNumDetectedDeaths() { return _numDetectedDeaths; }
         std::vector<pair<size_t, double>> getMeanNumSecondaryInfections() const ;
 
         static void flagInfectedLocation(LocationType locType, Location* _pLoc, int day);
         Infection* trace_contact(int &infectee_id, Location* source_loc, int infectious_count);
-        static void reportCase(int onsetDate, long int reportDate);
+        static void reportCase(int onsetDate, long int reportDate, bool hospitalized);
         static void reportDeath(int eventDate, long int reportDate);
 
 //        int ageIntervalSize(int ageMin, int ageMax) { return std::accumulate(_personAgeCohortSizes+ageMin, _personAgeCohortSizes+ageMax,0); }
@@ -106,6 +107,7 @@ class Community {
         std::vector<size_t> _numIcuPrev;
         static std::vector<size_t> _numDetectedCasesOnset;
         static std::vector<size_t> _numDetectedCasesReport;
+        static std::vector<size_t> _numDetectedHospitalizations;
         static std::vector<size_t> _numDetectedDeaths;
         static std::vector<std::map<LocationType, std::map<Location*, int, Location::LocPtrComp>>> _isHot;
         static std::vector<Person*> _peopleByAge;

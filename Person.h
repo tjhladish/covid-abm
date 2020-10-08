@@ -11,6 +11,11 @@
 
 class Location;
 
+struct Detection {
+    OutcomeType detected_state;
+    int reported_time;
+};
+
 class Infection {
     friend class Person;
     Infection() {
@@ -29,7 +34,13 @@ class Infection {
         symptomEnd        = INT_MIN;
         severeEnd         = INT_MIN;
         criticalEnd       = INT_MIN;
+
+        _detection         = nullptr;
     };
+
+    ~Infection() {
+        if (_detection) delete _detection;
+    }
 
     int infectedBegin;                      // when infected?
     int infectedPlace;                      // where infected?
@@ -50,6 +61,7 @@ class Infection {
 
     int deathTime;
     std::vector<Infection*> infections_caused;
+    Detection* _detection;
 
     static const Parameters* _par;
 
@@ -85,6 +97,8 @@ class Infection {
     bool inIcu(int now)         const { return icuBegin <= now          and now < criticalEnd;}
     bool isDead(int now)        const { return deathTime <= now; }
 
+    void detect(OutcomeType detected_state, int report_date) { _detection = new Detection{detected_state, report_date}; }
+    Detection* detection() { return _detection; }
     void log_transmission(Infection* inf) { infections_caused.push_back(inf); }
     size_t secondary_infection_tally () const { return infections_caused.size(); }
     std::vector<Infection*> get_infections_caused() { return infections_caused; }
