@@ -337,7 +337,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
         const vector<size_t> all_reported_cases = community->getNumDetectedCasesReport();
         const size_t reported_cases             = all_reported_cases[date->day()];
         trailing_averages[date->day()]          = calc_trailing_avg(all_reported_cases, date->day(), 7); // <= 7-day trailing average
-        const vector<size_t> hospitalizations   = community->getNumHospPrev();
+        const vector<size_t> rhosp              = community->getNumDetectedHospitalizations();
         const vector<size_t> severe_prev        = community->getNumSeverePrev();
         const double cinf                       = accumulate(infections.begin(), infections.begin()+date->day()+1, 0.0);
         const double cAR                        = cinf/pop_at_risk; // cumulative attack rate (I hate this term)
@@ -374,7 +374,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
             community->updateTimedIntervention(SOCIAL_DISTANCING, date->day(), 0.2);
             intervention_trigger = false;
         }
-        if (date->dayOfMonth()==1) cerr << "hit scen rep        sday date        infinc  cAR\trcases\trcta7\tcrcases\trdeath\tcrdeath\tsevprev\thosprev\tclosed\tsocdist\n";
+        if (date->dayOfMonth()==1) cerr << "hit scen rep        sday date        infinc  cAR\trcases\trcta7\tcrcases\trdeath\tcrdeath\tsevprev\tcrhosp\tclosed\tsocdist\n";
         cerr << left << setw(4) << hit_may15_target
              << setw(5) << par->mmodsScenario
              << setw(11) << process_id
@@ -388,7 +388,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
              << "\t" << rdeaths[date->day()]
              << "\t" << accumulate(rdeaths.begin(), rdeaths.begin()+date->day()+1, 0)
              << "\t" << severe_prev[date->day()]
-             << "\t" << hospitalizations[date->day()]
+             << "\t" << accumulate(rhosp.begin(), rhosp.begin()+date->day()+1, 0)
              << "\t" << community->getTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, date->day())
              //<< "\t" << (date->day() == (signed) peak_time) // new peak observed?
              << "\t" << par->timedInterventions.at(SOCIAL_DISTANCING).at(date->day())
