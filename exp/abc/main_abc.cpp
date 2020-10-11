@@ -52,9 +52,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     //  6: icu_prob_given_death
     //  7: mobility_logit_shift
     //  8: mobility_logit_stretch
-    //  9: icu_mortality_improvement
-    // 10: pathogenicity_correction
-    // 11: susceptibility_correction
+    //  9: pathogenicity_correction
 
     const float T = args[0]; //0.25; // fit
 
@@ -135,15 +133,15 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->symptomToTestLag = 2;
     par->deathReportingLag = 9;
 
-    const double max_icu_mortality_reduction = args[9]; // primarily due to use of dexamethasone
+    const double max_icu_mortality_reduction = 0.5;         // primarily due to use of dexamethasone
     const size_t icu_mortality_inflection_sim_day = to_sim_day(par->startDayOfYear, "2020-06-25");
-    const double icu_mortality_reduction_slope = 0.1; // 0.5 -> change takes ~2 weeks; 0.1 -> ~2 months
+    const double icu_mortality_reduction_slope = 0.1;       // 0.5 -> change takes ~2 weeks; 0.1 -> ~2 months
     par->createIcuMortalityReductionModel(max_icu_mortality_reduction, icu_mortality_inflection_sim_day, icu_mortality_reduction_slope);
     par->icuMortalityFraction = args[6]; //0.5;             // to be fit; fraction of all deaths that occur in ICUs;
                                                             // used for interpreting empirical mortality data, *not within simulation*
-    par->pathogenicityReduction = args[10];                 // to be fit; fraction of infections missed in pathogenicity studies
+    par->pathogenicityReduction = args[9];                  // to be fit; fraction of infections missed in pathogenicity studies
                                                             // used for interpreting input data, *not within simulation*
-    par->susceptibilityCorrection = args[11];
+    par->susceptibilityCorrection = 1.0;
     par->define_susceptibility_and_pathogenicity();
 
     par->daysImmune = 730;
@@ -270,8 +268,8 @@ vector<double> tally_counts(const Parameters* par, Community* community) {
     vector<pair<size_t, double>> Rt      = community->getMeanNumSecondaryInfections();
     vector<double> Rt_ma                 = calc_Rt_moving_average(Rt, 7); // 1-week smoothing
 
-    // March 2 - May 31 cases, 27.5 per 10k in FL (assuming multiplier of 0.000485, ~20.6 mil people)
-    metrics[0]  = aggregate(rcases, to_sim_day(start, "2020-03-02"), to_sim_day(start, "2020-05-31"))*per10k;
+    // March 2 - April 30 cases, 16.7 per 10k in FL (assuming multiplier of 0.000485, ~20.6 mil people)
+    metrics[0]  = aggregate(rcases, to_sim_day(start, "2020-03-02"), to_sim_day(start, "2020-04-30"))*per10k;
 
     // June 1 - Oct 5 cases, 322
     metrics[1]  = aggregate(rcases, to_sim_day(start, "2020-06-01"), to_sim_day(start, "2020-10-05"))*per10k;
@@ -370,6 +368,20 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
 //    const int desired_intervention_output = FORECAST_DURATION - 1;
     vector<double> metrics = tally_counts(par, community);
+
+/*    vector<pair<size_t, double>> Rt = community->getMeanNumSecondaryInfections();
+    vector<double> Rt_ma = calc_Rt_moving_average(Rt, 7);
+
+    assert(Rt.size()+1 == plot_log_buffer.size()); // there's a header line
+    for (size_t i = 1; i < plot_log_buffer.size(); ++i) {
+        //plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt[i-1].second);
+        plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt_ma[i-1]);
+    }
+    bool overwrite = true;
+    write_daily_buffer(plot_log_buffer, process_id, "plot_log.csv", overwrite);
+    int retval = system("Rscript simvis.R");
+    if (retval == -1) { cerr << "System call to `Rscript simvis.R` failed\n"; }*/
+
 
 //    const vector<size_t> infections       = community->getNumNewlyInfected();
 //    const vector<size_t> reported_cases   = community->getNumDetectedCasesReport();
