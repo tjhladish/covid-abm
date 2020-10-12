@@ -7,7 +7,7 @@ ed$Date = as.Date(ed$Date)
 
 ticks <- seq(as.Date('2020-03-01'), d$date[length(d$date)]+5, by = "months") # so much stupid
 
-png('simvis.png', height=1200, width=2400, res=200)
+png('simvis.png', height=1200, width=2400, res=240)
 par(mfrow=c(4,2), mar=c(1,4.1,0.5,1), oma=c(2,0,1,0))
 
 plot(d$date, d$sd, col='darkorange3', ylim=c(0,1), type='l', xlab='', ylab='Interventions', xaxt='n')
@@ -44,12 +44,14 @@ lines(ed$Date, ed$crcase)
 axis(1, at=ticks, labels=F)
 
 ymax = max(d$rdeath, ed$rdeath)
-plot(d$date, d$rdeath, col='green4', type='l', xlab='', ylab='Reported deaths', ylim=c(0,ymax))
+plot(d$date, d$rdeath, col='green4', type='l', xlab='', ylab='Reported deaths', xaxt='n', ylim=c(0,ymax))
 lines(ed$Date, ed$rdeath)
+axis(1, at=ticks, labels=format(ticks, "%b"))
 
 ymax = max(d$crdeath, ed$crdeath)
-plot(d$date, d$crdeath, col='green4', type='l', xlab='', ylab='Reported deaths', ylim=c(0,ymax))
+plot(d$date, d$crdeath, col='green4', type='l', xlab='', ylab='Reported deaths', xaxt='n', ylim=c(0,ymax))
 lines(ed$Date, ed$crdeath)
+axis(1, at=ticks, labels=format(ticks, "%b"))
 
 #plot(d$date, d$rcase, col='royalblue3', type='l', xlab='')
 #lines(ed$Date), ed$rcase)
