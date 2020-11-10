@@ -399,8 +399,8 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
            << par->timedInterventions.at(SOCIAL_DISTANCING).at(date->day()) << ","
            << cAR << ","
            << community->getTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, date->day())<< ","
-           << reported_cases << ","
-           << rdeaths[date->day()];
+           << reported_cases*1e4/pop_at_risk << ","
+           << rdeaths[date->day()]*1e4/pop_at_risk;
         plot_log_buffer.push_back(ss.str());
     }
 
