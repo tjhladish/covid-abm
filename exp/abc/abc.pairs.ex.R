@@ -2,21 +2,21 @@ require('rjson')
 require("RSQLite")
 
 # parse json
-abc=fromJSON(file="abc_covid.json"); 
-nmet=length(abc$metrics); 
-npar=length(abc$parameters); 
+abc_config=fromJSON(file="abc_covid.json");
+nmet=length(abc_config$metrics);
+npar=length(abc_config$parameters);
 #factors=c(rep(1,nmet), rep(2,npar)); factors %o% factors
-abc_metrics_values=rep(0,length(abc$metrics)); for(i in 1:length(abc$metrics)) { abc_metrics_values[i]=abc$metrics[[i]]$value; } 
-abc_metrics_names=rep(0,length(abc$metrics)); for(i in 1:length(abc$metrics)) { abc_metrics_names[i]=abc$metrics[[i]]$name; } 
+abc_metrics_values=rep(0,length(abc_config$metrics)); for(i in 1:length(abc_config$metrics)) { abc_metrics_values[i]=abc_config$metrics[[i]]$value; }
+abc_metrics_names=rep(0,length(abc_config$metrics)); for(i in 1:length(abc_config$metrics)) { abc_metrics_names[i]=abc_config$metrics[[i]]$name; }
 # we want short names if they're defined
-for(i in 1:length(abc$metrics)) { if('short_name' %in% names(abc$metrics[[i]])) abc_metrics_names[i]=abc$metrics[[i]]$short_name; } 
+for(i in 1:length(abc_config$metrics)) { if('short_name' %in% names(abc_config$metrics[[i]])) abc_metrics_names[i]=abc_config$metrics[[i]]$short_name; }
 
 # read in db
 drv = dbDriver("SQLite")
-db = dbConnect(drv, "abc_covid-escambia_fit_to_fl_v2.1.sqlite")
+db = dbConnect(drv, abc_config$database_filename)
 #abc = dbGetQuery(db, 'select J.*, P.*, M.* from job J, par P, met M where J.serial = P.serial and J.serial = M.serial and smcSet = (select max(smcSet) from job) and posterior > -1')
 abc = dbGetQuery(db, 'select J.*, P.*, M.* from job J, par P, met M where J.serial = P.serial and J.serial = M.serial and smcSet = 7 and posterior > -1')
-extra_serials = which(names(abc)== 'serial')[-1] 
+extra_serials = which(names(abc)== 'serial')[-1]
 abc = abc[,-c(extra_serials)]
 abc = subset(abc, select=-c(startTime, duration, attempts, seed))
 
@@ -49,9 +49,9 @@ pairs.panels(dm[,c(par_cols, met_cols)], dm[,dim(dm)[2]], npar, nmet, points.col
              box.col='black', box.lwd=0.5, gap=0.5, cor=F, points.cex=0.5)
 dev.off()
 
-#miniplot_subset =c(par_cols[c(5,6,3)], met_cols[c(4,11)]) 
+#miniplot_subset =c(par_cols[c(5,6,3)], met_cols[c(4,11)])
 # names(dm)[miniplot_subset] = c('Mosq/loc', 'Bite & Transmit', "Post-pri. severity", 'Median','Severe prev.')
 # png("pairs-b.png", width=1800, height=1340, res=180)
-# pairs.panels(dm[,miniplot_subset], dm[,dim(dm)[2]], npar=3, nmet=2, points.col='#00000012', 
+# pairs.panels(dm[,miniplot_subset], dm[,dim(dm)[2]], npar=3, nmet=2, points.col='#00000012',
 #              box.col='black', box.lwd=0.5, gap=0.5, cor=F, line_wt=2)
 # dev.off()

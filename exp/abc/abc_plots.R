@@ -1,16 +1,24 @@
+require('rjson')
 require("RSQLite")
 require(beanplot)
+
+# parse json
+abc_config=fromJSON(file="abc_covid.json");
+nmet=length(abc_config$metrics);
+npar=length(abc_config$parameters);
+
 drv = dbDriver("SQLite")
-db  = dbConnect(drv, "abc_covid-escambia_fit_to_fl_v2.1.sqlite")
+db = dbConnect(drv, abc_config$database_filename)
 abc = dbGetQuery(db, 'select J.*, P.*, M.* from job J, par P, met M where J.serial = P.serial and J.serial = M.serial')
-extra_serials = which(names(abc)== 'serial')[-1] 
+extra_serials = which(names(abc)== 'serial')[-1]
 abc = abc[,-c(extra_serials)]
 abc = subset(abc, select=-c(startTime, duration, attempts, seed))
 abc$post_bool = abc$posterior >= 0
 
-par_cols = 6:15
-met_cols = c(16:31)
-obs_met  = c(16.7, 322, 349, 5.26, 201, 0.160, -0.106, 1.23, 6.02, 9.75, 21.7, 0.98, 1.00, 1.00, 0.78, 1.37)
+col_offset = 5
+par_cols = 1:npar + col_offset
+met_cols = 1:nmet + col_offset + npar
+obs_met  = sapply(abc_config$metrics, '[[', 'value')#c(16.7, 322, 349, 5.26, 201, 0.160, -0.106, 1.23, 6.02, 9.75, 21.7, 0.98, 1.00, 1.00, 0.78, 1.37)
 
 incomplete_sets = unique(abc$smcSet[abc$status!='D']) # 6
 all_sets = unique(abc$smcSet)
@@ -18,7 +26,7 @@ complete_sets = setdiff(all_sets, incomplete_sets)
 last_complete_set = max(complete_sets)
 
 pdf('marginal_pars.pdf', width=8.5, height=11)
-par(mfrow=c(12,1))
+par(mfrow=c(npar,1))
 par(mar=c(2.1, 4.1, 1.1, 0.5))
 for (col in par_cols) {
     colname = names(abc)[col];
@@ -35,7 +43,7 @@ dev.off()
 
 # Plot metrics - tends to be trickier, because distributions can be weird (e.g, highly skewed or long-tailed)
 pdf('marginal_mets.pdf', width=8.5, height=50)
-par(mfrow=c(16,1))
+par(mfrow=c(nmet,1))
 par(mar=c(2.1, 4.1, 1.1, 0.5))
 alpha = 0.025 # plot middle 95% of distributions
 for (col in met_cols) {
@@ -45,16 +53,16 @@ for (col in met_cols) {
     # calculate reasonable plot limits
     obs_val = obs_met[met_idx]
     val_lims = quantile(abc[,colname], na.rm=T, probs=c(alpha, 1-alpha))
-    val_min = min(val_lims[1], obs_val) 
-    val_max = max(val_lims[2], obs_val) 
+    val_min = min(val_lims[1], obs_val)
+    val_max = max(val_lims[2], obs_val)
 
     # filter out NAs
     complete = complete.cases(abc[,colname]) & abc[,colname] > val_lims[1] & abc[,colname] < val_lims[2]
     cat(paste0(colname, ' ', val_lims[1], ', ', val_lims[2], '\n'))
 
     # plot the stuff
-    beanplot( abc[complete, colname] ~ abc$post_bool[complete] * abc$smcSet[complete], what=c(0,1,1,0), 
-              col=list(c(grey(0.3), 1,1, grey(0)), c(grey(0.9), 1, 1, grey(0.7))), 
+    beanplot( abc[complete, colname] ~ abc$post_bool[complete] * abc$smcSet[complete], what=c(0,1,1,0),
+              col=list(c(grey(0.3), 1,1, grey(0)), c(grey(0.9), 1, 1, grey(0.7))),
               #main='', ylab=colname, side='both', ylim=unlist(ylims[met_idx]) )
               main='', ylab=colname, side='both', ylim=c(val_min, val_max), na.rm=T, log='' )
     abline(h=mean(abc[abc$smcSet==last_complete_set, colname], na.rm=T), lty=3)
