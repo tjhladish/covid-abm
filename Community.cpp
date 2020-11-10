@@ -324,6 +324,8 @@ bool Community::loadLocations(string locationFilename,string networkFilename) {
     string locTypeStr;
     string essentialStr;
     double locX, locY;
+    double compliance;
+
     istringstream line(buffer);
     map<Location*, int> house_hospitalID_lookup;
     map<int, Location*> hospitalPtr_lookup;
@@ -364,7 +366,14 @@ bool Community::loadLocations(string locationFilename,string networkFilename) {
             newLoc->setX(locX);
             newLoc->setY(locY);
             newLoc->setType(locType); // may be redundant--would save 1 mb per million locations to omit, so probably not worth removing
-            if (locType == HOUSE) newLoc->setRiskAversion(gsl_rng_uniform(RNG));
+
+            if ((line >> compliance) and compliance >= 0) { // predetermined compliance values
+                assert(compliance <= 1.0);
+                newLoc->setRiskAversion(compliance);
+            } else if (locType == HOUSE) {                  // compliance values not specified, so determined at runtime
+                newLoc->setRiskAversion(gsl_rng_uniform(RNG));
+            }
+
             newLoc->setEssential((bool) essential);
             _location.push_back(newLoc);
             _location_map[locType].insert(newLoc);
