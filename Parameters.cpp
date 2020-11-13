@@ -97,9 +97,6 @@ void Parameters::define_susceptibility_and_pathogenicity() {
     // now published in Nat Med
     vector<size_t> bin_upper = {9, 19, 29, 39, 49, 59, 69, NUM_AGE_CLASSES-1};
     vector<float> susceptibilities = {0.33, 0.37, 0.69, 0.81, 0.74, 0.8, 0.89, 0.77};
-//    vector<float> susceptibilities = {0.3, 0.8, 1.0, 0.3, 0.3, 0.3, 0.5, 0.7}; // made up values
-//    vector<float> susceptibilities = {0.5, 0.9, 1.0, 0.5, 0.2, 0.2, 0.3, 0.5}; // made up values
-//    vector<float> susceptibilities = {0.4, 0.7, 1.0, 0.5, 0.2, 0.2, 0.2, 0.4}; // made up values
 //    vector<float> susceptibilities(8, 1.0); // made up values
     vector<float> pathogenicities = {0.4, 0.25, 0.37, 0.42, 0.51, 0.59, 0.72, 0.76};
 
@@ -212,7 +209,7 @@ void Parameters::createReportingLagModel(std::string filename) {
 }
 
 
-void Parameters::createSocialDistancingModel(std::string filename, float mobility_logit_shift, float mobility_logit_stretch) {
+void Parameters::createSocialDistancingModel(std::string filename, size_t metric_col, float mobility_logit_shift, float mobility_logit_stretch) {
     // expects that the mobility data being read in has a first column with increasing, consecutive dates
     // and a second column with the mobility numbers (on [0,1])
     timedInterventions[SOCIAL_DISTANCING].clear();
@@ -226,7 +223,7 @@ void Parameters::createSocialDistancingModel(std::string filename, float mobilit
         vector<string> row = mobility_data[i];
         assert(row.size() >= 2);
         const string date     = row[0];
-        const double mobility = stod(row[1]);
+        const double mobility = stod(row[metric_col]);
         if (date < sim_start_date) {
             continue;
         } else if (date > sim_start_date and timedInterventions[SOCIAL_DISTANCING].size() == 0) {

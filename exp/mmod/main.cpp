@@ -16,8 +16,8 @@ using covid::util::max_element;
 time_t GLOBAL_START_TIME;
 
 string calculate_process_id(vector<double> &args, string &argstring);
-const string SIM_POP = "escambia";
-//const string SIM_POP = "dade";
+const string SIM_POP = "escambia"; // recent good T value == 0.042
+//const string SIM_POP = "dade"; // recent good T value == 0.03
 //const string SIM_POP = "florida";
 const string HOME_DIR(std::getenv("HOME"));
 const string pop_dir = HOME_DIR + "/work/covid-abm/pop/" + SIM_POP;
@@ -25,7 +25,7 @@ const string output_dir("/ufrc/longini/tjhladish/");
 //const string imm_dir(output_dir + "");
 
 const int RESTART_BURNIN          = 0;
-const int FORECAST_DURATION       = 220;
+const int FORECAST_DURATION       = 240;
 const bool RUN_FORECAST           = true;
 const int TOTAL_DURATION          = RUN_FORECAST ? RESTART_BURNIN + FORECAST_DURATION : RESTART_BURNIN;
 const size_t JULIAN_TALLY_DATE    = 146; // intervention julian date - 1
@@ -38,16 +38,17 @@ int to_sim_day(int julian_start, string date) { return Date::to_julian_day(date)
 Parameters* define_simulator_parameters(vector<double> args, const unsigned long int rng_seed, const unsigned long int serial, const string /*process_id*/) {
     Parameters* par = new Parameters();
     par->define_defaults();
-    const MmodsScenario ms = (MmodsScenario) args[0];
+    //const MmodsScenario ms = (MmodsScenario) args[0];
+    const MmodsScenario ms = NUM_OF_MMODS_SCENARIOS; // if NUM_OF_MMODS_SCENARIOS, just run a normal simulation
     assert(ms <= NUM_OF_MMODS_SCENARIOS);
     if (ms < NUM_OF_MMODS_SCENARIOS) { par->numSurveilledPeople = 1e5; } // default is INT_MAX
     par->serial = serial;
 
-    const float T = args[1]; //0.2;
+    const float T = args[0]; //0.2;
 
     par->household_transmissibility   = T;
-    par->social_transmissibility      = T/10.0; // assumes complete graphs between households
-    par->workplace_transmissibility   = T;
+    par->social_transmissibility      = T*1.5; // assumes complete graphs between households
+    par->workplace_transmissibility   = T/5.0;
     par->school_transmissibility      = T;
     par->hospital_transmissibility    = T/10.0;
     par->nursinghome_transmissibility = 2*T;
@@ -60,7 +61,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->yearlyOutput            = true;
     par->abcVerbose              = false; // needs to be false to get WHO daily output
     par->julianYear              = JULIAN_START_YEAR;
-    par->startDayOfYear          = Date::to_julian_day("2020-02-15");;
+    par->startDayOfYear          = Date::to_julian_day("2020-02-10");;
     par->runLength               = TOTAL_DURATION;
     par->annualIntroductionsCoef = 1;
 
@@ -74,8 +75,8 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
         //par->probFirstDetection = {0.0, 0.12, 0.55, 0.1, 0.01};      // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
 
         // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
-        const vector<double> initial_vals = {0.0, 0.00, 0.5, 0.1, 0.01};
-        const vector<double> final_vals   = {0.0, 0.20, 0.5, 0.1, 0.01};
+        const vector<double> initial_vals = {0.0, 0.15, 0.6, 0.1, 0.01};
+        const vector<double> final_vals   = {0.15, 0.75, 0.9, 0.1, 0.1};
         const int isd = to_sim_day(par->startDayOfYear, "2020-06-01");
         const vector<int> inflection_sim_day = {isd, isd, isd, isd, isd};
         const vector<double> slopes = {0.1, 0.1, 0.1, 0.1, 0.1}; // sign is determined based on initial/final values
@@ -103,23 +104,31 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     const size_t aug31 = to_sim_day(par->startDayOfYear, "2020-08-31");
     const size_t school_closed_duration = aug31 < par->runLength ? aug31 : par->runLength;
     par->timedInterventions[SCHOOL_CLOSURE].resize(school_closed_duration, 1.0);
-    par->timedInterventions[SCHOOL_CLOSURE].resize(par->runLength, 0.5); // 50% reopening on Aug 31
+    //par->timedInterventions[SCHOOL_CLOSURE].resize(par->runLength, 0.5); // 50% reopening on Aug 31
+    par->timedInterventions[SCHOOL_CLOSURE].resize(par->runLength, 0.0); // 50% reopening on Aug 31
 
     par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].clear();
     par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(to_sim_day(par->startDayOfYear, "2020-04-03"), 0.0);
     par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(to_sim_day(par->startDayOfYear, "2020-05-04"), 1.0);
     par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(par->runLength, 0.0);
 
-    const float mobility_logit_shift   = -2.7;
-    const float mobility_logit_stretch = 2;
+    //const float mobility_logit_shift   = -2.5;
+    //const float mobility_logit_stretch = 3.0;
+    const float mobility_logit_shift   = 0.0;//-2.5;
+    const float mobility_logit_stretch = -1.0;//3.0;
     // using createSocialDistancingModel() defines timedInterventions[SOCIAL_DISTANCING] values
     // NB: startDayOfYear, runLength, and julianYear must be defined in par before a social distancing model can be meaningfully created!
     // TODO - make that dependency something the user doesn't have to know or think about
     //par->createSocialDistancingModel(pop_dir + "/safegraph_mobility_index.csv", mobility_logit_shift, mobility_logit_stretch);
     // plot(as.Date(d$date), shiftstretch(1-d$smooth_ma7, shift=-2.7, stretch=2), ylim=c(0,1), type='l')
-    par->createSocialDistancingModel(pop_dir + "/../florida/mobility_comp-florida.csv", mobility_logit_shift, mobility_logit_stretch);
+    //par->createSocialDistancingModel(pop_dir + "/../florida/mobility_comp-florida.csv", 1, mobility_logit_shift, mobility_logit_stretch);
     //par->createSocialDistancingModel(pop_dir + "/sgmi_escambia_comp.csv", mobility_logit_shift, mobility_logit_stretch);
     //par->createSocialDistancingModel(pop_dir + "/sgmi_dade_comp.csv", mobility_logit_shift, mobility_logit_stretch);
+    //par->timedInterventions[SOCIAL_DISTANCING].resize(to_sim_day(par->startDayOfYear, "2020-05-15"));
+    //par->timedInterventions[SOCIAL_DISTANCING].resize(par->runLength, 0.3);
+
+    const size_t sd_metric_col_idx = (size_t) args[1];
+    par->createSocialDistancingModel(pop_dir + "/../florida/gleam_metrics.csv", sd_metric_col_idx, mobility_logit_shift, mobility_logit_stretch);
 
     //par->defaultReportingLag = 14;
     par->createReportingLagModel(pop_dir + "/case_report_delay.csv");
@@ -127,21 +136,22 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->deathReportingLag = 9;
 
     const double max_icu_mortality_reduction = 0.4; // primarily due to use of dexamethasone
-    const size_t icu_mortality_inflection_sim_day = to_sim_day(par->startDayOfYear, "2020-06-25");
-    const double icu_mortality_reduction_slope = 0.5; // 0.5 -> change takes ~2 weeks; 0.1 -> ~2 months
+    const size_t icu_mortality_inflection_sim_day = to_sim_day(par->startDayOfYear, "2020-06-15");
+    const double icu_mortality_reduction_slope = 0.1; // 0.5 -> change takes ~2 weeks; 0.1 -> ~2 months
     par->createIcuMortalityReductionModel(max_icu_mortality_reduction, icu_mortality_inflection_sim_day, icu_mortality_reduction_slope);
-    par->icuMortalityFraction = 0.5;                        // to be fit; fraction of all deaths that occur in ICUs;
+    par->icuMortalityFraction = 0.3;                        // to be fit; fraction of all deaths that occur in ICUs;
                                                             // used for interpreting empirical mortality data, *not within simulation*
-    par->pathogenicityReduction = 0.2;                      // to be fit; fraction of infections missed in pathogenicity studies
+    par->pathogenicityReduction = 0.5;                      // to be fit; fraction of infections missed in pathogenicity studies
                                                             // used for interpreting input data, *not within simulation*
+//    par->susceptibilityCorrection = 1.0;
     par->define_susceptibility_and_pathogenicity();
 
     par->daysImmune = 730;
     par->VES = 0.0;
 
     //par->hospitalizedFraction = 0.25; // fraction of cases assumed to be hospitalized
-    par->probInitialExposure = {5.0e-04};
-    par->probDailyExposure   = {1.0e-05};
+    par->probInitialExposure = {3.0e-04};
+    par->probDailyExposure   = {0.0e-05};
 
     par->populationFilename       = pop_dir    + "/population-"         + SIM_POP + ".txt";
     par->comorbidityFilename      = pop_dir    + "/comorbidity-"        + SIM_POP + ".txt";
@@ -328,7 +338,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         if (inf->critical())    { critical[age]++; }
         if (inf->fatal())       { ages_by_outcome["deaths"][inf->getDeathTime()/7].push_back(age); deaths[age]++; }
     }
-    cerr << "week case_mean case_median hosp_mean hosp_median death_mean death_median\n";
+/*    cerr << "week case_mean case_median hosp_mean hosp_median death_mean death_median\n";
     for (size_t week = Date::julianWeek(par->startDayOfYear); week < par->runLength/7; ++week) {
         cerr << week << " "
              << mean(ages_by_outcome["cases"][week]) << " "
@@ -337,7 +347,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
              << median(ages_by_outcome["hosp"][week]) << " "
              << mean(ages_by_outcome["deaths"][week]) << " "
              << median(ages_by_outcome["deaths"][week]) << endl;
-    }
+    }*/
 
 //    cerr << "age death critical severe symptomatic infection\n";
 //    for (size_t age = 0; age < infections.size(); ++age) {
@@ -396,10 +406,10 @@ void usage() {
 
 
 int main(int argc, char* argv[]) {
-    if (argc != 4) { usage(); }
+    if (argc != 4) { usage(); exit(-1); }
 //    assert(argc == 4);
-    vector<double> sim_args = {atof(argv[1]), atof(argv[3])};
-    size_t seed = atoi(argv[2]);
+    vector<double> sim_args = {atof(argv[1]), atof(argv[2])};
+    size_t seed = atoi(argv[3]);
     size_t serial = 0;
 
     simulator(sim_args, seed, serial);
