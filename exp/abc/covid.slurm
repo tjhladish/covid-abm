@@ -12,12 +12,12 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --mem-per-cpu=1000
 #SBATCH --time=1:00:00
-#SBATCH --array=0-24
+#SBATCH --array=0-49
 #SBATCH --partition=hpg2-compute
 
 module load gcc/7.3.0 gsl
 
 for i in `seq 1 8`;
 do
-    ./abc_sql abc_covid.json --simulate -n 20
+    ./abc_sql abc_covid.json --simulate -n 50
 done
