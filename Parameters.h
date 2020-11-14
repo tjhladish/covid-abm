@@ -204,8 +204,8 @@ transmission from asymp is 0.5*trans from symp
 
 static const float SEVERE_TO_HOSPITAL = 0.2; // tried 0.1     // general population, probability of going to hospital if severe
 static const float LTC_SEVERE_TO_HOSPITAL = 0.1; // 0.1       // probability long-term-care residents who are severe go to hospital (if hosp available)
-static const float CRITICAL_TO_ICU_IF_HOSP = 0.9;             // probability already-hospitalized patients go to ICU when critical (if ICU available)
-static const float CRITICAL_TO_ICU_IF_NOT_HOSP = 0.75;        // probability non-hospitalized severe patients go to ICU when critical (if ICU available)
+static const float CRITICAL_TO_ICU_IF_HOSP = 1.0;             // probability already-hospitalized patients go to ICU when critical (if ICU available)
+static const float CRITICAL_TO_ICU_IF_NOT_HOSP = 0.5;         // probability non-hospitalized severe patients go to ICU when critical (if ICU available)
 
 // symptom onset gamma parameters: https://elifesciences.org/articles/57149
 static const float SYMPTOM_ONSET_MEAN = 4.91;

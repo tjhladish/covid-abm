@@ -47,11 +47,11 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     const float T = args[0]; //0.2;
 
     par->household_transmissibility   = T;
-    par->social_transmissibility      = T*1.5; // assumes complete graphs between households
-    par->workplace_transmissibility   = T/5.0;
-    par->school_transmissibility      = T;
-    par->hospital_transmissibility    = T/10.0;
-    par->nursinghome_transmissibility = 2*T;
+    par->social_transmissibility      = T*2.0; // assumes complete graphs between households
+    par->workplace_transmissibility   = T;//10.0;
+    par->school_transmissibility      = T;//5.0;
+    par->hospital_transmissibility    = T;//10.0;
+    par->nursinghome_transmissibility = T;
     par->randomseed              = rng_seed;
     par->dailyOutput             = false; // turn on for daily prevalence figure, probably uncomment filter in simulator.h for daily output to get only rel. days
     par->periodicOutput          = false;
@@ -75,8 +75,8 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
         //par->probFirstDetection = {0.0, 0.12, 0.55, 0.1, 0.01};      // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
 
         // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
-        const vector<double> initial_vals = {0.0, 0.15, 0.6, 0.1, 0.01};
-        const vector<double> final_vals   = {0.15, 0.75, 0.9, 0.1, 0.1};
+        const vector<double> initial_vals = {0.0, 0.1, 0.7, 0.1, 0.01};
+        const vector<double> final_vals   = {0.05, 0.5, 0.3, 0.1, 0.01};
         const int isd = to_sim_day(par->startDayOfYear, "2020-06-01");
         const vector<int> inflection_sim_day = {isd, isd, isd, isd, isd};
         const vector<double> slopes = {0.1, 0.1, 0.1, 0.1, 0.1}; // sign is determined based on initial/final values
@@ -135,13 +135,13 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->symptomToTestLag = 2;
     par->deathReportingLag = 9;
 
-    const double max_icu_mortality_reduction = 0.4; // primarily due to use of dexamethasone
+    const double max_icu_mortality_reduction = 0.5; // primarily due to use of dexamethasone
     const size_t icu_mortality_inflection_sim_day = to_sim_day(par->startDayOfYear, "2020-06-15");
-    const double icu_mortality_reduction_slope = 0.1; // 0.5 -> change takes ~2 weeks; 0.1 -> ~2 months
+    const double icu_mortality_reduction_slope = 0.5; // 0.5 -> change takes ~2 weeks; 0.1 -> ~2 months
     par->createIcuMortalityReductionModel(max_icu_mortality_reduction, icu_mortality_inflection_sim_day, icu_mortality_reduction_slope);
-    par->icuMortalityFraction = 0.3;                        // to be fit; fraction of all deaths that occur in ICUs;
+    par->icuMortalityFraction = 0.2;                        // to be fit; fraction of all deaths that occur in ICUs;
                                                             // used for interpreting empirical mortality data, *not within simulation*
-    par->pathogenicityReduction = 0.5;                      // to be fit; fraction of infections missed in pathogenicity studies
+    par->pathogenicityReduction = 0.6;                      // to be fit; fraction of infections missed in pathogenicity studies
                                                             // used for interpreting input data, *not within simulation*
 //    par->susceptibilityCorrection = 1.0;
     par->define_susceptibility_and_pathogenicity();
@@ -409,7 +409,7 @@ int main(int argc, char* argv[]) {
     if (argc != 4) { usage(); exit(-1); }
 //    assert(argc == 4);
     vector<double> sim_args = {atof(argv[1]), atof(argv[2])};
-    size_t seed = atoi(argv[3]);
+    size_t seed = atol(argv[3]);
     size_t serial = 0;
 
     simulator(sim_args, seed, serial);
