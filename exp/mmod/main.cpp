@@ -104,8 +104,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     const size_t aug31 = to_sim_day(par->startDayOfYear, "2020-08-31");
     const size_t school_closed_duration = aug31 < par->runLength ? aug31 : par->runLength;
     par->timedInterventions[SCHOOL_CLOSURE].resize(school_closed_duration, 1.0);
-    //par->timedInterventions[SCHOOL_CLOSURE].resize(par->runLength, 0.5); // 50% reopening on Aug 31
-    par->timedInterventions[SCHOOL_CLOSURE].resize(par->runLength, 0.0); // 50% reopening on Aug 31
+    par->timedInterventions[SCHOOL_CLOSURE].resize(par->runLength, 0.5); // 50% reopening on Aug 31
 
     par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].clear();
     par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(to_sim_day(par->startDayOfYear, "2020-04-03"), 0.0);
@@ -135,9 +134,9 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->symptomToTestLag = 2;
     par->deathReportingLag = 9;
 
-    const double max_icu_mortality_reduction = 0.5; // primarily due to use of dexamethasone
+    const double max_icu_mortality_reduction = 0.5;         // primarily due to use of dexamethasone
     const size_t icu_mortality_inflection_sim_day = to_sim_day(par->startDayOfYear, "2020-06-15");
-    const double icu_mortality_reduction_slope = 0.5; // 0.5 -> change takes ~2 weeks; 0.1 -> ~2 months
+    const double icu_mortality_reduction_slope = 0.5;       // 0.5 -> change takes ~2 weeks; 0.1 -> ~2 months
     par->createIcuMortalityReductionModel(max_icu_mortality_reduction, icu_mortality_inflection_sim_day, icu_mortality_reduction_slope);
     par->icuMortalityFraction = 0.2;                        // to be fit; fraction of all deaths that occur in ICUs;
                                                             // used for interpreting empirical mortality data, *not within simulation*
