@@ -297,12 +297,12 @@ Infection* Person::infect(int sourceid, const Date* date, int sourceloc) {
             report_date = sample_collection_date + reporting_lag;
             detected_state = MILD;
             detected = true;
-        } else if (infection.severe() and gsl_rng_uniform(RNG) < _par->probFirstDetection[time][SEVERE]) {
+        } else if (infection.severe() and (infection.inHospital(infection.severeBegin) or gsl_rng_uniform(RNG) < _par->probFirstDetection[time][SEVERE])) {
             sample_collection_date = infection.severeBegin;
             report_date = sample_collection_date + reporting_lag;
             detected_state = SEVERE;
             detected = true;
-        } else if (infection.critical() and gsl_rng_uniform(RNG) < _par->probFirstDetection[time][CRITICAL]) {
+        } else if (infection.critical() and (infection.inHospital(infection.criticalBegin) or gsl_rng_uniform(RNG) < _par->probFirstDetection[time][CRITICAL])) {
             sample_collection_date = infection.criticalBegin;
             report_date = sample_collection_date + reporting_lag;
             detected_state = CRITICAL;

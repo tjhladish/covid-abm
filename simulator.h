@@ -404,6 +404,8 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
         plot_log_buffer.push_back(ss.str());
     }
 
+    // this counts infections/cases/deaths that happen during the simulation,
+    // but not cases and deaths that are scheduled to happen after the last simulated day
     const double cinf   = sum(community->getNumNewlyInfected());
     const double ccase  = sum(community->getNumNewlySymptomatic());
     const double cdeath = sum(community->getNumNewlyDead());
@@ -411,6 +413,17 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
     cerr << "true infections, cases, deaths: " << cinf << ", " << ccase << ", " << cdeath << endl;
     cerr << "IFR, CFR: " << 100*cdeath/cinf << ", " << 100*cdeath/ccase << endl;
 
+    double cdeath_icu   = 0.0;
+    double cdeath2      = 0.0;
+    for (Person* p: community->getPeople()) {
+        if (p->getNumNaturalInfections() and p->getInfection()->fatal()) {
+            // this counts *all* deaths and icu admissions, including those that were scheduled
+            // but didn't happen because the simulation ended during the infection
+            cdeath2++;
+            cdeath_icu += p->getInfection()->icu();
+        }
+    }
+    cerr << "icu deaths, total deaths, ratio: " << cdeath_icu << ", " << cdeath2 << ", " << cdeath_icu/cdeath2 << endl;
 //  write_daily_buffer(plot_log_buffer, process_id, "plot_log.csv");
     //return epi_sizes;
     return plot_log_buffer;
