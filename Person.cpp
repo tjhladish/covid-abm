@@ -288,8 +288,8 @@ Infection* Person::infect(int sourceid, const Date* date, int sourceloc) {
             // extra delay, e.g. time during infection someone would be identified by chance screening
             const size_t infectious_period = infection.infectiousEnd - infection.infectiousBegin;
             const int tracing_lag = gsl_rng_uniform_int(RNG, infectious_period);
-            sample_collection_date = infection.infectiousBegin;
-            report_date =  + tracing_lag + reporting_lag;
+            sample_collection_date = infection.infectiousBegin + tracing_lag;
+            report_date = sample_collection_date + reporting_lag;
             detected_state = ASYMPTOMATIC;
             detected = true;
         } else if (infection.symptomatic() and gsl_rng_uniform(RNG) < _par->probFirstDetection[time][MILD]) {
