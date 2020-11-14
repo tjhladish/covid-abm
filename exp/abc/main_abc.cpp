@@ -56,11 +56,11 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     const float T = args[0]; //0.25; // fit
 
     par->household_transmissibility   = T;
-    par->social_transmissibility      = T*1.5; // assumes complete graphs between households
-    par->workplace_transmissibility   = T/5.0;
+    par->social_transmissibility      = T*2.0; // assumes complete graphs between households
+    par->workplace_transmissibility   = T;
     par->school_transmissibility      = T;
-    par->hospital_transmissibility    = T/10.0;
-    par->nursinghome_transmissibility = 2*T;
+    par->hospital_transmissibility    = T;
+    par->nursinghome_transmissibility = T;
     par->randomseed              = rng_seed;
     par->dailyOutput             = false; // turn on for daily prevalence figure, probably uncomment filter in simulator.h for daily output to get only rel. days
     par->periodicOutput          = false;
@@ -84,8 +84,8 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
         //par->probFirstDetection = {0.0, 0.12, 0.55, 0.1, 0.01};      // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
 
         // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
-        const vector<double> initial_vals = {0.0, 0.15, args[4], 0.1, 0.01};
-        const vector<double> final_vals   = {0.15, args[3], args[5], 0.1, 0.1};
+        const vector<double> initial_vals = {0.0, 0.1, args[4], 0.1, 0.01};
+        const vector<double> final_vals   = {0.05, args[3], args[5], 0.1, 0.01};
         const int isd = to_sim_day(par->startDayOfYear, "2020-06-01");
         const vector<int> inflection_sim_day = {isd, isd, isd, isd, isd};
         const vector<double> slopes = {0.1, 0.1, 0.1, 0.1, 0.1}; // sign is determined based on initial/final values
@@ -125,9 +125,10 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     // TODO - make that dependency something the user doesn't have to know or think about
     //par->createSocialDistancingModel(pop_dir + "/safegraph_mobility_index.csv", mobility_logit_shift, mobility_logit_stretch);
     // plot(as.Date(d$date), shiftstretch(1-d$smooth_ma7, shift=-2.7, stretch=2), ylim=c(0,1), type='l')
-    //par->createSocialDistancingModel(pop_dir + "/../florida/mobility_comp-florida.csv", mobility_logit_shift, mobility_logit_stretch);
+    //par->createSocialDistancingModel(pop_dir + "/../florida/mobility_comp-florida.csv", 1, mobility_logit_shift, mobility_logit_stretch);
     //par->createSocialDistancingModel(pop_dir + "/sgmi_escambia_comp.csv", mobility_logit_shift, mobility_logit_stretch);
     //par->createSocialDistancingModel(pop_dir + "/sgmi_dade_comp.csv", mobility_logit_shift, mobility_logit_stretch);
+
     const size_t sd_metric_col_idx = 3; // Cuebiq unique contact index
     par->createSocialDistancingModel(pop_dir + "/../florida/gleam_metrics.csv", sd_metric_col_idx, mobility_logit_shift, mobility_logit_stretch);
 
@@ -136,11 +137,11 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->symptomToTestLag = 2;
     par->deathReportingLag = 9;
 
-    const double max_icu_mortality_reduction = 0.4;         // primarily due to use of dexamethasone
+    const double max_icu_mortality_reduction = 0.5;         // primarily due to use of dexamethasone
     const size_t icu_mortality_inflection_sim_day = to_sim_day(par->startDayOfYear, "2020-06-25");
-    const double icu_mortality_reduction_slope = 0.1;       // 0.5 -> change takes ~2 weeks; 0.1 -> ~2 months
+    const double icu_mortality_reduction_slope = 0.5;       // 0.5 -> change takes ~2 weeks; 0.1 -> ~2 months
     par->createIcuMortalityReductionModel(max_icu_mortality_reduction, icu_mortality_inflection_sim_day, icu_mortality_reduction_slope);
-    par->icuMortalityFraction = args[6]; //0.5;             // to be fit; fraction of all deaths that occur in ICUs;
+    par->icuMortalityFraction = args[6]; //0.2;             // to be fit; fraction of all deaths that occur in ICUs;
                                                             // used for interpreting empirical mortality data, *not within simulation*
     par->pathogenicityReduction = args[7];                  // to be fit; fraction of infections missed in pathogenicity studies
                                                             // used for interpreting input data, *not within simulation*
