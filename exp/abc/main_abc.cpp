@@ -70,7 +70,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->yearlyOutput            = true;
     par->abcVerbose              = false; // needs to be false to get WHO daily output
     par->julianYear              = JULIAN_START_YEAR;
-    par->startDayOfYear          = (int) args[1]; //45;
+    par->startDayOfYear          = 45;
     //par->runLength               = to_sim_day(par->startDayOfYear, FIRST_FITTED_DATE) + 7*NUM_FITTED_WEEKS + 1;
     par->runLength               = Date::to_julian_day(LAST_FITTED_DATE) - par->startDayOfYear + 1;
     par->annualIntroductionsCoef = 1;
@@ -84,8 +84,9 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
         //par->probFirstDetection = {0.0, 0.12, 0.55, 0.1, 0.01};      // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
 
         // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
-        const vector<double> initial_vals = {0.0, 0.1, args[4], 0.1, 0.01};
-        const vector<double> final_vals   = {0.05, args[3], args[5], 0.1, 0.01};
+        const vector<double> initial_vals = {0.0, 0.1, args[3], 0.1, 0.01};
+        const vector<double> final_vals   = {0.05, args[2], args[4], 0.1, 0.1};
+
         const int isd = to_sim_day(par->startDayOfYear, "2020-06-01");
         const vector<int> inflection_sim_day = {isd, isd, isd, isd, isd};
         const vector<double> slopes = {0.1, 0.1, 0.1, 0.1, 0.1}; // sign is determined based on initial/final values
@@ -141,9 +142,9 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     const size_t icu_mortality_inflection_sim_day = to_sim_day(par->startDayOfYear, "2020-06-25");
     const double icu_mortality_reduction_slope = 0.5;       // 0.5 -> change takes ~2 weeks; 0.1 -> ~2 months
     par->createIcuMortalityReductionModel(max_icu_mortality_reduction, icu_mortality_inflection_sim_day, icu_mortality_reduction_slope);
-    par->icuMortalityFraction = args[6]; //0.2;             // to be fit; fraction of all deaths that occur in ICUs;
+    par->icuMortalityFraction = args[5]; //0.2;             // to be fit; fraction of all deaths that occur in ICUs;
                                                             // used for interpreting empirical mortality data, *not within simulation*
-    par->pathogenicityReduction = args[7];                  // to be fit; fraction of infections missed in pathogenicity studies
+    par->pathogenicityReduction = args[6];                  // to be fit; fraction of infections missed in pathogenicity studies
                                                             // used for interpreting input data, *not within simulation*
 //    par->susceptibilityCorrection = 1.0;
     par->define_susceptibility_and_pathogenicity();
@@ -152,7 +153,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->VES = 0.0;
 
     //par->hospitalizedFraction = 0.25; // fraction of cases assumed to be hospitalized
-    par->probInitialExposure = {args[2]}; // 3.0e-04
+    par->probInitialExposure = {args[1]}; // 3.0e-04
     par->probDailyExposure   = {0.0}; //{1.0e-05};
 
     par->populationFilename       = pop_dir    + "/population-"         + SIM_POP + ".txt";
