@@ -144,6 +144,7 @@ void Parameters::define_susceptibility_and_pathogenicity() {
         probSeriousOutcome[SEVERE  ][COMORBID].resize(upper_age+1, severe_com_pos[i]);
         probSeriousOutcome[CRITICAL][HEALTHY ].resize(upper_age+1, critical_com_neg[i]/severe_com_neg[i]);
         probSeriousOutcome[CRITICAL][COMORBID].resize(upper_age+1, critical_com_pos[i]/severe_com_pos[i]);
+//cerr << "bin max age, healthy, comorbid icu:hosp ratio: " << bin_upper[i] << " " << critical_com_neg[i]/severe_com_neg[i] << " " << critical_com_pos[i]/severe_com_pos[i] << endl;
     }
 
     // numbers for people over age 59 suggest a majority die outside of ICU

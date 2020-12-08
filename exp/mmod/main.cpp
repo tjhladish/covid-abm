@@ -30,7 +30,7 @@ const bool RUN_FORECAST           = true;
 const int TOTAL_DURATION          = RUN_FORECAST ? RESTART_BURNIN + FORECAST_DURATION : RESTART_BURNIN;
 const size_t JULIAN_TALLY_DATE    = 146; // intervention julian date - 1
 const size_t JULIAN_START_YEAR    = 2020;
-const double DEATH_UNDERREPORTING = 11807.0/20100.0; // FL Mar15-Sep5, https://www.nytimes.com/interactive/2020/05/05/us/coronavirus-death-toll-us.html
+//const double DEATH_UNDERREPORTING = 11807.0/20100.0; // FL Mar15-Sep5, https://www.nytimes.com/interactive/2020/05/05/us/coronavirus-death-toll-us.html
 
 int to_sim_day(int julian_start, string date) { return Date::to_julian_day(date) - julian_start; }
 
@@ -61,7 +61,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->yearlyOutput            = true;
     par->abcVerbose              = false; // needs to be false to get WHO daily output
     par->julianYear              = JULIAN_START_YEAR;
-    par->startDayOfYear          = Date::to_julian_day("2020-02-10");;
+    par->startDayOfYear          = Date::to_julian_day("2020-02-10");
     par->runLength               = TOTAL_DURATION;
     par->annualIntroductionsCoef = 1;
 
@@ -74,9 +74,21 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
         //par->reportedFraction = {0.0, 0.2, 0.75, 0.75, 0.75};      // fraction of asymptomatic, mild, severe, critical, and deaths reported
         //par->probFirstDetection = {0.0, 0.12, 0.55, 0.1, 0.01};      // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
 
+        const double RF_death = 0.78; // overall probability of detecting death, at any point
         // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
-        const vector<double> initial_vals = {0.0, 0.1, 0.7, 0.1, 0.01};
-        const vector<double> final_vals   = {0.05, 0.5, 0.3, 0.1, 0.01};
+        vector<double> initial_vals = {0.01, 0.1, 0.5, 0.1};
+        const double rho_death_ini  = 1.0 - (1.0 - RF_death)/((1.0 - initial_vals[0])*(1.0 - initial_vals[1])*(1.0 - initial_vals[2])*(1.0 - initial_vals[3]));
+        initial_vals.push_back(rho_death_ini);
+
+        vector<double> final_vals   = {0.05, 0.5, 0.1, 0.1};
+        const double rho_death_fin  = 1.0 - (1.0 - RF_death)/((1.0 - final_vals[0])*(1.0 - final_vals[1])*(1.0 - final_vals[2])*(1.0 - final_vals[3]));
+        final_vals.push_back(rho_death_fin);
+        cerr << "init, fin: " << rho_death_ini << " " << rho_death_fin << endl;
+
+        //const vector<double> initial_vals = {0.01, 0.1, 0.5, 0.1, 0.01};
+        //const vector<double> final_vals   = {0.05, 0.5, 0.1, 0.1, 0.1};
+        //const vector<double> initial_vals = {0.0,        0.1, 0.3322466, 0.1, 0.01};
+        //const vector<double> final_vals   = {0.05, 0.3371205, 0.02439626, 0.1, 0.1};
         const int isd = to_sim_day(par->startDayOfYear, "2020-06-01");
         const vector<int> inflection_sim_day = {isd, isd, isd, isd, isd};
         const vector<double> slopes = {0.1, 0.1, 0.1, 0.1, 0.1}; // sign is determined based on initial/final values
@@ -128,19 +140,22 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
 
     const size_t sd_metric_col_idx = (size_t) args[1];
     par->createSocialDistancingModel(pop_dir + "/../florida/gleam_metrics.csv", sd_metric_col_idx, mobility_logit_shift, mobility_logit_stretch);
+//vector<float> sd_tmp= par->timedInterventions[SOCIAL_DISTANCING];
+//par->timedInterventions[SOCIAL_DISTANCING] = vector<float>(7, sd_tmp[0]);
+//par->timedInterventions[SOCIAL_DISTANCING].insert(par->timedInterventions[SOCIAL_DISTANCING].end(), sd_tmp.begin(), sd_tmp.end());
 
     //par->defaultReportingLag = 14;
     par->createReportingLagModel(pop_dir + "/case_report_delay.csv");
     par->symptomToTestLag = 2;
     par->deathReportingLag = 9;
 
-    const double max_icu_mortality_reduction = 0.5;         // primarily due to use of dexamethasone
+    const double max_icu_mortality_reduction = 0.4;         // primarily due to use of dexamethasone
     const size_t icu_mortality_inflection_sim_day = to_sim_day(par->startDayOfYear, "2020-06-15");
     const double icu_mortality_reduction_slope = 0.5;       // 0.5 -> change takes ~2 weeks; 0.1 -> ~2 months
     par->createIcuMortalityReductionModel(max_icu_mortality_reduction, icu_mortality_inflection_sim_day, icu_mortality_reduction_slope);
     par->icuMortalityFraction = 0.2;                        // to be fit; fraction of all deaths that occur in ICUs;
                                                             // used for interpreting empirical mortality data, *not within simulation*
-    par->pathogenicityReduction = 0.6;                      // to be fit; fraction of infections missed in pathogenicity studies
+    par->pathogenicityReduction = 0.65;                     // to be fit; fraction of infections missed in pathogenicity studies
                                                             // used for interpreting input data, *not within simulation*
 //    par->susceptibilityCorrection = 1.0;
     par->define_susceptibility_and_pathogenicity();

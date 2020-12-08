@@ -45,6 +45,8 @@ axis(1, at=ticks, labels=F)
 # Cumulative infections
 plot(d$date, d$cinf, col='darkslateblue', type='l', xlab='', ylab='Cumulative infections', xaxt='n')
 axis(1, at=ticks, labels=F)
+abline(h=d$cinf[d$date == as.Date('2020-06-01')], lty=2)
+abline(v=as.Date('2020-06-01'), lty=2)
 
 # Rt
 plot(d$date, d$Rt, col='red3', type='l', xlab='', ylab=expression(R[t]), xaxt='n')
