@@ -84,6 +84,22 @@ enum OutcomeType {
     NUM_OF_OUTCOME_TYPES
 };
 
+inline std::ostream& operator<<(std::ostream& out, const OutcomeType value){
+    const char* s = 0;
+#define PROCESS_VAL(p) case(p): s = #p; break;
+    switch(value){
+        PROCESS_VAL(ASYMPTOMATIC);
+        PROCESS_VAL(MILD);
+        PROCESS_VAL(SEVERE);
+        PROCESS_VAL(CRITICAL);
+        PROCESS_VAL(DEATH);
+        PROCESS_VAL(NUM_OF_OUTCOME_TYPES);
+    }
+#undef PROCESS_VAL
+    return out << s;
+}
+
+
 enum ComorbidType{
     HEALTHY,
     COMORBID,

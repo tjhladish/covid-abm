@@ -408,10 +408,12 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
     // but not cases and deaths that are scheduled to happen after the last simulated day
     const double cinf   = sum(community->getNumNewlyInfected());
     const double ccase  = sum(community->getNumNewlySymptomatic());
+    const double csev   = sum(community->getNumNewlySevere());
+    const double ccrit  = sum(community->getNumNewlyCritical());
     const double cdeath = sum(community->getNumNewlyDead());
 
-    cerr << "true infections, cases, deaths: " << cinf << ", " << ccase << ", " << cdeath << endl;
-    cerr << "IFR, CFR: " << 100*cdeath/cinf << ", " << 100*cdeath/ccase << endl;
+    cerr << "true infections, mild, severe, critical, deaths: " << cinf << ", " << ccase << ", " << csev  << ", " << ccrit << ", " << cdeath << endl;
+    cerr << "IFR, CFR: " << 100*cdeath/cinf << "%, " << 100*cdeath/ccase << "%" << endl;
 
     cerr << "\nIncidence by outcome:\n";
     cerr << "\t ASYMPTOMATIC :\t" << Community::_cumulIncByOutcome[ASYMPTOMATIC] << endl;
