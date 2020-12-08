@@ -14,8 +14,8 @@ for(i in 1:length(abc_config$metrics)) { if('short_name' %in% names(abc_config$m
 # read in db
 drv = dbDriver("SQLite")
 db = dbConnect(drv, abc_config$database_filename)
-#abc = dbGetQuery(db, 'select J.*, P.*, M.* from job J, par P, met M where J.serial = P.serial and J.serial = M.serial and smcSet = (select max(smcSet) from job) and posterior > -1')
-abc = dbGetQuery(db, 'select J.*, P.*, M.* from job J, par P, met M where J.serial = P.serial and J.serial = M.serial and smcSet = 7 and posterior > -1')
+abc = dbGetQuery(db, 'select J.*, P.*, M.* from job J, par P, met M where J.serial = P.serial and J.serial = M.serial and smcSet = (select max(smcSet) from job) and posterior > -1')
+#abc = dbGetQuery(db, 'select J.*, P.*, M.* from job J, upar P, met M where J.serial = P.serial and J.serial = M.serial and smcSet = 6 and posterior > -1')
 extra_serials = which(names(abc)== 'serial')[-1]
 abc = abc[,-c(extra_serials)]
 abc = subset(abc, select=-c(startTime, duration, attempts, seed))
@@ -23,6 +23,10 @@ abc = subset(abc, select=-c(startTime, duration, attempts, seed))
 col_offset = 5
 par_cols = 1:npar + col_offset
 met_cols = 1:nmet + col_offset + npar
+
+#abc$above = abc$deaths>9+4*abc$T
+#abc$above = 1 + (abc$rcases_all > 5000)
+abc$color = colorRampPalette(c("green", "grey", "black"))( 500 )[abc$posterior + 1]
 
 proto = abc[1,]
 proto[1,] <- NA
@@ -42,10 +46,11 @@ dm[dm$sim==F, par_cols] = apply(dm[dm$sim==T,par_cols], 2, median)
 #names(dm)[13] = "Autocorr"
 #names(dm)[14] = "Autocorr"
 
+
 source("pairs.panels.R")
 #pdf("pairs-a.pdf", width=16, height=16)
-png("pairs-a.png", width=5000, height=3000, res=240)
-pairs.panels(dm[,c(par_cols, met_cols)], dm[,dim(dm)[2]], npar, nmet, points.col='#00000020',
+png("pairs-par_v3.8.png", width=5000, height=3000, res=240)
+pairs.panels(dm[,c(par_cols, met_cols)], dm[,dim(dm)[2]], npar, nmet, points.col=dm$color,# '#00000020',
              box.col='black', box.lwd=0.5, gap=0.5, cor=F, points.cex=0.5)
 dev.off()
 
