@@ -28,6 +28,7 @@ vector<size_t> Community::_numDetectedCasesOnset;
 vector<size_t> Community::_numDetectedCasesReport;
 vector<size_t> Community::_numDetectedHospitalizations;
 vector<size_t> Community::_numDetectedDeaths;
+vector<size_t> Community::_cumulIncByOutcome(NUM_OF_OUTCOME_TYPES, 0);
 
 //vector<Person*> Community::_peopleByAge;
 //map<int, set<pair<Person*,Person*> > > Community::_delayedBirthdays;

@@ -51,6 +51,7 @@ Infection& Person::initializeNewInfection() {
 //    setImmunity();
     Infection* infection = new Infection();
     infectionHistory.push_back(infection);
+    Community::_cumulIncByOutcome[ASYMPTOMATIC]++;
 
     switch( immune_state ) {
         case NAIVE:
@@ -181,6 +182,7 @@ double Person::vaccineProtection(const int time) const {
 
 
 void Person::processDeath(Infection &infection, const int deathTime) {
+    Community::_cumulIncByOutcome[DEATH]++;
     infection.deathTime         = deathTime;
     infection.infectiousEnd     = min(infection.infectiousEnd, deathTime);
     infection.symptomEnd        = min(infection.symptomEnd, deathTime);
@@ -217,12 +219,14 @@ Infection* Person::infect(int sourceid, const Date* date, int sourceloc) {
     if ( gsl_rng_uniform(RNG) < symptomatic_probability ) {
         // This is a case
         //const size_t symptom_onset = _par->symptom_onset();
+        Community::_cumulIncByOutcome[MILD]++;
         infection.symptomBegin = time + incubation_period;
         if ( not (gsl_rng_uniform(RNG) < severe_given_case) ) {
             // It does not become severe
             infection.symptomEnd = infection.symptomBegin + _par->symptom_duration_mild();
         } else {
             // It does progress and become severe
+            Community::_cumulIncByOutcome[SEVERE]++;
             infection.severeBegin = infection.symptomBegin + _par->pre_severe_symptomatic();
 
             // Is this person hospitalized when their severe symptoms begin?
@@ -240,6 +244,7 @@ Infection* Person::infect(int sourceid, const Date* date, int sourceloc) {
                 infection.symptomEnd    = infection.severeEnd; // TODO - extend symptoms beyond severe period (relevant for e.g. econ analyses)
             } else {
                 // It does progress to critical disease
+                Community::_cumulIncByOutcome[CRITICAL]++;
                 const size_t severe_only_duration = _par->severe_only_duration();
                 const size_t pre_critical_severe  = round((float) severe_only_duration / 2);
                 const size_t post_critical_severe = severe_only_duration - pre_critical_severe;

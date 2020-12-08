@@ -86,6 +86,7 @@ class Community {
         }
         float getTimedIntervention(TimedIntervention ti, size_t day) const { return timedInterventions.at(ti)[day]; }
 
+        static std::vector<size_t> _cumulIncByOutcome;
     protected:
         static const Parameters* _par;
         static Date* _date;

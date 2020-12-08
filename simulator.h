@@ -314,9 +314,9 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
     map<string, vector<int> > periodic_incidence = construct_tally();
     vector<int> periodic_prevalence(NUM_OF_PREVALENCE_REPORTING_TYPES, 0);
     size_t prev_rc_ct = 0;
-    const float may15_threshold = par->mmodsScenario == NUM_OF_MMODS_SCENARIOS ? 180.0*community->getNumPeople()/1e5 : 180.0;
-    const int may15 = 135;
-    const int nov15 = 319;
+//    const float may15_threshold = par->mmodsScenario == NUM_OF_MMODS_SCENARIOS ? 180.0*community->getNumPeople()/1e5 : 180.0;
+//    const int may15 = 135;
+//    const int nov15 = 319;
     double peak_height = 0;
     size_t peak_time = -1;
     vector<double> trailing_averages(par->runLength);
@@ -328,7 +328,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
 
     Date* date = community->get_date();
     for (; date->day() < (signed) par->runLength; date->increment()) {
-        if (par->mmodsScenario < NUM_OF_MMODS_SCENARIOS and date->julianDay() >= nov15) break;
+//        if (par->mmodsScenario < NUM_OF_MMODS_SCENARIOS and date->julianDay() >= nov15) break;
         update_vaccinations(par, community, date);
         //advance_simulator(par, community, date, process_id, periodic_incidence, periodic_prevalence, epi_sizes);
         community->tick();
@@ -351,29 +351,29 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
         const vector<size_t> rdeaths = community->getNumDetectedDeaths();
 
         const size_t rc_ct = accumulate(all_reported_cases.begin(), all_reported_cases.begin()+date->day()+1, 0);
-        if (par->mmodsScenario < NUM_OF_MMODS_SCENARIOS and prev_rc_ct < may15_threshold and rc_ct >= may15_threshold) {
-            hit_may15_target = true;
-            date->setJulianDay(may15);
-            if (par->mmodsScenario == MMODS_OPEN) {
-                community->updateTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, date->day(), 0.0);
-                community->updateTimedIntervention(SOCIAL_DISTANCING, date->day(), 0.2);
-            }
-        }
+//        if (par->mmodsScenario < NUM_OF_MMODS_SCENARIOS and prev_rc_ct < may15_threshold and rc_ct >= may15_threshold) {
+//            hit_may15_target = true;
+//            date->setJulianDay(may15);
+//            if (par->mmodsScenario == MMODS_OPEN) {
+//                community->updateTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, date->day(), 0.0);
+//                community->updateTimedIntervention(SOCIAL_DISTANCING, date->day(), 0.2);
+//            }
+//        }
         prev_rc_ct = rc_ct;
 
-        if (intervention_trigger and par->mmodsScenario == MMODS_2WEEKS and hit_may15_target and date->day() >= (signed) peak_time + 14) {
-            // Also need to pass new 2nd criterion: at least 10 of last 14 days are strict decreases, or last 7 days have no cases
-            const vector<double> last_fortnight(trailing_averages.begin() + date->day() - 13, trailing_averages.begin() + date->day() + 1);
-            if (trailing_avg == 0 or tally_decreases(last_fortnight) >= 10) {
-                community->updateTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, date->day(), 0.0);
-                community->updateTimedIntervention(SOCIAL_DISTANCING, date->day(), 0.2);
-                intervention_trigger = false;
-            }
-        } else if (intervention_trigger and par->mmodsScenario == MMODS_5PERCENT and hit_may15_target and reported_cases <= 0.05*peak_height) {
-            community->updateTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, date->day(), 0.0);
-            community->updateTimedIntervention(SOCIAL_DISTANCING, date->day(), 0.2);
-            intervention_trigger = false;
-        }
+//        if (intervention_trigger and par->mmodsScenario == MMODS_2WEEKS and hit_may15_target and date->day() >= (signed) peak_time + 14) {
+//            // Also need to pass new 2nd criterion: at least 10 of last 14 days are strict decreases, or last 7 days have no cases
+//            const vector<double> last_fortnight(trailing_averages.begin() + date->day() - 13, trailing_averages.begin() + date->day() + 1);
+//            if (trailing_avg == 0 or tally_decreases(last_fortnight) >= 10) {
+//                community->updateTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, date->day(), 0.0);
+//                community->updateTimedIntervention(SOCIAL_DISTANCING, date->day(), 0.2);
+//                intervention_trigger = false;
+//            }
+//        } else if (intervention_trigger and par->mmodsScenario == MMODS_5PERCENT and hit_may15_target and reported_cases <= 0.05*peak_height) {
+//            community->updateTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, date->day(), 0.0);
+//            community->updateTimedIntervention(SOCIAL_DISTANCING, date->day(), 0.2);
+//            intervention_trigger = false;
+//        }
         if (date->dayOfMonth()==1) cerr << "hit scen rep        sday date        infinc  cAR\trcases\trcta7\tcrcases\trdeath\tcrdeath\tsevprev\tcrhosp\tclosed\tsocdist\n";
         cerr << left << setw(4) << hit_may15_target
              << setw(5) << par->mmodsScenario
@@ -412,6 +412,13 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
 
     cerr << "true infections, cases, deaths: " << cinf << ", " << ccase << ", " << cdeath << endl;
     cerr << "IFR, CFR: " << 100*cdeath/cinf << ", " << 100*cdeath/ccase << endl;
+
+    cerr << "\nIncidence by outcome:\n";
+    cerr << "\t ASYMPTOMATIC :\t" << Community::_cumulIncByOutcome[ASYMPTOMATIC] << endl;
+    cerr << "\t MILD :\t" << Community::_cumulIncByOutcome[MILD] << endl;
+    cerr << "\t SEVERE :\t" << Community::_cumulIncByOutcome[SEVERE] << endl;
+    cerr << "\t CRITICAL :\t" << Community::_cumulIncByOutcome[CRITICAL] << endl;
+    cerr << "\t DEATH :\t" << Community::_cumulIncByOutcome[DEATH] << endl;
 
     double cdeath_icu   = 0.0;
     double cdeath2      = 0.0;
