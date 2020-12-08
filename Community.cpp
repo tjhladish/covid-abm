@@ -39,6 +39,8 @@ Community::Community(const Parameters* parameters, Date* date) :
 //    _exposedQueue(MAX_INCUBATION, vector<Person*>(0)),
     _numNewlyInfected(parameters->runLength), // +1 not needed; runLength is already a valid size
     _numNewlySymptomatic(parameters->runLength),
+    _numNewlySevere(parameters->runLength),
+    _numNewlyCritical(parameters->runLength),
     _numNewlyDead(parameters->runLength),
     _numVaccinatedCases(parameters->runLength),
     _numSeverePrev(parameters->runLength),
@@ -553,17 +555,15 @@ void Community::updatePersonStatus() {
 
         if (p->isSurveilledPerson()) {
             if (p->getNumNaturalInfections() == 0) continue;              // no infection/outcomes to tally
-            if (p->getInfectedTime()==_day) _numNewlyInfected[_day]++;
+
+            if (p->getInfectedTime()==_day) { _numNewlyInfected[_day]++; }
+
             if (p->getSymptomTime()==_day) {                              // started showing symptoms today
                 _numNewlySymptomatic[_day]++;
-                if (p->isVaccinated()) {
-                    _numVaccinatedCases[_day]++;
-                }
+                if (p->isVaccinated()) { _numVaccinatedCases[_day]++; }
             }
 
-            if (p->isSevere(_day)) {
-                _numSeverePrev[_day]++;
-            }
+            if (p->isSevere(_day)) { _numSeverePrev[_day]++; }
 
             if (p->inHospital(_day)) {
                 _numHospPrev[_day]++;
@@ -578,9 +578,9 @@ void Community::updatePersonStatus() {
                 }
             }
 
-            if (p->isNewlyDead(_day)) {
-                _numNewlyDead[_day]++;
-            }
+            if (p->getSevereTime()==_day)   { _numNewlySevere[_day]++; }
+            if (p->getCriticalTime()==_day) { _numNewlyCritical[_day]++; }
+            if (p->isNewlyDead(_day))       { _numNewlyDead[_day]++; }
             /*if (p->getWithdrawnTime()==_day) {                            // started withdrawing
                 p->getLocation(HOME_MORNING)->addPerson(p,WORK_DAY);       // stays at home at mid-day
                 p->getLocation(WORK_DAY)->removePerson(p,WORK_DAY);        // does not go to work
