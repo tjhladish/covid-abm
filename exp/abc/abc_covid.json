@@ -1,12 +1,12 @@
 {
-    "smc_iterations"            : 10,
-    "num_samples"               : [10000, 10000, 10000, 20000, 20000,           20000, 50000, 50000, 50000, 100000],
-    "predictive_prior_fraction" : [ 0.05,  0.05,  0.05, 0.025, 0.025,           0.025,  0.01,  0.01,  0.01,  0.005],
+    "smc_iterations"            : 12,
+    "num_samples"               : [10000, 10000, 10000, 20000, 20000,           20000, 50000, 50000, 50000, 100000, 100000, 100000],
+    "predictive_prior_fraction" : [ 0.05,  0.05,  0.05, 0.025, 0.025,           0.025,  0.01,  0.01,  0.01,  0.005,  0.005,  0.005],
 
     "pls_training_fraction"     : 0.8,
     "noise"                     : "MULTIVARIATE",
 
-    "database_filename"         : "abc_covid-escambia_fit_to_fl_v3.6.sqlite",
+    "database_filename"         : "abc_covid-escambia_fit_to_fl_v3.8.sqlite",
 
     "parameters" : [
         {"name"       : "transmissibility",
@@ -17,38 +17,30 @@
          "par1"       : 0.0,
          "par2"       : 1.0},
 
-        {"name"       : "covid_death_reported_fraction",
-         "short_name" : "cd_rf",
+        {"name"       : "rf_asymp_final",
+         "short_name" : "rf_asym2",
          "dist_type"  : "NORMAL",
-         "untransform": {"type"  : "LOGISTIC", "min"   : 0.56, "max"   : 1.0 },
+         "untransform": {"type"  : "LOGISTIC", "min"   : 0.00, "max"   : 0.05 },
          "num_type"   : "FLOAT",
          "par1"       : 0.0,
          "par2"       : 1.0},
 
-        {"name"       : "first_detection_mild_final",
-         "short_name" : "mild_end",
+        {"name"       : "rf_mild_initial",
+         "short_name" : "rf_mild1",
          "dist_type"  : "NORMAL",
-         "untransform": {"type"  : "LOGISTIC", "min"   : 0.3, "max"   : 0.7 },
+         "untransform": {"type"  : "LOGISTIC", "min"   : 0.01, "max"   : 0.5 },
          "num_type"   : "FLOAT",
          "par1"       : 0.0,
          "par2"       : 1.0},
 
-        {"name"       : "first_detection_severe_initial",
-         "short_name" : "sev_beg",
+        {"name"       : "rf_mild_final",
+         "short_name" : "rf_mild2",
          "dist_type"  : "NORMAL",
-         "untransform": {"type"  : "LOGISTIC", "min"   : 0.3, "max"   : 0.7 },
-         "num_type"   : "FLOAT",
-         "par1"       : 0.0,
-         "par2"       : 1.0},
-
-        {"name"       : "first_detection_severe_final",
-         "short_name" : "sev_end",
-         "dist_type"  : "NORMAL",
-         "untransform": {"type"  : "LOGISTIC", "min"   : 0.0, "max"   : 0.2 },
+         "untransform": {"type"  : "LOGISTIC", "min"   : 0.05, "max"   : 0.5 },
          "num_type"   : "FLOAT",
          "par1"       : 0.0,
          "par2"       : 1.0}
-     ],
+    ],
 
     "metrics" : [
         {"name" : "mar2apr30_rcases",  "short_name" : "rcases1",    "num_type" : "FLOAT", "value" :  16.7},
@@ -61,6 +53,7 @@
         {"name" : "jul25aug14_slope",  "short_name" : "slope2",     "num_type" : "FLOAT", "value" :  -0.106},
         {"name" : "mar2may31_rdeaths", "short_name" : "rdeaths1",   "num_type" : "FLOAT", "value" :  1.23},
         {"name" : "jun1oct5_rdeaths",  "short_name" : "rdeaths2",   "num_type" : "FLOAT", "value" :  6.02},
-        {"name" : "mar15sep5_deaths",  "short_name" : "deaths",     "num_type" : "FLOAT", "value" :  9.75}
+        {"name" : "mar15sep5_deaths",  "short_name" : "deaths",     "num_type" : "FLOAT", "value" :  9.75},
+        {"name" : "wave2_detect_imp",  "short_name" : "det_imp",    "num_type" : "FLOAT", "value" :  2.65}
      ]
 }
