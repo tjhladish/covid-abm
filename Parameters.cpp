@@ -184,11 +184,11 @@ void Parameters::createDetectionModel(const vector<double>& initial_vals, const 
              and inflection_sim_day.size() == slopes.size());
 
     for (size_t outcome = 0; outcome < NUM_OF_OUTCOME_TYPES; ++outcome) {
-        assert(initial_vals[outcome] >= 0.0 and initial_vals[outcome] <= 1.0);
-        assert(final_vals[outcome] >= 0.0 and final_vals[outcome] <= 1.0);
-        //if (initial_vals[outcome] < 0.0 or initial_vals[outcome] > 1.0 or final_vals[outcome] < 0.0 or final_vals[outcome] > 1.0) {
-        //    cerr << "WARNING: Detection probability out-of-bounds for outcome type: " << (OutcomeType) outcome << " [" << initial_vals[outcome] << ", " << final_vals[outcome] << "]" << endl;
-        //}
+        //assert(initial_vals[outcome] >= 0.0 and initial_vals[outcome] <= 1.0);
+        //assert(final_vals[outcome] >= 0.0 and final_vals[outcome] <= 1.0);
+        if (initial_vals[outcome] < 0.0 or initial_vals[outcome] > 1.0 or final_vals[outcome] < 0.0 or final_vals[outcome] > 1.0) {
+            cerr << "WARNING: Detection probability out-of-bounds for outcome type: " << (OutcomeType) outcome << " [" << initial_vals[outcome] << ", " << final_vals[outcome] << "]" << endl;
+        }
     }
 
     probFirstDetection = vector<vector<double>>(runLength, vector<double>(NUM_OF_OUTCOME_TYPES, 0.0));

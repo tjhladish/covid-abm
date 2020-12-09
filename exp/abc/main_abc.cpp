@@ -87,10 +87,11 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
         const double RF_asymp_wave2    = args[1];
         const double RF_mild_wave1     = args[2];
         const double RF_mild_wave2     = args[3];
-        const double RF_severe_wave1   = 0.5;
-        const double RF_severe_wave2   = 0.5;
+        const double RF_severe_wave1   = args[4];
+        const double RF_severe_wave2   = args[4];
 
-        const double rho_death         = 10.0/24;   // based on postmortem analysis of eye donors; pooled from two papers:
+        const double rho_death         = args[5];   // based on postmortem analysis of eye donors; pooled from two papers:
+        //const double rho_death         = 10.0/24;   // based on postmortem analysis of eye donors; pooled from two papers:
                                                     // 6 of 10: https://www.sciencedirect.com/science/article/pii/S1542012420301683
                                                     // 4 of 14: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7436504/
         const double RF_death_wave1    = 1.0;       // args[1]; // overall probability of detecting death, at any point
@@ -170,7 +171,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->symptomToTestLag = 2;
     par->deathReportingLag = 9;
 
-    const double max_icu_mortality_reduction = 0.4;         // primarily due to use of dexamethasone
+    const double max_icu_mortality_reduction = 0.5;         // primarily due to use of dexamethasone
     const size_t icu_mortality_inflection_sim_day = to_sim_day(par->startDayOfYear, "2020-06-25");
     const double icu_mortality_reduction_slope = 0.5;       // 0.5 -> change takes ~2 weeks; 0.1 -> ~2 months
     par->createIcuMortalityReductionModel(max_icu_mortality_reduction, icu_mortality_inflection_sim_day, icu_mortality_reduction_slope);

@@ -374,7 +374,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
 //            community->updateTimedIntervention(SOCIAL_DISTANCING, date->day(), 0.2);
 //            intervention_trigger = false;
 //        }
-        if (date->dayOfMonth()==1) cerr << "hit scen rep        sday date        infinc  cAR\trcases\trcta7\tcrcases\trdeath\tcrdeath\tsevprev\tcrhosp\tclosed\tsocdist\n";
+/*        if (date->dayOfMonth()==1) cerr << "hit scen rep        sday date        infinc  cAR\trcases\trcta7\tcrcases\trdeath\tcrdeath\tsevprev\tcrhosp\tclosed\tsocdist\n";
         cerr << left << setw(4) << hit_may15_target
              << setw(5) << par->mmodsScenario
              << setw(11) << process_id
@@ -392,7 +392,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
              << "\t" << community->getTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, date->day())
              //<< "\t" << (date->day() == (signed) peak_time) // new peak observed?
              << "\t" << par->timedInterventions.at(SOCIAL_DISTANCING).at(date->day())
-             << endl;
+             << endl;*/
 
         stringstream ss;
         ss << date->to_string({"yyyy", "mm", "dd"}, "-") << ","
@@ -417,7 +417,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
 
     cerr << "\nIncidence by outcome:\n";
     cerr << "\t ASYMPTOMATIC :\t" << Community::_cumulIncByOutcome[ASYMPTOMATIC] << endl;
-    cerr << "\t MILD :\t" << Community::_cumulIncByOutcome[MILD] << endl;
+    cerr << "\t MILD :  \t" << Community::_cumulIncByOutcome[MILD] << endl;
     cerr << "\t SEVERE :\t" << Community::_cumulIncByOutcome[SEVERE] << endl;
     cerr << "\t CRITICAL :\t" << Community::_cumulIncByOutcome[CRITICAL] << endl;
     cerr << "\t DEATH :\t" << Community::_cumulIncByOutcome[DEATH] << endl;
