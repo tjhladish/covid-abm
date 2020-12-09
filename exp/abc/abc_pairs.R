@@ -76,7 +76,7 @@ dev.off()
 # dev.off()
 
 ## UPAR
-abc = dbGetQuery(db, 'select J.*, P.*, M.* from job J, upar P, met M where J.serial = P.serial and J.serial = M.serial and smcSet = 6 and posterior > -1')
+abc = dbGetQuery(db, 'select J.*, P.*, M.* from job J, upar P, met M where J.serial = P.serial and J.serial = M.serial and smcSet = (select max(smcSet) from job) and posterior > -1')
 extra_serials = which(names(abc)== 'serial')[-1]
 abc = abc[,-c(extra_serials)]
 abc = subset(abc, select=-c(startTime, duration, attempts, seed))
