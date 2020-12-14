@@ -1,16 +1,19 @@
 require('rjson')
 require("RSQLite")
 
-json_file = 'abc_config.json'
+json_file = 'abc_covid.json'
 vers=NA
 arg=commandArgs(trailingOnly=T)
 if (length(arg) == 0) {
-    cat("Arguments not provided. Using 'abc_config.json' and default version number if available.\n")
-} else if (length(arg) != 2) {
-    stop("Expecting have 0 or 2 arguments: JSON filename and version number.\n")
-} else {
+    cat("Arguments not provided. Using 'abc_covid.json' and default version number if available.\n")
+} else if (length(arg) == 1) {
+	json_file = arg[1]
+	cat("One argument is provided. Inferring version number from the .json file.\n")
+} else if (length(arg) == 2) {
     json_file = arg[1]
     vers=arg[2]
+} else {
+	stop("Expecting have 0, 1 or 2 arguments: JSON filename and version number.\n")
 }
 
 # parse json
@@ -32,8 +35,9 @@ for(i in 1:length(abc_config$metrics)) { if('short_name' %in% names(abc_config$m
 # read in db
 drv = dbDriver("SQLite")
 db = dbConnect(drv, abc_config$database_filename)
+tables = dbListTables(db)
 abc_par = dbGetQuery(db, 'select J.*, P.*, M.* from job J, par P, met M where J.serial = P.serial and J.serial = M.serial and smcSet = (select max(smcSet) from job where posterior > -1) and posterior > -1')
-abc_upar = dbGetQuery(db, 'select J.*, P.*, M.* from job J, upar P, met M where J.serial = P.serial and J.serial = M.serial and smcSet = (select max(smcSet) from job where posterior > -1) and posterior > -1')
+if ("upar" %in% tables) abc_upar = dbGetQuery(db, 'select J.*, P.*, M.* from job J, upar P, met M where J.serial = P.serial and J.serial = M.serial and smcSet = (select max(smcSet) from job where posterior > -1) and posterior > -1')
 dbDisconnect(db)
 
 numparticle = nrow(abc_par)
@@ -63,4 +67,4 @@ plotter = function(abc, fileroot) {
 }
 
 plotter(abc_par, 'pairs-par_v')
-plotter(abc_upar, 'pairs-upar_v')
+if (exists("abc_upar")) plotter(abc_upar, 'pairs-upar_v')
