@@ -475,6 +475,8 @@ void usage() {
     cerr << "\n\tUsage: ./abc_sql abc_config_sql.json --process\n\n";
     cerr << "\t       ./abc_sql abc_config_sql.json --simulate\n\n";
     cerr << "\t       ./abc_sql abc_config_sql.json --simulate -n <number of simulations per database write>\n\n";
+    cerr << "\t       ./abc_sql abc_config_sql.json --simulate --serial <serial to run>\n\n";
+    cerr << "\t       ./abc_sql abc_config_sql.json --simulate --posterior <index to run>\n\n";
 
 }
 
@@ -488,6 +490,8 @@ int main(int argc, char* argv[]) {
     bool process_db = false;
     bool simulate_db = false;
     int buffer_size = -1;
+    int requested_serial = -1;
+    int requested_posterior_idx = -1;
 
     for (int i=2; i < argc;  i++ ) {
         if ( strcmp(argv[i], "--process") == 0  ) {
@@ -497,6 +501,10 @@ int main(int argc, char* argv[]) {
             buffer_size = buffer_size == -1 ? 1 : buffer_size;
         } else if ( strcmp(argv[i], "-n" ) == 0 ) {
             buffer_size = atoi(argv[++i]);
+        } else if ( strcmp(argv[i], "--serial" ) == 0 ) {
+            requested_serial = atoi(argv[++i]);
+        } else if ( strcmp(argv[i], "--posterior" ) == 0 ) {
+            requested_posterior_idx = atoi(argv[++i]);
         } else {
             usage();
             exit(101);
@@ -513,7 +521,13 @@ int main(int argc, char* argv[]) {
     if (simulate_db) {
         time(&GLOBAL_START_TIME);
         abc->set_simulator(simulator);
-        abc->simulate_next_particles(buffer_size);
+        if (requested_serial > -1) {
+            abc->simulate_particle_by_serial(requested_serial);
+        } else if (requested_posterior_idx > -1) {
+            abc->simulate_particle_by_posterior_idx(requested_posterior_idx);
+        } else {
+            abc->simulate_next_particles(buffer_size);
+        }
     }
 
     return 0;
