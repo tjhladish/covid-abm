@@ -41,8 +41,8 @@ class Location {
         void setY(double y) { _coord.second = y; }
         double getX() const { return _coord.first; }
         double getY() const { return _coord.second; }
-        void setRiskAversion(float ra) { _riskAversion = ra; }
-        float getRiskAversion() const { return _riskAversion; }
+        void setRiskiness(float ra) { _riskiness = ra; }
+        float getRiskiness() const { return _riskiness; }
 
         bool operator == ( const Location* other ) const { return _ID == other->_ID; }
         void dumper() const;
@@ -54,7 +54,7 @@ class Location {
         // e.g. hospital patients/staff, nursinghome residents/staff
         int _ID;                                                      // original identifier in location file
         bool _essential;
-        float _riskAversion;                                          // score on U(0,1) of household's risk threshold
+        float _riskiness;                                             // score on U(0,1) of household's risk threshold
         LocationType _type;
         std::vector<Person*> _person;                                 // pointers to people who come to this location
         std::set<Location*, LocPtrComp> _neighbors;

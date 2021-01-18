@@ -20,11 +20,18 @@ static const std::vector<size_t> COMMON_END_DAY_OF_MONTH = {31, 59, 90, 120, 151
 static const std::vector<size_t> LEAP_DAYS_IN_MONTH = {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 static const std::vector<size_t> LEAP_END_DAY_OF_MONTH = {31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335, 366};
 
+struct TimeSeriesAnchorPoint {
+    string date;
+    double value;
+};
 
 class Date {
   public:
     Date():_simulation_day(0),_month_ct(0),_year_ct(0),_julian_day(1),_julian_year(1) {};
     Date(const Parameters* par):_simulation_day(0),_month_ct(0),_year_ct(0),_julian_day(par->startDayOfYear),_julian_year(par->julianYear) {};
+
+    // for use when needing to pass a historical sim day as a Date object, e.g. to model pre-existing natural immunity.  Note that month and year counts are not set!
+    Date(const Parameters* par, int sim_day):_simulation_day(sim_day),_month_ct(0),_year_ct(0),_julian_day(par->startDayOfYear),_julian_year(par->julianYear) {};
 
     inline int day()            const { return _simulation_day; }                                   // [0, ...]
     size_t julianDay()          const { return _julian_day; }                                       // [1, {365, 366}]
@@ -186,6 +193,52 @@ class Date {
         return ss.str();
     }
 
+    static int to_sim_day(int julian_start, string date) { return to_julian_day(date) - julian_start; }
+
+    static vector<double> linInterpolate(double start, double end, size_t n) {
+        // "end" is the value immediately after the sequence produced here
+        // e.g. linInterpolate(0.0, 1.0, 5) produces {0.0, 0.2, 0.4, 0.6, 0.8}
+        assert(n>=1);
+        cout << "Start: " << start << "; End: " << end << endl;
+
+        // initialize the n values to the start value
+        double step = (end - start)/n;
+        vector<double> v(n, start);
+        for (size_t i = 1; i < n; i++) { v[i] += i * step; }
+
+        return v;
+    }
+
+    static vector<double> linInterpolateTimeSeries(vector<TimeSeriesAnchorPoint> ap, bool truncateStart = false, int julian_start = 1) {
+        if (ap.size() < 2) {
+            cerr << "Must have at least two anchor points." << endl;
+            exit(1);
+        }
+
+        // sort anchor points based on date
+        sort(ap.begin(), ap.end(), [](TimeSeriesAnchorPoint &a, TimeSeriesAnchorPoint &b){return a.date < b.date;});
+        vector<double> v;
+
+        for (size_t i = 0; i < ap.size() - 1; i++) {
+            const TimeSeriesAnchorPoint A = ap[i];
+            const TimeSeriesAnchorPoint B = ap[i+1];
+            size_t n = to_sim_day(julian_start, B.date) - to_sim_day(julian_start, A.date);
+
+            vector<double> v_i = linInterpolate(A.value, B.value, n);
+            v.insert(v.end(), v_i.begin(), v_i.end());
+        }
+        v.push_back(ap.back().value); // bc linInterpolate leaves off last value, to prevent repetitions
+
+        int series_julian_start = to_sim_day(julian_start, ap[0].date);
+
+        if (truncateStart and series_julian_start < 0) {
+            v.erase(v.begin(), v.begin()-series_julian_start);
+        }
+
+        return v;
+    }
+
+
   private:
     int _simulation_day;
     size_t _month_ct;
@@ -193,5 +246,6 @@ class Date {
     size_t _julian_day;
     size_t _julian_year;
 };
+
 
 #endif

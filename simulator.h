@@ -313,15 +313,15 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
 
     map<string, vector<int> > periodic_incidence = construct_tally();
     vector<int> periodic_prevalence(NUM_OF_PREVALENCE_REPORTING_TYPES, 0);
-    size_t prev_rc_ct = 0;
+//    size_t prev_rc_ct = 0;
 //    const float may15_threshold = par->mmodsScenario == NUM_OF_MMODS_SCENARIOS ? 180.0*community->getNumPeople()/1e5 : 180.0;
 //    const int may15 = 135;
 //    const int nov15 = 319;
-    double peak_height = 0;
-    size_t peak_time = -1;
+//    double peak_height = 0;
+//    size_t peak_time = -1;
     vector<double> trailing_averages(par->runLength);
     bool hit_may15_target = false;
-    bool intervention_trigger = true;
+    //bool intervention_trigger = true;
     const double pop_at_risk = min(community->getNumPeople(), par->numSurveilledPeople);
 
     vector<string> plot_log_buffer = {"date,sd,cinf,closed,rcase,rdeath,Rt"};
@@ -343,10 +343,10 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
         const double cAR                        = cinf/pop_at_risk; // cumulative attack rate (I hate this term)
 
         const double trailing_avg = trailing_averages[date->day()];
-        if (trailing_avg > 0 and trailing_avg >= peak_height) {
-            peak_height = trailing_avg;
-            peak_time = date->day();
-        }
+//        if (trailing_avg > 0 and trailing_avg >= peak_height) {
+//            peak_height = trailing_avg;
+//            peak_time = date->day();
+//        }
 
         const vector<size_t> rdeaths = community->getNumDetectedDeaths();
 
@@ -359,7 +359,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
 //                community->updateTimedIntervention(SOCIAL_DISTANCING, date->day(), 0.2);
 //            }
 //        }
-        prev_rc_ct = rc_ct;
+//        prev_rc_ct = rc_ct;
 
 //        if (intervention_trigger and par->mmodsScenario == MMODS_2WEEKS and hit_may15_target and date->day() >= (signed) peak_time + 14) {
 //            // Also need to pass new 2nd criterion: at least 10 of last 14 days are strict decreases, or last 7 days have no cases
@@ -374,7 +374,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
 //            community->updateTimedIntervention(SOCIAL_DISTANCING, date->day(), 0.2);
 //            intervention_trigger = false;
 //        }
-/*        if (date->dayOfMonth()==1) cerr << "hit scen rep        sday date        infinc  cAR\trcases\trcta7\tcrcases\trdeath\tcrdeath\tsevprev\tcrhosp\tclosed\tsocdist\n";
+        if (date->dayOfMonth()==1) cerr << "hit scen rep        sday date        infinc  cAR\trcases\trcta7\tcrcases\trdeath\tcrdeath\tsevprev\tcrhosp\tclosed\tsocdist\n";
         cerr << left << setw(4) << hit_may15_target
              << setw(5) << par->mmodsScenario
              << setw(11) << process_id
@@ -392,7 +392,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
              << "\t" << community->getTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, date->day())
              //<< "\t" << (date->day() == (signed) peak_time) // new peak observed?
              << "\t" << par->timedInterventions.at(SOCIAL_DISTANCING).at(date->day())
-             << endl;*/
+             << endl;
 
         stringstream ss;
         ss << date->to_string({"yyyy", "mm", "dd"}, "-") << ","

@@ -169,6 +169,7 @@ bool Community::loadPopulation(string populationFilename, string comorbidityFile
             _people.push_back(p);
             p->setAge(age);
             p->setSex((SexType) sex);
+            p->setDaysImmune(_par->sampleDaysImmune(RNG));
             assert((signed) _location.size() > hid);
             if ((signed) _location.size() <= did) {
                 cerr << line.str() << endl;
@@ -372,9 +373,9 @@ bool Community::loadLocations(string locationFilename,string networkFilename) {
 
             if ((line >> compliance) and compliance >= 0) { // predetermined compliance values
                 assert(compliance <= 1.0);
-                newLoc->setRiskAversion(compliance);
+                newLoc->setRiskiness(1.0 - compliance);
             } else if (locType == HOUSE) {                  // compliance values not specified, so determined at runtime
-                newLoc->setRiskAversion(gsl_rng_uniform(RNG));
+                newLoc->setRiskiness(gsl_rng_uniform(RNG));
             }
 
             newLoc->setEssential((bool) essential);
@@ -506,7 +507,7 @@ vector<pair<size_t,double>> Community::getMeanNumSecondaryInfections() const {
     for (Person* p: _people) {
         for (const Infection* inf: p->getInfectionHistory()) {
             const int infection_onset = inf->getInfectedTime();
-            assert(infection_onset >= 0);
+            if (infection_onset < 0) { continue; } // historical infection
             // number of secondary infections resulting from the infection that started on this date
             daily_secondary_infections[infection_onset].push_back(inf->secondary_infection_tally());
         }
@@ -624,8 +625,8 @@ Infection* Community::trace_contact(int &infectee_id, Location* source_loc, int 
     }
 
     if ((signed) infected_candidates.size() != infectious_count) {
-        cerr << "found vs expected, day " << _day << ": " << infected_candidates.size() << " " << infectious_count << endl;
-        cerr << "new lookup value (should == expected): " << _isHot[_day][source_loc->getType()][source_loc] << endl;
+        cerr << "day: tallied vs expected from passed-in bookkeeping value" << _day << ": " << infected_candidates.size() << " " << infectious_count << endl;
+        cerr << "current bookkeeping value: " << _isHot[_day][source_loc->getType()][source_loc] << endl;
         cerr << "Problematic location:\n";
         source_loc->dumper();
         for (Person* p: source_loc->getPeople()) {
@@ -634,7 +635,7 @@ Infection* Community::trace_contact(int &infectee_id, Location* source_loc, int 
               and not p->isDead(_day)) {
                 cerr << "\nInfected person " << p->getID() << " normal day loc: " << (p->getDayLoc() ? p->getDayLoc()->getID() : -1) << endl;
                 cerr << "Hospitalized?: " << p->inHospital(_day) << endl;
-                p->getInfection()->dumper();
+                p->getInfection()->dumper(); // dump most recent infection; note that it's possible a prev infection has caused the inconsistency
             }
         }
     }
@@ -669,14 +670,22 @@ void Community::between_household_transmission() {
     for (auto hot : _isHot[_day][HOUSE]) {
         Location* loc = hot.first;
         const int infectious_count = hot.second;
-        // TODO -- it would make more sense to call this risk loving (but that would be weird in this context), instead of risk aversion.
-        // this is not intuitive right now
-        if (loc->getRiskAversion() > social_distancing(_day)) { // this household is not cautious enough to avoid interactions
+        // ↓↓↓ this model made it almost impossible to stop transmission using SD
+        //if (social_distancing(_day) - loc->getRiskiness() < gsl_rng_uniform(RNG)) { // this household is not cautious enough to avoid interactions
+
+        // ↓↓↓ this model resulted in too much sensitivity to the SD value
+        //if (loc->getRiskiness() > social_distancing(_day)) { // this household is not cautious enough to avoid interactions
+
+        // if people are riskier than the current SD level, they interact with friends
+        // if they are less risky than current SD, they may do so, depending on how much more cautious they are
+        const double community_interaction = 0.5; // this value (on [0,1]) tunes how much exposure occurs among people who are taking precautions
+        if (loc->getRiskiness() > social_distancing(_day) or community_interaction*loc->getRiskiness()/social_distancing(_day) > gsl_rng_uniform(RNG)) { // this household is not cautious enough to avoid interactions
             const int hh_size = loc->getNumPeople();
             const float hh_prev = (float) infectious_count / hh_size;
             if (hh_prev > 0.0) {
                 for (Location* neighbor: loc->getNeighbors()) {
-                    if (neighbor->getRiskAversion() > social_distancing(_day)) {
+                    // ↓↓↓ this line needs to match the model above, with neighbor in for loc
+                    if (neighbor->getRiskiness() > social_distancing(_day)  or community_interaction*neighbor->getRiskiness()/social_distancing(_day) > gsl_rng_uniform(RNG)) {
                         const double T = _par->social_transmissibility * hh_prev;
                         _transmission(loc, neighbor->getPeople(), T, infectious_count);
                     }

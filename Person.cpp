@@ -30,6 +30,7 @@ Person::Person() {
     home_loc = nullptr;
     day_loc = nullptr;
     immune_state = NAIVE;
+    daysImmune = INT_MAX;
     naiveVaccineProtection = false;
     long_term_care = false;
     comorbidity = HEALTHY;
@@ -269,7 +270,7 @@ Infection* Person::infect(int sourceid, const Date* date, int sourceloc) {
                     death = gsl_rng_uniform(RNG) < NON_ICU_CRITICAL_MORTALITY;
                     if (death) {
                         // non-icu death, happens when critical symptoms begin, as this person is not receiving care
-                        processDeath(infection, infection.criticalBegin);
+                        processDeath(infection, infection.criticalBegin + _par->sampleCommunityTimeToDeath());
                     }
                 }
             }
@@ -283,7 +284,7 @@ Infection* Person::infect(int sourceid, const Date* date, int sourceloc) {
 
     // Detection/reporting!  TODO -- currently, being hospitalized does not affect the probability of detection
     // could check infection.icu() and infection.hospital() and do something different in those cases
-    if (isSurveilledPerson()) {
+    if (isSurveilledPerson() and time >= 0) {
         bool detected = false;
         OutcomeType detected_state = NUM_OF_OUTCOME_TYPES;
         int sample_collection_date = 0;
@@ -314,7 +315,7 @@ Infection* Person::infect(int sourceid, const Date* date, int sourceloc) {
             detected = true;
         } else if (infection.fatal() and gsl_rng_uniform(RNG) < _par->probFirstDetection[time][DEATH]) {
             sample_collection_date = infection.deathTime;
-            report_date = sample_collection_date + _par->deathReportingLag;
+            report_date = sample_collection_date + _par->deathReportingLag(REPORTING_RNG);
             detected_state = DEATH;
             detected = true;
         }
@@ -323,7 +324,7 @@ Infection* Person::infect(int sourceid, const Date* date, int sourceloc) {
             infection.detect(detected_state, report_date);
             Community::reportCase(sample_collection_date, report_date, infection.hospital());
             if (infection.fatal()) {
-                Community::reportDeath(sample_collection_date, infection.deathTime + _par->deathReportingLag);
+                Community::reportDeath(sample_collection_date, infection.deathTime + _par->deathReportingLag(REPORTING_RNG));
             }
         }
     }
@@ -362,8 +363,14 @@ bool Person::isWithdrawn(int time) const {
 
 
 bool Person::isCrossProtected(int time) const { // assumes binary cross-immunity
-    return (getNumNaturalInfections() > 0) and  // has any past infection
-           (infectionHistory.back()->infectedBegin + _par->daysImmune > time); // prev. infection w/in crossprotection period
+    int cross_protected_until = INT_MIN;
+    if (getNumNaturalInfections() > 0) {
+        const Infection* inf = infectionHistory.back();
+        // cannot be reinfected until the last of {immunity, infectiousness, symptomatic period}
+        vector<int> possible_end_dates = {inf->infectedBegin + (signed) getDaysImmune(), inf->infectiousEnd, inf->symptomEnd};
+        cross_protected_until = covid::util::max_element(possible_end_dates);
+    }
+    return cross_protected_until >= time;
 }
 
 
