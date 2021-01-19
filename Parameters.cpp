@@ -246,10 +246,9 @@ void Parameters::createDetectionModel(const vector<double>& initial_vals, const 
 }
 
 
-void Parameters::createReportingLagModel(std::string filename) {
-    rlm = new ReportingLagModel(filename);
-}
+void Parameters::createReportingLagModel(std::string filename) { rlm = new ReportingLagModel(filename); }
 
+double Parameters::seasonality (const Date *date) const { return _seasonality.at(date->day()); }
 
 void Parameters::createSocialDistancingModel(std::string filename, size_t metric_col, float mobility_logit_shift, float mobility_logit_stretch) {
     // expects that the mobility data being read in has a first column with increasing, consecutive dates
@@ -257,7 +256,7 @@ void Parameters::createSocialDistancingModel(std::string filename, size_t metric
     timedInterventions[SOCIAL_DISTANCING].clear();
     //timedInterventions[SOCIAL_DISTANCING].resize(run_length, 0.0);
 
-    const string sim_start_date = Date::to_ymd(julianYear, startDayOfYear);
+    const string sim_start_date = Date::to_ymd(startJulianYear, startDayOfYear);
 
     std::vector<std::vector<std::string>> mobility_data = covid::util::read_2D_vector_file(filename, ',');
     bool header = true;

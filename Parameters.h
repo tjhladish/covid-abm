@@ -374,6 +374,9 @@ public:
     double school_transmissibility;                         // per-day probability of transmission, scaled by the fraction of infectious students/staff
     double hospital_transmissibility;                       // per-day probability of transmission, scaled by the fraction of infectious staff/patients
     double nursinghome_transmissibility;                    // per-day probability of transmission, scaled by the fraction of infectious staff/residents
+    std::vector<double> _seasonality;                       // transmissibility multiplier, index by simulation day
+    double seasonality (const Date *date) const;
+
     vector<float> susceptibilityByAge;                      // probability of infection given exposure, index by year of age
     vector<float> pathogenicityByAge;                       // probability of clinical disease given infection, index by year of age
     vector<float> severeFractionByAge;                      // probability of severe disease given clinical disease, index by year of age
@@ -487,7 +490,7 @@ public:
     std::vector<double> icuMortalityReduction;              // time-varying reduction (from 0) in ICU mortality due to improved Tx
 
     size_t startDayOfYear;
-    size_t julianYear;
+    size_t startJulianYear;
     bool dailyOutput;
     bool periodicOutput;
     int periodicOutputInterval;

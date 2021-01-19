@@ -28,10 +28,10 @@ struct TimeSeriesAnchorPoint {
 class Date {
   public:
     Date():_simulation_day(0),_month_ct(0),_year_ct(0),_julian_day(1),_julian_year(1) {};
-    Date(const Parameters* par):_simulation_day(0),_month_ct(0),_year_ct(0),_julian_day(par->startDayOfYear),_julian_year(par->julianYear) {};
+    Date(const Parameters* par):_simulation_day(0),_month_ct(0),_year_ct(0),_julian_day(par->startDayOfYear),_julian_year(par->startJulianYear) {};
 
     // for use when needing to pass a historical sim day as a Date object, e.g. to model pre-existing natural immunity.  Note that month and year counts are not set!
-    Date(const Parameters* par, int sim_day):_simulation_day(sim_day),_month_ct(0),_year_ct(0),_julian_day(par->startDayOfYear),_julian_year(par->julianYear) {};
+    Date(const Parameters* par, int sim_day):_simulation_day(sim_day),_month_ct(0),_year_ct(0),_julian_day(par->startDayOfYear),_julian_year(par->startJulianYear) {};
 
     inline int day()            const { return _simulation_day; }                                   // [0, ...]
     size_t julianDay()          const { return _julian_day; }                                       // [1, {365, 366}]
@@ -165,21 +165,35 @@ class Date {
     }
 
     // assumes yyyy-mm-dd format
-    static size_t to_julian_day(string date_string) {
+    static vector<size_t> to_numeric_parts(string date_string){
         vector<string> parts = covid::util::split(date_string, '-');
         assert(parts.size() == 3);
         size_t julian_year  = (size_t) stoi(parts[0]);
         size_t julian_month = (size_t) stoi(parts[1]);
-        size_t julian_day   = (size_t) stoi(parts[2]);
+        size_t day_of_month = (size_t) stoi(parts[2]);
+        return {julian_year, julian_month, day_of_month};
+    }
+
+    // assumes yyyy-mm-dd format
+    static size_t to_julian_day(const vector<size_t>& date_parts) {
+        const size_t julian_year  = date_parts[0];
+        const size_t julian_month = date_parts[1];
+        const size_t day_of_month = date_parts[2];
         assert(julian_month >= 1);
         assert(julian_month <= 12);
         if (julian_month == 1) {
-            return julian_day;
+            return day_of_month;
         } else if (isLeap(julian_year)) {
-            return LEAP_END_DAY_OF_MONTH[julian_month - 2] + julian_day;
+            return LEAP_END_DAY_OF_MONTH[julian_month - 2] + day_of_month;
         } else {
-            return COMMON_END_DAY_OF_MONTH[julian_month - 2] + julian_day;
+            return COMMON_END_DAY_OF_MONTH[julian_month - 2] + day_of_month;
         }
+    }
+
+    // assumes yyyy-mm-dd format
+    static size_t to_julian_day(string date_string) {
+        vector<size_t> parts = to_numeric_parts(date_string);
+        return to_julian_day(parts);
     }
 
     // assumes yyyy-mm-dd format
@@ -193,7 +207,19 @@ class Date {
         return ss.str();
     }
 
-    static int to_sim_day(int julian_start, string date) { return to_julian_day(date) - julian_start; }
+    static int to_sim_day(size_t julian_start_year, size_t julian_start_day, string date_str) {
+        // TODO -- currently assumes that requested date_str does not precede the julian start day/year
+        const vector<size_t> parts = to_numeric_parts(date_str);
+        const size_t date_year = parts[0];
+        const size_t julian_day = to_julian_day(parts);
+        int day_tally = 0;
+        for (size_t y = julian_start_year; y <= date_year; ++y) {
+            day_tally += num_days_in_year(y);
+        }
+        day_tally -= julian_start_day;
+        day_tally -= num_days_in_year(date_year) - julian_day;
+        return day_tally;
+    }
 
     static vector<double> linInterpolate(double start, double end, size_t n) {
         // "end" is the value immediately after the sequence produced here
@@ -209,7 +235,8 @@ class Date {
         return v;
     }
 
-    static vector<double> linInterpolateTimeSeries(vector<TimeSeriesAnchorPoint> ap, bool truncateStart = false, int julian_start = 1) {
+    //static vector<double> linInterpolateTimeSeries(vector<TimeSeriesAnchorPoint> ap, bool truncateStart, size_t julian_start_year, size_t julian_start_day) {
+    static vector<double> linInterpolateTimeSeries(vector<TimeSeriesAnchorPoint> ap, size_t julian_start_year, size_t julian_start_day) {
         if (ap.size() < 2) {
             cerr << "Must have at least two anchor points." << endl;
             exit(1);
@@ -222,16 +249,18 @@ class Date {
         for (size_t i = 0; i < ap.size() - 1; i++) {
             const TimeSeriesAnchorPoint A = ap[i];
             const TimeSeriesAnchorPoint B = ap[i+1];
-            size_t n = to_sim_day(julian_start, B.date) - to_sim_day(julian_start, A.date);
+            size_t n = to_sim_day(julian_start_year, julian_start_day, B.date) - to_sim_day(julian_start_year, julian_start_day, A.date);
 
             vector<double> v_i = linInterpolate(A.value, B.value, n);
             v.insert(v.end(), v_i.begin(), v_i.end());
         }
         v.push_back(ap.back().value); // bc linInterpolate leaves off last value, to prevent repetitions
 
-        int series_julian_start = to_sim_day(julian_start, ap[0].date);
+        int series_julian_start = to_sim_day(julian_start_year, julian_start_day, ap[0].date);
 
-        if (truncateStart and series_julian_start < 0) {
+        // TODO - how could the julian start be less than 0?
+        //if (truncateStart and series_julian_start < 0) {
+        if (series_julian_start < 0) {
             v.erase(v.begin(), v.begin()-series_julian_start);
         }
 

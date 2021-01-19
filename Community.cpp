@@ -658,7 +658,7 @@ void Community::within_household_transmission() {
         int infectious_count = hot.second;
         //cerr << "\t\t\t\thousehold, count: " << loc->getID() << ", " << infectious_count << endl;
         if (infectious_count > 0) {
-            const double T = 1.0 - pow(1.0 - _par->household_transmissibility, infectious_count);
+            const double T = 1.0 - pow(1.0 - _par->household_transmissibility * _par->seasonality(_date), infectious_count);
             _transmission(loc, loc->getPeople(), T, infectious_count);
         }
     }
@@ -686,7 +686,7 @@ void Community::between_household_transmission() {
                 for (Location* neighbor: loc->getNeighbors()) {
                     // ↓↓↓ this line needs to match the model above, with neighbor in for loc
                     if (neighbor->getRiskiness() > social_distancing(_day)  or community_interaction*neighbor->getRiskiness()/social_distancing(_day) > gsl_rng_uniform(RNG)) {
-                        const double T = _par->social_transmissibility * hh_prev;
+                        const double T = _par->social_transmissibility * _par->seasonality(_date) * hh_prev;
                         _transmission(loc, neighbor->getPeople(), T, infectious_count);
                     }
                 }
@@ -708,7 +708,7 @@ void Community::workplace_transmission() {
         }
         const int workplace_size = loc->getNumPeople();
         if (infectious_count > 0 and workplace_size > 1) {
-            const double T = (1.0 - social_distancing(_day)) * _par->workplace_transmissibility * infectious_count/(workplace_size - 1.0);
+            const double T = (1.0 - social_distancing(_day)) * _par->workplace_transmissibility * _par->seasonality(_date) * infectious_count/(workplace_size - 1.0);
             _transmission(loc, loc->getPeople(), T, infectious_count);
         }
     }
@@ -723,7 +723,7 @@ void Community::school_transmission() {
         const int infectious_count = hot.second;
         const int school_size = loc->getNumPeople();
         if (infectious_count > 0 and school_size > 1) {
-            const double T = (1.0 - timedInterventions[SCHOOL_CLOSURE][_day]) * _par->school_transmissibility * infectious_count/(school_size - 1.0);
+            const double T = (1.0 - timedInterventions[SCHOOL_CLOSURE][_day]) * _par->school_transmissibility * _par->seasonality(_date) * infectious_count/(school_size - 1.0);
             _transmission(loc, loc->getPeople(), T, infectious_count);
         }
     }
@@ -737,7 +737,7 @@ void Community::hospital_transmission() {
         const int infectious_count = hot.second;
         const int hospital_census = loc->getNumPeople(); // workers + patients
         if (infectious_count > 0 and hospital_census > 1) {
-            const double T = _par->hospital_transmissibility * infectious_count/(hospital_census - 1.0);
+            const double T = _par->hospital_transmissibility * _par->seasonality(_date) * infectious_count/(hospital_census - 1.0);
             _transmission(loc, loc->getPeople(), T, infectious_count);
         }
     }
@@ -751,7 +751,7 @@ void Community::nursinghome_transmission() {
         const int infectious_count = hot.second;
         const int nursinghome_census = loc->getNumPeople(); // workers + residents
         if (infectious_count > 0 and nursinghome_census > 1) {
-            const double T = _par->nursinghome_transmissibility * infectious_count/(nursinghome_census - 1.0);
+            const double T = _par->nursinghome_transmissibility * _par->seasonality(_date) * infectious_count/(nursinghome_census - 1.0);
             _transmission(loc, loc->getPeople(), T, infectious_count);
         }
     }
