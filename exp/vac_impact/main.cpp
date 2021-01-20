@@ -406,7 +406,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
     seed_epidemic(par, community);
     vector<string> plot_log_buffer = simulate_epidemic(par, community, process_id);
-    vector<pair<size_t, double>> Rt = community->getMeanNumSecondaryInfections();
+/*    vector<pair<size_t, double>> Rt = community->getMeanNumSecondaryInfections();
     vector<double> Rt_ma = calc_Rt_moving_average(Rt, 7);
 
     assert(Rt.size()+1 == plot_log_buffer.size()); // there's a header line
@@ -418,7 +418,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     write_daily_buffer(plot_log_buffer, process_id, "plot_log.csv", overwrite);
     int retval = system("Rscript simvis.R");
     if (retval == -1) { cerr << "System call to `Rscript simvis.R` failed\n"; }
-
+*/
     time (&end);
     double dif = difftime (end,start);
 
@@ -502,7 +502,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
     delete par;
     delete community;
-exit(1);
+
     return metrics;
 }
 
