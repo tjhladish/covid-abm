@@ -16,9 +16,9 @@ using covid::util::max_element;
 time_t GLOBAL_START_TIME;
 
 string calculate_process_id(vector<double> &args, string &argstring);
-const string SIM_POP = "escambia"; // cycle through subpops when fitting?
+//const string SIM_POP = "escambia"; // cycle through subpops when fitting?
 //const string SIM_POP = "dade";
-//const string SIM_POP = "florida";
+const string SIM_POP = "florida";
 const string HOME_DIR(std::getenv("HOME"));
 const string pop_dir = HOME_DIR + "/work/covid-abm/pop/" + SIM_POP;
 const string output_dir("/ufrc/longini/tjhladish/");
@@ -84,13 +84,13 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
         //par->probFirstDetection = {0.0, 0.12, 0.55, 0.1, 0.01};      // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
 
         const double RF_asymp_wave1    = 0.0;
-        const double RF_asymp_wave2    = args[1];
-        const double RF_mild_wave1     = args[2];
-        const double RF_mild_wave2     = args[3];
-        const double RF_severe_wave1   = args[4];
-        const double RF_severe_wave2   = args[4];
+        const double RF_asymp_wave2    = 0.05;// args[1];
+        const double RF_mild_wave1     = 0.15;// args[2];
+        const double RF_mild_wave2     = 0.55;// args[3];
+        const double RF_severe_wave1   = 0.60;// args[4];
+        const double RF_severe_wave2   = 0.60;// args[4];
 
-        const double rho_death         = args[5];   // based on postmortem analysis of eye donors; pooled from two papers:
+        const double rho_death         = 0.15;// args[5];   // based on postmortem analysis of eye donors; pooled from two papers:
         //const double rho_death         = 10.0/24;   // based on postmortem analysis of eye donors; pooled from two papers:
                                                     // 6 of 10: https://www.sciencedirect.com/science/article/pii/S1542012420301683
                                                     // 4 of 14: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7436504/
@@ -303,7 +303,8 @@ vector<double> tally_counts(const Parameters* par, Community* community, const d
 
     const double per10k                  = 1e4/community->getNumPeople();
 
-    vector<double> metrics(11, 0.0);
+    vector<double> metrics(2, 0.0);
+    //vector<double> metrics(11, 0.0);
     const vector<size_t> rcases          = community->getNumDetectedCasesReport();
     const vector<double> smoothed_rcases = calc_centered_avg(rcases, 21); // 3-week smoothing window
     //const vector<size_t> rhosp           = community->getNumDetectedHospitalizations();
@@ -312,6 +313,7 @@ vector<double> tally_counts(const Parameters* par, Community* community, const d
     //vector<pair<size_t, double>> Rt      = community->getMeanNumSecondaryInfections();
     //vector<double> Rt_ma                 = calc_Rt_moving_average(Rt, 7); // 1-week smoothing
 
+/*
     // March 2 - April 30 cases, 16.7 per 10k in FL (assuming multiplier of 0.000485, ~20.6 mil people)
     metrics[0]  = aggregate(rcases, to_sim_day(start, "2020-03-02"), to_sim_day(start, "2020-04-30"))*per10k;
 
@@ -323,10 +325,11 @@ vector<double> tally_counts(const Parameters* par, Community* community, const d
 
     // Height at empirical peak time for smoothed cases 5.26 on July 19
     metrics[3]  = smoothed_rcases[to_sim_day(start, "2020-07-19")]*per10k;
-
+*/
     // Peak julian date for smoothed cases (July 19, julian 201)
-    metrics[4]  = start + distance(smoothed_rcases.begin(), max_element(smoothed_rcases.begin(), smoothed_rcases.end()));
-
+metrics[0]  = start + distance(smoothed_rcases.begin(), max_element(smoothed_rcases.begin(), smoothed_rcases.end()));
+    //metrics[4]  = start + distance(smoothed_rcases.begin(), max_element(smoothed_rcases.begin(), smoothed_rcases.end()));
+/*
     // mean daily change from June 15 - July 05, 0.160
     const size_t simJun15 = to_sim_day(start, "2020-06-15");
     const size_t simJul05 = to_sim_day(start, "2020-07-05");
@@ -342,11 +345,13 @@ vector<double> tally_counts(const Parameters* par, Community* community, const d
 
     // June 1 - Oct 5 deaths, 6.02
     metrics[8]  = aggregate(rdeaths, to_sim_day(start, "2020-06-01"), to_sim_day(start, "2020-10-05"))*per10k;
-
+*/
     // March 15 - Sept 5 ALL excess deaths, 9.75 (20,100 for FL; not just detected)
-    metrics[9]  = aggregate(true_deaths, to_sim_day(start, "2020-03-15"), to_sim_day(start, "2020-09-05"))*per10k;
-    metrics[9] /= covid_death_to_excess_death_ratio;
-
+    //metrics[9]  = aggregate(true_deaths, to_sim_day(start, "2020-03-15"), to_sim_day(start, "2020-09-05"))*per10k;
+    //metrics[9] /= covid_death_to_excess_death_ratio;
+    metrics[1]  = aggregate(true_deaths, to_sim_day(start, "2020-03-15"), to_sim_day(start, "2020-09-05"))*per10k;
+    metrics[1] /= covid_death_to_excess_death_ratio;
+/*
     // Improvement in detected cases from wave1 to wave2; 2.65
     const double rcase_wave1  = aggregate(rcases, to_sim_day(start, "2020-03-08"), to_sim_day(start, "2020-05-15"))*per10k;
     const double rcase_wave2  = aggregate(rcases, to_sim_day(start, "2020-05-30"), to_sim_day(start, "2020-09-11"))*per10k;
@@ -374,7 +379,7 @@ vector<double> tally_counts(const Parameters* par, Community* community, const d
     //metrics[15] = *max_element(Rt_ma.begin() + to_sim_day(start, "2020-05-07"), Rt_ma.begin() + to_sim_day(start, "2020-06-28") + 1);
 
 //    for (size_t i = 0; i < Rt_ma.size(); ++i) cerr << Date::to_ymd(2020, start + i) << " " << Rt_ma[i] << endl;
-
+*/
     return metrics;
 }
 

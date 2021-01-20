@@ -7,17 +7,17 @@
 #SBATCH --mail-user=tjhladish@gmail.com
 
 #SBATCH --account=epi
-#SBATCH --qos=epi
+#SBATCH --qos=epi-b
 #SBATCH --chdir=/home/tjhladish/work/covid-abm/exp/abc
 #SBATCH --cpus-per-task=1
-#SBATCH --mem-per-cpu=1000
-#SBATCH --time=2:00:00
-#SBATCH --array=0-99
+#SBATCH --mem-per-cpu=9000
+#SBATCH --time=12:00:00
+#SBATCH --array=0-199
 #SBATCH --partition=hpg2-compute
 
 module load gcc/7.3.0 gsl
 
-for i in `seq 1 40`;
+for i in `seq 1 60`;
 do
-    ./abc_sql abc_covid.json --simulate -n 50
+    ./abc_sql abc_covid.json --simulate -n 1
 done

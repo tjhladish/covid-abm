@@ -17,4 +17,4 @@
 
 module load gcc/7.3.0 gsl
 
-./abc_sql abc_covid.json --process 2>> escambia_to_fl_v4.0.log
+./abc_sql abc_covid.json --process 2>> fl_v5a.0.log
