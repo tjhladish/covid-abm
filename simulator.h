@@ -76,7 +76,7 @@ cerr << "Reading population ... ";
 
 cerr << "done.\n"; //  Now sleeping for 20s so ram usage can be checked.\n";
 //sleep(20);
-    if (!par->abcVerbose) {
+    if (par->abcVerbose) {
         cerr << community->getNumPeople() << " people" << endl;
     }
 
@@ -201,7 +201,7 @@ void update_vaccinations(const Parameters* par, Community* community, const Date
     for (CatchupVaccinationEvent cve: par->catchupVaccinationEvents) {
         // Normal, initial vaccination -- boosting, multiple doses handled in Community::tick()
         if (date->day() >= (signed) cve.campaignStart and date->day() < (signed) (cve.campaignStart + cve.campaignDuration)) {
-            if (not par->abcVerbose) cerr << "vaccinating " << cve.coverage*100 << "% of age " << cve.age << " over " << cve.campaignDuration << " days starting on day " << cve.campaignStart << endl;
+            if (par->abcVerbose) cerr << "vaccinating " << cve.coverage*100 << "% of age " << cve.age << " over " << cve.campaignDuration << " days starting on day " << cve.campaignStart << endl;
             community->vaccinate(cve);
         }
     }
