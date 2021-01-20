@@ -141,6 +141,9 @@ class Person {
         SexType getSex() const { return sex; }
         void setSex(SexType s) { sex = s; }
 
+        size_t getDaysImmune() const { return daysImmune; }
+        void setDaysImmune(size_t di) { daysImmune = di; }
+
         bool getLongTermCare() { return long_term_care; }
         void setLongTermCare(bool b) { long_term_care = b; }
 
@@ -243,6 +246,7 @@ class Person {
 
         ImmuneStateType immune_state;
         std::vector<Infection*> infectionHistory;
+        size_t daysImmune;                                              // number of days this person retains natural immunity
         std::vector<int> vaccineHistory;
         void clearInfectionHistory();
 

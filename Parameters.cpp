@@ -39,7 +39,7 @@ void Parameters::define_defaults() {
     annualIntroductionsFilename = "";                   // time series of some external factor determining introduction rate
     annualIntroductionsCoef = 1;                        // multiplier to rescale external introductions to something sensible
     annualIntroductions = {1.0};
-    daysImmune = 365;
+    //daysImmune = 365;
     //probFirstDetection = {0.0, 0.1, 0.6, 0.3, 0.1};     // prob of detection if not detected earlier {asymptomatic, mild, severe, critical, deaths}
     //numDailyExposed.push_back(0.0);                     // default: no introductions
     probDailyExposure.push_back(0.0);                   // default: no introductions
@@ -50,7 +50,7 @@ void Parameters::define_defaults() {
     symptomToTestLag = 2;
     defaultReportingLag = 10;
     rlm = nullptr;                                       // reporting lag model
-    deathReportingLag = 4;
+    //meanDeathReportingLag = 4;
     numInitialExposed  = 0;
     numInitialInfected = 0;
     probInitialExposure = 0.0;
@@ -180,12 +180,10 @@ double Parameters::icuMortality(ComorbidType comorbidity, size_t age, size_t sim
 void Parameters::createDetectionModel(const vector<double>& initial_vals, const vector<double>& final_vals, const vector<int>& inflection_sim_day, const vector<double>& slopes) {
     assert(NUM_OF_OUTCOME_TYPES == initial_vals.size()
              and initial_vals.size() == final_vals.size()
-             and final_vals.size() == inflection_sim_day.size()
-             and inflection_sim_day.size() == slopes.size());
+             and initial_vals.size() == inflection_sim_day.size()
+             and initial_vals.size() == slopes.size());
 
     for (size_t outcome = 0; outcome < NUM_OF_OUTCOME_TYPES; ++outcome) {
-        //assert(initial_vals[outcome] >= 0.0 and initial_vals[outcome] <= 1.0);
-        //assert(final_vals[outcome] >= 0.0 and final_vals[outcome] <= 1.0);
         if (initial_vals[outcome] < 0.0 or initial_vals[outcome] > 1.0 or final_vals[outcome] < 0.0 or final_vals[outcome] > 1.0) {
             cerr << "WARNING: Detection probability out-of-bounds for outcome type: " << (OutcomeType) outcome << " [" << initial_vals[outcome] << ", " << final_vals[outcome] << "]" << endl;
         }
@@ -197,21 +195,60 @@ void Parameters::createDetectionModel(const vector<double>& initial_vals, const 
         for (size_t outcome = 0; outcome < NUM_OF_OUTCOME_TYPES; ++outcome) {
             const double initial_v = initial_vals[outcome];
             const double final_v   = final_vals[outcome];
-            // sign of slope needs to reflect whether an increase or decrease from initial to final has been requested
-            //const double slope     = final_v > initial_v ? slopes[outcome] : -1 * slopes[outcome];
             const double slope     = slopes[outcome];
-            probs[outcome] = (final_v - initial_v) * logistic( slope*((double) sim_day - inflection_sim_day[outcome]) ) + initial_v;
+            const double inflection = (double) sim_day - inflection_sim_day[outcome];
+            probs[outcome] = (final_v - initial_v) * logistic( slope*inflection ) + initial_v;
 //if (outcome == 2) cerr << "d, f, i, s, p: " << (int) sim_day - inflection_sim_day[outcome] << " " << final_v << " " << initial_v << " " << slope << " " << probs[outcome] << endl;
         }
         probFirstDetection[sim_day] = probs;
     }
 }
 
+// TODO - refactor the two createDetectionModel functions so that they are generic
+void Parameters::createDetectionModel(const vector<double>& initial_vals, const vector<double>& mid_vals, const vector<double>& final_vals, const vector<int>& inflection1_sim_day, const vector<int>& inflection2_sim_day,  const vector<double>& slopes1, const vector<double>& slopes2) {
+    assert(NUM_OF_OUTCOME_TYPES == initial_vals.size()
+             and initial_vals.size() == mid_vals.size()
+             and initial_vals.size() == final_vals.size()
+             and initial_vals.size() == inflection1_sim_day.size()
+             and initial_vals.size() == inflection2_sim_day.size()
+             and initial_vals.size() == slopes1.size()
+             and initial_vals.size() == slopes2.size());
 
-void Parameters::createReportingLagModel(std::string filename) {
-    rlm = new ReportingLagModel(filename);
+    for (size_t outcome = 0; outcome < NUM_OF_OUTCOME_TYPES; ++outcome) {
+        //assert(initial_vals[outcome] >= 0.0 and initial_vals[outcome] <= 1.0);
+        //assert(final_vals[outcome] >= 0.0 and final_vals[outcome] <= 1.0);
+        if (initial_vals[outcome] < 0.0 or initial_vals[outcome] > 1.0
+            or mid_vals[outcome] < 0.0 or mid_vals[outcome] > 1.0
+            or final_vals[outcome] < 0.0 or final_vals[outcome] > 1.0) {
+            cerr << "WARNING: Detection probability out-of-bounds for outcome type: " << (OutcomeType) outcome << " [" << initial_vals[outcome] << ", " << mid_vals[outcome] << ", " << final_vals[outcome] << "]" << endl;
+        }
+    }
+
+    probFirstDetection = vector<vector<double>>(runLength, vector<double>(NUM_OF_OUTCOME_TYPES, 0.0));
+    for (size_t sim_day = 0; sim_day < runLength; ++sim_day) {
+        vector<double> probs(NUM_OF_OUTCOME_TYPES);
+        for (size_t outcome = 0; outcome < NUM_OF_OUTCOME_TYPES; ++outcome) {
+            const double initial_v = initial_vals[outcome];
+            const double mid_v     = mid_vals[outcome];
+            const double final_v   = final_vals[outcome];
+            const double slope1     = slopes1[outcome];
+            const double slope2     = slopes2[outcome];
+            const double inflection1 = (double) sim_day - inflection1_sim_day[outcome];
+            const double inflection2 = (double) sim_day - inflection2_sim_day[outcome];
+            probs[outcome] = (mid_v - initial_v) * logistic( slope1*inflection1 )
+                             + (final_v - mid_v) * logistic( slope2*inflection2 )
+                             + initial_v;
+
+//if (outcome == 0) cerr << "d, [i,m,f], val: " << (int) sim_day << " [" << initial_v << ", " << mid_v << ", " << final_v << "] " << probs[outcome] << endl;
+        }
+        probFirstDetection[sim_day] = probs;
+    }
 }
 
+
+void Parameters::createReportingLagModel(std::string filename) { rlm = new ReportingLagModel(filename); }
+
+double Parameters::seasonality (const Date *date) const { return _seasonality.at(date->day()); }
 
 void Parameters::createSocialDistancingModel(std::string filename, size_t metric_col, float mobility_logit_shift, float mobility_logit_stretch) {
     // expects that the mobility data being read in has a first column with increasing, consecutive dates
@@ -219,7 +256,7 @@ void Parameters::createSocialDistancingModel(std::string filename, size_t metric
     timedInterventions[SOCIAL_DISTANCING].clear();
     //timedInterventions[SOCIAL_DISTANCING].resize(run_length, 0.0);
 
-    const string sim_start_date = Date::to_ymd(julianYear, startDayOfYear);
+    const string sim_start_date = Date::to_ymd(startJulianYear, startDayOfYear);
 
     std::vector<std::vector<std::string>> mobility_data = covid::util::read_2D_vector_file(filename, ',');
     bool header = true;

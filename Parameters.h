@@ -354,9 +354,14 @@ public:
     int sampleIcuTimeToDeath() const {
     // parameterization based on what you need to produce findings of median = 7, IQR = [3,11]
     // https://www.thelancet.com/journals/lanres/article/PIIS2213-2600(20)30079-5/fulltext
-        const double prob_of_daily_survival = 0.2;
+        const double daily_prob_of_death = 0.2;
         const size_t num_days_survive_until_death = 2;
-        return gsl_ran_negative_binomial(RNG, prob_of_daily_survival, num_days_survive_until_death);
+        return gsl_ran_negative_binomial(RNG, daily_prob_of_death, num_days_survive_until_death);
+    }
+
+    int sampleCommunityTimeToDeath() const {
+        const double daily_prob_of_death = 0.5;
+        return gsl_ran_geometric(RNG, daily_prob_of_death);
     }
 
     double timedInterventionEffect(TimedIntervention ti, size_t day) const;
@@ -369,6 +374,9 @@ public:
     double school_transmissibility;                         // per-day probability of transmission, scaled by the fraction of infectious students/staff
     double hospital_transmissibility;                       // per-day probability of transmission, scaled by the fraction of infectious staff/patients
     double nursinghome_transmissibility;                    // per-day probability of transmission, scaled by the fraction of infectious staff/residents
+    std::vector<double> _seasonality;                       // transmissibility multiplier, index by simulation day
+    double seasonality (const Date *date) const;
+
     vector<float> susceptibilityByAge;                      // probability of infection given exposure, index by year of age
     vector<float> pathogenicityByAge;                       // probability of clinical disease given infection, index by year of age
     vector<float> severeFractionByAge;                      // probability of severe disease given clinical disease, index by year of age
@@ -406,6 +414,14 @@ public:
         }
     }
 
+    size_t deathReportingLag (const gsl_rng* REPORTING_RNG) const {
+        //return meanDeathReportingLag;
+        // neg binom fit to Oct/Nov 2020 data, with mean of ~12 days
+        const double n = 2.2786932;
+        const double p = 0.1578952;
+        return gsl_ran_negative_binomial(REPORTING_RNG, p, n);
+    }
+
     double pathogenicityReduction;                          // == percentage of missed infections in empirical pathogenicity estimates
                                                             // used for interpreting empirical pathogenicity data, *not within simulator*
     double susceptibilityCorrection;                        // susceptibilityCorrection of 0 --> published value; 1 --> everyone 100% susceptible
@@ -418,11 +434,13 @@ public:
                                                             // sign of float determined by sizes of initial and final values
     void createDetectionModel(const vector<double>& initial_vals, const vector<double>& final_vals,
                               const vector<int>& inflection_sim_day, const vector<double>& slopes);
+    void createDetectionModel(const vector<double>& initial_vals, const vector<double>& mid_vals, const vector<double>& final_vals,
+                              const vector<int>& inflection1_sim_day, const vector<int>& inflection2_sim_day,  const vector<double>& slopes1, const vector<double>& slopes2);
     std::vector<std::vector<double>> probFirstDetection;    // Probability of being *first* detected while {asymp, mild, severe, crit, dead}
                                                             // indexed by day and outcome severity
 
 
-    size_t deathReportingLag;                               // number of days from when death occurs to when it's reported
+    //size_t meanDeathReportingLag;                           // number of days from when death occurs to when it's reported
     void createSocialDistancingModel(std::string filename, size_t metric_col, float mobility_logit_shift, float mobility_logit_stretch);
     bool vaccineLeaky;                                      // if false, vaccine is all-or-none
     bool retroactiveMatureVaccine;                          // if true, infection causes leaky vaccine to jump from naive to mature protection
@@ -445,7 +463,14 @@ public:
     std::string annualIntroductionsFilename;                // time series of some external factor determining introduction rate
     std::vector<double> annualIntroductions;
     double annualIntroductionsCoef;                         // multiplier to rescale external introductions to something sensible
-    int daysImmune;
+    size_t sampleDaysImmune(const gsl_rng* RNG) const {
+        const double t_half = 103; // days
+        const double threshold = 215; // below this threshold, susceptible again.  CABP estimated using PHE data and Science paper below
+        const double antibody_init_mean = 3.0; // Rough estimate from https://science.sciencemag.org/content/early/2021/01/06/science.abf4063/
+        const double antibody_init_sd = 0.5;   // ''
+        const double time_to_susceptible = -t_half * log(threshold / pow(gsl_ran_gaussian(RNG, antibody_init_sd) + antibody_init_mean, 10)) / log(2);
+        return time_to_susceptible < 0 ? 0 : (size_t) round(time_to_susceptible);
+    }
     bool linearlyWaningVaccine;
     int vaccineImmunityDuration;
     bool vaccineBoosting;                                   // Are we re-vaccinated, either because of waning or because of multi-dose vaccine
@@ -461,11 +486,11 @@ public:
     bool traceContacts;                                     // should we keep track of who infected whom
 
                                                             // e.g. school closures, non-essential business closures, social distancing
-    std::map<TimedIntervention, std::vector<float>> timedInterventions;
+    std::map<TimedIntervention, std::vector<double>> timedInterventions;
     std::vector<double> icuMortalityReduction;              // time-varying reduction (from 0) in ICU mortality due to improved Tx
 
     size_t startDayOfYear;
-    size_t julianYear;
+    size_t startJulianYear;
     bool dailyOutput;
     bool periodicOutput;
     int periodicOutputInterval;

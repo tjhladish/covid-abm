@@ -59,10 +59,17 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->monthlyOutput           = true;
     par->yearlyOutput            = true;
     par->abcVerbose              = false; // needs to be false to get WHO daily output
-    par->julianYear              = JULIAN_START_YEAR;
+    par->startJulianYear         = JULIAN_START_YEAR;
     par->startDayOfYear          = Date::to_julian_day("2020-02-05");
     par->runLength               = TOTAL_DURATION;
     par->annualIntroductionsCoef = 1;
+
+
+
+//    par->_seasonality = vector<double>(Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-12-31"), 1.0);
+//    for (int i = 0; i < 31; ++i ) { par->_seasonality.push_back(1.0 + 0.5*i/31); }
+//    par->_seasonality.resize(par->runLength, 1.5);
+    par->_seasonality.resize(par->runLength, 1.0);
 
     par->traceContacts = true; // needed for Rt calculation
     par->mmodsScenario = ms;      // MMODS_CLOSED, MMODS_2WEEKS, MMODS_1PERCENT, MMODS_OPEN
@@ -90,8 +97,9 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
 
         cerr << "init, mid, fin: " << rho_death_ini << " " << rho_death_mid << " " << rho_death_fin << endl;
 
-        const int isd1 = Date::to_sim_day(par->startDayOfYear, "2020-06-01");
-        const int isd2 = Date::to_sim_day(par->startDayOfYear, "2020-10-01");
+        const int isd1 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-06-01");
+        const int isd2 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-10-01");
+
         const vector<int> inflection1_sim_day = {isd1, isd1, isd1, isd1, isd1};
         const vector<int> inflection2_sim_day = {isd2, isd2, isd2, isd2, isd2};
         const vector<double> slopes = {0.1, 0.1, 0.1, 0.1, 0.1}; // sign is determined based on initial/final values
@@ -117,15 +125,15 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
 //    par->timedInterventions[SOCIAL_DISTANCING].resize(par->runLength, 0.0);
 
     par->timedInterventions[SCHOOL_CLOSURE].clear();
-    par->timedInterventions[SCHOOL_CLOSURE].resize(Date::to_sim_day(par->startDayOfYear, "2020-03-15"), 0.0);
-    const size_t aug31 = Date::to_sim_day(par->startDayOfYear, "2020-08-31");
+    par->timedInterventions[SCHOOL_CLOSURE].resize(Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-03-15"), 0.0);
+    const size_t aug31 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-08-31");
     const size_t school_closed_duration = aug31 < par->runLength ? aug31 : par->runLength;
     par->timedInterventions[SCHOOL_CLOSURE].resize(school_closed_duration, 1.0);
     par->timedInterventions[SCHOOL_CLOSURE].resize(par->runLength, 0.5); // 50% reopening on Aug 31
 
     par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].clear();
-    par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(Date::to_sim_day(par->startDayOfYear, "2020-04-03"), 0.0);
-    par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(Date::to_sim_day(par->startDayOfYear, "2020-05-04"), 1.0);
+    par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-04-03"), 0.0);
+    par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-05-04"), 1.0);
     par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(par->runLength, 0.0);
 
     //const float mobility_logit_shift   = -2.5;
@@ -161,9 +169,9 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     };
 
     par->timedInterventions[SOCIAL_DISTANCING].clear();
-    const string sim_start_date = Date::to_ymd(par->julianYear, par->startDayOfYear);
+    const string sim_start_date = Date::to_ymd(par->startJulianYear, par->startDayOfYear);
 
-    par->timedInterventions[SOCIAL_DISTANCING] = Date::linInterpolateTimeSeries(ap, true, par->startDayOfYear);
+    par->timedInterventions[SOCIAL_DISTANCING] = Date::linInterpolateTimeSeries(ap, par->startJulianYear, par->startDayOfYear);
     //par->timedInterventions[SOCIAL_DISTANCING].insert(par->timedInterventions[SOCIAL_DISTANCING].begin(), v.begin(), v.end());
 
     const double last_value = par->timedInterventions[SOCIAL_DISTANCING].back();
@@ -176,7 +184,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
 //    par->meanDeathReportingLag = 9;
 
     const double max_icu_mortality_reduction = 0.4;         // primarily due to use of dexamethasone
-    const size_t icu_mortality_inflection_sim_day = Date::to_sim_day(par->startDayOfYear, "2020-06-15");
+    const size_t icu_mortality_inflection_sim_day = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-06-15");
     const double icu_mortality_reduction_slope = 0.5;       // 0.5 -> change takes ~2 weeks; 0.1 -> ~2 months
     par->createIcuMortalityReductionModel(max_icu_mortality_reduction, icu_mortality_inflection_sim_day, icu_mortality_reduction_slope);
     par->icuMortalityFraction = 0.2;                        // to be fit; fraction of all deaths that occur in ICUs;

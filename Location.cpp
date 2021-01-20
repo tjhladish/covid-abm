@@ -20,7 +20,7 @@ Location::Location()
     _coord = make_pair(0.0, 0.0);
     _type = NUM_OF_LOCATION_TYPES; // compileable, but not sensible value, because it must be set elsewhere
     _essential = true;
-    _riskAversion = 0.0;
+    _riskiness= 0.0;
     _hospital = nullptr;
 }
 
@@ -36,7 +36,7 @@ void Location::dumper() const {
     cerr << "\ttype: " << _type << endl;
     cerr << "\tcoords: " << _coord.first << ", " << _coord.second << endl;
     cerr << "\tessential: " << _essential << endl;
-    cerr << "\trisk aversion: " << _riskAversion << endl;
+    cerr << "\triskiness: " << _riskiness << endl;
     cerr << "\tpeople: "; /*for (auto p: _person) { cerr << p->getID() << " "; }*/ cerr << _person.size(); cerr << endl;
     cerr << "\tneighbors: "; for (auto l: _neighbors) { cerr << l->getID() << " "; } cerr << endl;
 }

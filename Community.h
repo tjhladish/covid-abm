@@ -81,13 +81,13 @@ class Community {
         void reset();                                                // reset the state of the community
         const std::vector<Location*> getLocations() const { return _location; }
         const std::vector<Person*> getAgeCohort(unsigned int age) const { assert(age<_personAgeCohort.size()); return _personAgeCohort[age]; }
-        std::vector<float> getTimedIntervention(TimedIntervention ti) const { return timedInterventions.at(ti); }
-        void updateTimedIntervention(TimedIntervention ti, size_t date, float val) {
+        std::vector<double> getTimedIntervention(TimedIntervention ti) const { return timedInterventions.at(ti); }
+        void updateTimedIntervention(TimedIntervention ti, size_t date, double val) {
             const size_t current_size = timedInterventions.at(ti).size();
             timedInterventions.at(ti).resize(date);              // truncate
             timedInterventions.at(ti).resize(current_size, val); // new values
         }
-        float getTimedIntervention(TimedIntervention ti, size_t day) const { return timedInterventions.at(ti)[day]; }
+        double getTimedIntervention(TimedIntervention ti, size_t day) const { return timedInterventions.at(ti)[day]; }
 
         static std::vector<size_t> _cumulIncByOutcome;
     protected:
@@ -119,7 +119,7 @@ class Community {
         static std::vector<Person*> _peopleByAge;
         static std::map<int, std::set<std::pair<Person*, Person*> > > _delayedBirthdays;
         static std::set<Person*> _revaccinate_set;          // not automatically re-vaccinated, just checked for boosting, multiple doses
-        std::map<TimedIntervention, std::vector<float>> timedInterventions;
+        std::map<TimedIntervention, std::vector<double>> timedInterventions;
 
         //bool _uniformSwap;                                            // use original swapping (==true); or parse swap file (==false)
         void _transmission(Location* source_loc, vector<Person*> at_risk_group, const double T, const int infectious_count); // generic helper function

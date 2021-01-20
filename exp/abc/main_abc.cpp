@@ -243,7 +243,7 @@ string report_process_id (vector<double> &args, const unsigned long int serial, 
 
     cerr << "pid in report_process_id (num args = " << args.size() << "): " << process_id << endl;
     stringstream ss;
-    ss << "begin " << process_id << " " << dec << serial << " " << dif << " " << argstring << endl;
+    ss << "begin " << process_id << " " << dec << serial << " " << dif << " | " << argstring << endl;
     string output = ss.str();
     fputs(output.c_str(), stderr);
 
@@ -462,9 +462,10 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 //    }
 
     stringstream ss;
-    ss << mp->mpi_rank << " end " << hex << process_id << " " << dec << dif << " ";
+    ss << mp->mpi_rank << " end " << hex << process_id << " " << dec << dif << " | ";
 
     for (auto i: args) ss << i << " ";
+    ss << "| ";
     for (auto i: metrics) ss << i << " ";
     ss << endl;
 
