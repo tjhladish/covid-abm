@@ -18,18 +18,20 @@ time_t GLOBAL_START_TIME;
 string calculate_process_id(vector<double> &args, string &argstring);
 //const string SIM_POP = "escambia"; // recent good T value == 0.042
 //const string SIM_POP = "dade"; // recent good T value == 0.03
-//const string SIM_POP = "florida";
-const string SIM_POP = "pseudo-1000k"; // recent good T value == 0.042
+const string SIM_POP = "florida";
+//const string SIM_POP = "pseudo-1000k"; // recent good T value == 0.042
 const string HOME_DIR(std::getenv("HOME"));
 const string pop_dir = HOME_DIR + "/work/covid-abm/pop/" + SIM_POP;
 const string output_dir("/ufrc/longini/tjhladish/");
 //const string imm_dir(output_dir + "");
 
 const int RESTART_BURNIN          = 0;
-const int FORECAST_DURATION       = 500;
+const int FORECAST_DURATION       = 574;
+//const int FORECAST_DURATION       = 330;
+const int OVERRUN                 = 14; // to get accurate Rt estimates near the end of the forecast duration
 const bool RUN_FORECAST           = true;
-const int TOTAL_DURATION          = RUN_FORECAST ? RESTART_BURNIN + FORECAST_DURATION : RESTART_BURNIN;
-const size_t JULIAN_TALLY_DATE    = 146; // intervention julian date - 1
+const int TOTAL_DURATION          = RUN_FORECAST ? RESTART_BURNIN + FORECAST_DURATION + OVERRUN : RESTART_BURNIN;
+//const size_t JULIAN_TALLY_DATE    = 146; // intervention julian date - 1
 const size_t JULIAN_START_YEAR    = 2020;
 //const double DEATH_UNDERREPORTING = 11807.0/20100.0; // FL Mar15-Sep5, https://www.nytimes.com/interactive/2020/05/05/us/coronavirus-death-toll-us.html
 
@@ -37,13 +39,9 @@ const size_t JULIAN_START_YEAR    = 2020;
 Parameters* define_simulator_parameters(vector<double> args, const unsigned long int rng_seed, const unsigned long int serial, const string /*process_id*/) {
     Parameters* par = new Parameters();
     par->define_defaults();
-    //const MmodsScenario ms = (MmodsScenario) args[0];
-    const MmodsScenario ms = NUM_OF_MMODS_SCENARIOS; // if NUM_OF_MMODS_SCENARIOS, just run a normal simulation
-    assert(ms <= NUM_OF_MMODS_SCENARIOS);
-    if (ms < NUM_OF_MMODS_SCENARIOS) { par->numSurveilledPeople = 1e5; } // default is INT_MAX
     par->serial = serial;
 
-    const float T = args[0]; //0.2;
+    const float T = 0.0215;//0.022; // 0.0215 for the fl pop, 0.022 for the pseudo 1000k pop
 
     par->household_transmissibility   = T;
     par->social_transmissibility      = T*2.0; // assumes complete graphs between households
@@ -64,15 +62,17 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->runLength               = TOTAL_DURATION;
     par->annualIntroductionsCoef = 1;
 
+    const bool mutation          = (bool) args[5];
 
-
-//    par->_seasonality = vector<double>(Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-12-31"), 1.0);
-//    for (int i = 0; i < 31; ++i ) { par->_seasonality.push_back(1.0 + 0.5*i/31); }
-//    par->_seasonality.resize(par->runLength, 1.5);
-    par->_seasonality.resize(par->runLength, 1.0);
+    if (mutation) {
+        par->_seasonality = vector<double>(Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-12-31"), 1.0);
+        for (int i = 0; i < 31; ++i ) { par->_seasonality.push_back(1.0 + 0.5*i/31); }
+        par->_seasonality.resize(par->runLength, 1.5);
+    } else {
+        par->_seasonality.resize(par->runLength, 1.0);
+    }
 
     par->traceContacts = true; // needed for Rt calculation
-    par->mmodsScenario = ms;      // MMODS_CLOSED, MMODS_2WEEKS, MMODS_1PERCENT, MMODS_OPEN
 
     {
         // Create model for how outcome-dependent detection probabilities change over time
@@ -80,19 +80,20 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
         //par->reportedFraction = {0.0, 0.2, 0.75, 0.75, 0.75};      // fraction of asymptomatic, mild, severe, critical, and deaths reported
         //par->probFirstDetection = {0.0, 0.12, 0.55, 0.1, 0.01};      // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
 
-        const double RF_death = 0.8;//0.78; // overall probability of detecting death, at any point
+        const double RF_death_early = 0.8;//0.78; // overall probability of detecting death, at any point
 
         // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
         vector<double> initial_vals = {0.01, 0.2, 0.7, 0.1};
-        const double rho_death_ini  = 1.0 - (1.0 - RF_death)/((1.0 - initial_vals[0])*(1.0 - initial_vals[1])*(1.0 - initial_vals[2])*(1.0 - initial_vals[3]));
+        const double rho_death_ini  = 1.0 - (1.0 - RF_death_early)/((1.0 - initial_vals[0])*(1.0 - initial_vals[1])*(1.0 - initial_vals[2])*(1.0 - initial_vals[3]));
         initial_vals.push_back(rho_death_ini);
 
-        vector<double> mid_vals   = {0.05, 0.6, 0.1, 0.1};
-        const double rho_death_mid  = 1.0 - (1.0 - RF_death)/((1.0 - mid_vals[0])*(1.0 - mid_vals[1])*(1.0 - mid_vals[2])*(1.0 - mid_vals[3]));
+        vector<double> mid_vals   = {0.07, 0.6, 0.1, 0.1};
+        const double rho_death_mid  = 1.0 - (1.0 - RF_death_early)/((1.0 - mid_vals[0])*(1.0 - mid_vals[1])*(1.0 - mid_vals[2])*(1.0 - mid_vals[3]));
         mid_vals.push_back(rho_death_mid);
 
+        const double RF_death_late = 1.0;//0.78; // overall probability of detecting death, at any point
         vector<double> final_vals   = {0.3, 0.8, 0.0, 0.0};
-        const double rho_death_fin  = 1.0 - (1.0 - RF_death)/((1.0 - final_vals[0])*(1.0 - final_vals[1])*(1.0 - final_vals[2])*(1.0 - final_vals[3]));
+        const double rho_death_fin  = 1.0 - (1.0 - RF_death_late)/((1.0 - final_vals[0])*(1.0 - final_vals[1])*(1.0 - final_vals[2])*(1.0 - final_vals[3]));
         final_vals.push_back(rho_death_fin);
 
         cerr << "init, mid, fin: " << rho_death_ini << " " << rho_death_mid << " " << rho_death_fin << endl;
@@ -155,17 +156,30 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
 //    par->createSocialDistancingModel(pop_dir + "/../florida/gleam_metrics.csv", sd_metric_col_idx, mobility_logit_shift, mobility_logit_stretch);
 
     // Create social distancing model by linear interpolation ---
-    vector<TimeSeriesAnchorPoint> ap = {
+//    vector<TimeSeriesAnchorPoint> ap = { // pseudo 1000k numbers
+//        {"2020-01-01", 0.0},
+//        {"2020-03-10", 0.0},
+//        {"2020-03-15", 0.1},
+//        {"2020-04-01", 0.8},
+//        {"2020-05-01", 0.7},
+//        {"2020-06-01", 0.3},
+//        {"2020-07-01", 0.3},
+//        {"2020-08-01", 0.6},
+//        {"2020-09-01", 0.4},
+//        {"2020-11-15", 0.03}
+//    };
+
+    vector<TimeSeriesAnchorPoint> ap = { // tuning for whole FL model
         {"2020-01-01", 0.0},
         {"2020-03-10", 0.0},
         {"2020-03-15", 0.1},
         {"2020-04-01", 0.8},
         {"2020-05-01", 0.7},
         {"2020-06-01", 0.3},
-        {"2020-07-01", 0.3},
-        {"2020-08-01", 0.6},
-        {"2020-09-01", 0.4},
-        {"2020-11-15", 0.03}
+        {"2020-07-01", 0.2},
+        {"2020-08-01", 0.5},
+        {"2020-09-01", 0.5},
+        {"2020-11-15", 0.0}
     };
 
     par->timedInterventions[SOCIAL_DISTANCING].clear();
@@ -275,26 +289,29 @@ int julian_to_sim_day (const Parameters* par, const size_t julian, const int int
 }
 
 
-vector<double> tally_counts(const Parameters* par, Community* community, int pre_intervention_output) {
-    const int discard_days = julian_to_sim_day(par, JULIAN_TALLY_DATE, RESTART_BURNIN-pre_intervention_output);
+vector<double> tally_counts(const Parameters* par, Community* community, int discard_days) {
+    const size_t num_weeks = (par->runLength - discard_days - OVERRUN)/7;
 
+    //vector<size_t> infected    = community->getNumNewlyInfected();
     //vector< vector<int> > severe      = community->getNumSevereCases();
     vector<size_t> symptomatic = community->getNumNewlySymptomatic();
+    vector<size_t> dead        = community->getNumNewlyDead();
 
-    //vector< vector<int> > infected    = community->getNumNewlyInfected();
-    const int num_years = FORECAST_DURATION + pre_intervention_output - 1; // typically 55
-    vector<size_t> s_tally(num_years+1, 0);
+    // pair of num of primary infections starting this day, and mean num secondary infections they cause
+    vector<pair<size_t, double>> R = community->getMeanNumSecondaryInfections();
+    vector<size_t> Rt_incidence_tally(num_weeks, 0);
 
-    vector<double> metrics(num_years, 0.0);
-    for (size_t t=discard_days; t<par->runLength; t++) {
-        // use epidemic years, instead of calendar years
-        const int y = (t-discard_days)/365;
-        s_tally[y] += symptomatic[t];
-        //cout << "d,i:" << t << "," << infected[0][t] + infected[1][t] + infected[2][t] + infected[3][t] << endl;
+    vector<double> metrics(num_weeks*3, 0.0);
+    for (size_t t = discard_days; t < par->runLength - OVERRUN; t++) {
+        const size_t w = (t-discard_days)/7; // which reporting week are we in?
+        metrics[w]                 += symptomatic[t];
+        metrics[num_weeks + w]     += dead[t];
+        metrics[2 * num_weeks + w] += R[t].first > 0 ? R[t].first*R[t].second : 0;
+        Rt_incidence_tally[w]      += R[t].first;
     }
 
-    for (int y = 0; y<num_years; ++y) {
-        metrics[y] += s_tally[y];
+    for (size_t w = 0; w < num_weeks; ++w) {
+        metrics[2 * num_weeks + w] /= Rt_incidence_tally[w] > 0 ? Rt_incidence_tally[w] : 1.0;
     }
 
     return metrics;
@@ -323,6 +340,7 @@ vector<double> calc_Rt_moving_average(vector<pair<size_t, double>> Rt_pairs, siz
 }
 
 vector<double> simulator(vector<double> args, const unsigned long int rng_seed, const unsigned long int serial, const ABC::MPI_par* mp = nullptr) {
+    cerr << "rng seed: " << rng_seed << endl;
     gsl_rng_set(RNG, rng_seed); // seed the rng using sys time and the process id
     // initialize bookkeeping for run
     time_t start, end;
@@ -338,10 +356,53 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
     cerr << "SCENARIO " << rng_seed;
     for (auto _p: args) { cerr << " " << _p; } cerr << endl;
+// 0  "vaccine", "short_name" : "vac", "num_type"   : "INT", "par1"       : 0, "par2"       : 1, "step"       : 1}, 
+// 1  "vaccine_efficacy_susceptibility", "short_name" : "VES", "num_type"   : "FLOAT", "par1"       : 0.6, "par2"       : 0.6, "step"       : 0.0}, 
+// 2  "vaccine_efficacy_pathogenicity", "short_name" : "VEP", "num_type"   : "FLOAT", "par1"       : 0.95, "par2"       : 0.95, "step"       : 0.0}, 
+// 3  "vaccination_rate", "short_name" : "vac_rate", "num_type"   : "FLOAT", "par1"       : 0.0012, "par2"       : 0.003, "step"       : 0.0018}, 
+// 4  "realization", "num_type"   : "INT", "par1"       : 0, "par2"       : 99}, 
+// 5  "mutation", "num_type"   : "INT", "par1"       : 0, "par2"       : 1, "step"       : 1}
+    
+    enum VacRate { SLOW, FAST, NUM_OF_VAC_RATES };
 
     Parameters* par = define_simulator_parameters(args, rng_seed, serial, process_id);
+    const bool vaccine             = (bool) args[0];
+    const double vac_efficacy_susc = args[1];
+    const double vac_efficacy_path = args[2];
+    const VacRate vac_rate         = (VacRate) args[3]; // 0 == slow, 1 == fast
+    // const size_t realization    = (size_t) args[4];
+    // const bool mutation         = (bool) args[5];
 
     Community* community = build_community(par);
+
+    if (vaccine) {
+        //double target_coverage  = coverage;
+        double catchup_coverage = 0.5;
+        const int target = 16;
+        const int senior_threshold = 65;
+        size_t senior_vac_campaign_duration = vac_rate == SLOW ? 86 : 35; // 0.12% per day vs 0.3% per day for [65, max_age]
+        size_t general_vac_campaign_duration = vac_rate == SLOW ? 257 : 103; // same, for those [16, 64]
+        const size_t senior_vac_sim_day  = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-01-11"); // jan 1 + 10 days for efficacy
+        const size_t general_vac_sim_day = senior_vac_sim_day + senior_vac_campaign_duration;
+
+        for (int catchup_age = senior_threshold; catchup_age <= NUM_AGE_CLASSES - 1; catchup_age++) {
+        cerr << "scheduling vaccinations:" << catchup_age << " " << senior_vac_sim_day << endl;
+            //const int vacDate = julian_to_sim_day(par, JULIAN_TALLY_DATE + 1, RESTART_BURNIN);
+            par->catchupVaccinationEvents.emplace_back(senior_vac_sim_day, senior_vac_campaign_duration, catchup_age, catchup_coverage);
+        }
+
+        for (int catchup_age = target; catchup_age < senior_threshold; catchup_age++) {
+        cerr << "scheduling vaccinations:" << catchup_age << " " << general_vac_sim_day << endl;
+            //const int vacDate = julian_to_sim_day(par, JULIAN_TALLY_DATE + 1, RESTART_BURNIN);
+            par->catchupVaccinationEvents.emplace_back(general_vac_sim_day, general_vac_campaign_duration, catchup_age, catchup_coverage);
+        }
+
+        par->VES                   = vac_efficacy_susc;
+        par->VES_NAIVE             = vac_efficacy_susc;
+        par->VEP                   = vac_efficacy_path;
+        par->vaccineLeaky          = false;
+        par->numVaccineDoses       = 1;
+    }
 
     seed_epidemic(par, community);
     vector<string> plot_log_buffer = simulate_epidemic(par, community, process_id);
@@ -404,7 +465,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
 //    const int pre_intervention_output = 5; // years
 //    const int desired_intervention_output = FORECAST_DURATION - 1;
-    vector<double> metrics(0);// = tally_counts(par, community, pre_intervention_output);
+    vector<double> metrics = tally_counts(par, community, 0);
 
 //    const vector<size_t> infections       = community->getNumNewlyInfected();
 //    const vector<size_t> reported_cases   = community->getNumDetectedCasesReport();
@@ -441,27 +502,68 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
     delete par;
     delete community;
+exit(1);
     return metrics;
 }
 
 void usage() {
-//    cerr << "\n\tUsage: ./abc_sql <MMOD_scenario> <rng_seed> <transmissibility>" << endl;
-    cerr << "\n\tUsage: ./abc_sql <transmissibility> <social_distancing_column> <rng_seed>" << endl;
-/*    cerr << "\n\tUsage: ./abc_sql abc_config_sql.json --process\n\n";
+    cerr << "\n\tUsage: ./abc_sql abc_config_sql.json --process\n\n";
     cerr << "\t       ./abc_sql abc_config_sql.json --simulate\n\n";
     cerr << "\t       ./abc_sql abc_config_sql.json --simulate -n <number of simulations per database write>\n\n";
-*/
+    cerr << "\t       ./abc_sql abc_config_sql.json --simulate --serial <serial to run>\n\n";
+    cerr << "\t       ./abc_sql abc_config_sql.json --simulate --posterior <index to run>\n\n";
+
 }
 
 
 int main(int argc, char* argv[]) {
-    if (argc != 4) { usage(); exit(-1); }
-//    assert(argc == 4);
-    vector<double> sim_args = {atof(argv[1]), atof(argv[2])};
-    size_t seed = atol(argv[3]);
-    size_t serial = 0;
+    if (not (argc == 3 or argc == 5 or argc == 6) ) {
+        usage();
+        exit(100);
+    }
 
-    simulator(sim_args, seed, serial);
+    bool process_db = false;
+    bool simulate_db = false;
+    int buffer_size = -1;
+    int requested_serial = -1;
+    int requested_posterior_idx = -1;
+
+    for (int i=2; i < argc;  i++ ) {
+        if ( strcmp(argv[i], "--process") == 0  ) {
+            process_db = true;
+        } else if ( strcmp(argv[i], "--simulate") == 0  ) {
+            simulate_db = true;
+            buffer_size = buffer_size == -1 ? 1 : buffer_size;
+        } else if ( strcmp(argv[i], "-n" ) == 0 ) {
+            buffer_size = atoi(argv[++i]);
+        } else if ( strcmp(argv[i], "--serial" ) == 0 ) {
+            requested_serial = atoi(argv[++i]);
+        } else if ( strcmp(argv[i], "--posterior" ) == 0 ) {
+            requested_posterior_idx = atoi(argv[++i]);
+        } else {
+            usage();
+            exit(101);
+        }
+    }
+
+    AbcSmc* abc = new AbcSmc();
+    abc->parse_config(string(argv[1]));
+    if (process_db) {
+        gsl_rng_set(RNG, time(NULL) * getpid()); // seed the rng using sys time and the process id
+        abc->process_database(RNG);
+    }
+
+    if (simulate_db) {
+        time(&GLOBAL_START_TIME);
+        abc->set_simulator(simulator);
+        if (requested_serial > -1) {
+            abc->simulate_particle_by_serial(requested_serial);
+        } else if (requested_posterior_idx > -1) {
+            abc->simulate_particle_by_posterior_idx(requested_posterior_idx);
+        } else {
+            abc->simulate_next_particles(buffer_size);
+        }
+    }
 
     return 0;
 }
