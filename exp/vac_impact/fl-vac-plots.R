@@ -46,7 +46,7 @@ plot_curves <- function (epc, param, legend = F, hline = NULL, ...) {
 
   cond <- epc$vac == 0
   plot(epc[cond, c("date", param)], 
-       type = flag,
+       type = "n",
        col = pal[1],
        lwd = 2,
        axes = F, ...)
@@ -65,6 +65,13 @@ plot_curves <- function (epc, param, legend = F, hline = NULL, ...) {
   lines(epc[cond, c("date", param)],
         col = pal[5],
         lwd = 2)
+  
+  if (flag == "l") {
+    cond <- epc$vac == 0
+    lines(epc[cond, c("date", param)],
+          col = pal[1],
+          lwd = 2)
+  }
   
   if (legend) {
     legend("right",
