@@ -12,7 +12,7 @@ library(lubridate)
 totalpop_10k <- 2061.6 # Adjust accordingly
 max_week <- 82 # Adjust accordingly, start counting from 1
 con <- dbConnect(SQLite(), "./covid_vac_v6.0.sqlite")
-pal <- c("#000000FF", "#440154FF", "#3C4F8AFF", 
+pal <- c("#000000FF", "#440154FF", "#2C5FFFFF", 
          "#238A8DFF", "#49C16DFF", "#C8CB15FF")
 
 dbListTables(con)
