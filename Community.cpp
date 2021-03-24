@@ -456,7 +456,7 @@ void Community::vaccinate(CatchupVaccinationEvent cve) {
                 and p->isSeroEligible(_par->vaccineSeroConstraint, _par->seroTestFalsePos, _par->seroTestFalseNeg)
                ) {
                 p->vaccinate(_day);
-                if (_par->vaccineBoosting or p->getNumVaccinations() < _par->numVaccineDoses) _revaccinate_set.insert(p);
+                if (_par->vaccineBoosting or p->getNumVaccinations() < _par->numVaccineDoses) { _revaccinate_set.insert(p); }
             }
         }
     }
@@ -471,12 +471,10 @@ void Community::updateVaccination() {
             continue;
         }
         const int timeSinceLastVaccination = p->daysSinceVaccination(_day);
-        // TODO: Since updateVaccination only gets called on birthdays, the following only has an effect
-        // when the intervals are a multiple of years
         if (p->getNumVaccinations() < _par->numVaccineDoses and timeSinceLastVaccination >= _par->vaccineDoseInterval) {
             // multi-dose vaccination
             p->vaccinate(_day);
-            if (p->getNumVaccinations() == _par->numVaccineDoses) _revaccinate_set.erase(p); // we're done
+            if (p->getNumVaccinations() == _par->numVaccineDoses) { _revaccinate_set.erase(p); } // we're done
         } else if (_par->vaccineBoosting and timeSinceLastVaccination >= _par->vaccineBoostingInterval) {
             // booster dose
             p->vaccinate(_day);
@@ -510,6 +508,8 @@ vector<pair<size_t,double>> Community::getMeanNumSecondaryInfections() const {
             if (infection_onset < 0) { continue; } // historical infection
             // number of secondary infections resulting from the infection that started on this date
             daily_secondary_infections[infection_onset].push_back(inf->secondary_infection_tally());
+            // Uncomment this to do offspring distribution/dispersion analyses
+            //cerr << "secondary: " << infection_onset << " " << inf->secondary_infection_tally() << endl;
         }
     }
     vector<pair<size_t, double>> daily_Rt(daily_secondary_infections.size(), {0, 0.0});
@@ -604,7 +604,7 @@ void Community::flagInfectedLocation(LocationType locType, Location* _pLoc, int 
 }
 
 
-Infection* Community::trace_contact(int &infectee_id, Location* source_loc, int infectious_count) {
+Infection* Community::trace_contact(int &infecter_id, Location* source_loc, int infectious_count) {
     // Identify who was the source of an exposure event (tracing backward)
     // This function currently assumes all co-located infected people are equally likely
     // to be the cause of transmission.  May be something we want to relax in the future.
@@ -641,9 +641,9 @@ Infection* Community::trace_contact(int &infectee_id, Location* source_loc, int 
     }
 
     assert((signed) infected_candidates.size() == infectious_count);
-    Person* infectee = choice(RNG, infected_candidates);
-    infectee_id = infectee->getID();
-    return infectee->getInfection();
+    Person* infecter = choice(RNG, infected_candidates);
+    infecter_id = infecter->getID();
+    return infecter->getInfection();
 }
 
 
@@ -762,12 +762,12 @@ void Community::nursinghome_transmission() {
 void Community::_transmission(Location* source_loc, vector<Person*> at_risk_group, const double T, const int infectious_count) {
     for (Person* p: at_risk_group) {
         if (gsl_rng_uniform(RNG) < T) {
-            int infectee_id = INT_MIN;
+            int infecter_id = INT_MIN;
             Infection* infection = nullptr;
             if (_par->traceContacts) {
-                infection = trace_contact(infectee_id, source_loc, infectious_count);
+                infection = trace_contact(infecter_id, source_loc, infectious_count);
             }
-            Infection* transmission = p->infect(infectee_id, _date, source_loc->getID()); // infect() tests for whether person is infectable
+            Infection* transmission = p->infect(infecter_id, _date, source_loc->getID()); // infect() tests for whether person is infectable
             if (infection and transmission) { infection->log_transmission(transmission); } // are we contact tracing, and did transmission occur?
         }
     }
@@ -794,7 +794,7 @@ void Community::tick() {
 //    }
 //    local_transmission();
 
-    //updateVaccination();
+    updateVaccination();
 
     updatePersonStatus();                                            // make people stay home or return to work
     // Hospital transmission should happen after updating person status,
