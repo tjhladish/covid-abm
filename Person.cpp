@@ -149,13 +149,14 @@ double Person::vaccineProtection(const int time) const {
     if (not isVaccinated()) {
         ves = 0.0;
     } else {
+        const size_t dose = vaccineHistory.size() - 1;
         if (daysSinceVaccination(time) > _par->vaccineImmunityDuration) {
             ves = 0.0;
         } else {
             if (naiveVaccineProtection == true) {
-                ves = _par->VES_NAIVE;
+                ves = _par->VES_NAIVE[dose];
             } else {
-                ves = _par->VES;
+                ves = _par->VES[dose];
             }
             ves *= remainingEfficacy(time);
         }
@@ -211,7 +212,8 @@ Infection* Person::infect(int sourceid, const Date* date, int sourceloc) {
     const double severe_given_case = _par->probSeriousOutcome.at(SEVERE)[comorbidity][age];
     const double critical_given_severe = _par->probSeriousOutcome.at(CRITICAL)[comorbidity][age];
 
-    const double effective_VEP = isVaccinated() ? _par->VEP*remaining_efficacy : 0.0;        // reduced symptoms due to vaccine
+    const size_t dose = vaccineHistory.size() - 1;
+    const double effective_VEP = isVaccinated() ? _par->VEP[dose]*remaining_efficacy : 0.0;        // reduced symptoms due to vaccine
     symptomatic_probability *= (1.0 - effective_VEP);
     assert(symptomatic_probability >= 0.0);
     assert(symptomatic_probability <= 1.0);
@@ -403,6 +405,7 @@ bool Person::isSeroEligible(VaccineSeroConstraint vsc, double falsePos, double f
 
 bool Person::vaccinate(int time) {
     if (!isDead(time)) {
+        const size_t dose = vaccineHistory.size(); // this one isn't size() - 1, because it's the dose they're about to receive
         vaccineHistory.push_back(time);
 
         if ( isNaive() ) {
@@ -412,8 +415,8 @@ bool Person::vaccinate(int time) {
         }
 
         if ( _par->vaccineLeaky == false ) { // all-or-none VE_S protection
-            if ( (isNaive() and gsl_rng_uniform(RNG) < _par->VES_NAIVE) // vac someone who's naive
-                 or gsl_rng_uniform(RNG) < _par->VES ) {                          // vac someone previously infected
+            if ( (isNaive() and gsl_rng_uniform(RNG) < _par->VES_NAIVE[dose]) // vac someone who's naive
+                 or gsl_rng_uniform(RNG) < _par->VES[dose] ) {                          // vac someone previously infected
                  switch( immune_state ) {
                     case NAIVE:
                     case VACCINATED:

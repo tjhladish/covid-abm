@@ -209,7 +209,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->define_susceptibility_and_pathogenicity();
 
     //par->daysImmune = 730; // changing this to be a function call
-    par->VES = 0.0;
+    par->VES = {0.0};
 
     //par->hospitalizedFraction = 0.25; // fraction of cases assumed to be hospitalized
     par->probInitialExposure = {3.0e-04};
@@ -397,9 +397,9 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
             par->catchupVaccinationEvents.emplace_back(general_vac_sim_day, general_vac_campaign_duration, catchup_age, catchup_coverage);
         }
 
-        par->VES                   = vac_efficacy_susc;
-        par->VES_NAIVE             = vac_efficacy_susc;
-        par->VEP                   = vac_efficacy_path;
+        par->VES                   = {vac_efficacy_susc};
+        par->VES_NAIVE             = {vac_efficacy_susc};
+        par->VEP                   = {vac_efficacy_path};
         par->vaccineLeaky          = false;
         par->numVaccineDoses       = 1;
     }

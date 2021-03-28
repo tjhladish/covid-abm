@@ -381,11 +381,14 @@ public:
     vector<float> pathogenicityByAge;                       // probability of clinical disease given infection, index by year of age
     vector<float> severeFractionByAge;                      // probability of severe disease given clinical disease, index by year of age
     map<OutcomeType, vector< vector<float>>> probSeriousOutcome;        // look up probability of severe, critical, fatal outcomes by age & comorbid status
-    double VES;                                             // vaccine efficacy for susceptibility (can be leaky or all-or-none)
-    double VES_NAIVE;                                       // VES for initially immunologically naive people
-    double VEI;                                             // vaccine efficacy to reduce infectiousness
-    double VEP;                                             // vaccine efficacy for pathogenicity
-    double VEH;                                             // vaccine efficacy against hospitalization, given disease
+                                                            // vaccine efficacies, indexed by dose
+    vector<double> VES;                                     // vaccine efficacy for susceptibility (can be leaky or all-or-none)
+    vector<double> VES_NAIVE;                               // VES for initially immunologically naive people
+    vector<double> VEI;                                     // vaccine efficacy to reduce infectiousness
+    vector<double> VEP;                                     // vaccine efficacy for pathogenicity
+    vector<double> VEH;                                     // vaccine efficacy against hospitalization, given infection
+    vector<double> VEF;                                     // vaccine efficacy against death, given infection
+
     size_t symptom_onset() const { // aka incubation period
         return 1 + floor(gsl_ran_gamma(RNG, SYMPTOM_ONSET_GAMMA_SHAPE, SYMPTOM_ONSET_GAMMA_SCALE));
     }

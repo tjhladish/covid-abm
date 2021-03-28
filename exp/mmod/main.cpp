@@ -190,7 +190,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->define_susceptibility_and_pathogenicity();
 
     //par->daysImmune = 730; // changing this to be a function call
-    par->VES = 0.0;
+    par->VES = {0.0};
 
     //par->hospitalizedFraction = 0.25; // fraction of cases assumed to be hospitalized
     par->probInitialExposure = {3.0e-04};
