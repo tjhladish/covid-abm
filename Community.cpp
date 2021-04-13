@@ -22,7 +22,7 @@ using covid::util::choice;
 
 const Parameters* Community::_par;
 Date* Community::_date;
-vector< map<LocationType, map<Location*, int, Location::LocPtrComp>>> Community::_isHot;
+vector< map<LocationType, map<Location*, map<double, vector<Person*>>, Location::LocPtrComp>>> Community::_isHot;
 set<Person*> Community::_revaccinate_set;
 vector<size_t> Community::_numDetectedCasesOnset;
 vector<size_t> Community::_numDetectedCasesReport;
@@ -597,52 +597,44 @@ void Community::updatePersonStatus() {
 }
 
 
-void Community::flagInfectedLocation(LocationType locType, Location* _pLoc, int day) {
-    // pass in location type in case we want to model e.g. nursing home workers not going to work, but residents staying put
+void Community::flagInfectedLocation(Person* person, double relInfectiousness, LocationType locType, Location* _pLoc, int day) {
     assert(day >= 0);
-    if ((unsigned) day < _par->runLength) _isHot[day][locType][_pLoc]++;
+    if ((unsigned) day < _par->runLength) _isHot[day][locType][_pLoc][relInfectiousness].push_back(person);
 }
 
 
-Infection* Community::trace_contact(int &infecter_id, Location* source_loc, int infectious_count) {
+Infection* Community::trace_contact(int &infecter_id, Location* source_loc, const map<double, vector<Person*>> &infectious_groups) {
     // Identify who was the source of an exposure event (tracing backward)
-    // This function currently assumes all co-located infected people are equally likely
-    // to be the cause of transmission.  May be something we want to relax in the future.
-    const bool loc_is_hospital = source_loc->getType() == HOSPITAL;
-    vector<Person*> infected_candidates;
-    for (Person* p: source_loc->getPeople()) {
-        if(p->isInfectious(_day)
-          // possibilities:
-          // 1.) We're not looking at a hospital, and this person isn't in a hospital (and thus is here)
-          // 2.) We are looking at a hospital, and this person is infected and working at this hospital
-          // 3.) We are looking at a hospital, and this person normally works here, but has been admitted here
-          // 4.) We are looking at a hospital, and this person normally works here, but has been admitted elsewhere <-- the tricky one
-          // 5.) We are looking at a hospital, and this person normally works elsewhere, but has been admitted here
-          and (not p->inHospital(_day) or (loc_is_hospital and source_loc == p->getHospital()))
-          and not p->isDead(_day)) {
-            infected_candidates.push_back(p);
-        }
+    vector<double> individual_weights;
+    vector<double> group_weights;
+    double total = 0.0;
+    for (const auto& [relInfectiousness, people]: infectious_groups) {
+        individual_weights.push_back(relInfectiousness);
+        const double group_weight = relInfectiousness * people.size();
+        total += group_weight;
+        group_weights.push_back(group_weight);
     }
 
-    if ((signed) infected_candidates.size() != infectious_count) {
-        cerr << "day: tallied vs expected from passed-in bookkeeping value" << _day << ": " << infected_candidates.size() << " " << infectious_count << endl;
-        cerr << "current bookkeeping value: " << _isHot[_day][source_loc->getType()][source_loc] << endl;
-        cerr << "Problematic location:\n";
-        source_loc->dumper();
-        for (Person* p: source_loc->getPeople()) {
-            if(p->isInfectious(_day)
-              and (not p->inHospital(_day) or (loc_is_hospital and source_loc == p->getHospital()))
-              and not p->isDead(_day)) {
-                cerr << "\nInfected person " << p->getID() << " normal day loc: " << (p->getDayLoc() ? p->getDayLoc()->getID() : -1) << endl;
-                cerr << "Hospitalized?: " << p->inHospital(_day) << endl;
-                p->getInfection()->dumper(); // dump most recent infection; note that it's possible a prev infection has caused the inconsistency
-            }
+    double r = total * gsl_rng_uniform(RNG);
+    size_t idx;
+    for (idx = 0; idx<group_weights.size(); ++idx) {
+        if (r < group_weights[idx]) {
+            break;
+        } else {
+            r -= group_weights[idx];
         }
     }
-
-    assert((signed) infected_candidates.size() == infectious_count);
-    Person* infecter = choice(RNG, infected_candidates);
+    vector<Person*> peeps = infectious_groups.at(individual_weights[idx]);
+    Person* infecter = choice(RNG, peeps);
+    //Person* infecter = choice(RNG, infectious_groups.at(individual_weights[idx]));
     infecter_id = infecter->getID();
+    // sanity check to make sure we've found a legit candidate
+    const vector<Person*> people = source_loc->getPeople();
+    assert(infecter->isInfectious(_day)
+            and (not infecter->inHospital(_day) or (source_loc->getType() == HOSPITAL and source_loc == infecter->getHospital()))
+            and not infecter->isDead(_day)
+            and find(people.begin(), people.end(), infecter) != people.end());
+
     return infecter->getInfection();
 }
 
@@ -652,24 +644,29 @@ double Community::social_distancing(int _day) {
 }
 
 
+double _tally_infectiousness (const map<double, vector<Person*>> infectious_groups) {
+    double infectious_weight = 0.0;
+    for (const auto& [relInfectiousness, people]: infectious_groups) {
+        infectious_weight += relInfectiousness * people.size();
+    }
+    return infectious_weight;
+}
+
+
 void Community::within_household_transmission() {
-    for (const auto hot: _isHot[_day][HOUSE]) {
-        Location* loc = hot.first;
-        int infectious_count = hot.second;
-        //cerr << "\t\t\t\thousehold, count: " << loc->getID() << ", " << infectious_count << endl;
-        if (infectious_count > 0) {
-            const double T = 1.0 - pow(1.0 - _par->household_transmissibility * _par->seasonality(_date), infectious_count);
-            _transmission(loc, loc->getPeople(), T, infectious_count);
-        }
+    for (const auto& [loc, infectious_groups]: _isHot[_day][HOUSE]) {
+        const double infectious_weight = _tally_infectiousness(infectious_groups);
+        const double hazard =  _par->household_transmissibility * _par->seasonality(_date) * infectious_weight;
+        const double T = 1.0 - exp(-hazard);
+        _transmission(loc, loc->getPeople(), infectious_groups, T);
     }
     return;
 }
 
 
 void Community::between_household_transmission() {
-    for (auto hot : _isHot[_day][HOUSE]) {
-        Location* loc = hot.first;
-        const int infectious_count = hot.second;
+    for (const auto& [loc, infectious_groups]: _isHot[_day][HOUSE]) {
+        const double infectious_weight = _tally_infectiousness(infectious_groups);
         // ↓↓↓ this model made it almost impossible to stop transmission using SD
         //if (social_distancing(_day) - loc->getRiskiness() < gsl_rng_uniform(RNG)) { // this household is not cautious enough to avoid interactions
 
@@ -678,17 +675,17 @@ void Community::between_household_transmission() {
 
         // if people are riskier than the current SD level, they interact with friends
         // if they are less risky than current SD, they may do so, depending on how much more cautious they are
-        const double community_interaction = 0.5; // this value (on [0,1]) tunes how much exposure occurs among people who are taking precautions
-        if (loc->getRiskiness() > social_distancing(_day) or community_interaction*loc->getRiskiness()/social_distancing(_day) > gsl_rng_uniform(RNG)) { // this household is not cautious enough to avoid interactions
+        const double community_interaction = 0.5; // This value (on [0,1]) tunes how much exposure occurs among people who are taking precautions
+                                                  // We may want to change/remove this effect if/when we add extracurricular/community transmission
+        // ↓↓↓ this household is not cautious enough to avoid interactions
+        if (loc->getRiskiness() > social_distancing(_day) or community_interaction*loc->getRiskiness()/social_distancing(_day) > gsl_rng_uniform(RNG)) {
             const int hh_size = loc->getNumPeople();
-            const float hh_prev = (float) infectious_count / hh_size;
-            if (hh_prev > 0.0) {
-                for (Location* neighbor: loc->getNeighbors()) {
-                    // ↓↓↓ this line needs to match the model above, with neighbor in for loc
-                    if (neighbor->getRiskiness() > social_distancing(_day)  or community_interaction*neighbor->getRiskiness()/social_distancing(_day) > gsl_rng_uniform(RNG)) {
-                        const double T = _par->social_transmissibility * _par->seasonality(_date) * hh_prev;
-                        _transmission(loc, neighbor->getPeople(), T, infectious_count);
-                    }
+            for (Location* neighbor: loc->getNeighbors()) {
+                // ↓↓↓ this line needs to match the model above, with neighbor in for loc
+                if (neighbor->getRiskiness() > social_distancing(_day) or community_interaction*neighbor->getRiskiness()/social_distancing(_day) > gsl_rng_uniform(RNG)) {
+                    const double hazard = _par->social_transmissibility * _par->seasonality(_date) * infectious_weight / hh_size;
+                    const double T = 1.0 - exp(-hazard);
+                    _transmission(loc, neighbor->getPeople(), infectious_groups, T);
                 }
             }
         }
@@ -699,17 +696,18 @@ void Community::between_household_transmission() {
 
 void Community::workplace_transmission() {
     // Transmission for school employees is considered school transmission, not workplace transmission
-    for (auto hot : _isHot[_day][WORK]) {
-        Location* loc = hot.first;
-        const int infectious_count = hot.second;
+    for (const auto& [loc, infectious_groups]: _isHot[_day][WORK]) {
         // if non-essential businesses are closed, skip this workplace
-        if (loc->isNonEssential() and timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE][_day]) {
+        const int workplace_size = loc->getNumPeople();
+        if (workplace_size < 2 or (loc->isNonEssential() and timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE][_day])) {
             continue;
         }
-        const int workplace_size = loc->getNumPeople();
-        if (infectious_count > 0 and workplace_size > 1) {
-            const double T = (1.0 - social_distancing(_day)) * _par->workplace_transmissibility * _par->seasonality(_date) * infectious_count/(workplace_size - 1.0);
-            _transmission(loc, loc->getPeople(), T, infectious_count);
+
+        const double infectious_weight = _tally_infectiousness(infectious_groups);
+        if (infectious_weight > 0) {
+            const double hazard = (1.0 - social_distancing(_day)) * _par->workplace_transmissibility * _par->seasonality(_date) * infectious_weight/(workplace_size - 1.0);
+            const double T = 1.0 - exp(-hazard);
+            _transmission(loc, loc->getPeople(), infectious_groups, T);
         }
     }
     return;
@@ -718,13 +716,15 @@ void Community::workplace_transmission() {
 
 void Community::school_transmission() {
     // Transmission for school employees is considered school transmission, not workplace transmission
-    for (auto hot : _isHot[_day][SCHOOL]) {
-        Location* loc = hot.first;
-        const int infectious_count = hot.second;
-        const int school_size = loc->getNumPeople();
-        if (infectious_count > 0 and school_size > 1) {
-            const double T = (1.0 - timedInterventions[SCHOOL_CLOSURE][_day]) * _par->school_transmissibility * _par->seasonality(_date) * infectious_count/(school_size - 1.0);
-            _transmission(loc, loc->getPeople(), T, infectious_count);
+    const double hazard_coef = (1.0 - timedInterventions[SCHOOL_CLOSURE][_day]) * _par->school_transmissibility * _par->seasonality(_date);
+    if (hazard_coef != 0.0) {
+        for (const auto& [loc, infectious_groups]: _isHot[_day][SCHOOL]) {
+            const int school_size = loc->getNumPeople();
+            if (school_size < 2) { continue; }
+            const double infectious_weight = _tally_infectiousness(infectious_groups);
+            const double hazard = hazard_coef * infectious_weight/(school_size - 1.0);
+            const double T = 1.0 - exp(-hazard);
+            _transmission(loc, loc->getPeople(), infectious_groups, T);
         }
     }
     return;
@@ -732,40 +732,53 @@ void Community::school_transmission() {
 
 
 void Community::hospital_transmission() {
-    for (auto hot : _isHot[_day][HOSPITAL]) {
-        Location* loc = hot.first;
-        const int infectious_count = hot.second;
+    for (const auto& [loc, infectious_groups]: _isHot[_day][HOSPITAL]) {
         const int hospital_census = loc->getNumPeople(); // workers + patients
-        if (infectious_count > 0 and hospital_census > 1) {
-            const double T = _par->hospital_transmissibility * _par->seasonality(_date) * infectious_count/(hospital_census - 1.0);
-            _transmission(loc, loc->getPeople(), T, infectious_count);
-        }
+        if (hospital_census < 2) { continue; }
+        const double infectious_weight = _tally_infectiousness(infectious_groups);
+        const double hazard = _par->hospital_transmissibility * _par->seasonality(_date) * infectious_weight/(hospital_census - 1.0);
+        const double T = 1.0 - exp(-hazard);
+        _transmission(loc, loc->getPeople(), infectious_groups, T);
     }
     return;
 }
+
+/*
+generic_location_transmission(_isHot[_day][HOSPITAL], _par->hospital_transmissibility * _par->seasonality(_date));
+TODO - switch to this?
+void Community::generic_location_transmission(const auto& hot_location_type_data, const double base_T) {
+    for (const auto& [loc, infectious_groups]: hot_location_type_data) {
+        const int census = loc->getNumPeople(); // workers + patients
+        if (census < 2) { continue; }
+        const double infectious_weight = _tally_infectiousness(infectious_groups);
+        const double hazard = base_T * infectious_weight/(census - 1.0);
+        const double T = 1.0 - exp(-hazard);
+        _transmission(loc, loc->getPeople(), infectious_groups, T);
+    }
+    return;
+}*/
 
 
 void Community::nursinghome_transmission() {
-    for (auto hot : _isHot[_day][NURSINGHOME]) {
-        Location* loc = hot.first;
-        const int infectious_count = hot.second;
+    for (const auto& [loc, infectious_groups]: _isHot[_day][NURSINGHOME]) {
         const int nursinghome_census = loc->getNumPeople(); // workers + residents
-        if (infectious_count > 0 and nursinghome_census > 1) {
-            const double T = _par->nursinghome_transmissibility * _par->seasonality(_date) * infectious_count/(nursinghome_census - 1.0);
-            _transmission(loc, loc->getPeople(), T, infectious_count);
-        }
+        if (nursinghome_census < 2) { continue; }
+        const double infectious_weight = _tally_infectiousness(infectious_groups);
+        const double hazard = _par->nursinghome_transmissibility * _par->seasonality(_date) * infectious_weight/(nursinghome_census - 1.0);
+        const double T = 1.0 - exp(-hazard);
+        _transmission(loc, loc->getPeople(), infectious_groups, T);
     }
     return;
 }
 
 
-void Community::_transmission(Location* source_loc, vector<Person*> at_risk_group, const double T, const int infectious_count) {
+void Community::_transmission(Location* source_loc, vector<Person*> at_risk_group, const map<double, vector<Person*>> &infectious_groups, const double T) {
     for (Person* p: at_risk_group) {
         if (gsl_rng_uniform(RNG) < T) {
             int infecter_id = INT_MIN;
             Infection* infection = nullptr;
             if (_par->traceContacts) {
-                infection = trace_contact(infecter_id, source_loc, infectious_count);
+                infection = trace_contact(infecter_id, source_loc, infectious_groups);
             }
             Infection* transmission = p->infect(infecter_id, _date, source_loc->getID()); // infect() tests for whether person is infectable
             if (infection and transmission) { infection->log_transmission(transmission); } // are we contact tracing, and did transmission occur?

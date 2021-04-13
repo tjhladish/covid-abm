@@ -25,10 +25,10 @@ void Parameters::define_defaults() {
     nursinghome_transmissibility = 0.3;
     VES = {0.7};
     VES_NAIVE = {0.0};
-    VEI = {0.0};
     VEP = {0.0};
     VEH = {0.0};
     VEF = {0.0};
+    VEI = {0.0};
     vaccineLeaky = false;
     //secondaryTransmission = true;
     populationFilename = "population.txt";

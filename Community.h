@@ -71,8 +71,8 @@ class Community {
         std::vector<size_t> getNumDetectedDeaths() { return _numDetectedDeaths; }
         std::vector<pair<size_t, double>> getMeanNumSecondaryInfections() const ;
 
-        static void flagInfectedLocation(LocationType locType, Location* _pLoc, int day);
-        Infection* trace_contact(int &infectee_id, Location* source_loc, int infectious_count);
+        static void flagInfectedLocation(Person* person, double relInfectiousness, LocationType locType, Location* _pLoc, int day);
+        Infection* trace_contact(int &infectee_id, Location* source_loc, const map<double, vector<Person*>> &infectious_groups);
         static void reportCase(int onsetDate, long int reportDate, bool hospitalized);
         static void reportDeath(int eventDate, long int reportDate);
 
@@ -115,14 +115,16 @@ class Community {
         static std::vector<size_t> _numDetectedCasesReport;
         static std::vector<size_t> _numDetectedHospitalizations;
         static std::vector<size_t> _numDetectedDeaths;
-        static std::vector<std::map<LocationType, std::map<Location*, int, Location::LocPtrComp>>> _isHot;
+
+        // groups of infectious people: indexed by day, location type, location ptr, and relative infectiousness
+        static std::vector< std::map<LocationType, std::map<Location*, std::map<double, std::vector<Person*>>, Location::LocPtrComp>>> _isHot;
         static std::vector<Person*> _peopleByAge;
         static std::map<int, std::set<std::pair<Person*, Person*> > > _delayedBirthdays;
         static std::set<Person*> _revaccinate_set;          // not automatically re-vaccinated, just checked for boosting, multiple doses
         std::map<TimedIntervention, std::vector<double>> timedInterventions;
 
         //bool _uniformSwap;                                            // use original swapping (==true); or parse swap file (==false)
-        void _transmission(Location* source_loc, vector<Person*> at_risk_group, const double T, const int infectious_count); // generic helper function
+        void _transmission(Location* source_loc, vector<Person*> at_risk_group, const map<double, vector<Person*>> &infectious_groups, const double T); // generic helper function
 
         void expandExposedQueues();
 //        void _advanceTimers();

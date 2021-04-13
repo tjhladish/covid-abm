@@ -2,8 +2,8 @@
 
 CPP = g++
 
-#CFLAGS = -g -std=c++11 -Wall -Wextra -Wno-deprecated-declarations --pedantic
-CFLAGS = -O2 -std=c++11 -Wall -Wextra -Wno-deprecated-declarations --pedantic
+#CFLAGS = -g -std=c++17 -Wall -Wextra -Wno-deprecated-declarations --pedantic
+CFLAGS = -O2 -std=c++17 -Wall -Wextra -Wno-deprecated-declarations --pedantic
 ABCDIR = $(HOME)/work/AbcSmc
 COVDIR = $(HOME)/work/covid-abm
 GSL_PATH = $(HOME)/work/AbcSmc/gsl_local

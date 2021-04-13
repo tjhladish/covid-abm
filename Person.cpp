@@ -154,9 +154,9 @@ double Person::vaccineProtection(const int time) const {
             ves = 0.0;
         } else {
             if (naiveVaccineProtection == true) {
-                ves = _par->VES_NAIVE[dose];
+                ves = _par->VES_NAIVE_at(dose);
             } else {
-                ves = _par->VES[dose];
+                ves = _par->VES_at(dose);
             }
             ves *= remainingEfficacy(time);
         }
@@ -208,15 +208,16 @@ Infection* Person::infect(int sourceid, const Date* date, int sourceloc) {
     const size_t incubation_period = _par->symptom_onset(); // may not be symptomatic, but this is used to determine infectiousness onset
     Infection& infection = initializeNewInfection(time, incubation_period, sourceloc, sourceid);
 
-    double symptomatic_probability = _par->pathogenicityByAge[age];             // may be modified by vaccination
-    const double severe_given_case = _par->probSeriousOutcome.at(SEVERE)[comorbidity][age];
-    const double critical_given_severe = _par->probSeriousOutcome.at(CRITICAL)[comorbidity][age];
-
     const size_t dose = vaccineHistory.size() - 1;
-    const double effective_VEP = isVaccinated() ? _par->VEP[dose]*remaining_efficacy : 0.0;        // reduced symptoms due to vaccine
-    symptomatic_probability *= (1.0 - effective_VEP);
-    assert(symptomatic_probability >= 0.0);
-    assert(symptomatic_probability <= 1.0);
+    const double effective_VEP = isVaccinated() ? _par->VEP_at(dose)*remaining_efficacy : 0.0;        // reduced pathogenicity due to vaccine
+    const double effective_VEH = isVaccinated() ? _par->VEH_at(dose)*remaining_efficacy : 0.0;        // reduced severity (hospitalization) due to vaccine
+    const double effective_VEF = isVaccinated() ? _par->VEF_at(dose)*remaining_efficacy : 0.0;        // reduced fatality due to vaccine
+    const double effective_VEI = isVaccinated() ? _par->VEI_at(dose)*remaining_efficacy : 0.0;        // reduced infectiousness
+
+    const double symptomatic_probability = _par->pathogenicityByAge[age] * (1.0 - effective_VEP);           // may be modified by vaccination
+    const double severe_given_case = _par->probSeriousOutcome.at(SEVERE)[comorbidity][age] * (1.0 - effective_VEH);
+    const double critical_given_severe = _par->probSeriousOutcome.at(CRITICAL)[comorbidity][age];
+    infection.relInfectiousness *= 1.0 - effective_VEI;
 
     // determine disease outcome and timings
     if ( gsl_rng_uniform(RNG) < symptomatic_probability ) {
@@ -263,13 +264,13 @@ Infection* Person::infect(int sourceid, const Date* date, int sourceloc) {
                     // Patient goes to intensive care
                     infection.icuBegin = infection.criticalBegin;
                     if (not hosp) { infection.hospitalizedBegin = infection.icuBegin; } // if they weren't hospitalized before, they are now
-                    death = gsl_rng_uniform(RNG) < _par->icuMortality(comorbidity, age, infection.icuBegin);
+                    death = gsl_rng_uniform(RNG) < _par->icuMortality(comorbidity, age, infection.icuBegin) * (1.0 - effective_VEF);
                     if (death) {
                         // uniform randomly chose a day from the critical duration when death happens
                         processDeath(infection, infection.criticalBegin + _par->sampleIcuTimeToDeath());
                     }
                 } else {
-                    death = gsl_rng_uniform(RNG) < NON_ICU_CRITICAL_MORTALITY;
+                    death = gsl_rng_uniform(RNG) < NON_ICU_CRITICAL_MORTALITY * (1.0 - effective_VEF);
                     if (death) {
                         // non-icu death, happens when critical symptoms begin, as this person is not receiving care
                         processDeath(infection, infection.criticalBegin + _par->sampleCommunityTimeToDeath());
@@ -284,8 +285,7 @@ Infection* Person::infect(int sourceid, const Date* date, int sourceloc) {
         //cerr << "asymptomatic\n";
     }
 
-    // Detection/reporting!  TODO -- currently, being hospitalized does not affect the probability of detection
-    // could check infection.icu() and infection.hospital() and do something different in those cases
+    // Detection/reporting!  TODO -- implement probabilistic detection in hospitals
     if (isSurveilledPerson() and time >= 0) {
         bool detected = false;
         OutcomeType detected_state = NUM_OF_OUTCOME_TYPES;
@@ -335,11 +335,12 @@ Infection* Person::infect(int sourceid, const Date* date, int sourceloc) {
     for (int day = std::max(infection.infectiousBegin, 0); day < infection.infectiousEnd; day++) {
         if (infection.inHospital(day)) {
             Location* hospital = getHospital();
-            Community::flagInfectedLocation(hospital->getType(), hospital, day);
+            Community::flagInfectedLocation(this, infection.relInfectiousness, hospital->getType(), hospital, day);
         } else {
-            Community::flagInfectedLocation(getHomeLoc()->getType(), getHomeLoc(), day); // home loc can be a HOUSE or NURSINGHOME
+            Community::flagInfectedLocation(this, infection.relInfectiousness, getHomeLoc()->getType(), getHomeLoc(), day); // home loc can be a HOUSE or NURSINGHOME
             if (getDayLoc()) {
-                Community::flagInfectedLocation(getDayLoc()->getType(), getDayLoc(), day); // TODO -- people do not stop going to work/school when mild/moderately sick
+                // TODO -- people do not stop going to work/school when mild/moderately sick
+                Community::flagInfectedLocation(this, infection.relInfectiousness, getDayLoc()->getType(), getDayLoc(), day);
             }
         }
     }
@@ -415,8 +416,8 @@ bool Person::vaccinate(int time) {
         }
 
         if ( _par->vaccineLeaky == false ) { // all-or-none VE_S protection
-            if ( (isNaive() and gsl_rng_uniform(RNG) < _par->VES_NAIVE[dose]) // vac someone who's naive
-                 or gsl_rng_uniform(RNG) < _par->VES[dose] ) {                          // vac someone previously infected
+            if ( (isNaive() and gsl_rng_uniform(RNG) < _par->VES_NAIVE_at(dose)) // vac someone who's naive
+                 or gsl_rng_uniform(RNG) < _par->VES_at(dose) ) {                          // vac someone previously infected
                  switch( immune_state ) {
                     case NAIVE:
                     case VACCINATED:
