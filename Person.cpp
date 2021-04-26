@@ -24,6 +24,28 @@ size_t Person::NEXT_ID = 0;
 const Parameters* Person::_par;
 const Parameters* Infection::_par;
 
+void Infection::dumper() const {
+    cerr << "Infection attributes:" << endl;
+    cerr << "\tstrain           : " << strain                                        << endl;
+    cerr << "\tinfectedBegin    : " << infectedBegin                                 << endl;
+    cerr << "\tinfectedPlaceID  : " << (infectedPlace ? infectedPlace->getID() : -1) << endl;
+    cerr << "\tinfectedByID     : " << (infectedBy ? infectedBy->getID() : -1)       << endl;
+    cerr << "\tinfectiousBegin  : " << infectiousBegin                               << endl;
+    cerr << "\tinfectiousEnd    : " << infectiousEnd                                 << endl;
+    cerr << "\tsymptomBegin     : " << symptomBegin                                  << endl;
+    cerr << "\tsymptomEnd       : " << symptomEnd                                    << endl;
+    cerr << "\tsevereBegin      : " << severeBegin                                   << endl;
+    cerr << "\tsevereEnd        : " << severeEnd                                     << endl;
+    cerr << "\thospitalizedBegin: " << hospitalizedBegin                             << endl;
+    cerr << "\tcriticalBegin    : " << criticalBegin                                 << endl;
+    cerr << "\tcriticalEnd      : " << criticalEnd                                   << endl;
+    cerr << "\ticuBegin         : " << icuBegin                                      << endl;
+    cerr << "\tdeathTime        : " << deathTime                                     << endl;
+    cerr << "\tinfections_caused: " << infections_caused.size()                      << endl;
+    cerr << "\trelInfectiousness: " << relInfectiousness                             << endl;
+}
+
+
 Person::Person() {
     id = NEXT_ID++;
     age = -1;
@@ -73,11 +95,12 @@ Infection& Person::initializeNewInfection() {
 }
 
 
-Infection& Person::initializeNewInfection(int time, size_t incubation_period, int sourceloc, int sourceid) {
+Infection& Person::initializeNewInfection(int time, size_t incubation_period, Location* sourceloc, Person* source) {
     Infection& infection      = initializeNewInfection();
     infection.infectedBegin   = time;
     infection.infectedPlace   = sourceloc;
-    infection.infectedByID    = sourceid;
+    infection.infectedBy      = source;
+    infection.strain          = source ? source->getStrain() : WILDTYPE;
     infection.infectiousBegin = time + _par->infectiousness_onset(incubation_period);
     infection.infectiousEnd   = time + incubation_period + SYMPTOMATIC_INFECTIOUS_PERIOD; // person may not actually be symptomatic!
     return infection;
@@ -196,7 +219,7 @@ void Person::processDeath(Infection &infection, const int deathTime) {
 
 // infect - infect this individual
 // returns non-null pointer if infection occurs
-Infection* Person::infect(int sourceid, const Date* date, int sourceloc) {
+Infection* Person::infect(Person* source, const Date* date, Location* sourceloc, StrainType strain) {
     const int time = date->day();
     // Bail now if this person can not become infected
     // Not quite the same as "susceptible"--this person may be e.g. partially immune
@@ -206,7 +229,8 @@ Infection* Person::infect(int sourceid, const Date* date, int sourceloc) {
 
     // Create a new infection record
     const size_t incubation_period = _par->symptom_onset(); // may not be symptomatic, but this is used to determine infectiousness onset
-    Infection& infection = initializeNewInfection(time, incubation_period, sourceloc, sourceid);
+    Infection& infection = initializeNewInfection(time, incubation_period, sourceloc, source);
+    if (not source) { infection.strain = strain; }
 
     const size_t dose = vaccineHistory.size() - 1;
     const double effective_VEP = isVaccinated() ? _par->VEP_at(dose)*remaining_efficacy : 0.0;        // reduced pathogenicity due to vaccine
@@ -218,6 +242,7 @@ Infection* Person::infect(int sourceid, const Date* date, int sourceloc) {
     const double severe_given_case = _par->probSeriousOutcome.at(SEVERE)[comorbidity][age] * (1.0 - effective_VEH);
     const double critical_given_severe = _par->probSeriousOutcome.at(CRITICAL)[comorbidity][age];
     infection.relInfectiousness *= 1.0 - effective_VEI;
+    if ( infection.strain == B117) { infection.relInfectiousness *= 1.7; }
 
     // determine disease outcome and timings
     if ( gsl_rng_uniform(RNG) < symptomatic_probability ) {

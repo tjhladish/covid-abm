@@ -99,12 +99,29 @@ inline std::ostream& operator<<(std::ostream& out, const OutcomeType value){
     return out << s;
 }
 
-
 enum ComorbidType{
     HEALTHY,
     COMORBID,
     NUM_OF_COMORBID_TYPES
 };
+
+enum StrainType{
+    WILDTYPE,
+    B117,
+    NUM_OF_STRAIN_TYPES
+};
+
+inline std::ostream& operator<<(std::ostream& out, const StrainType value){
+    const char* s = 0;
+#define PROCESS_VAL(p) case(p): s = #p; break;
+    switch(value){
+        PROCESS_VAL(WILDTYPE);
+        PROCESS_VAL(B117);
+        PROCESS_VAL(NUM_OF_STRAIN_TYPES);
+    }
+#undef PROCESS_VAL
+    return out << s;
+}
 
 enum VaccineSeroConstraint {
     VACCINATE_SERONEGATIVE_ONLY,

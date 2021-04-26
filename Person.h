@@ -28,13 +28,14 @@ class Infection {
         icuBegin          = INT_MAX;
         deathTime         = INT_MAX;
 
-        infectedPlace     = INT_MIN;
-        infectedByID      = INT_MIN;
+        infectedPlace     = nullptr;
+        infectedBy        = nullptr;
         infectiousEnd     = INT_MIN;
         symptomEnd        = INT_MIN;
         severeEnd         = INT_MIN;
         criticalEnd       = INT_MIN;
 
+        strain            = WILDTYPE;
         relInfectiousness = 1.0;
         _detection        = nullptr;
     };
@@ -44,8 +45,8 @@ class Infection {
     }
 
     int infectedBegin;                      // when infected?
-    int infectedPlace;                      // where infected?
-    int infectedByID;                       // who infected this person
+    Location* infectedPlace;                // where infected?
+    Person* infectedBy;                     // who infected this person
     int infectiousBegin;                    // when infectious period starts
     int infectiousEnd;
 
@@ -62,13 +63,14 @@ class Infection {
 
     int deathTime;
     std::vector<Infection*> infections_caused;
+    StrainType strain;
     double relInfectiousness;
     Detection* _detection;
 
     static const Parameters* _par;
 
   public:
-    bool isLocallyAcquired()      const { return infectedByID != -1; }
+    bool isLocallyAcquired()      const { return infectedBy != nullptr; }
 
     int getInfectedTime()         const { return infectedBegin; }
     int getInfectiousTime()       const { return infectiousBegin; }
@@ -79,6 +81,7 @@ class Infection {
     int getCriticalTime()         const { return criticalBegin; }
     int getIcuTime()              const { return icuBegin; }
     int getDeathTime()            const { return deathTime; }
+    StrainType getStrain()        const { return strain; }
     double getRelInfectiousness() const { return relInfectiousness; }            // Could be time-varying in the future
 
     bool infected()               const { return infectedBegin     != INT_MAX; } // These functions check whether these things
@@ -112,25 +115,7 @@ class Infection {
         return times;
     }
 
-    void dumper() const {
-        cerr << "Infection attributes:" << endl;
-        cerr << "\tinfectedBegin    : " << infectedBegin            << endl;
-        cerr << "\tinfectedPlace    : " << infectedPlace            << endl;
-        cerr << "\tinfectedByID     : " << infectedByID             << endl;
-        cerr << "\tinfectiousBegin  : " << infectiousBegin          << endl;
-        cerr << "\tinfectiousEnd    : " << infectiousEnd            << endl;
-        cerr << "\tsymptomBegin     : " << symptomBegin             << endl;
-        cerr << "\tsymptomEnd       : " << symptomEnd               << endl;
-        cerr << "\tsevereBegin      : " << severeBegin              << endl;
-        cerr << "\tsevereEnd        : " << severeEnd                << endl;
-        cerr << "\thospitalizedBegin: " << hospitalizedBegin        << endl;
-        cerr << "\tcriticalBegin    : " << criticalBegin            << endl;
-        cerr << "\tcriticalEnd      : " << criticalEnd              << endl;
-        cerr << "\ticuBegin         : " << icuBegin                 << endl;
-        cerr << "\tdeathTime        : " << deathTime                << endl;
-        cerr << "\tinfections_caused: " << infections_caused.size() << endl;
-        cerr << "\trelInfectiousness: " << relInfectiousness        << endl;
-    }
+    void dumper() const;
 };
 
 class Person {
@@ -169,32 +154,33 @@ class Person {
         bool isCrossProtected(int time) const; // assumes binary cross-immunity
         bool isVaccineProtected(int time) const;
 
-        inline int getInfectedByID(int infectionsago=0)      const { return getInfection(infectionsago)->infectedByID; }
-        inline int getInfectedPlace(int infectionsago=0)     const { return getInfection(infectionsago)->infectedPlace; }
-        inline int getInfectedTime(int infectionsago=0)      const { return getInfection(infectionsago)->infectedBegin; }
+        inline Person* getInfectedBy(int infectionsago=0)      const { return getInfection(infectionsago)->infectedBy; }
+        inline Location* getInfectedPlace(int infectionsago=0) const { return getInfection(infectionsago)->infectedPlace; }
+        inline int getInfectedTime(int infectionsago=0)        const { return getInfection(infectionsago)->infectedBegin; }
 
-        inline int getInfectiousTime(int infectionsago=0)    const { return getInfection(infectionsago)->infectiousBegin; }
-        inline int getSymptomTime(int infectionsago=0)       const { return getInfection(infectionsago)->symptomBegin; }
-        inline int getSevereTime(int infectionsago=0)        const { return getInfection(infectionsago)->severeBegin; }
-        inline int getCriticalTime(int infectionsago=0)      const { return getInfection(infectionsago)->criticalBegin; }
+        inline int getInfectiousTime(int infectionsago=0)      const { return getInfection(infectionsago)->infectiousBegin; }
+        inline int getSymptomTime(int infectionsago=0)         const { return getInfection(infectionsago)->symptomBegin; }
+        inline int getSevereTime(int infectionsago=0)          const { return getInfection(infectionsago)->severeBegin; }
+        inline int getCriticalTime(int infectionsago=0)        const { return getInfection(infectionsago)->criticalBegin; }
 
-        inline int getHospitalizedTime(int infectionsago=0)  const { return getInfection(infectionsago)->hospitalizedBegin; }
-        inline int getIcuTime(int infectionsago=0)           const { return getInfection(infectionsago)->icuBegin; }
-        inline int getDeathTime(int infectionsago=0)         const { return getInfection(infectionsago)->deathTime; }
+        inline int getHospitalizedTime(int infectionsago=0)    const { return getInfection(infectionsago)->hospitalizedBegin; }
+        inline int getIcuTime(int infectionsago=0)             const { return getInfection(infectionsago)->icuBegin; }
+        inline int getDeathTime(int infectionsago=0)           const { return getInfection(infectionsago)->deathTime; }
 
-        Infection* getInfection(int infectionsago=0)         const { return infectionHistory[getNumNaturalInfections() - 1 - infectionsago]; }
-        double     getRelInfectiousness(int infectionsago=0) const { return getInfection(infectionsago)->relInfectiousness; }
-        inline int getNumNaturalInfections()                 const { return infectionHistory.size(); }
+        Infection* getInfection(int infectionsago=0)           const { return infectionHistory[getNumNaturalInfections() - 1 - infectionsago]; }
+        StrainType getStrain(int infectionsago=0)              const { return getInfection(infectionsago)->strain; }
+        double     getRelInfectiousness(int infectionsago=0)   const { return getInfection(infectionsago)->relInfectiousness; }
+        inline int getNumNaturalInfections()                   const { return infectionHistory.size(); }
 
-        int getNumVaccinations()                             const { return vaccineHistory.size(); }
-        const std::vector<int>& getVaccinationHistory()      const { return vaccineHistory; }
-        const std::vector<Infection*>& getInfectionHistory() const { return infectionHistory; }
-        int daysSinceVaccination(int time)                   const { assert( vaccineHistory.size() > 0); return time - vaccineHistory.back(); } // isVaccinated() should be called first
+        int getNumVaccinations()                               const { return vaccineHistory.size(); }
+        const std::vector<int>& getVaccinationHistory()        const { return vaccineHistory; }
+        const std::vector<Infection*>& getInfectionHistory()   const { return infectionHistory; }
+        int daysSinceVaccination(int time)                     const { assert( vaccineHistory.size() > 0); return time - vaccineHistory.back(); } // isVaccinated() should be called first
         double vaccineProtection(const int time) const;
 
-        Infection* infect(int sourceid, const Date* date, int sourceloc);
+        Infection* infect(Person* source, const Date* date, Location* sourceloc, StrainType = NUM_OF_STRAIN_TYPES); // strain determined by source, unless source is nullptr
         void processDeath(Infection &infection, const int time);
-        inline bool infect(const Date* date) {return infect(INT_MIN, date, INT_MIN);}
+        inline Infection* infect(const Date* date, StrainType strain) {return infect(nullptr, date, nullptr, strain);}
 
         // TODO -- the following functions assume that only the most recent infection needs to be inspected
         bool inHospital(int time) const { return infectionHistory.size() > 0 and infectionHistory.back()->inHospital(time); }
@@ -221,7 +207,7 @@ class Person {
         static void setPar(const Parameters* par) { _par = par; }
 
         Infection& initializeNewInfection();
-        Infection& initializeNewInfection(int time, size_t incubation_period, int sourceloc, int sourceid);
+        Infection& initializeNewInfection(int time, size_t incubation_period, Location* sourceloc, Person* source);
 
         static void reset_ID_counter() { NEXT_ID = 0; }
         bool isSurveilledPerson() { return id < _par->numSurveilledPeople; }

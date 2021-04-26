@@ -431,9 +431,9 @@ Person* Community::getPersonByID(int id) {
 
 
 // infect - infects person id
-Infection* Community::infect(int id) {
+Infection* Community::infect(int id, StrainType strain) {
     Person* person = getPersonByID(id);
-    return person->infect(-1, _date, 0);
+    return person->infect(_date, strain);
 }
 
 
@@ -603,8 +603,10 @@ void Community::flagInfectedLocation(Person* person, double relInfectiousness, L
 }
 
 
-Infection* Community::trace_contact(int &infecter_id, Location* source_loc, const map<double, vector<Person*>> &infectious_groups) {
+Infection* Community::trace_contact(Person* &infecter, Location* source_loc, const map<double, vector<Person*>> &infectious_groups) {
     // Identify who was the source of an exposure event (tracing backward)
+    // First we determine which group did the infecting (grouped by infectiousness),
+    // then we chose the person within the group who is the infecter
     vector<double> individual_weights;
     vector<double> group_weights;
     double total = 0.0;
@@ -624,10 +626,8 @@ Infection* Community::trace_contact(int &infecter_id, Location* source_loc, cons
             r -= group_weights[idx];
         }
     }
-    vector<Person*> peeps = infectious_groups.at(individual_weights[idx]);
-    Person* infecter = choice(RNG, peeps);
-    //Person* infecter = choice(RNG, infectious_groups.at(individual_weights[idx]));
-    infecter_id = infecter->getID();
+    infecter = choice(RNG, infectious_groups.at(individual_weights[idx]));
+
     // sanity check to make sure we've found a legit candidate
     const vector<Person*> people = source_loc->getPeople();
     assert(infecter->isInfectious(_day)
@@ -775,12 +775,11 @@ void Community::nursinghome_transmission() {
 void Community::_transmission(Location* source_loc, vector<Person*> at_risk_group, const map<double, vector<Person*>> &infectious_groups, const double T) {
     for (Person* p: at_risk_group) {
         if (gsl_rng_uniform(RNG) < T) {
-            int infecter_id = INT_MIN;
+            Person* infecter     = nullptr;
             Infection* infection = nullptr;
-            if (_par->traceContacts) {
-                infection = trace_contact(infecter_id, source_loc, infectious_groups);
-            }
-            Infection* transmission = p->infect(infecter_id, _date, source_loc->getID()); // infect() tests for whether person is infectable
+            // because we now support multiple strains, we always have to trace, in order to determine what the infecting strain would be
+            infection = trace_contact(infecter, source_loc, infectious_groups);
+            Infection* transmission = p->infect(infecter, _date, source_loc); // infect() tests for whether person is infectable
             if (infection and transmission) { infection->log_transmission(transmission); } // are we contact tracing, and did transmission occur?
         }
     }
@@ -825,7 +824,6 @@ void Community::tick() {
 // getNumInfected - counts number of infected residents
 size_t Community::getNumInfected(int day) {
     size_t count=0;
-    //for (Person* p: _people) { if (p->isInfected(day)) count++; }
     for (Person* p: _people) { count += p->isInfected(day); }
     return count;
 }

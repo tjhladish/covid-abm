@@ -208,7 +208,7 @@ void update_vaccinations(const Parameters* par, Community* community, const Date
 }
 
 
-int seed_epidemic(const Parameters* par, Community* community, const Date* date) {
+int seed_epidemic(const Parameters* par, Community* community, const Date* date, StrainType strain) {
     int introduced_infection_ct = 0;
     const int numperson = community->getNumPeople();
     const size_t dailyExposedIdx = date->day() % par->probDailyExposure.size();
@@ -219,7 +219,7 @@ int seed_epidemic(const Parameters* par, Community* community, const Date* date)
         for (int i=0; i<num_exposed; i++) {
             // gsl_rng_uniform_int returns on [0, numperson-1]
             int transmit_to_id = gsl_rng_uniform_int(RNG, numperson);
-            if (community->infect(transmit_to_id)) {
+            if (community->infect(transmit_to_id, strain)) {
                 introduced_infection_ct++;
             }
         }
@@ -231,7 +231,8 @@ int seed_epidemic(const Parameters* par, Community* community, const Date* date)
 void advance_simulator(const Parameters* par, Community* community, Date* date, const string process_id, map<string, vector<int> > &periodic_incidence, vector<int> &periodic_prevalence, vector<int> &epi_sizes) {
     community->tick();
 
-    seed_epidemic(par, community, date);
+    StrainType strain = WILDTYPE;
+    seed_epidemic(par, community, date, strain);
 
     for (Person* p: community->getPeople()) {
         const int now = date->day();
@@ -313,26 +314,19 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
 
     map<string, vector<int> > periodic_incidence = construct_tally();
     vector<int> periodic_prevalence(NUM_OF_PREVALENCE_REPORTING_TYPES, 0);
-//    size_t prev_rc_ct = 0;
-//    const float may15_threshold = par->mmodsScenario == NUM_OF_MMODS_SCENARIOS ? 180.0*community->getNumPeople()/1e5 : 180.0;
-//    const int may15 = 135;
-//    const int nov15 = 319;
-//    double peak_height = 0;
-//    size_t peak_time = -1;
     vector<double> trailing_averages(par->runLength);
-    bool hit_may15_target = false;
-    //bool intervention_trigger = true;
     const double pop_at_risk = min(community->getNumPeople(), par->numSurveilledPeople);
 
     vector<string> plot_log_buffer = {"date,sd,cinf,closed,rcase,rdeath,Rt"};
 
     Date* date = community->get_date();
     for (; date->day() < (signed) par->runLength; date->increment()) {
-//        if (par->mmodsScenario < NUM_OF_MMODS_SCENARIOS and date->julianDay() >= nov15) break;
         update_vaccinations(par, community, date);
-        //advance_simulator(par, community, date, process_id, periodic_incidence, periodic_prevalence, epi_sizes);
         community->tick();
-        seed_epidemic(par, community, date);
+
+        StrainType strain = WILDTYPE;
+        if ( *date > "2021-01-01" ) { strain = B117; }
+        seed_epidemic(par, community, date, strain);
         const vector<size_t> infections         = community->getNumNewlyInfected();
         const vector<size_t> all_reported_cases = community->getNumDetectedCasesReport();
         const size_t reported_cases             = all_reported_cases[date->day()];
@@ -343,55 +337,25 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
         const double cAR                        = cinf/pop_at_risk; // cumulative attack rate (I hate this term)
 
         const double trailing_avg = trailing_averages[date->day()];
-//        if (trailing_avg > 0 and trailing_avg >= peak_height) {
-//            peak_height = trailing_avg;
-//            peak_time = date->day();
-//        }
-
         const vector<size_t> rdeaths = community->getNumDetectedDeaths();
 
         const size_t rc_ct = accumulate(all_reported_cases.begin(), all_reported_cases.begin()+date->day()+1, 0);
-//        if (par->mmodsScenario < NUM_OF_MMODS_SCENARIOS and prev_rc_ct < may15_threshold and rc_ct >= may15_threshold) {
-//            hit_may15_target = true;
-//            date->setJulianDay(may15);
-//            if (par->mmodsScenario == MMODS_OPEN) {
-//                community->updateTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, date->day(), 0.0);
-//                community->updateTimedIntervention(SOCIAL_DISTANCING, date->day(), 0.2);
-//            }
-//        }
-//        prev_rc_ct = rc_ct;
-
-//        if (intervention_trigger and par->mmodsScenario == MMODS_2WEEKS and hit_may15_target and date->day() >= (signed) peak_time + 14) {
-//            // Also need to pass new 2nd criterion: at least 10 of last 14 days are strict decreases, or last 7 days have no cases
-//            const vector<double> last_fortnight(trailing_averages.begin() + date->day() - 13, trailing_averages.begin() + date->day() + 1);
-//            if (trailing_avg == 0 or tally_decreases(last_fortnight) >= 10) {
-//                community->updateTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, date->day(), 0.0);
-//                community->updateTimedIntervention(SOCIAL_DISTANCING, date->day(), 0.2);
-//                intervention_trigger = false;
-//            }
-//        } else if (intervention_trigger and par->mmodsScenario == MMODS_5PERCENT and hit_may15_target and reported_cases <= 0.05*peak_height) {
-//            community->updateTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, date->day(), 0.0);
-//            community->updateTimedIntervention(SOCIAL_DISTANCING, date->day(), 0.2);
-//            intervention_trigger = false;
-//        }
-        if (date->dayOfMonth()==1) cerr << "hit scen rep        sday date        infinc  cAR\trcases\trcta7\tcrcases\trdeath\tcrdeath\tsevprev\tcrhosp\tclosed\tsocdist\n";
-        cerr << left << setw(4) << hit_may15_target
-             << setw(5) << par->mmodsScenario
+        if (date->dayOfMonth()==1) cerr << "        rep sday        date  infinc  cAR     rcases  rcta7  crcases  rdeath  crdeath  sevprev   crhosp  closed  socdist\n";
+        cerr << right
              << setw(11) << process_id
-             << setw(4) << date->day()
-             << " " << date->to_string({"yyyy", "mm", "dd"}, "-")
-             << right << setw(8) << infections[date->day()]
-             << "  " << setw(7) << setprecision(2) << left << cAR
-             << "\t" << setprecision(4) << reported_cases
-             << "\t" << trailing_avg
-             << "\t" << rc_ct
-             << "\t" << rdeaths[date->day()]
-             << "\t" << accumulate(rdeaths.begin(), rdeaths.begin()+date->day()+1, 0)
-             << "\t" << severe_prev[date->day()]
-             << "\t" << accumulate(rhosp.begin(), rhosp.begin()+date->day()+1, 0)
-             << "\t" << community->getTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, date->day())
-             //<< "\t" << (date->day() == (signed) peak_time) // new peak observed?
-             << "\t" << par->timedInterventions.at(SOCIAL_DISTANCING).at(date->day())
+             << setw(5)  << date->day()
+             << setw(12) << date->to_ymd()
+             << setw(8)  << infections[date->day()]
+             << "  "     << setw(7) << setprecision(2) << left << cAR << right
+             << setw(7)  << reported_cases
+             << "  "     << setw(7) << setprecision(4) << left << trailing_avg << right
+             << setw(7)  << rc_ct
+             << setw(8)  << rdeaths[date->day()]
+             << setw(9)  << accumulate(rdeaths.begin(), rdeaths.begin()+date->day()+1, 0)
+             << setw(9)  << severe_prev[date->day()]
+             << setw(9)  << accumulate(rhosp.begin(), rhosp.begin()+date->day()+1, 0)
+             << setw(8)  << community->getTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, date->day())
+             << "  "     << setprecision(2) << par->timedInterventions.at(SOCIAL_DISTANCING).at(date->day())
              << endl;
 
         stringstream ss;

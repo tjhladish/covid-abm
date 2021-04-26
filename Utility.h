@@ -91,7 +91,7 @@ namespace covid {
         }
 
         template <typename T> inline
-        T choice(const gsl_rng* RNG, vector<T> &V) {
+        T choice(const gsl_rng* RNG, const vector<T> &V) {
             return V[gsl_rng_uniform_int(RNG, V.size())];
         }
 

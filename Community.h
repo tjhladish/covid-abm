@@ -33,7 +33,7 @@ class Community {
         size_t getNumSymptomatic(int day);
         size_t getNumNaive();
         Person* getPersonByID(int id);
-        Infection*  infect(int id);
+        Infection*  infect(int id, StrainType strain = WILDTYPE);
         int getDay() { return _day; }                                // what day is it?
         //void swapImmuneStates();
         void updatePersonStatus();
@@ -72,7 +72,7 @@ class Community {
         std::vector<pair<size_t, double>> getMeanNumSecondaryInfections() const ;
 
         static void flagInfectedLocation(Person* person, double relInfectiousness, LocationType locType, Location* _pLoc, int day);
-        Infection* trace_contact(int &infectee_id, Location* source_loc, const map<double, vector<Person*>> &infectious_groups);
+        Infection* trace_contact(Person* &infecter, Location* source_loc, const map<double, vector<Person*>> &infectious_groups);
         static void reportCase(int onsetDate, long int reportDate, bool hospitalized);
         static void reportDeath(int eventDate, long int reportDate);
 

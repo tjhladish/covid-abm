@@ -33,6 +33,24 @@ class Date {
     // for use when needing to pass a historical sim day as a Date object, e.g. to model pre-existing natural immunity.  Note that month and year counts are not set!
     Date(const Parameters* par, int sim_day):_simulation_day(sim_day),_month_ct(0),_year_ct(0),_julian_day(par->startDayOfYear),_julian_year(par->startJulianYear) {};
 
+    template <typename T> friend inline bool operator== (const Date &lhs, const T rhs)  { return lhs.to_ymd().compare(rhs) == 0; }
+    template <typename T> friend inline bool operator== (const T lhs, const Date &rhs)  { return rhs.to_ymd().compare(lhs) == 0; }
+
+    template <typename T> friend inline bool operator!= (const Date &lhs, const T rhs)  { return lhs.to_ymd().compare(rhs) != 0; }
+    template <typename T> friend inline bool operator!= (const T lhs, const Date &rhs)  { return rhs.to_ymd().compare(lhs) != 0; }
+
+    template <typename T> friend inline bool operator<  (const Date &lhs, const T rhs)  { return lhs.to_ymd().compare(rhs) <  0; }
+    template <typename T> friend inline bool operator<  (const T lhs, const Date &rhs)  { return rhs.to_ymd().compare(lhs) >  0; }
+
+    template <typename T> friend inline bool operator>  (const Date &lhs, const T rhs)  { return lhs.to_ymd().compare(rhs) >  0; }
+    template <typename T> friend inline bool operator>  (const T lhs, const Date &rhs)  { return rhs.to_ymd().compare(lhs) <  0; }
+
+    template <typename T> friend inline bool operator<= (const Date &lhs, const T rhs)  { return lhs.to_ymd().compare(rhs) <= 0; }
+    template <typename T> friend inline bool operator<= (const T lhs, const Date &rhs)  { return rhs.to_ymd().compare(lhs) >= 0; }
+
+    template <typename T> friend inline bool operator>= (const Date &lhs, const T rhs)  { return lhs.to_ymd().compare(rhs) >= 0; }
+    template <typename T> friend inline bool operator>= (const T lhs, const Date &rhs)  { return rhs.to_ymd().compare(lhs) <= 0; }
+
     inline int day()            const { return _simulation_day; }                                   // [0, ...]
     size_t julianDay()          const { return _julian_day; }                                       // [1, {365, 366}]
     static size_t dayOfMonth(size_t julian_day, size_t julian_year) {                               // [1, {29,30,31}]
@@ -205,6 +223,10 @@ class Date {
            << setw(2) << julianMonth(julian_day, julian_year) << sep
            << setw(2) << dayOfMonth(julian_day, julian_year);
         return ss.str();
+    }
+
+    string to_ymd() const {
+        return to_ymd(julianYear(), julianDay());
     }
 
     static int to_sim_day(size_t julian_start_year, size_t julian_start_day, string date_str) {
