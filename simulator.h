@@ -317,10 +317,11 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
     vector<double> trailing_averages(par->runLength);
     const double pop_at_risk = min(community->getNumPeople(), par->numSurveilledPeople);
 
-    vector<string> plot_log_buffer = {"date,sd,cinf,closed,rcase,rdeath,Rt"};
+    vector<string> plot_log_buffer = {"date,sd,seasonality,vocprev,cinf,closed,rcase,rdeath,Rt"};
 
     Date* date = community->get_date();
     for (; date->day() < (signed) par->runLength; date->increment()) {
+        const size_t sim_day = date->day();
         update_vaccinations(par, community, date);
         community->tick();
 
@@ -329,42 +330,45 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
         seed_epidemic(par, community, date, strain);
         const vector<size_t> infections         = community->getNumNewlyInfected();
         const vector<size_t> all_reported_cases = community->getNumDetectedCasesReport();
-        const size_t reported_cases             = all_reported_cases[date->day()];
-        trailing_averages[date->day()]          = calc_trailing_avg(all_reported_cases, date->day(), 7); // <= 7-day trailing average
+        const size_t reported_cases             = all_reported_cases[sim_day];
+        trailing_averages[sim_day]          = calc_trailing_avg(all_reported_cases, sim_day, 7); // <= 7-day trailing average
         const vector<size_t> rhosp              = community->getNumDetectedHospitalizations();
         const vector<size_t> severe_prev        = community->getNumSeverePrev();
-        const double cinf                       = accumulate(infections.begin(), infections.begin()+date->day()+1, 0.0);
+        const double cinf                       = accumulate(infections.begin(), infections.begin()+sim_day+1, 0.0);
         const double cAR                        = cinf/pop_at_risk; // cumulative attack rate (I hate this term)
 
-        const double trailing_avg = trailing_averages[date->day()];
+        const double trailing_avg = trailing_averages[sim_day];
         const vector<size_t> rdeaths = community->getNumDetectedDeaths();
 
-        const size_t rc_ct = accumulate(all_reported_cases.begin(), all_reported_cases.begin()+date->day()+1, 0);
+        const size_t rc_ct = accumulate(all_reported_cases.begin(), all_reported_cases.begin()+sim_day+1, 0);
         if (date->dayOfMonth()==1) cerr << "        rep sday        date  infinc  cAR     rcases  rcta7  crcases  rdeath  crdeath  sevprev   crhosp  closed  socdist\n";
         cerr << right
              << setw(11) << process_id
-             << setw(5)  << date->day()
+             << setw(5)  << sim_day
              << setw(12) << date->to_ymd()
-             << setw(8)  << infections[date->day()]
+             << setw(8)  << infections[sim_day]
              << "  "     << setw(7) << setprecision(2) << left << cAR << right
              << setw(7)  << reported_cases
              << "  "     << setw(7) << setprecision(4) << left << trailing_avg << right
              << setw(7)  << rc_ct
-             << setw(8)  << rdeaths[date->day()]
-             << setw(9)  << accumulate(rdeaths.begin(), rdeaths.begin()+date->day()+1, 0)
-             << setw(9)  << severe_prev[date->day()]
-             << setw(9)  << accumulate(rhosp.begin(), rhosp.begin()+date->day()+1, 0)
-             << setw(8)  << community->getTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, date->day())
-             << "  "     << setprecision(2) << par->timedInterventions.at(SOCIAL_DISTANCING).at(date->day())
+             << setw(8)  << rdeaths[sim_day]
+             << setw(9)  << accumulate(rdeaths.begin(), rdeaths.begin()+sim_day+1, 0)
+             << setw(9)  << severe_prev[sim_day]
+             << setw(9)  << accumulate(rhosp.begin(), rhosp.begin()+sim_day+1, 0)
+             << setw(8)  << community->getTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, sim_day)
+             << "  "     << setprecision(2) << par->timedInterventions.at(SOCIAL_DISTANCING).at(sim_day)
              << endl;
 
+        //date,sd,seasonality,vocprev,cinf,closed,rcase,rdeath,Rt
         stringstream ss;
         ss << date->to_string({"yyyy", "mm", "dd"}, "-") << ","
-           << par->timedInterventions.at(SOCIAL_DISTANCING).at(date->day()) << ","
+           << par->timedInterventions.at(SOCIAL_DISTANCING).at(sim_day) << ","
+           << par->seasonality.at(date->julianDay()-1) << ","
+           << (float) community->getNumNewVocInfections()[sim_day]/infections[sim_day] << ","
            << cAR << ","
-           << community->getTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, date->day())<< ","
+           << community->getTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, sim_day)<< ","
            << reported_cases*1e4/pop_at_risk << ","
-           << rdeaths[date->day()]*1e4/pop_at_risk;
+           << rdeaths[sim_day]*1e4/pop_at_risk;
         plot_log_buffer.push_back(ss.str());
     }
 

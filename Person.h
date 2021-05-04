@@ -141,12 +141,16 @@ class Person {
 
         Location* getHomeLoc() { return home_loc; }
         void setHomeLoc(Location* loc) { home_loc = loc; }
+        double getRiskiness() const { return home_loc->getRiskiness(); }
         Location* getDayLoc() { return day_loc; }
         void setDayLoc(Location* loc) { day_loc = loc; }
 
         Location* getHospital() const { return home_loc->getHospital(); }
         void goToHospital() { getHospital()->addPerson(this); }
         void leaveHospital() { getHospital()->removePerson(this); }
+
+        void addPatronizedLocation(Location* loc) { patronized_locs.push_back(loc); } // person is sometimes a customer of these businesses
+        vector<Location*> getPatronizedLocations() const { return patronized_locs; }
 //        void setImmunity() { immune = true; }
 //        void copyImmunity(const Person *p);
         void resetImmunity();
@@ -178,7 +182,8 @@ class Person {
         int daysSinceVaccination(int time)                     const { assert( vaccineHistory.size() > 0); return time - vaccineHistory.back(); } // isVaccinated() should be called first
         double vaccineProtection(const int time) const;
 
-        Infection* infect(Person* source, const Date* date, Location* sourceloc, StrainType = NUM_OF_STRAIN_TYPES); // strain determined by source, unless source is nullptr
+        // strain determined by source, unless source is nullptr
+        Infection* infect(Person* source, const Date* date, Location* sourceloc, StrainType strain = NUM_OF_STRAIN_TYPES, bool check_susceptibility = true);
         void processDeath(Infection &infection, const int time);
         inline Infection* infect(const Date* date, StrainType strain) {return infect(nullptr, date, nullptr, strain);}
 
@@ -229,6 +234,7 @@ class Person {
         size_t id;                                                      // unique identifier
         Location* home_loc;                                             // family membership
         Location* day_loc;                                              // ID of location of work
+        std::vector<Location*> patronized_locs;                         // business patronized by this person
         int age;                                                        // age in years
         SexType sex;                                                    // sex (gender)
         bool long_term_care;                                            // resident of nursing home, etc.

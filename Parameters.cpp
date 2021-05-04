@@ -33,6 +33,7 @@ void Parameters::define_defaults() {
     //secondaryTransmission = true;
     populationFilename = "population.txt";
     locationFilename = "locations.txt";
+    publicActivityFilename = "public-activity.txt";
     networkFilename = "network.txt";
     peopleOutputFilename = "";
     yearlyPeopleOutputFilename = "";
@@ -249,7 +250,7 @@ void Parameters::createDetectionModel(const vector<double>& initial_vals, const 
 
 void Parameters::createReportingLagModel(std::string filename) { rlm = new ReportingLagModel(filename); }
 
-double Parameters::seasonality (const Date *date) const { return _seasonality.at(date->day()); }
+double Parameters::seasonality_on (const Date *date) const { return seasonality.at(date->julianDay() - 1); }
 
 void Parameters::createSocialDistancingModel(std::string filename, size_t metric_col, float mobility_logit_shift, float mobility_logit_stretch) {
     // expects that the mobility data being read in has a first column with increasing, consecutive dates

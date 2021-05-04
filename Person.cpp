@@ -63,12 +63,14 @@ Person::~Person() {
     clearInfectionHistory();
 }
 
+
 void Person::clearInfectionHistory() {
     for (unsigned int i = 0; i < infectionHistory.size(); i++) {
         delete infectionHistory[i];
     }
     infectionHistory.clear();
 }
+
 
 Infection& Person::initializeNewInfection() {
 //    setImmunity();
@@ -143,7 +145,7 @@ bool Person::naturalDeath(int t) {
 
 
 bool Person::isInfectable(int time) const {
-    return gsl_rng_uniform(RNG) < _par->susceptibilityByAge[age]
+    return (not isInfected(time)) and gsl_rng_uniform(RNG) < _par->susceptibilityByAge[age]
               and (isNaive() or (!isCrossProtected(time) and !isVaccineProtected(time)));
 }
 
@@ -219,12 +221,12 @@ void Person::processDeath(Infection &infection, const int deathTime) {
 
 // infect - infect this individual
 // returns non-null pointer if infection occurs
-Infection* Person::infect(Person* source, const Date* date, Location* sourceloc, StrainType strain) {
+Infection* Person::infect(Person* source, const Date* date, Location* sourceloc, StrainType strain, bool check_susceptibility) {
     const int time = date->day();
     // Bail now if this person can not become infected
     // Not quite the same as "susceptible"--this person may be e.g. partially immune
     // due to natural infection or vaccination
-    if (not isInfectable(time)) return nullptr;
+    if (check_susceptibility and not isInfectable(time)) { return nullptr; }
     const double remaining_efficacy = remainingEfficacy(time);  // due to vaccination; needs to be called before initializing new infection (still true?)
 
     // Create a new infection record
@@ -241,12 +243,18 @@ Infection* Person::infect(Person* source, const Date* date, Location* sourceloc,
     const double symptomatic_probability = _par->pathogenicityByAge[age] * (1.0 - effective_VEP);           // may be modified by vaccination
     const double severe_given_case = _par->probSeriousOutcome.at(SEVERE)[comorbidity][age] * (1.0 - effective_VEH);
     const double critical_given_severe = _par->probSeriousOutcome.at(CRITICAL)[comorbidity][age];
-    infection.relInfectiousness *= 1.0 - effective_VEI;
-    if ( infection.strain == B117) { infection.relInfectiousness *= 1.7; }
+    infection.relInfectiousness *= (1.0 - effective_VEI); // 0.25 b/c most (== asymptomatic) people are not very infectious
+    if ( infection.strain == B117) { infection.relInfectiousness *= 1.5; }
+
+    const double highly_infectious_threshold = 8.04; // 80th %ile for overall SARS-CoV-2 from doi: 10.7554/eLife.65774, "Fig 4-Fig Sup 3"
 
     // determine disease outcome and timings
-    if ( gsl_rng_uniform(RNG) < symptomatic_probability ) {
-        // This is a case
+    if ( gsl_rng_uniform(RNG) > symptomatic_probability ) {
+       // asymptomatic
+        infection.relInfectiousness *= gsl_ran_weibull(RNG, 6.72, 3.33) > highly_infectious_threshold ? 4.0 : 0.25;
+    } else {
+        // symptomatic
+        infection.relInfectiousness *= gsl_ran_weibull(RNG, 7.40, 3.81) > highly_infectious_threshold ? 4.0 : 0.25;
         //const size_t symptom_onset = _par->symptom_onset();
         Community::_cumulIncByOutcome[MILD]++;
         infection.symptomBegin = time + incubation_period;
@@ -306,8 +314,6 @@ Infection* Person::infect(Person* source, const Date* date, Location* sourceloc,
                 infection.recoveryTime = infection.infectiousBegin + INFECTIOUS_PERIOD_SEVERE;
             }*/
         }
-    } else {
-        //cerr << "asymptomatic\n";
     }
 
     // Detection/reporting!  TODO -- implement probabilistic detection in hospitals
@@ -330,12 +336,14 @@ Infection* Person::infect(Person* source, const Date* date, Location* sourceloc,
             report_date = sample_collection_date + reporting_lag;
             detected_state = MILD;
             detected = true;
-        } else if (infection.severe() and (infection.inHospital(infection.severeBegin) or gsl_rng_uniform(RNG) < _par->probFirstDetection[time][SEVERE])) {
+        } else if (infection.severe() and (gsl_rng_uniform(RNG) < _par->probFirstDetection[time][SEVERE])) {
+        //} else if (infection.severe() and (infection.inHospital(infection.severeBegin) or gsl_rng_uniform(RNG) < _par->probFirstDetection[time][SEVERE])) {
             sample_collection_date = infection.severeBegin;
             report_date = sample_collection_date + reporting_lag;
             detected_state = SEVERE;
             detected = true;
-        } else if (infection.critical() and (infection.inHospital(infection.criticalBegin) or gsl_rng_uniform(RNG) < _par->probFirstDetection[time][CRITICAL])) {
+        } else if (infection.critical() and (gsl_rng_uniform(RNG) < _par->probFirstDetection[time][CRITICAL])) {
+        //} else if (infection.critical() and (infection.inHospital(infection.criticalBegin) or gsl_rng_uniform(RNG) < _par->probFirstDetection[time][CRITICAL])) {
             sample_collection_date = infection.criticalBegin;
             report_date = sample_collection_date + reporting_lag;
             detected_state = CRITICAL;

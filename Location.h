@@ -25,9 +25,14 @@ class Location {
         bool isNonEssential() const { return !_essential; }
         LocationType getType() const { return _type; }
         void addPerson(Person *p) { _person.push_back(p); }
+        void addVisitor(Person *p, double dur) { _visitors.push_back(p); _visit_durations.push_back(dur); }
+        void clearVisitors() { _visitors.clear(); _visit_durations.clear(); }                     // likey don't want to resize
         bool removePerson(Person *p);
-        int getNumPeople() const { return _person.size(); }
+        int getNumPeople() const { return _person.size(); }             // employees, residents, etc.; not including visitors
+        int getNumVisitors() const { return _visitors.size(); }          // visitors change daily
         std::vector<Person*> getPeople() { return _person; }
+        std::vector<Person*> getVisitors() { return _visitors; }
+        std::vector<double> getVisitDurations() { return _visit_durations; }
 //        Person* findMom();                                            // Try to find a resident female of reproductive age
         void addNeighbor(Location* loc);
         int getNumNeighbors() const { return _neighbors.size(); }
@@ -43,6 +48,8 @@ class Location {
         double getY() const { return _coord.second; }
         void setRiskiness(float ra) { _riskiness = ra; }
         float getRiskiness() const { return _riskiness; }
+        void setPublicTransmissionRisk(PublicTransmissionType pt) { _public_transmission_risk = pt; }
+        PublicTransmissionType getPublicTransmissionRisk() const { return _public_transmission_risk; }
 
         bool operator == ( const Location* other ) const { return _ID == other->_ID; }
         void dumper() const;
@@ -55,8 +62,11 @@ class Location {
         int _ID;                                                      // original identifier in location file
         bool _essential;
         float _riskiness;                                             // score on U(0,1) of household's risk threshold
+        PublicTransmissionType _public_transmission_risk;             // is this a location where there is (high, low, or no) risk of tranmission to e.g. customers
         LocationType _type;
-        std::vector<Person*> _person;                                 // pointers to people who come to this location
+        std::vector<Person*> _person;                                 // people who predictably come to this location
+        std::vector<Person*> _visitors;                               // people who probabilistically visit this location (currently only for businesses)
+        std::vector<double> _visit_durations;                         // people who probabilistically visit this location (currently only for businesses)
         std::set<Location*, LocPtrComp> _neighbors;
         Location* _hospital;                                          // for houses, the associated hospital (nullptr for others)
         static size_t NEXT_ID;                                        // unique ID to assign to the next Location allocated
