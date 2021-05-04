@@ -28,8 +28,8 @@ const string output_dir("/ufrc/longini/tjhladish/");
 //const string imm_dir(output_dir + "");
 
 const int RESTART_BURNIN          = 0;
+//const int FORECAST_DURATION       = 424;
 const int FORECAST_DURATION       = 574;
-//const int FORECAST_DURATION       = 330;
 const int OVERRUN                 = 14; // to get accurate Rt estimates near the end of the forecast duration
 const bool RUN_FORECAST           = true;
 const int TOTAL_DURATION          = RUN_FORECAST ? RESTART_BURNIN + FORECAST_DURATION + OVERRUN : RESTART_BURNIN;
@@ -190,12 +190,17 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
 //        {"2020-03-15", 0.1},
         {"2020-03-15", 0.0},
         {"2020-04-01", 0.6},
-        {"2020-05-01", 0.6},
-        {"2020-06-01", 0.2},
+        {"2020-05-01", 0.4},
+        {"2020-06-01", 0.15},
         {"2020-07-01", 0.3},
-        {"2020-08-01", 0.3},
+        {"2020-08-01", 0.6},
         {"2020-09-01", 0.3},
-        {"2020-11-15", 0.2}
+        {"2020-10-01", 0.08},
+        {"2020-11-01", 0.0},
+        {"2020-12-01", 0.0},
+        {"2021-01-01", 0.05},
+        {"2021-02-01", 0.2},
+        {"2021-03-01", 0.1}
     };
 
     par->timedInterventions[SOCIAL_DISTANCING].clear();
@@ -228,7 +233,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->VES = {0.0};
 
     //par->hospitalizedFraction = 0.25; // fraction of cases assumed to be hospitalized
-    par->probInitialExposure = {5.0e-04};
+    par->probInitialExposure = {3.0e-04};
     par->probDailyExposure   = {1.0e-05};
 
     par->populationFilename       = pop_dir    + "/population-"         + SIM_POP + ".txt";
