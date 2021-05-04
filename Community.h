@@ -24,7 +24,7 @@ class Community {
         ~Community();
 
         Date* get_date();
-        bool loadPopulation(std::string populationFilename, std::string comorbidityFilename = "", std::string immunityFilename = "");
+        bool loadPopulation(std::string populationFilename, std::string comorbidityFilename = "", std::string publicActivityFilename = "", std::string immunityFilename = "");
         bool loadLocations(std::string locationFilename, std::string networkFilename = "");
         size_t getNumPeople() const { return _people.size(); }
         std::vector<Person*> getPeople() const { return _people; }
@@ -46,6 +46,8 @@ class Community {
         void school_transmission();
         void hospital_transmission();
         void nursinghome_transmission();
+        void public_activity();
+        void clear_public_activity();
 
         double social_distancing(int);
         void vaccinate(CatchupVaccinationEvent cve);
@@ -54,6 +56,7 @@ class Community {
         void setVES(double f);
         void setVESs(std::vector<double> f);
         std::vector<size_t> getNumNewlyInfected() { return _numNewlyInfected; }
+        std::vector<size_t> getNumNewVocInfections() { return _numNewVocInfections; }
         std::vector<size_t> getNumNewlySymptomatic() { return _numNewlySymptomatic; }
         std::vector<size_t> getNumNewlySevere() { return _numNewlySevere; }
         std::vector<size_t> getNumNewlyCritical() { return _numNewlyCritical; }
@@ -95,16 +98,18 @@ class Community {
         static Date* _date;
         std::vector<Person*> _people;                                          // the array index is equal to the ID
         std::vector< std::vector<Person*> > _personAgeCohort;                  // array of pointers to people of the same age
-        //int _personAgeCohortSizes[NUM_AGE_CLASSES];                            // size of each age cohort
-        std::vector<Location*> _location;                                      // the array index is equal to the ID
+        //int _personAgeCohortSizes[NUM_AGE_CLASSES];                          // size of each age cohort
+        std::vector<Location*> _location;                                      // index is equal to the ID
+        std::vector<Location*> _public_locations;                              // index is arbitrary
         std::map<LocationType, std::set<Location*, Location::LocPtrComp>> _location_map; //
         std::vector< std::vector<Person*> > _exposedQueue;                     // queue of people with n days of latency left
         int _day;                                                              // current day
         std::vector<size_t> _numNewlyInfected;
-        std::vector<size_t> _numNewlySymptomatic;                              // true cases, no lag
-        std::vector<size_t> _numNewlySevere;                                   // true cases, no lag
-        std::vector<size_t> _numNewlyCritical;                                 // true cases, no lag
-        std::vector<size_t> _numNewlyDead;                                     // true cases, no lag
+        std::vector<size_t> _numNewVocInfections;
+        std::vector<size_t> _numNewlySymptomatic;                              // true cases, no lag due to detection
+        std::vector<size_t> _numNewlySevere;                                   // true cases, no lag due to detection
+        std::vector<size_t> _numNewlyCritical;                                 // true cases, no lag due to detection
+        std::vector<size_t> _numNewlyDead;                                     // true cases, no lag due to detection
         std::vector<size_t> _numVaccinatedCases;
         std::vector<size_t> _numSeverePrev;
         std::vector<size_t> _numHospInc;

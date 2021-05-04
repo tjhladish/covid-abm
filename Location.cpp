@@ -38,6 +38,7 @@ void Location::dumper() const {
     cerr << "\tessential: " << _essential << endl;
     cerr << "\triskiness: " << _riskiness << endl;
     cerr << "\tpeople: "; /*for (auto p: _person) { cerr << p->getID() << " "; }*/ cerr << _person.size(); cerr << endl;
+    cerr << "\tvisitors: "; /*for (auto p: _visitors) { cerr << p->getID() << " "; }*/ cerr << _visitors.size(); cerr << endl;
     cerr << "\tneighbors: "; for (auto l: _neighbors) { cerr << l->getID() << " "; } cerr << endl;
 }
 

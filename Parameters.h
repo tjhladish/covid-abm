@@ -67,6 +67,26 @@ inline std::ostream& operator<<(std::ostream& out, const LocationType value){
     return out << s;
 }
 
+enum PublicTransmissionType {
+    NO_PUBLIC_TRANSMISSION,
+    LOW_PUBLIC_TRANSMISSION,
+    HIGH_PUBLIC_TRANSMISSION,
+    NUM_OF_PUBLIC_TRANSMISSION_TYPES
+};
+
+inline std::ostream& operator<<(std::ostream& out, const PublicTransmissionType value){
+    const char* s = 0;
+#define PROCESS_VAL(p) case(p): s = #p; break;
+    switch(value){
+        PROCESS_VAL(NO_PUBLIC_TRANSMISSION);
+        PROCESS_VAL(LOW_PUBLIC_TRANSMISSION);
+        PROCESS_VAL(HIGH_PUBLIC_TRANSMISSION);
+        PROCESS_VAL(NUM_OF_PUBLIC_TRANSMISSION_TYPES);
+    }
+#undef PROCESS_VAL
+    return out << s;
+}
+
 enum ImmuneStateType {
     NAIVE,
     NATURAL,
@@ -391,8 +411,8 @@ public:
     double school_transmissibility;                         // per-day probability of transmission, scaled by the fraction of infectious students/staff
     double hospital_transmissibility;                       // per-day probability of transmission, scaled by the fraction of infectious staff/patients
     double nursinghome_transmissibility;                    // per-day probability of transmission, scaled by the fraction of infectious staff/residents
-    std::vector<double> _seasonality;                       // transmissibility multiplier, index by simulation day
-    double seasonality (const Date *date) const;
+    std::vector<double> seasonality;                       // transmissibility multiplier, index by simulation day
+    double seasonality_on (const Date *date) const;
 
     vector<float> susceptibilityByAge;                      // probability of infection given exposure, index by year of age
     vector<float> pathogenicityByAge;                       // probability of clinical disease given infection, index by year of age
@@ -489,6 +509,7 @@ public:
     std::string populationFilename;
     std::string comorbidityFilename;
     std::string locationFilename;
+    std::string publicActivityFilename;
     std::string networkFilename;
     std::string peopleOutputFilename;
     std::string yearlyPeopleOutputFilename;
