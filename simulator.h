@@ -326,7 +326,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
         community->tick();
 
         StrainType strain = WILDTYPE;
-        if ( *date > "2021-01-01" ) { strain = B117; }
+        if ( *date > "2020-12-15" ) { strain = B117; }
         seed_epidemic(par, community, date, strain);
         const vector<size_t> infections         = community->getNumNewlyInfected();
         const vector<size_t> all_reported_cases = community->getNumDetectedCasesReport();

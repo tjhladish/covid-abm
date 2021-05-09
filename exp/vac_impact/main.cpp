@@ -43,7 +43,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->define_defaults();
     par->serial = serial;
 
-    const float T = 0.055;//0.022; // 0.0215 for the fl pop, 0.022 for the pseudo 1000k pop
+    const float T = 0.053;//0.022; // 0.0215 for the fl pop, 0.022 for the pseudo 1000k pop
 
     par->household_transmissibility   = T;
     par->social_transmissibility      = T; // assumes complete graphs between households
@@ -76,7 +76,6 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
         //seasonality.push_back(1.0 - 0.25*((pow((1 + sin((4*M_PI*(day-60))/366))/2, 2) + (1 + sin((2*M_PI*(day+80))/366))/3.5)*(2/1.311193)-1));
         //seasonality.push_back(1.0);
     }
-    cerr_vector(seasonality);
     par->seasonality = seasonality;
 
 //    if (mutation) {
@@ -188,19 +187,20 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     vector<TimeSeriesAnchorPoint> ap = { // tuning for whole FL model
         {"2020-01-01", 0.0},
 //        {"2020-03-15", 0.1},
-        {"2020-03-15", 0.0},
-        {"2020-04-01", 0.6},
+        {"2020-03-15", 0.15},
+        {"2020-04-01", 0.7},
         {"2020-05-01", 0.4},
         {"2020-06-01", 0.15},
         {"2020-07-01", 0.3},
         {"2020-08-01", 0.6},
-        {"2020-09-01", 0.3},
-        {"2020-10-01", 0.08},
-        {"2020-11-01", 0.0},
+        {"2020-09-01", 0.45},
+        {"2020-10-01", 0.1},
+        {"2020-11-01", 0.05},
         {"2020-12-01", 0.0},
-        {"2021-01-01", 0.05},
-        {"2021-02-01", 0.2},
-        {"2021-03-01", 0.1}
+        {"2021-01-01", 0.15},
+        {"2021-02-01", 0.3},
+        {"2021-03-01", 0.15},
+        {"2021-04-01", 0.0}
     };
 
     par->timedInterventions[SOCIAL_DISTANCING].clear();
@@ -224,7 +224,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->createIcuMortalityReductionModel(max_icu_mortality_reduction, icu_mortality_inflection_sim_day, icu_mortality_reduction_slope);
     par->icuMortalityFraction = 0.2;                        // to be fit; fraction of all deaths that occur in ICUs;
                                                             // used for interpreting empirical mortality data, *not within simulation*
-    par->pathogenicityReduction = 0.65;                      // to be fit; fraction of infections missed in pathogenicity studies
+    par->pathogenicityReduction = 0.5;                      // to be fit; fraction of infections missed in pathogenicity studies
                                                             // used for interpreting input data, *not within simulation*
 //    par->susceptibilityCorrection = 1.0;
     par->define_susceptibility_and_pathogenicity();
@@ -234,7 +234,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
 
     //par->hospitalizedFraction = 0.25; // fraction of cases assumed to be hospitalized
     par->probInitialExposure = {3.0e-04};
-    par->probDailyExposure   = {1.0e-05};
+    par->probDailyExposure   = {2.0e-05};
 
     par->populationFilename       = pop_dir    + "/population-"         + SIM_POP + ".txt";
     par->comorbidityFilename      = pop_dir    + "/comorbidity-"        + SIM_POP + ".txt";
