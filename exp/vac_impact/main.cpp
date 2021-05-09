@@ -37,13 +37,15 @@ const int TOTAL_DURATION          = RUN_FORECAST ? RESTART_BURNIN + FORECAST_DUR
 const size_t JULIAN_START_YEAR    = 2020;
 //const double DEATH_UNDERREPORTING = 11807.0/20100.0; // FL Mar15-Sep5, https://www.nytimes.com/interactive/2020/05/05/us/coronavirus-death-toll-us.html
 
+vector<vector<double>> REPORTED_FRACTIONS;
+
 //Parameters* define_simulator_parameters(vector<double> args, const unsigned long int rng_seed) {
 Parameters* define_simulator_parameters(vector<double> args, const unsigned long int rng_seed, const unsigned long int serial, const string /*process_id*/) {
     Parameters* par = new Parameters();
     par->define_defaults();
     par->serial = serial;
 
-    const float T = 0.053;//0.022; // 0.0215 for the fl pop, 0.022 for the pseudo 1000k pop
+    const float T = 0.04;//0.022; // 0.0215 for the fl pop, 0.022 for the pseudo 1000k pop
 
     par->household_transmissibility   = T;
     par->social_transmissibility      = T; // assumes complete graphs between households
@@ -70,7 +72,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     for (size_t day = 0; day < 366; ++day) {
         // bi-modal curve corresponding to orlando, with seasonal forcing episilon = 0.25
         // need 366 days to accomodate leap years
-        seasonality.push_back(1 - 0.25*sin((4*M_PI*((int) day-60))/366));
+        seasonality.push_back(1 - 0.15*sin((4*M_PI*((int) day-60))/366));
         //seasonality.push_back(1 - 0.15*2*(pow((1 + sin((4*M_PI*((int) day-60))/366))/2, 2)-0.5));
         //seasonality.push_back(1 - 0.25*2*(pow((1 + sin((4*M_PI*(day-60))/366))/2, 10.0)-0.5));
         //seasonality.push_back(1.0 - 0.25*((pow((1 + sin((4*M_PI*(day-60))/366))/2, 2) + (1 + sin((2*M_PI*(day+80))/366))/3.5)*(2/1.311193)-1));
@@ -96,17 +98,21 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
 
         const double RF_death_early = 0.8;//0.78; // overall probability of detecting death, at any point
 
+//wave 1: 0 0 0.6 0.64 0.8 [12]
+//wave 2: 0.05 0.53 0.57 0.62 0.8 [56]
+//wave 3: 0.1 0.91 0.99 0.99 1 [80]
+
         // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
-        vector<double> initial_vals = {0.01, 0.2, 0.7, 0.1};
+        vector<double> initial_vals = {0.0, 0.0, 0.7, 0.1};
         const double rho_death_ini  = 1.0 - (1.0 - RF_death_early)/((1.0 - initial_vals[0])*(1.0 - initial_vals[1])*(1.0 - initial_vals[2])*(1.0 - initial_vals[3]));
         initial_vals.push_back(rho_death_ini);
 
-        vector<double> mid_vals   = {0.07, 0.6, 0.1, 0.1};
+        vector<double> mid_vals   = {0.02, 0.5, 0.1, 0.1};
         const double rho_death_mid  = 1.0 - (1.0 - RF_death_early)/((1.0 - mid_vals[0])*(1.0 - mid_vals[1])*(1.0 - mid_vals[2])*(1.0 - mid_vals[3]));
         mid_vals.push_back(rho_death_mid);
 
         const double RF_death_late = 1.0;//0.78; // overall probability of detecting death, at any point
-        vector<double> final_vals   = {0.3, 0.8, 0.0, 0.0};
+        vector<double> final_vals   = {0.1, 0.9, 0.9, 0.0};
         const double rho_death_fin  = 1.0 - (1.0 - RF_death_late)/((1.0 - final_vals[0])*(1.0 - final_vals[1])*(1.0 - final_vals[2])*(1.0 - final_vals[3]));
         final_vals.push_back(rho_death_fin);
 
@@ -124,9 +130,9 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
         vector<double> reported_frac_init  = par->toReportedFraction(initial_vals);
         vector<double> reported_frac_mid   = par->toReportedFraction(mid_vals);
         vector<double> reported_frac_final = par->toReportedFraction(final_vals);
-        cerr_vector(reported_frac_init); cerr << endl;
-        cerr_vector(reported_frac_mid); cerr << endl;
-        cerr_vector(reported_frac_final); cerr << endl;
+        cerr_vector(reported_frac_init); cerr << endl;  REPORTED_FRACTIONS.push_back(reported_frac_init);
+        cerr_vector(reported_frac_mid); cerr << endl;   REPORTED_FRACTIONS.push_back(reported_frac_mid);
+        cerr_vector(reported_frac_final); cerr << endl; REPORTED_FRACTIONS.push_back(reported_frac_final);
 
         //cerr << "Detection probability by day\n";
         //for (size_t d = 0; d < par->probFirstDetection.size(); ++d) {
@@ -188,19 +194,20 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
         {"2020-01-01", 0.0},
 //        {"2020-03-15", 0.1},
         {"2020-03-15", 0.15},
-        {"2020-04-01", 0.7},
+        {"2020-04-01", 0.5},
         {"2020-05-01", 0.4},
-        {"2020-06-01", 0.15},
-        {"2020-07-01", 0.3},
-        {"2020-08-01", 0.6},
-        {"2020-09-01", 0.45},
-        {"2020-10-01", 0.1},
-        {"2020-11-01", 0.05},
-        {"2020-12-01", 0.0},
-        {"2021-01-01", 0.15},
-        {"2021-02-01", 0.3},
-        {"2021-03-01", 0.15},
-        {"2021-04-01", 0.0}
+        {"2020-06-01", 0.0},
+        {"2020-07-01", 0.2},
+        {"2020-08-01", 0.5},
+        {"2020-09-01", 0.5},
+        {"2020-10-01", 0.0},
+        {"2020-11-01", 0.0},
+        {"2020-12-01", 0.05},
+        {"2021-01-01", 0.1},
+        {"2021-02-01", 0.25},
+        {"2021-03-01", 0.1},
+        {"2021-04-01", 0.1},
+        {"2021-05-01", 0.0}
     };
 
     par->timedInterventions[SOCIAL_DISTANCING].clear();
@@ -224,7 +231,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->createIcuMortalityReductionModel(max_icu_mortality_reduction, icu_mortality_inflection_sim_day, icu_mortality_reduction_slope);
     par->icuMortalityFraction = 0.2;                        // to be fit; fraction of all deaths that occur in ICUs;
                                                             // used for interpreting empirical mortality data, *not within simulation*
-    par->pathogenicityReduction = 0.5;                      // to be fit; fraction of infections missed in pathogenicity studies
+    par->pathogenicityReduction = 0.0;                      // to be fit; fraction of infections missed in pathogenicity studies
                                                             // used for interpreting input data, *not within simulation*
 //    par->susceptibilityCorrection = 1.0;
     par->define_susceptibility_and_pathogenicity();
@@ -233,7 +240,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->VES = {0.0};
 
     //par->hospitalizedFraction = 0.25; // fraction of cases assumed to be hospitalized
-    par->probInitialExposure = {3.0e-04};
+    par->probInitialExposure = {4.0e-04};
     par->probDailyExposure   = {2.0e-05};
 
     par->populationFilename       = pop_dir    + "/population-"         + SIM_POP + ".txt";
@@ -359,6 +366,33 @@ vector<double> calc_Rt_moving_average(vector<pair<size_t, double>> Rt_pairs, siz
 //        cerr << "day, inf, ct, Rt_ma, Rt_count, Rt_val: " << i << " " << infections << " " << window_ct << " " << Rt_ma[i] << " " << Rt_pairs[i].first << " " << Rt_pairs[i].second << endl;
     }
     return Rt_ma;
+}
+
+void calculate_reporting_ratios(Community* community) {
+    // this counts infections/cases/deaths that happen during the simulation,
+    // but not cases and deaths that are scheduled to happen after the last simulated day
+    const double cinf   = sum(community->getNumNewlyInfected());
+    const double ccase  = sum(community->getNumNewlySymptomatic());
+    const double csev   = sum(community->getNumNewlySevere());
+    const double ccrit  = sum(community->getNumNewlyCritical());
+    const double cdeath = sum(community->getNumNewlyDead());
+
+    cerr << "true infections, mild, severe, critical, deaths: " << cinf << " " << ccase << " " << csev  << " " << ccrit << " " << cdeath << endl;
+    cerr << "IFR, CFR: " << 100*cdeath/cinf << "%, " << 100*cdeath/ccase << "%" << endl;
+
+    // This is not a perfect way of calculating the case:death ratios, but it should be a reasonable approximation
+    const vector<vector<double>> RF = REPORTED_FRACTIONS;
+    cerr << "\nReported fractions (asymp, mild, severe, crit, death [case:death ratio]):" << endl;
+    cerr << "wave 1: "; cerr_vector(RF[0]); cerr << " [" << (int) (RF[0][0]*cinf + RF[0][1]*ccase + RF[0][2]*csev + RF[0][3]*ccrit + RF[0][4]*cdeath)/(RF[0][4]*cdeath) << "] " << endl;
+    cerr << "wave 2: "; cerr_vector(RF[1]); cerr << " [" << (int) (RF[1][0]*cinf + RF[1][1]*ccase + RF[1][2]*csev + RF[1][3]*ccrit + RF[1][4]*cdeath)/(RF[1][4]*cdeath) << "] " << endl;
+    cerr << "wave 3: "; cerr_vector(RF[2]); cerr << " [" << (int) (RF[2][0]*cinf + RF[2][1]*ccase + RF[2][2]*csev + RF[2][3]*ccrit + RF[2][4]*cdeath)/(RF[2][4]*cdeath) << "] " << endl;
+
+    cerr << "\nIncidence by outcome:\n";
+    cerr << "\t ASYMPTOMATIC :\t" << Community::_cumulIncByOutcome[ASYMPTOMATIC] << endl;
+    cerr << "\t MILD :  \t" << Community::_cumulIncByOutcome[MILD] << endl;
+    cerr << "\t SEVERE :\t" << Community::_cumulIncByOutcome[SEVERE] << endl;
+    cerr << "\t CRITICAL :\t" << Community::_cumulIncByOutcome[CRITICAL] << endl;
+    cerr << "\t DEATH :\t" << Community::_cumulIncByOutcome[DEATH] << endl;
 }
 
 vector<double> simulator(vector<double> args, const unsigned long int rng_seed, const unsigned long int serial, const ABC::MPI_par* mp = nullptr) {
@@ -492,7 +526,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 //    const int pre_intervention_output = 5; // years
 //    const int desired_intervention_output = FORECAST_DURATION - 1;
     vector<double> metrics = tally_counts(par, community, 0);
-
+    calculate_reporting_ratios(community);
 //    const vector<size_t> infections       = community->getNumNewlyInfected();
 //    const vector<size_t> reported_cases   = community->getNumDetectedCasesReport();
 //    const vector<size_t> hospitalizations = community->getNumHospPrev();

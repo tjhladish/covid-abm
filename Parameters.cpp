@@ -105,8 +105,10 @@ void Parameters::define_susceptibility_and_pathogenicity() {
     for (size_t i = 0; i < bin_upper.size(); ++i) {
         const size_t upper_age = bin_upper[i];
         // susceptibilityCorrection of 0 --> published value; 1 --> 100% susceptible
-        susceptibilityByAge.resize(upper_age+1, 1.0 - (1.0 - susceptibilityCorrection)*(1.0 - susceptibilities[i]));
-        pathogenicityByAge.resize(upper_age+1, (1.0 - pathogenicityReduction)*pathogenicities[i]);
+        //susceptibilityByAge.resize(upper_age+1, 1.0 - (1.0 - susceptibilityCorrection)*(1.0 - susceptibilities[i]));
+        //pathogenicityByAge.resize(upper_age+1, (1.0 - pathogenicityReduction)*pathogenicities[i]);
+        susceptibilityByAge.resize(upper_age+1, susceptibilities[i]);
+        pathogenicityByAge.resize(upper_age+1, pathogenicities[i]);
     }
 
     // https://www.cdc.gov/mmwr/volumes/69/wr/mm6915e3.htm

@@ -326,7 +326,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
         community->tick();
 
         StrainType strain = WILDTYPE;
-        if ( *date > "2020-12-15" ) { strain = B117; }
+        if ( *date > "2021-01-15" ) { strain = B117; }
         seed_epidemic(par, community, date, strain);
         const vector<size_t> infections         = community->getNumNewlyInfected();
         const vector<size_t> all_reported_cases = community->getNumDetectedCasesReport();
@@ -371,24 +371,6 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
            << rdeaths[sim_day]*1e4/pop_at_risk;
         plot_log_buffer.push_back(ss.str());
     }
-
-    // this counts infections/cases/deaths that happen during the simulation,
-    // but not cases and deaths that are scheduled to happen after the last simulated day
-    const double cinf   = sum(community->getNumNewlyInfected());
-    const double ccase  = sum(community->getNumNewlySymptomatic());
-    const double csev   = sum(community->getNumNewlySevere());
-    const double ccrit  = sum(community->getNumNewlyCritical());
-    const double cdeath = sum(community->getNumNewlyDead());
-
-    cerr << "true infections, mild, severe, critical, deaths: " << cinf << ", " << ccase << ", " << csev  << ", " << ccrit << ", " << cdeath << endl;
-    cerr << "IFR, CFR: " << 100*cdeath/cinf << "%, " << 100*cdeath/ccase << "%" << endl;
-
-    cerr << "\nIncidence by outcome:\n";
-    cerr << "\t ASYMPTOMATIC :\t" << Community::_cumulIncByOutcome[ASYMPTOMATIC] << endl;
-    cerr << "\t MILD :  \t" << Community::_cumulIncByOutcome[MILD] << endl;
-    cerr << "\t SEVERE :\t" << Community::_cumulIncByOutcome[SEVERE] << endl;
-    cerr << "\t CRITICAL :\t" << Community::_cumulIncByOutcome[CRITICAL] << endl;
-    cerr << "\t DEATH :\t" << Community::_cumulIncByOutcome[DEATH] << endl;
 
     double cdeath_icu   = 0.0;
     double cdeath2      = 0.0;
