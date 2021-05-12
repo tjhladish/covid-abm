@@ -512,8 +512,10 @@ void Community::vaccinate(CatchupVaccinationEvent cve) {
                 and cve.coverage > gsl_rng_uniform(RNG)
                 and p->isSeroEligible(_par->vaccineSeroConstraint, _par->seroTestFalsePos, _par->seroTestFalseNeg)
                ) {
-                p->vaccinate(_day);
-                if (_par->vaccineBoosting or p->getNumVaccinations() < _par->numVaccineDoses) { _revaccinate_set.insert(p); }
+                const bool success = p->vaccinate(_day);
+                if (success and (_par->vaccineBoosting or (p->getNumVaccinations() < _par->numVaccineDoses))) {
+                //cerr << _par->vaccineBoosting << " | " << p->getNumVaccinations() << " < " << _par->numVaccineDoses << endl;
+                _revaccinate_set.insert(p); }
             }
         }
     }
@@ -521,22 +523,25 @@ void Community::vaccinate(CatchupVaccinationEvent cve) {
 
 
 void Community::updateVaccination() {
+    vector<Person*> to_erase;
     for (Person* p: _revaccinate_set) {
         if (not p->isVaccinated()) {
             // may be in set unnecessarily because of vaccination before last birthday
-            _revaccinate_set.erase(p);
+            to_erase.push_back(p);
             continue;
         }
         const int timeSinceLastVaccination = p->daysSinceVaccination(_day);
         if (p->getNumVaccinations() < _par->numVaccineDoses and timeSinceLastVaccination >= _par->vaccineDoseInterval) {
             // multi-dose vaccination
             p->vaccinate(_day);
-            if (p->getNumVaccinations() == _par->numVaccineDoses) { _revaccinate_set.erase(p); } // we're done
+            if (p->getNumVaccinations() == _par->numVaccineDoses) { to_erase.push_back(p); } // we're done
         } else if (_par->vaccineBoosting and timeSinceLastVaccination >= _par->vaccineBoostingInterval) {
             // booster dose
             p->vaccinate(_day);
         }
     }
+
+    for (Person* p: to_erase) { _revaccinate_set.erase(p); }
 }
 
 
@@ -548,8 +553,8 @@ void Community::targetVaccination(Person* p) {
         and p->isSeroEligible(_par->vaccineSeroConstraint, _par->seroTestFalsePos, _par->seroTestFalseNeg)
        ) {
         // standard vaccination of target age; vaccinate w/ probability = coverage
-        if (gsl_rng_uniform(RNG) < _par->vaccineTargetCoverage) p->vaccinate(_day);
-        if (_par->vaccineBoosting or _par->numVaccineDoses > 1) _revaccinate_set.insert(p);
+        if (gsl_rng_uniform(RNG) < _par->vaccineTargetCoverage) { p->vaccinate(_day); }
+        if (_par->vaccineBoosting or _par->numVaccineDoses > 1) { _revaccinate_set.insert(p); }
     }
 }
 
