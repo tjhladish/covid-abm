@@ -244,7 +244,7 @@ Infection* Person::infect(Person* source, const Date* date, Location* sourceloc,
     const double severe_given_case = _par->probSeriousOutcome.at(SEVERE)[comorbidity][age] * (1.0 - effective_VEH);
     const double critical_given_severe = _par->probSeriousOutcome.at(CRITICAL)[comorbidity][age];
     infection.relInfectiousness *= (1.0 - effective_VEI); // 0.25 b/c most (== asymptomatic) people are not very infectious
-    if ( infection.strain == B117) { infection.relInfectiousness *= 1.7; }
+    if ( infection.strain == B117) { infection.relInfectiousness *= 1.6; }
 
     const double highly_infectious_threshold = 8.04; // 80th %ile for overall SARS-CoV-2 from doi: 10.7554/eLife.65774, "Fig 4-Fig Sup 3"
 
