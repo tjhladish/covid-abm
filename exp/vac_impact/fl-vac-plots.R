@@ -8,16 +8,16 @@ library(tidyr)
 library(lubridate)
 
 #### Initialization and Database ----
-#totalpop_10k <- 100.7 # Adjust accordingly
-totalpop_10k <- 2061.6 # Adjust accordingly
+totalpop_10k <- 375.5 # Adjust accordingly
+#totalpop_10k <- 2061.6 # Adjust accordingly
 max_week <- 82 # Adjust accordingly, start counting from 1
-con <- dbConnect(SQLite(), "./covid_vac_v6.0.sqlite")
+con <- dbConnect(SQLite(), "./covid_vac_v7.0.sqlite")
 pal <- c("#000000FF", "#440154FF", "#2C5FFFFF", 
          "#238A8DFF", "#49C16DFF", "#C8CB15FF")
 
 dbListTables(con)
 met <- dbGetQuery(con, "SELECT * FROM met")
-pars <- dbGetQuery(con, "SELECT * FROM par")
+#pars <- dbGetQuery(con, "SELECT * FROM par")
 
 ## Lookup table for week -> date
 start_date <- ymd("2020-02-05")

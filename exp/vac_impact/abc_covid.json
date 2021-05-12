@@ -4,7 +4,7 @@
     "predictive_prior_fraction" : 1.0,
     "pls_training_fraction"     : 1.0,
 
-    "database_filename"         : "covid_vac_v6.0.sqlite",
+    "database_filename"         : "covid_vac_v7.0.sqlite",
 
     "parameters" : [
         {"name"       : "vaccine",
@@ -14,22 +14,6 @@
          "par1"       : 0,
          "par2"       : 1,
          "step"       : 1},
-
-        {"name"       : "vaccine_efficacy_susceptibility",
-         "short_name" : "VES",
-         "dist_type"  : "PSEUDO",
-         "num_type"   : "FLOAT",
-         "par1"       : 0.6,
-         "par2"       : 0.6,
-         "step"       : 0.0},
-
-        {"name"       : "vaccine_efficacy_pathogenicity",
-         "short_name" : "VEP",
-         "dist_type"  : "PSEUDO",
-         "num_type"   : "FLOAT",
-         "par1"       : 0.875,
-         "par2"       : 0.875,
-         "step"       : 0.0},
 
         {"name"       : "vaccination_rate",
          "short_name" : "vac_rate",

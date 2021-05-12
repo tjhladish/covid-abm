@@ -308,7 +308,7 @@ size_t tally_decreases(const vector<T> &vals) {
 }
 
 
-vector<string> simulate_epidemic(const Parameters* par, Community* community, const string process_id) {
+vector<string> simulate_epidemic(const Parameters* par, Community* community, const string process_id, vector<string> mutant_intro_dates) {
     vector<int> epi_sizes;
     vector<string> daily_output_buffer;
 
@@ -326,19 +326,19 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
         community->tick();
 
         StrainType strain = WILDTYPE;
-        if ( *date > "2021-01-15" ) { strain = B117; }
+        if ( mutant_intro_dates.size() and (*date > mutant_intro_dates[0]) ) { strain = B117; }
         seed_epidemic(par, community, date, strain);
         const vector<size_t> infections         = community->getNumNewlyInfected();
         const vector<size_t> all_reported_cases = community->getNumDetectedCasesReport();
         const size_t reported_cases             = all_reported_cases[sim_day];
-        trailing_averages[sim_day]          = calc_trailing_avg(all_reported_cases, sim_day, 7); // <= 7-day trailing average
+        trailing_averages[sim_day]              = calc_trailing_avg(all_reported_cases, sim_day, 7); // <= 7-day trailing average
         const vector<size_t> rhosp              = community->getNumDetectedHospitalizations();
         const vector<size_t> severe_prev        = community->getNumSeverePrev();
         const double cinf                       = accumulate(infections.begin(), infections.begin()+sim_day+1, 0.0);
         const double cAR                        = cinf/pop_at_risk; // cumulative attack rate (I hate this term)
+        const vector<size_t> rdeaths            = community->getNumDetectedDeaths();
 
         const double trailing_avg = trailing_averages[sim_day];
-        const vector<size_t> rdeaths = community->getNumDetectedDeaths();
 
         const size_t rc_ct = accumulate(all_reported_cases.begin(), all_reported_cases.begin()+sim_day+1, 0);
         if (date->dayOfMonth()==1) cerr << "        rep sday        date  infinc  cAR     rcases  rcta7  crcases  rdeath  crdeath  sevprev   crhosp  closed  socdist\n";

@@ -40,7 +40,7 @@ const size_t JULIAN_START_YEAR    = 2020;
 vector<vector<double>> REPORTED_FRACTIONS;
 
 //Parameters* define_simulator_parameters(vector<double> args, const unsigned long int rng_seed) {
-Parameters* define_simulator_parameters(vector<double> args, const unsigned long int rng_seed, const unsigned long int serial, const string /*process_id*/) {
+Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned long int rng_seed, const unsigned long int serial, const string /*process_id*/) {
     Parameters* par = new Parameters();
     par->define_defaults();
     par->serial = serial;
@@ -66,8 +66,6 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->runLength               = TOTAL_DURATION;
     par->annualIntroductionsCoef = 1;
 
-    const bool mutation          = (bool) args[5];
-
     vector<double> seasonality;
     for (size_t day = 0; day < 366; ++day) {
         // bi-modal curve corresponding to orlando, with seasonal forcing episilon = 0.25
@@ -80,14 +78,6 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     }
     par->seasonality = seasonality;
 
-//    if (mutation) {
-//        par->seasonality = vector<double>(Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-12-31"), 1.0);
-//        for (int i = 0; i < 31; ++i ) { par->seasonality.push_back(1.0 + 0.5*i/31); }
-//        par->seasonality.resize(par->runLength, 1.5);
-//    } else {
-//        par->seasonality.resize(par->runLength, 1.0);
-//    }
-
     par->traceContacts = true; // needed for Rt calculation
 
     {
@@ -97,10 +87,6 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
         //par->probFirstDetection = {0.0, 0.12, 0.55, 0.1, 0.01};      // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
 
         const double RF_death_early = 0.8;//0.78; // overall probability of detecting death, at any point
-
-//wave 1: 0 0 0.6 0.64 0.8 [12]
-//wave 2: 0.05 0.53 0.57 0.62 0.8 [56]
-//wave 3: 0.1 0.91 0.99 0.99 1 [80]
 
         // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
         vector<double> initial_vals = {0.0, 0.0, 0.7, 0.1};
@@ -206,7 +192,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
         {"2021-01-01", 0.1},
         {"2021-02-01", 0.25},
         {"2021-03-01", 0.1},
-        {"2021-04-01", 0.1},
+        {"2021-04-01", 0.0},
         {"2021-05-01", 0.0}
     };
 
@@ -423,22 +409,22 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
     Parameters* par = define_simulator_parameters(args, rng_seed, serial, process_id);
     const bool vaccine             = (bool) args[0];
-    const double vac_efficacy_susc = args[1];
-    const double vac_efficacy_path = args[2];
-    const VacRate vac_rate         = (VacRate) args[3]; // 0 == slow, 1 == fast
-    // const size_t realization    = (size_t) args[4];
-    // const bool mutation         = (bool) args[5];
+    const VacRate vac_rate         = (VacRate) args[1]; // 0 == slow, 1 == fast
+    // const size_t realization    = (size_t) args[2];
+    const bool mutation          = (bool) args[3];
+    vector<string> mutant_intro_dates = {};
+    if (mutation) { mutant_intro_dates.push_back("2021-01-15"); };
 
     Community* community = build_community(par);
 
     if (vaccine) {
         //double target_coverage  = coverage;
-        double catchup_coverage = 0.5;
+        double catchup_coverage = 0.6;
         const int target = 16;
         const int senior_threshold = 65;
         size_t senior_vac_campaign_duration = vac_rate == SLOW ? 86 : 35; // 0.12% per day vs 0.3% per day for [65, max_age]
         size_t general_vac_campaign_duration = vac_rate == SLOW ? 257 : 103; // same, for those [16, 64]
-        const size_t senior_vac_sim_day  = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-01-11"); // jan 1 + 10 days for efficacy
+        const size_t senior_vac_sim_day  = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-01-08"); // jan 1 + 7 days for efficacy
         const size_t general_vac_sim_day = senior_vac_sim_day + senior_vac_campaign_duration;
 
         for (int catchup_age = senior_threshold; catchup_age <= NUM_AGE_CLASSES - 1; catchup_age++) {
@@ -453,18 +439,22 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
             par->catchupVaccinationEvents.emplace_back(general_vac_sim_day, general_vac_campaign_duration, catchup_age, catchup_coverage);
         }
 
-        par->VES                   = {vac_efficacy_susc};
-        par->VES_NAIVE             = {vac_efficacy_susc};
-        par->VEP                   = {vac_efficacy_path};
+        par->VES                   = {0.4, 0.8};
+        par->VES_NAIVE             = {0.4, 0.8};
+        par->VEP                   = {0.67, 0.75};
+        par->VEH                   = {0.9, 1.0};
+//        par->VEF                   = {0.9, 1.0}; // would be redundant, given VEH
+        par->VEI                   = {0.4, 0.8};
         par->vaccineLeaky          = false;
-        par->numVaccineDoses       = 1;
+        par->numVaccineDoses       = 2;
+        par->vaccineDoseInterval   = 21;
     }
 
     seed_epidemic(par, community);
-    vector<string> plot_log_buffer = simulate_epidemic(par, community, process_id);
+    vector<string> plot_log_buffer = simulate_epidemic(par, community, process_id, mutant_intro_dates);
 
 // comment out this block if simvis.R is not needed
-{
+/*{
     vector<pair<size_t, double>> Rt = community->getMeanNumSecondaryInfections();
     vector<double> Rt_ma = calc_Rt_moving_average(Rt, 7);
 
@@ -477,7 +467,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     write_daily_buffer(plot_log_buffer, process_id, "plot_log.csv", overwrite);
     int retval = system("Rscript simvis.R");
     if (retval == -1) { cerr << "System call to `Rscript simvis.R` failed\n"; }
-}
+}*/
 
     time (&end);
     double dif = difftime (end,start);
@@ -486,69 +476,9 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     ages_by_outcome["cases"].resize(2*par->runLength/7);
     ages_by_outcome["hosp"].resize(2*par->runLength/7);
     ages_by_outcome["deaths"].resize(2*par->runLength/7);
-    // mean and median age of (actual) cases, hospitalizations, and deaths over time
-    vector<double> infections(NUM_AGE_CLASSES, 0.0);
-    vector<double> cases(NUM_AGE_CLASSES, 0.0);
-    vector<double> severe(NUM_AGE_CLASSES, 0.0);
-    vector<double> critical(NUM_AGE_CLASSES, 0.0);
-    vector<double> deaths(NUM_AGE_CLASSES, 0.0);
 
-    for (Person* p: community->getPeople()) {
-        if (p->getNumNaturalInfections() == 0) continue;
-        const size_t age = p->getAge();
-        infections[age]++;
-        Infection* inf = p->getInfection();
-//        if (inf->symptomatic()) cerr << "case week: " << inf->getSymptomTime()/7 << endl;
-//        if (inf->hospital())    cerr << "hosp week: " << inf->getHospitalizedTime()/7 << endl;
-//        if (inf->fatal())       cerr << "dead week: " << inf->getDeathTime()/7 << endl;
-        if (inf->symptomatic()) { ages_by_outcome["cases"][inf->getSymptomTime()/7].push_back(age); cases[age]++; }
-        if (inf->hospital())    { ages_by_outcome["hosp"][inf->getHospitalizedTime()/7].push_back(age); }
-        if (inf->severe())      { severe[age]++; }
-        if (inf->critical())    { critical[age]++; }
-        if (inf->fatal())       { ages_by_outcome["deaths"][inf->getDeathTime()/7].push_back(age); deaths[age]++; }
-    }
-/*    cerr << "week case_mean case_median hosp_mean hosp_median death_mean death_median\n";
-    for (size_t week = Date::julianWeek(par->startDayOfYear); week < par->runLength/7; ++week) {
-        cerr << week << " "
-             << mean(ages_by_outcome["cases"][week]) << " "
-             << median(ages_by_outcome["cases"][week]) << " "
-             << mean(ages_by_outcome["hosp"][week]) << " "
-             << median(ages_by_outcome["hosp"][week]) << " "
-             << mean(ages_by_outcome["deaths"][week]) << " "
-             << median(ages_by_outcome["deaths"][week]) << endl;
-    }*/
-
-//    cerr << "age death critical severe symptomatic infection\n";
-//    for (size_t age = 0; age < infections.size(); ++age) {
-//            cerr << age << " " << deaths[age] << " " << critical[age] << " " << severe[age]  << " " << cases[age] << " " << infections[age]  << endl;
-//    }
-
-//    const int pre_intervention_output = 5; // years
-//    const int desired_intervention_output = FORECAST_DURATION - 1;
     vector<double> metrics = tally_counts(par, community, 0);
-    calculate_reporting_ratios(community);
-//    const vector<size_t> infections       = community->getNumNewlyInfected();
-//    const vector<size_t> reported_cases   = community->getNumDetectedCasesReport();
-//    const vector<size_t> hospitalizations = community->getNumHospPrev();
-//    const vector<size_t> icu              = community->getNumIcuInc();
-//    const vector<size_t> deaths           = community->getNumDetectedDeaths();
-//    const vector<float> lockdown          = community->getTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE);
-
-//    string header = "scenario replicate day infections deaths hosp_prev detected ne_closed";
-//    const int scenario = 0;
-//    const size_t replicate = rng_seed;
-//    for (int day = 0; day < par->runLength; ++day) {
-//        cerr
-//            << scenario
-//            << " " << replicate
-//            << " " << day
-//            << " " << infections[day]
-//            << " " << deaths[day]
-//            << " " << hospitalizations[day]
-//            << " " << reported_cases[day]
-//            << " " << lockdown[day]
-//            << endl;
-//    }
+    //calculate_reporting_ratios(community);
 
     stringstream ss;
     ss << mp->mpi_rank << " end " << hex << process_id << " " << dec << dif << " ";
