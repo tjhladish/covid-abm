@@ -244,7 +244,7 @@ class Person {
         ImmuneStateType immune_state;
         std::vector<Infection*> infectionHistory;
         size_t daysImmune;                                              // number of days this person retains natural immunity
-        std::vector<int> vaccineHistory;
+        std::vector<int> vaccineHistory;                                // vector of days on which vaccinations were received
         void clearInfectionHistory();
 
         static const Parameters* _par;
