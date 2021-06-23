@@ -207,7 +207,8 @@ class Person {
         bool isNaive() const { return immune_state == NAIVE; }
                                                                         // does this person's immune state permit vaccination?
                                                                         // NB: inaccurate test results are possible
-        bool isSeroEligible(VaccineSeroConstraint vsc, double falsePos, double falseNeg) const;
+        //bool isSeroEligible(VaccineSeroConstraint vsc, double falsePos, double falseNeg) const;
+        bool isSeroEligible() const;
         bool vaccinate(int time);                                       // vaccinate this person
         static void setPar(const Parameters* par) { _par = par; }
 

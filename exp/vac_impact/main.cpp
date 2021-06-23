@@ -418,6 +418,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     Community* community = build_community(par);
 
     if (vaccine) {
+    // TODO -- Schedule health care workers first, then either use actual age dist data, or sample from over 65, over 16, over 12, etc.
         //double target_coverage  = coverage;
         double catchup_coverage = 0.6;
         const int target = 16;

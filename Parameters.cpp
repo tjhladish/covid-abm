@@ -58,7 +58,7 @@ void Parameters::define_defaults() {
     probInitialExposure = 0.0;
     //probInitialInfection = 0.0;
 
-    catchupVaccinationEvents.clear();
+//    catchupVaccinationEvents.clear();
     vaccineTargetAge = 9;
     vaccineTargetCoverage = 0.0;
     vaccineTargetStartDate = INT_MAX;

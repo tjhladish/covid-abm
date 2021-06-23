@@ -494,57 +494,34 @@ Infection* Community::infect(int id, StrainType strain) {
 }
 
 
-void Community::vaccinate(CatchupVaccinationEvent cve) {
-    // This approach to vaccination is somewhat problematic.  Age classes can be vaccinated multiple times,
-    // so the probability of an individual being vaccinated becomes 1 - (1 - ve.coverage)^n, where n is the number
-    // of times an age class is specified, either explicitly or implicitly by using a negative value for age
+void Community::vaccinate() {
+    Vaccinee* v = vac_campaign->next_vaccinee(_day);
+    while (v) { // v is not nullptr, e.g. there is actually a dose and a person who might be vaccinatable
+        if (((!v->get_person()->isVaccinated() and v->get_person()->isSeroEligible()) // unvaccinated & eligible
+          or (v->get_status() == REVACCINATE_QUEUE)) // or scheduled for a subsequent dose
+          and v->vaccinate(_day)) { // and person isn't dead, so got vaccinated
+            vac_campaign->tally_dose(_day, v); // tally dose used, and person vaccinated
 
-    // Valid coverage and age?
-    assert(cve.coverage >= 0.0 and cve.coverage <= 1.0);
-    assert(cve.age <= _personAgeCohort.size());
+            // multi-dose vaccines
+            if (p->getNumVaccinations() < _par->numVaccineDoses) {
+                vac_campaign->schedule_revaccination(_day + _par->vaccineDoseInterval, v);
+            }
 
-    const size_t duration = cve.campaignDuration;
-    for (Person* p: _personAgeCohort[cve.age]) {
-        assert(p != NULL);
-        // is today this person's vaccination day (during a multi-day campaign)?
-        if (p->getID() % duration == _day % duration) {
-            if (!p->isVaccinated()
-                and cve.coverage > gsl_rng_uniform(RNG)
-                and p->isSeroEligible(_par->vaccineSeroConstraint, _par->seroTestFalsePos, _par->seroTestFalseNeg)
-               ) {
-                const bool success = p->vaccinate(_day);
-                if (success and (_par->vaccineBoosting or (p->getNumVaccinations() < _par->numVaccineDoses))) {
-                //cerr << _par->vaccineBoosting << " | " << p->getNumVaccinations() << " < " << _par->numVaccineDoses << endl;
-                _revaccinate_set.insert(p); }
+            // vaccines that require regular boosting
+            if (_par->vaccineBoosting) {
+                vac_campaign->schedule_revaccination(_day + _par->vaccineBoostingInterval, v) {
             }
         }
+        delete v;
+        v = vac_campaign->next_vaccinee(_day);
     }
+
+    // if we ran out of doses for today but still have people that need revaccination, reschedule them for tomorrow
+    vac_campaign->reschedule_remaining_revaccinations(_day);
 }
 
 
-void Community::updateVaccination() {
-    vector<Person*> to_erase;
-    for (Person* p: _revaccinate_set) {
-        if (not p->isVaccinated()) {
-            // may be in set unnecessarily because of vaccination before last birthday
-            to_erase.push_back(p);
-            continue;
-        }
-        const int timeSinceLastVaccination = p->daysSinceVaccination(_day);
-        if (p->getNumVaccinations() < _par->numVaccineDoses and timeSinceLastVaccination >= _par->vaccineDoseInterval) {
-            // multi-dose vaccination
-            p->vaccinate(_day);
-            if (p->getNumVaccinations() == _par->numVaccineDoses) { to_erase.push_back(p); } // we're done
-        } else if (_par->vaccineBoosting and timeSinceLastVaccination >= _par->vaccineBoostingInterval) {
-            // booster dose
-            p->vaccinate(_day);
-        }
-    }
-
-    for (Person* p: to_erase) { _revaccinate_set.erase(p); }
-}
-
-
+/*
 void Community::targetVaccination(Person* p) {
     if (_day < _par->vaccineTargetStartDate) return; // not starting yet
     // expected to be run on p's birthday
@@ -557,6 +534,7 @@ void Community::targetVaccination(Person* p) {
         if (_par->vaccineBoosting or _par->numVaccineDoses > 1) { _revaccinate_set.insert(p); }
     }
 }
+*/
 
 
 vector<pair<size_t,double>> Community::getMeanNumSecondaryInfections() const {
@@ -916,6 +894,9 @@ void Community::clear_public_activity() {
 
 void Community::tick() {
     _day = _date->day();
+
+    if (vac_campaign) { vaccinate(); }
+
     within_household_transmission();
     between_household_transmission();
 
@@ -931,7 +912,7 @@ void Community::tick() {
 //    }
 //    local_transmission();
 
-    updateVaccination();
+    //updateVaccination();
 
     updatePersonStatus();                                            // make people stay home or return to work
     // Hospital transmission should happen after updating person status,

@@ -348,14 +348,14 @@ struct DynamicParameter {
 };
 
 
-struct CatchupVaccinationEvent {
+/*struct CatchupVaccinationEvent {
     CatchupVaccinationEvent(){};
     CatchupVaccinationEvent(size_t cs, size_t cd, size_t a, double c): campaignStart(cs), campaignDuration(cd), age(a), coverage(c) {};
     size_t campaignStart;
     size_t campaignDuration;
     size_t age;
     double coverage;
-};
+};*/
 
 
 class Parameters {
@@ -531,7 +531,7 @@ public:
     int numVaccineDoses;                                    // Number of times to boost; default is INT_MAX
     int vaccineDoseInterval;                                // How often to we re-vaccinate for initial vaccine course, in days
     int vaccineBoostingInterval;                            // How often to we re-vaccinate for boosting, in days
-    std::vector<CatchupVaccinationEvent> catchupVaccinationEvents;
+//    std::vector<CatchupVaccinationEvent> catchupVaccinationEvents;
     int vaccineTargetAge;
     double vaccineTargetCoverage;
     int vaccineTargetStartDate;

@@ -194,9 +194,9 @@ void periodic_output(const Parameters* par, map<string, vector<int> > &periodic_
     fputs(output.c_str(), stdout);
 }
 
-void update_vaccinations(const Parameters* par, Community* community, const Date* date) {
+/*void update_vaccinations(const Parameters* par, Community* community, const Date* date) {
     const int doseInterval = par->vaccineDoseInterval;
-    assert(doseInterval > 0); // neg is nonsensical, 0 is disallowed due to mod operation
+    assert(doseInterval > 0); // only non-zero positive ints are sensible
     //const int boostInterval = par->vaccineBoostingInterval;
     for (CatchupVaccinationEvent cve: par->catchupVaccinationEvents) {
         // Normal, initial vaccination -- boosting, multiple doses handled in Community::tick()
@@ -205,7 +205,7 @@ void update_vaccinations(const Parameters* par, Community* community, const Date
             community->vaccinate(cve);
         }
     }
-}
+}*/
 
 
 int seed_epidemic(const Parameters* par, Community* community, const Date* date, StrainType strain) {
@@ -322,7 +322,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
     Date* date = community->get_date();
     for (; date->day() < (signed) par->runLength; date->increment()) {
         const size_t sim_day = date->day();
-        update_vaccinations(par, community, date);
+        //update_vaccinations(par, community, date);
         community->tick();
 
         StrainType strain = WILDTYPE;

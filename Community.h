@@ -51,10 +51,11 @@ class Community {
 
         double social_distancing(int);
         void vaccinate(CatchupVaccinationEvent cve);
-        void targetVaccination(Person* p); // routine vaccination on target birthday
+        //void targetVaccination(Person* p); // routine vaccination on target birthday
         void updateVaccination();          // for boosting and multi-does vaccines
         void setVES(double f);
         void setVESs(std::vector<double> f);
+        void setVac_Campaign(Vac_Campaign* vc) { vac_campaign = vc; }
         std::vector<size_t> getNumNewlyInfected() { return _numNewlyInfected; }
         std::vector<size_t> getNumNewVocInfections() { return _numNewVocInfections; }
         std::vector<size_t> getNumNewlySymptomatic() { return _numNewlySymptomatic; }
@@ -125,6 +126,7 @@ class Community {
         static std::vector< std::map<LocationType, std::map<Location*, std::map<double, std::vector<Person*>>, Location::LocPtrComp>>> _isHot;
         static std::vector<Person*> _peopleByAge;
         static std::map<int, std::set<std::pair<Person*, Person*> > > _delayedBirthdays;
+        Vac_Campaign* vac_campaign;
         static std::set<Person*> _revaccinate_set;          // not automatically re-vaccinated, just checked for boosting, multiple doses
         std::map<TimedIntervention, std::vector<double>> timedInterventions;
 

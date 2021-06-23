@@ -417,7 +417,12 @@ bool Person::isVaccineProtected(int time) const {
 }
 
 
-bool Person::isSeroEligible(VaccineSeroConstraint vsc, double falsePos, double falseNeg) const {
+//bool Person::isSeroEligible(VaccineSeroConstraint vsc, double falsePos, double falseNeg) const {
+bool Person::isSeroEligible() const {
+    const VaccineSeroConstraint vsc = _par->vaccineSeroConstraint;
+    const double falsePos = _par->seroTestFalsePos;
+    const double falseNeg = _par->seroTestFalseNeg;
+
     if (vsc == VACCINATE_ALL_SERO_STATUSES) return true;
 
     assert(falsePos >= 0.0 and falsePos <= 1.0);
