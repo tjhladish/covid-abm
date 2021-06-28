@@ -20,6 +20,14 @@ enum VaccineAllocationType {
     NUM_OF_VACCINE_ALLOCATION_TYPES;
 };
 
+/*
+enum ReactiveVaccinationStrategyType {
+    RING_VACCINATION;
+    GEOGRAPHIC_CLUSTER_VACCINATION;
+    NUM_OF_REACTIVE_VAC_STRATEGY_TYPES;
+};
+*/
+
 class Vaccinee {
     public:
         Vaccinee() : person(nullptr), status(NUM_OF_VACCINATION_QUEUE_TYPES), dose_source(NUM_OF_VACCINE_ALLOCATION_TYPES) {}
@@ -43,18 +51,26 @@ class Vac_Campaign {
         Vac_Campaign() {
             prioritize_first_doses = false;
             flexible_queue_allocation = false;
+            // reactive_vac_strategy = NUM_OF_REACTIVE_VAC_STRATEGY_TYPES;
+            // reactive_vac_dose_allocation = 0;
         }
         virtual ~Vac_Campaign();
 
         void set_prioritize_first_doses(bool val) { prioritize_first_doses = val; }
-        void set_flexible_queue_allocation(bool val) { flexible_queue_allocation = val; }
+        void set_flexible_queue_allocation(bool val) { flexible_queue_allocation = val; } //change to flexible_dose_allocation?
+        // void set_reactive_vac_strategy(ReactiveVaccinationStrategyType rvs) { reactive_vac_strategy = rvs; }
+        // void set_reactive_vac_dose_allocation(double val) { reavtive_vac_dose_allocation = val; }
+        // double get_reactive_vac_dose_allocation() { return reactive_vac_dose_allocation; }
+
+        // size_t get_urgent_queue_size() { return urgent_queue.size(); }
+        // size_t get_standard_queue_size() { return standard_queue.size(); }
 
         void prioritize_vaccination(Person* p) { urgent_queue.push(p); }
         void schedule_vaccination(Person* p) { standard_queue.push(p); }
 
         void set_doses_available( std::vector< std::vector<int> > da ) {
             doses_available = da;
-            doses_used.resize(da.size(), std::vector<int>(NUM_OF_VACCINATION_QUEUE_TYPES));
+            doses_used.resize(da.size(), std::vector<int>(NUM_OF_VACCINATION_QUEUE_TYPES)); //change to NUM_OF_VACCINE_ALLOCATION_TYPES?
             revaccinate_queue.resize(da.size());
         }
 
@@ -140,10 +156,12 @@ class Vac_Campaign {
         std::queue<Person*> urgent_queue;                      // people who need to be vaccinated, determined during simulation
         std::queue<Person*> standard_queue;                    // people who will be vaccinated, known before transmission sim begins
         std::vector< std::set<Person*> > revaccinate_queue;    // indexed by sim day
-        bool prioritize_first_doses;                           // do we prioritize first doses, or completing vac schedules?
+        bool prioritize_first_doses;                           // do we prioritize first doses, or completing vac schedules? --> possibly move to _par?
         std::vector< std::vector<int> > doses_available;       // for each day, number of doses available for each queue
         std::vector< std::vector<int> > queue_tally;           // for each day, number of doses used for each queue
-        bool flexible_queue_allocation;                        // can doses be used from any allocation, or only as intended?
+        bool flexible_queue_allocation;                        // can doses be used from any allocation, or only as intended? --> possibly move to _par?
+        // ReactiveVaccinationStrategyType reactive_vac_strategy;       // parameter for type of reactive strategy (if one is active) 
+        // double reactive_vac_dose_allocation;                         // what proportion of total daily doses are reserved for reactive strategies
 };
 
 

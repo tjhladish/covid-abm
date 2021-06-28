@@ -537,6 +537,10 @@ public:
     int vaccineTargetStartDate;
     size_t numSurveilledPeople;
 
+    // bool vacCampaign_prioritize_first_doses;
+    // bool vacCampaign_flexible_queue_allocation;
+    // ReactiveVaccinationStrategyType vacCampaign_reactive_strategy;
+
     bool traceContacts;                                     // should we keep track of who infected whom
 
                                                             // e.g. school closures, non-essential business closures, social distancing

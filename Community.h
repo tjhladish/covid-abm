@@ -12,8 +12,10 @@
 #include <algorithm>
 #include "Date.h"
 #include "Location.h"
+// #include "Vac_Campaign.h"
 
 class Person;
+// class Vac_Campaign;
 
 // We use this to created a vector of people, sorted by decreasing age.  Used for aging/immunity swapping.
 //struct PerPtrComp { bool operator()(const Person* A, const Person* B) const { return A->getAge() > B->getAge(); } };

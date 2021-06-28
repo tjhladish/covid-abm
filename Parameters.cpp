@@ -10,6 +10,7 @@
 #include <gsl/gsl_roots.h>
 #include <climits> // INT_MAX
 #include "Date.h"
+// #include "Vac_Campaign.h"
 
 using namespace covid::util;
 
@@ -70,6 +71,10 @@ void Parameters::define_defaults() {
     vaccineBoosting = false;
     vaccineBoostingInterval = 730;
     retroactiveMatureVaccine = false;
+
+    // vacCampaign_prioritize_first_doses = false;
+    // vacCampaign_flexible_queue_allocation = false;
+    // vacCampaign_reactive_strategy = NUM_OF_REACTIVE_VAC_STRATEGY_TYPES;
 
     numSurveilledPeople = INT_MAX;
 

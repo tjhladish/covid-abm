@@ -15,6 +15,7 @@
 #include "Location.h"
 #include "Community.h"
 #include "Parameters.h"
+//#include "Vac_Campaign.h"
 
 using namespace covid::standard;
 using covid::util::mean;
@@ -957,3 +958,84 @@ size_t Community::getNumNaive() {
     }
     return count;
 }
+
+/*
+bool Community::generateVac_Campaign(string vaccinationFilename) {
+    Vac_Campaign* vc = new Vac_Campaign();      // need to add delete wherever the model is cleaned up
+    if(_par->vacCampaign_prioritize_first_doses) { vc->set_prioritize_first_doses(_par->vacCampaign_prioritize_first_doses); }                              // need to add to _par
+    if(_par->vacCampaign_flexible_queue_allocation) { vc->set_flexible_queue_allocation(_par->vacCampaign_flexible_queue_allocation); }                     // need to add to _par
+    if(_par->vacCampaign_reactive_strategy != NUM_OF_REACTIVE_STRATEGY_TYPES) { vc->set_reactive_vac_strategy(_par->vacCampaign_reactive_vac_strategy); }   // need to add to _par
+
+    int empirical_urgent_doses_used = 0, empirical_standard_doses_used = 0;
+
+    vector< vector<int> > doses_available;
+    doses_available.resize(_par->runLength, vector<int>(NUM_OF_VACCINE_ALLOCATION_TYPES));
+
+    vector<Person*> binned_people;
+    set<Person*> scheduled_people;
+
+    ifstream iss(vaccinationFilename);
+    char buffer[500];
+    istringstream line(buffer); 
+    
+    iss.open(vaccinationFilename);
+    if (!iss) {
+        cerr << "ERROR: vaccination file " << vaccinationFilename << " not found." << endl;
+        return false;
+    }
+
+    type COL_DATE, COL_FIRST_DOSE, COL_SECOND_DOSE, COL_AGE_BIN;    // guess based on what I remember
+    
+    while (iss) {
+        iss.getline(buffer,500);
+        line.clear();
+        line.str(buffer);
+        if (line >> COL_DATE >> COL_FIRST_DOSE >> COL_SECOND_DOSE >> COL_AGE_BIN) {
+            binned_people.clear();
+
+            // for ages between BIN min and max, store people into tmp_binned_people
+            for(Person* p : _people){
+                if((p->getAge() >= BIN_MIN) and (p->getAge() <= BIM_MAX)) { binned_people.push_back(p); }
+            }
+
+            // gsl_ran_shuffle age bin array
+            gsl_ran_shuffle(RNG, binned_people.data(), binned_people.size(), sizeof (Person));
+
+            int num_scheduled = 0;
+
+            // push back sampled people into standard queue who have not been scheduled already
+            for(Person* p : binned_people) {
+                if(scheduled_people.insert(p).second){ vc->schedule_vaccination(p); }
+                
+                num_scheduled++;
+                if(num_scheduled == (COL_FIRST_DOSE + COL_SECOND_DOSE)) { break; }
+            }
+
+            // tally doses used for that day for urgent allocation (reactive strategy)
+            _par->vacCampaign_reactive_strategy != NUM_OF_REACTIVE_STRATEGY_TYPES ? empirical_urgent_doses_used = vc->get_reactive_vac_dose_allocation * (COL_FIRST_DOSE + COL_SECOND_DOSE)
+                                                                                    : empirical_urgent_doses_used = 0;
+           
+            // tally doses used for that day for standard allocation (general strategy)
+            _par->vacCampaign_reactive_strategy != NUM_OF_REACTIVE_STRATEGY_TYPES ? empirical_standard_doses_used = (1 - vc->get_reactive_vac_dose_allocation) * (COL_FIRST_DOSE + COL_SECOND_DOSE)
+                                                                                    : empirical_standard_doses_used = (COL_FIRST_DOSE + COL_SECOND_DOSE);
+
+            doses_available.at(COL_DATE)[URGENT_ALLOCATION].push_back(empirical_urgent_doses_used);            
+            doses_available.at(COL_DATE)[STANDARD_ALLOCATION].push_back(empirical_standard_doses_used);
+        }
+    }
+    iss.close();
+    
+    // check that all people in synthpop (of vaccinatable age) are queued
+    set<Person*> vaccinatable_people;
+    for(Person* p : _people) {
+        if(p->getAge() >= VAC_AGE_MIN) { vaccinatable_people.insert(p); }
+    }
+
+    assert(vc->get_standard_queue_size() == vaccinatable_people.size());
+
+    vc->set_doses_available(doses_available);
+    setVac_Campaign(vc);
+
+    return true;
+}
+*/
