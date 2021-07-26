@@ -6,6 +6,7 @@
 #include "Utility.h"
 #include <unordered_set>
 #include <math.h>
+#include "local_header.h"
 
 using namespace std;
 
@@ -22,11 +23,18 @@ string calculate_process_id(vector<double> &args, string &argstring);
 //const string SIM_POP = "florida";
 //const string SIM_POP = "pseudo-1000k"; // recent good T value == 0.042
 const string SIM_POP = "pseudo-300K"; // recent good T value == 0.042
-const string HOME_DIR(std::getenv("HOME"));
+//const string HOME_DIR(std::getenv("HOME")); // commented out to test local path header
+
+#ifdef LOCAL_HEADER
+const std::string HOME_DIR = getHOME();
+#else
+const std::string HOME_DIR = std::getenv("HOME");
+#endif
+
 const string pop_dir = HOME_DIR + "/work/covid-abm/pop/" + SIM_POP;
 const string output_dir("/ufrc/longini/tjhladish/");
 //const string imm_dir(output_dir + "");
-const string vaccination_file = pop_dir + "/FILENAME";
+const string vaccination_file = pop_dir + "/../fl_vac_processed.txt";
 
 const int RESTART_BURNIN          = 0;
 //const int FORECAST_DURATION       = 424;
@@ -243,23 +251,16 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
 Vac_Campaign* generateVac_Campaign(string vaccinationFilename, const Parameters* par, Community* community) {
     // check that vaccinationFilename exists and can be opened
     ifstream iss(vaccinationFilename);
-    char buffer[500];
-    istringstream line(buffer); 
-    
-    iss.open(vaccinationFilename);
+    string buffer;
+    istringstream line;
+
     if (!iss) {
         cerr << "ERROR: vaccination file " << vaccinationFilename << " not found." << endl;
         return nullptr;
     }
-     
+
     // if the file exists and can be opened, create a new Vac_Campaign and continue
     Vac_Campaign* vc = new Vac_Campaign();
-    
-
-
-
-
-
 
     // temporary data structure to hold calculated doses used before setting up the vac_campaign
     vector< vector<int> > doses_available;
@@ -275,15 +276,14 @@ Vac_Campaign* generateVac_Campaign(string vaccinationFilename, const Parameters*
     for(Person* p : community->getPeople()) {
         // get work location ID + check if workplace is a hospital or nursing home
         // if so, schedule vaccination and add to scheduled_people
-        if((p->getDayLoc()->getType() == HOSPITAL) or (p->getDayLoc()->getType() == NURSINGHOME)) {
+        if(p->getDayLoc() and ((p->getDayLoc()->getType() == HOSPITAL) or (p->getDayLoc()->getType() == NURSINGHOME))) {
             // set.insert.second returns bool (true if inserted, false if not) --- this keeps track of who has been scheduled and prevents double-scheduling
-            if((gsl_rng_uniform(RNG) < par->vaccineTargetCoverage) and (scheduled_people.insert(p).second)){ 
+            if((gsl_rng_uniform(RNG) < par->vaccineTargetCoverage) and (scheduled_people.insert(p).second)){
                 vc->schedule_vaccination(p);
                 num_healthcare_scheduled++;
             }
         }
     }
-
     // if it is desired to schedule healthcare workers alongside general population, uncomment below
     // vector<Person*> healthcare_workers;
     // for(Person* p : _people) {
@@ -296,13 +296,12 @@ Vac_Campaign* generateVac_Campaign(string vaccinationFilename, const Parameters*
     string age_grp, end_of_week_date;
     unsigned int complete, vac_pers;
 
-    while (iss) {
-        iss.getline(buffer,500);
+    while (getline(iss, buffer) ) {
         line.clear();
         line.str(buffer);
         if (line >> age_grp >> complete >> vac_pers >> end_of_week_date) {
             // keeps track of how many doses should be allocated to the standard and urgent allocation according to empirircal doses used
-            int emp_weekly_urgent_doses = 0, emp_weekly_standard_doses = 0;     
+            int emp_weekly_urgent_doses = 0, emp_weekly_standard_doses = 0;
 
             // keeps track of the min and max of the age_grp
             unsigned int bin_min, bin_max;
@@ -378,7 +377,16 @@ Vac_Campaign* generateVac_Campaign(string vaccinationFilename, const Parameters*
 
     vc->set_doses_available(doses_available);
     community->setVac_Campaign(vc);
-
+/*
+cerr << "FINISHED CREATING CAMPAIGN" << endl;
+cerr << vc->next_vaccinee(354)->get_person()->getID() << endl;
+for(int idx; idx < doses_available.size(); ++idx) {
+    cerr << "DAY: " << idx << " DOSES (STD  URG): ";
+    cerr_vector(doses_available[idx]);
+    cerr << endl;
+}
+exit(222);
+*/
     return vc;
 }
 
@@ -542,13 +550,13 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
     cerr << "SCENARIO " << rng_seed;
     for (auto _p: args) { cerr << " " << _p; } cerr << endl;
-// 0  "vaccine", "short_name" : "vac", "num_type"   : "INT", "par1"       : 0, "par2"       : 1, "step"       : 1}, 
-// 1  "vaccine_efficacy_susceptibility", "short_name" : "VES", "num_type"   : "FLOAT", "par1"       : 0.6, "par2"       : 0.6, "step"       : 0.0}, 
-// 2  "vaccine_efficacy_pathogenicity", "short_name" : "VEP", "num_type"   : "FLOAT", "par1"       : 0.95, "par2"       : 0.95, "step"       : 0.0}, 
-// 3  "vaccination_rate", "short_name" : "vac_rate", "num_type"   : "FLOAT", "par1"       : 0.0012, "par2"       : 0.003, "step"       : 0.0018}, 
-// 4  "realization", "num_type"   : "INT", "par1"       : 0, "par2"       : 99}, 
+// 0  "vaccine", "short_name" : "vac", "num_type"   : "INT", "par1"       : 0, "par2"       : 1, "step"       : 1},
+// 1  "vaccine_efficacy_susceptibility", "short_name" : "VES", "num_type"   : "FLOAT", "par1"       : 0.6, "par2"       : 0.6, "step"       : 0.0},
+// 2  "vaccine_efficacy_pathogenicity", "short_name" : "VEP", "num_type"   : "FLOAT", "par1"       : 0.95, "par2"       : 0.95, "step"       : 0.0},
+// 3  "vaccination_rate", "short_name" : "vac_rate", "num_type"   : "FLOAT", "par1"       : 0.0012, "par2"       : 0.003, "step"       : 0.0018},
+// 4  "realization", "num_type"   : "INT", "par1"       : 0, "par2"       : 99},
 // 5  "mutation", "num_type"   : "INT", "par1"       : 0, "par2"       : 1, "step"       : 1}
-    
+
     enum VacRate { SLOW, FAST, NUM_OF_VAC_RATES };
 
     Parameters* par = define_simulator_parameters(args, rng_seed, serial, process_id);
@@ -561,11 +569,12 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
     Community* community = build_community(par);
     Vac_Campaign* vc = nullptr;
+    community->setVac_Campaign(vc);
 
     if (vaccine) {
     // TODO -- Schedule health care workers first, then either use actual age dist data, or sample from over 65, over 16, over 12, etc.
         //double target_coverage  = coverage;
-        
+
         // below was previous vaccination system
         /*
         double catchup_coverage = 0.6;
@@ -599,14 +608,14 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         par->numVaccineDoses       = 2;
         par->vaccineDoseInterval   = 21;
         par->vaccineTargetCoverage = 0.7;
- 
+
+        vc = generateVac_Campaign(vaccination_file, par, community);
+
         // parameter handling --- how do we want to handle setting these? I just set them here rather than use par
         vc->set_prioritize_first_doses(false);
         vc->set_flexible_queue_allocation(false);
         vc->set_reactive_vac_strategy(NUM_OF_REACTIVE_VAC_STRATEGY_TYPES);
         vc->set_reactive_vac_dose_allocation(0.0);
-
-        vc = generateVac_Campaign(vaccination_file, par, community);
     }
 
     seed_epidemic(par, community);

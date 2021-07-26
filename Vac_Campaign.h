@@ -80,6 +80,7 @@ class Vac_Campaign {
             doses_available = da;
             //doses_used.resize(da.size(), std::vector<int>(NUM_OF_VACCINATION_QUEUE_TYPES));
             revaccinate_queue.resize(da.size());
+            queue_tally.resize(da.size(), vector<int>(NUM_OF_VACCINATION_QUEUE_TYPES));
         }
 
         Vaccinee* next_vaccinee(size_t day) {
