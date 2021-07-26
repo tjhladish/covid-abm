@@ -12,7 +12,7 @@
 #include <algorithm>
 #include "Date.h"
 #include "Location.h"
-// #include "Vac_Campaign.h"
+#include "Vac_Campaign.h"
 
 class Person;
 // class Vac_Campaign;
@@ -52,7 +52,7 @@ class Community {
         void clear_public_activity();
 
         double social_distancing(int);
-        void vaccinate(CatchupVaccinationEvent cve);
+        void vaccinate();
         //void targetVaccination(Person* p); // routine vaccination on target birthday
         void updateVaccination();          // for boosting and multi-does vaccines
         void setVES(double f);

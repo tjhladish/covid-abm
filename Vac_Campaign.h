@@ -28,11 +28,15 @@ enum ReactiveVaccinationStrategyType {
 };
 */
 
+class Vac_Campaign;
+
 class Vaccinee {
+    friend Vac_Campaign;
     public:
         Vaccinee() : person(nullptr), status(NUM_OF_VACCINATION_QUEUE_TYPES), dose_source(NUM_OF_VACCINE_ALLOCATION_TYPES) {}
         Vaccinee(Person* p, VaccinationQueueType stat, VaccineAllocationType source) : person(p), status(stat), dose_source(source) {}
         bool vaccinate (int day) { return person->vaccinate(day); } // true if person was vaccinatable
+        int getNumVaccinations () { return person->getNumVaccinations(); }
         Person* get_person() { return person; }
         VaccinationQueueType get_status() { return status; }
         VaccineAllocationType get_dose_source() { return dose_source; }
@@ -72,7 +76,7 @@ class Vac_Campaign {
 
         void set_doses_available( std::vector< std::vector<int> > da ) {
             doses_available = da;
-            doses_used.resize(da.size(), std::vector<int>(NUM_OF_VACCINATION_ALLOCATION_TYPES));
+            //doses_used.resize(da.size(), std::vector<int>(NUM_OF_VACCINATION_QUEUE_TYPES));
             revaccinate_queue.resize(da.size());
         }
 
@@ -106,10 +110,12 @@ class Vac_Campaign {
 
                 if (source_of_dose < NUM_OF_VACCINE_ALLOCATION_TYPES) { // i.e., urgent or standard
                     person = *(revaccinate_queue[day].begin());
-                    revaccinate_queue[day].erase(p);
+                    revaccinate_queue[day].erase(person);
                     vaccinee_queue = REVACCINATE_QUEUE;
                 }
-            } else if (urgent_queue.size()) {
+            }
+
+            if (urgent_queue.size() and not person) {
                 source_of_dose = urgent_doses_avail ? URGENT_ALLOCATION
                                  : flexible_queue_allocation and standard_doses_avail ? STANDARD_ALLOCATION
                                  : NUM_OF_VACCINE_ALLOCATION_TYPES;
@@ -119,7 +125,9 @@ class Vac_Campaign {
                     urgent_queue.pop();
                     vaccinee_queue = URGENT_QUEUE;
                 }
-            } else if (standard_queue.size()) {
+            }
+
+            if (standard_queue.size() and not person) {
                 source_of_dose = standard_doses_avail ? STANDARD_ALLOCATION
                                  : flexible_queue_allocation and urgent_doses_avail ? URGENT_ALLOCATION
                                  : NUM_OF_VACCINE_ALLOCATION_TYPES;
@@ -142,15 +150,15 @@ class Vac_Campaign {
         }
 
         void schedule_revaccination(size_t day, Vaccinee* vac) {
-            if(gsl_rng_uniform(RNG) < revaccination_follow_up) { revaccinate_queue.at(day).add(vac->person); }
+            revaccinate_queue.at(day).insert(vac->person);
         }
 
-        void reschedule_remaining_revaccinations(size_t day) {
-            const size_t queue_length_in_days = revaccinate_queue.size();
-            std::set<Person*> remaining_people = revaccinate_queue[day];
-            if (remaining_people.size() and queue_length_in_days > day + 1) {
-                revaccinate_queue[day + 1].insert(remaining_queue);
-                revaccinate_queue[day].clear();
+        void reschedule_remaining_revaccinations(size_t today) {
+            const size_t queue_length_in_days = revaccinate_queue.size(); // how many days long is the simulation
+            std::set<Person*> remaining_people = revaccinate_queue[today];
+            if (remaining_people.size() and queue_length_in_days > today + 1) {
+                revaccinate_queue[today + 1].insert(remaining_people.begin(), remaining_people.end());
+                revaccinate_queue[today].clear();
             }
         }
 
