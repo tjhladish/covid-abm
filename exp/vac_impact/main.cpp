@@ -255,15 +255,15 @@ Vac_Campaign* generateVac_Campaign(string vaccinationFilename, const Parameters*
     // if the file exists and can be opened, create a new Vac_Campaign and continue
     Vac_Campaign* vc = new Vac_Campaign();
     
-    // parameter handling --- how do we want to handle setting these (par vs. flags)?
-    if(par->vacCampaign_prioritize_first_doses) { vc->set_prioritize_first_doses(par->vacCampaign_prioritize_first_doses); }
-    if(par->vacCampaign_flexible_queue_allocation) { vc->set_flexible_queue_allocation(par->vacCampaign_flexible_queue_allocation); }
-    if(par->vacCampaign_reactive_strategy != NUM_OF_REACTIVE_STRATEGY_TYPES) { vc->set_reactive_vac_strategy(par->vacCampaign_reactive_vac_strategy); }
-    if(par->vacCampaign_reactive_vac_dose_allocation) { vc->set_reactive_vac_dose_allocation(par->vacCampaign_reactive_vac_dose_allocation); }
+
+
+
+
+
 
     // temporary data structure to hold calculated doses used before setting up the vac_campaign
     vector< vector<int> > doses_available;
-    doses_available.resize(_par->runLength, vector<int>(NUM_OF_VACCINE_ALLOCATION_TYPES));
+    doses_available.resize(par->runLength, vector<int>(NUM_OF_VACCINE_ALLOCATION_TYPES));
 
     // keeps track of who has been scheduled to prevent scheduling the same person twice
     set<Person*> scheduled_people;
@@ -272,12 +272,12 @@ Vac_Campaign* generateVac_Campaign(string vaccinationFilename, const Parameters*
     unsigned int num_healthcare_scheduled = 0;
 
     // add all healthcare workers (hospital + nursing home workers) to standard queue BEFORE all other people are scheduled
-    for(Person* p : _people) {
+    for(Person* p : community->getPeople()) {
         // get work location ID + check if workplace is a hospital or nursing home
         // if so, schedule vaccination and add to scheduled_people
         if((p->getDayLoc()->getType() == HOSPITAL) or (p->getDayLoc()->getType() == NURSINGHOME)) {
             // set.insert.second returns bool (true if inserted, false if not) --- this keeps track of who has been scheduled and prevents double-scheduling
-            if((gsl_rng_uniform(RNG) < _par->vaccineTargetCoverage) and (scheduled_people.insert(p).second)){ 
+            if((gsl_rng_uniform(RNG) < par->vaccineTargetCoverage) and (scheduled_people.insert(p).second)){ 
                 vc->schedule_vaccination(p);
                 num_healthcare_scheduled++;
             }
@@ -323,10 +323,10 @@ Vac_Campaign* generateVac_Campaign(string vaccinationFilename, const Parameters*
             }
 
             // push back sampled people into standard queue who have not been scheduled already
-            for(Person* p : _people) {
+            for(Person* p : community->getPeople()) {
                 // if a person is of the correct age, falls within campaign coverage, and has not been previously scheduled, schedule for standard vaccination
                 // set.insert.second returns bool (true if inserted, false if not) --- this keeps track of who has been scheduled and prevents double-scheduling
-                if(((p->getAge() >= bin_min) and (p->getAge() <= bin_max)) and (gsl_rng_uniform(RNG) < _par->vaccineTargetCoverage) and (scheduled_people.insert(p).second)){ vc->schedule_vaccination(p); }
+                if(((p->getAge() >= bin_min) and (p->getAge() <= bin_max)) and (gsl_rng_uniform(RNG) < par->vaccineTargetCoverage) and (scheduled_people.insert(p).second)){ vc->schedule_vaccination(p); }
 
                 // if it is desired to schedule healthcare workers alongside general population, uncomment below
                 // if((gsl_rng_uniform(RNG) < _par->vaccineTargetCoverage) and (scheduled_people.insert(healthcare_workers.front()).second)) {
@@ -340,11 +340,11 @@ Vac_Campaign* generateVac_Campaign(string vaccinationFilename, const Parameters*
             }
 
             // tally doses used for that day for urgent allocation (reactive strategy)
-            _par->vacCampaign_reactive_strategy != NUM_OF_REACTIVE_STRATEGY_TYPES ? emp_weekly_urgent_doses = vc->get_reactive_vac_dose_allocation * (vac_pers + complete)
+            vc->get_reactive_vac_strategy() != NUM_OF_REACTIVE_VAC_STRATEGY_TYPES ? emp_weekly_urgent_doses = vc->get_reactive_vac_dose_allocation() * (vac_pers + complete)
                                                                                     : emp_weekly_urgent_doses = 0;
 
             // tally doses used for that day for standard allocation (general strategy)
-            _par->vacCampaign_reactive_strategy != NUM_OF_REACTIVE_STRATEGY_TYPES ? emp_weekly_standard_doses = (1 - vc->get_reactive_vac_dose_allocation) * (vac_pers + complete)
+            vc->get_reactive_vac_strategy() != NUM_OF_REACTIVE_VAC_STRATEGY_TYPES ? emp_weekly_standard_doses = (1 - vc->get_reactive_vac_dose_allocation()) * (vac_pers + complete)
                                                                                     : emp_weekly_standard_doses = (vac_pers + complete);
 
             // file reports doses per week so we need to adjust to distribute doses per day
@@ -358,16 +358,16 @@ Vac_Campaign* generateVac_Campaign(string vaccinationFilename, const Parameters*
             emp_standard_doses_remaining = emp_weekly_standard_doses%7; // calculate remainder of doses to be added to final day of the week
 
             // use date (which is the final day of an week of reported data) from file to cycle through the days in the matching simulation week
-            const unsigned int end_of_week = Date::to_sim_day(_par->startJulianYear, _par->startDayOfYear, end_of_week_date);
+            const unsigned int end_of_week = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, end_of_week_date);
             for(unsigned int day = end_of_week-6; day <= end_of_week; day++) {
                 // if it is day 1-6, push back 1/7 of weekly doses used
                 // if it is day 7, push back 1/7 + the remainder of weekly doses used
                 if(day != end_of_week) {
-                    doses_available.at(day)[URGENT_ALLOCATION].push_back(emp_daily_urgent_doses);
-                    doses_available.at(day)[STANDARD_ALLOCATION].push_back(emp_daily_standard_doses);
+                    doses_available.at(day)[URGENT_ALLOCATION]   = emp_daily_urgent_doses;
+                    doses_available.at(day)[STANDARD_ALLOCATION] = emp_daily_standard_doses;
                 } else {
-                    doses_available.at(day)[URGENT_ALLOCATION].push_back(emp_daily_urgent_doses + emp_urgent_doses_remaining);
-                    doses_available.at(day)[STANDARD_ALLOCATION].push_back(emp_daily_standard_doses + emp_standard_doses_remaining);
+                    doses_available.at(day)[URGENT_ALLOCATION]   = (emp_daily_urgent_doses + emp_urgent_doses_remaining);
+                    doses_available.at(day)[STANDARD_ALLOCATION] = (emp_daily_standard_doses + emp_standard_doses_remaining);
                 }
             }
         }
@@ -598,12 +598,14 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         par->vaccineLeaky          = false;
         par->numVaccineDoses       = 2;
         par->vaccineDoseInterval   = 21;
-        par->vacCampaign_prioritize_first_doses = TRUE;
-        par->vacCampaign_flexible_queue_allocation = TRUE;
-        par->vacCampaign_reactive_strategy = NUM_OF_REACTIVE_VAC_STRATEGIES;
-        par->vacCampaign_reactive_vac_dose_allocation = 0;
         par->vaccineTargetCoverage = 0.7;
-    
+ 
+        // parameter handling --- how do we want to handle setting these? I just set them here rather than use par
+        vc->set_prioritize_first_doses(false);
+        vc->set_flexible_queue_allocation(false);
+        vc->set_reactive_vac_strategy(NUM_OF_REACTIVE_VAC_STRATEGY_TYPES);
+        vc->set_reactive_vac_dose_allocation(0.0);
+
         vc = generateVac_Campaign(vaccination_file, par, community);
     }
 
@@ -647,7 +649,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     string output = ss.str();
     fputs(output.c_str(), stderr);
 
-    delete vc           // should this be here?
+    delete vc;           // should this be here?
     delete par;
     delete community;
 

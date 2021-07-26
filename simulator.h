@@ -14,6 +14,7 @@
 #include "Community.h"
 #include "Utility.h"
 #include "sys/stat.h"
+#include "Vac_Campaign.h"
 
 using namespace covid::standard;
 using namespace covid::util;

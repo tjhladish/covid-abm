@@ -20,13 +20,12 @@ enum VaccineAllocationType {
     NUM_OF_VACCINE_ALLOCATION_TYPES
 };
 
-/*
+
 enum ReactiveVaccinationStrategyType {
     RING_VACCINATION,
     GEOGRAPHIC_CLUSTER_VACCINATION,
     NUM_OF_REACTIVE_VAC_STRATEGY_TYPES
 };
-*/
 
 class Vac_Campaign;
 
@@ -55,16 +54,19 @@ class Vac_Campaign {
         Vac_Campaign() {
             prioritize_first_doses = false;
             flexible_queue_allocation = false;
-            // reactive_vac_strategy = NUM_OF_REACTIVE_VAC_STRATEGY_TYPES;
-            // reactive_vac_dose_allocation = 0;
+            reactive_vac_strategy = NUM_OF_REACTIVE_VAC_STRATEGY_TYPES;
+            reactive_vac_dose_allocation = 0.0;
         }
-        virtual ~Vac_Campaign();
+        virtual ~Vac_Campaign() {} //is this correct to address a vtable error?
 
         void set_prioritize_first_doses(bool val) { prioritize_first_doses = val; }
         void set_flexible_queue_allocation(bool val) { flexible_queue_allocation = val; }
-        // void set_reactive_vac_strategy(ReactiveVaccinationStrategyType rvs) { reactive_vac_strategy = rvs; }
-        // void set_reactive_vac_dose_allocation(double val) { reavtive_vac_dose_allocation = val; }
-        // double get_reactive_vac_dose_allocation() { return reactive_vac_dose_allocation; }
+
+        void set_reactive_vac_strategy(ReactiveVaccinationStrategyType rvs) { reactive_vac_strategy = rvs; }
+        ReactiveVaccinationStrategyType get_reactive_vac_strategy() { return reactive_vac_strategy; }
+
+        void set_reactive_vac_dose_allocation(double val) { reactive_vac_dose_allocation = val; }
+        double get_reactive_vac_dose_allocation() { return reactive_vac_dose_allocation; }
 
         // void set_revaccination_follow_up(double val) { revaccination_follow_up = val; }
 
@@ -163,7 +165,7 @@ class Vac_Campaign {
         }
 
         /*
-        void reactive_vac_strategy() {
+        void get_reactive_vac_strategy() {
             // check what strategy is being used
             // execute appropriate algorithms to detect and add necessary people to urgent queue
 
@@ -188,8 +190,8 @@ class Vac_Campaign {
         std::vector< std::vector<int> > doses_available;       // for each day, number of doses available for each queue
         std::vector< std::vector<int> > queue_tally;           // for each day, number of doses used for each queue
         bool flexible_queue_allocation;                        // can doses be used from any allocation, or only as intended? --> possibly move to _par?
-        // ReactiveVaccinationStrategyType reactive_vac_strategy;       // parameter for type of reactive strategy (if one is active) 
-        // double reactive_vac_dose_allocation;                         // what proportion of total daily doses are reserved for reactive strategies
+        ReactiveVaccinationStrategyType reactive_vac_strategy;       // parameter for type of reactive strategy (if one is active) 
+        double reactive_vac_dose_allocation;                         // what proportion of total daily doses are reserved for reactive strategies
         // double revaccination_follow_up;                              // what proportion of people follow-up for second doses
 
         // void _ring_vaccination();
