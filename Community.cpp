@@ -503,13 +503,13 @@ void Community::vaccinate() {
             vac_campaign->tally_dose(_day, v); // tally dose used, and person vaccinated
 
             // multi-dose vaccines
-            if (p->getNumVaccinations() < _par->numVaccineDoses) {
+            if (v->getNumVaccinations() < _par->numVaccineDoses) {
                 vac_campaign->schedule_revaccination(_day + _par->vaccineDoseInterval, v);
             }
 
             // vaccines that require regular boosting
             if (_par->vaccineBoosting) {
-                vac_campaign->schedule_revaccination(_day + _par->vaccineBoostingInterval, v) {
+                vac_campaign->schedule_revaccination(_day + _par->vaccineBoostingInterval, v);
             }
         }
         delete v;
