@@ -70,6 +70,7 @@ Community::Community(const Parameters* parameters, Date* date) :
         }
     }
     timedInterventions = _par->timedInterventions;
+    // vac_campaign = nullptr;
 }
 
 
@@ -924,6 +925,8 @@ void Community::tick() {
     hospital_transmission();
     updateHotLocations();
 
+    // vac_campaign->reactive_vac_strategy();
+
     return;
 }
 
@@ -959,20 +962,19 @@ size_t Community::getNumNaive() {
     return count;
 }
 
-/*
+/* MOVED TO VAC_IMPACT/MAIN.CPP
 bool Community::generateVac_Campaign(string vaccinationFilename) {
-    Vac_Campaign* vc = new Vac_Campaign();      // need to add delete wherever the model is cleaned up
+    Vac_Campaign* vc = new Vac_Campaign();  // need to add delete wherever the model is cleaned up
     if(_par->vacCampaign_prioritize_first_doses) { vc->set_prioritize_first_doses(_par->vacCampaign_prioritize_first_doses); }                              // need to add to _par
     if(_par->vacCampaign_flexible_queue_allocation) { vc->set_flexible_queue_allocation(_par->vacCampaign_flexible_queue_allocation); }                     // need to add to _par
     if(_par->vacCampaign_reactive_strategy != NUM_OF_REACTIVE_STRATEGY_TYPES) { vc->set_reactive_vac_strategy(_par->vacCampaign_reactive_vac_strategy); }   // need to add to _par
 
-    int empirical_urgent_doses_used = 0, empirical_standard_doses_used = 0;
+    int emp_weekly_urgent_doses = 0, emp_weekly_standard_doses = 0; // keeps track of how many doses should be allocated to the standard and urgent allocation according to empirircal doses used
 
-    vector< vector<int> > doses_available;
+    vector< vector<int> > doses_available;  // temporary datya structure to hold calculated doses used before setting up the vac_campaign
     doses_available.resize(_par->runLength, vector<int>(NUM_OF_VACCINE_ALLOCATION_TYPES));
 
-    vector<Person*> binned_people;
-    set<Person*> scheduled_people;
+    set<Person*> scheduled_people;  // keeps track of who has been scheduled to prevent scheduling the same person twice
 
     ifstream iss(vaccinationFilename);
     char buffer[500];
@@ -983,55 +985,109 @@ bool Community::generateVac_Campaign(string vaccinationFilename) {
         cerr << "ERROR: vaccination file " << vaccinationFilename << " not found." << endl;
         return false;
     }
+    
+    // input variables for file data
+    string age_grp, end_of_week_date;
+    int complete, vac_pers;
 
-    type COL_DATE, COL_FIRST_DOSE, COL_SECOND_DOSE, COL_AGE_BIN;    // guess based on what I remember
+    int num_healthcare_scheduled = 0;   // tally number of healthcare workers scheduled for later use
+
+    // add all healthcare workers (hospital + nursing home workers) to standard queue BEFORE all other people are scheduled
+    for(Person* p : _people) {
+        // get work location ID + check if workplace is a hospital or nursing home
+        // if so, schedule vaccination and add to scheduled_people
+        if((p->getDayLoc()->getType() == HOSPITAL) or (p->getDayLoc()->getType() == NURSINGHOME)) {
+            // set.insert.second returns bool (true if inserted, false if not) --- this keeps track of who has been scheduled and prevents double-scheduling
+            if((gsl_rng_uniform(RNG) < _par->vaccineTargetCoverage) and (scheduled_people.insert(p).second)){ 
+                vc->schedule_vaccination(p);
+                num_healthcare_scheduled++;
+            }
+        }
+    }
+
+    // if it is desired to schedule healthcare workers alongside general population, uncomment below
+    // vector<Person*> healthcare_workers;
+    // for(Person* p : _people) {
+    //    if((p->getDayLoc()->getType() == HOSPITAL) or (p->getDayLoc()->getType() == NURSINGHOME)) {
+    //        healthcare_workers.push_back(p);
+    //    }
+    // }
     
     while (iss) {
         iss.getline(buffer,500);
         line.clear();
         line.str(buffer);
-        if (line >> COL_DATE >> COL_FIRST_DOSE >> COL_SECOND_DOSE >> COL_AGE_BIN) {
-            binned_people.clear();
+        if (line >> age_grp >> complete >> vac_pers >> end_of_week_date) {
+            int bin_min, bin_max;
 
-            // for ages between BIN min and max, store people into tmp_binned_people
-            for(Person* p : _people){
-                if((p->getAge() >= BIN_MIN) and (p->getAge() <= BIM_MAX)) { binned_people.push_back(p); }
-            }
-
-            // gsl_ran_shuffle age bin array
-            gsl_ran_shuffle(RNG, binned_people.data(), binned_people.size(), sizeof (Person));
-
+            // extract age bin min and max from age_grp string
+            // if age_grp is 85+, set bin max to max age possible
+            sscanf(age_grp.c_str(), "%d-%d", &bin_min, &bin_max);
+            if(bin_min == 85) { bin_max = NUM_AGE_CLASSES; }
+            
+            // tally number of people scheduled for this line of data in order to only schedule the number of first doses administered
             int num_scheduled = 0;
 
+            // if frontloading healthcare workers, account for how many were scheduled to ensure the total number scheduled does not exceed first doses administered
+            // this should only run once before first batch of general population is scheduled
+            if(num_healthcare_scheduled) {
+                num_scheduled = num_healthcare_scheduled;
+                num_healthcare_scheduled = 0;
+            }
+
             // push back sampled people into standard queue who have not been scheduled already
-            for(Person* p : binned_people) {
-                if(scheduled_people.insert(p).second){ vc->schedule_vaccination(p); }
-                
+            for(Person* p : _people) {
+                // if a person is of the correct age, falls within campaign coverage, and has not been previously scheduled, schedule for standard vaccination
+                // set.insert.second returns bool (true if inserted, false if not) --- this keeps track of who has been scheduled and prevents double-scheduling
+                if(((p->getAge() >= bin_min) and (p->getAge() <= bin_max)) and (gsl_rng_uniform(RNG) < _par->vaccineTargetCoverage) and (scheduled_people.insert(p).second)){ vc->schedule_vaccination(p); }
+
+                // if it is desired to schedule healthcare workers alongside general population, uncomment below
+                // if((gsl_rng_uniform(RNG) < _par->vaccineTargetCoverage) and (scheduled_people.insert(healthcare_workers.front()).second)) {
+                //     vc->schedule_vaccination(healthcare_workers.front);
+                //     healthcare_workers.erase(healthcare_workers.front());
+                //     num_scheduled++;
+                // }
+
                 num_scheduled++;
-                if(num_scheduled == (COL_FIRST_DOSE + COL_SECOND_DOSE)) { break; }
+                if(num_scheduled == (vac_pers)) { break; }
             }
 
             // tally doses used for that day for urgent allocation (reactive strategy)
-            _par->vacCampaign_reactive_strategy != NUM_OF_REACTIVE_STRATEGY_TYPES ? empirical_urgent_doses_used = vc->get_reactive_vac_dose_allocation * (COL_FIRST_DOSE + COL_SECOND_DOSE)
-                                                                                    : empirical_urgent_doses_used = 0;
+            _par->vacCampaign_reactive_strategy != NUM_OF_REACTIVE_STRATEGY_TYPES ? emp_weekly_urgent_doses = vc->get_reactive_vac_dose_allocation * (vac_pers + complete)
+                                                                                    : emp_weekly_urgent_doses = 0;
            
             // tally doses used for that day for standard allocation (general strategy)
-            _par->vacCampaign_reactive_strategy != NUM_OF_REACTIVE_STRATEGY_TYPES ? empirical_standard_doses_used = (1 - vc->get_reactive_vac_dose_allocation) * (COL_FIRST_DOSE + COL_SECOND_DOSE)
-                                                                                    : empirical_standard_doses_used = (COL_FIRST_DOSE + COL_SECOND_DOSE);
+            _par->vacCampaign_reactive_strategy != NUM_OF_REACTIVE_STRATEGY_TYPES ? emp_weekly_standard_doses = (1 - vc->get_reactive_vac_dose_allocation) * (vac_pers + complete)
+                                                                                    : emp_weekly_standard_doses = (vac_pers + complete);
+            
+            // file reports doses per week so we need to adjust to distribute doses per day
+            // take file date --> find week --> for each day push back 1/7 of the weekly doses (add remainder to last day)
+            int emp_daily_urgent_doses, emp_daily_standard_doses, emp_urgent_doses_remaining, emp_standard_doses_remaining;
 
-            doses_available.at(COL_DATE)[URGENT_ALLOCATION].push_back(empirical_urgent_doses_used);            
-            doses_available.at(COL_DATE)[STANDARD_ALLOCATION].push_back(empirical_standard_doses_used);
+            emp_daily_urgent_doses = emp_weekly_urgent_doses/7;         // calculate daily doses administered from urgent weekly total
+            emp_urgent_doses_remaining = emp_weekly_urgent_doses%7;     // calculate remainder of doses to be added to final day of the week
+
+            emp_daily_standard_doses = emp_weekly_standard_doses/7;     // calculate daily doses administered from standard weekly total
+            emp_standard_doses_remaining = emp_weekly_standard_doses%7; // calculate remainder of doses to be added to final day of the week
+            
+            // use date (which is the final day of an week of reported data) from file to cycle through the days in the matching simulation week
+            int end_of_week = Date::to_sim_day(_par->startJulianYear, _par->startDayOfYear, end_of_week_date);
+            for(int day = end_of_week-6; day <= end_of_week; day++) {
+                // if it is day 1-6, push back 1/7 of weekly doses used
+                // if it is day 7, push back 1/7 + the remainder of weekly doses used
+                if(day != end_of_week) {
+                    doses_available.at(day)[URGENT_ALLOCATION].push_back(emp_daily_urgent_doses);            
+                    doses_available.at(day)[STANDARD_ALLOCATION].push_back(emp_daily_standard_doses);
+                } else {
+                    doses_available.at(day)[URGENT_ALLOCATION].push_back(emp_daily_urgent_doses + emp_urgent_doses_remaining);            
+                    doses_available.at(day)[STANDARD_ALLOCATION].push_back(emp_daily_standard_doses + emp_standard_doses_remaining);
+                }
+            }
         }
     }
     iss.close();
     
-    // check that all people in synthpop (of vaccinatable age) are queued
-    set<Person*> vaccinatable_people;
-    for(Person* p : _people) {
-        if(p->getAge() >= VAC_AGE_MIN) { vaccinatable_people.insert(p); }
-    }
-
-    assert(vc->get_standard_queue_size() == vaccinatable_people.size());
+    // some kind of sanity check that proper number of people of the correct age are queued
 
     vc->set_doses_available(doses_available);
     setVac_Campaign(vc);

@@ -8,23 +8,23 @@
 class Person;
 
 enum VaccinationQueueType {
-    URGENT_QUEUE;
-    STANDARD_QUEUE;
-    REVACCINATE_QUEUE;
-    NUM_OF_VACCINATION_QUEUE_TYPES;
+    URGENT_QUEUE,
+    STANDARD_QUEUE,
+    REVACCINATE_QUEUE,
+    NUM_OF_VACCINATION_QUEUE_TYPES
 };
 
 enum VaccineAllocationType {
-    URGENT_ALLOCATION;
-    STANDARD_ALLOCATION;
-    NUM_OF_VACCINE_ALLOCATION_TYPES;
+    URGENT_ALLOCATION,
+    STANDARD_ALLOCATION,
+    NUM_OF_VACCINE_ALLOCATION_TYPES
 };
 
 /*
 enum ReactiveVaccinationStrategyType {
-    RING_VACCINATION;
-    GEOGRAPHIC_CLUSTER_VACCINATION;
-    NUM_OF_REACTIVE_VAC_STRATEGY_TYPES;
+    RING_VACCINATION,
+    GEOGRAPHIC_CLUSTER_VACCINATION,
+    NUM_OF_REACTIVE_VAC_STRATEGY_TYPES
 };
 */
 
@@ -57,10 +57,12 @@ class Vac_Campaign {
         virtual ~Vac_Campaign();
 
         void set_prioritize_first_doses(bool val) { prioritize_first_doses = val; }
-        void set_flexible_queue_allocation(bool val) { flexible_queue_allocation = val; } //change to flexible_dose_allocation?
+        void set_flexible_queue_allocation(bool val) { flexible_queue_allocation = val; }
         // void set_reactive_vac_strategy(ReactiveVaccinationStrategyType rvs) { reactive_vac_strategy = rvs; }
         // void set_reactive_vac_dose_allocation(double val) { reavtive_vac_dose_allocation = val; }
         // double get_reactive_vac_dose_allocation() { return reactive_vac_dose_allocation; }
+
+        // void set_revaccination_follow_up(double val) { revaccination_follow_up = val; }
 
         // size_t get_urgent_queue_size() { return urgent_queue.size(); }
         // size_t get_standard_queue_size() { return standard_queue.size(); }
@@ -70,7 +72,7 @@ class Vac_Campaign {
 
         void set_doses_available( std::vector< std::vector<int> > da ) {
             doses_available = da;
-            doses_used.resize(da.size(), std::vector<int>(NUM_OF_VACCINATION_QUEUE_TYPES)); //change to NUM_OF_VACCINE_ALLOCATION_TYPES?
+            doses_used.resize(da.size(), std::vector<int>(NUM_OF_VACCINATION_ALLOCATION_TYPES));
             revaccinate_queue.resize(da.size());
         }
 
@@ -140,7 +142,7 @@ class Vac_Campaign {
         }
 
         void schedule_revaccination(size_t day, Vaccinee* vac) {
-            revaccinate_queue.at(day).add(vac->person);
+            if(gsl_rng_uniform(RNG) < revaccination_follow_up) { revaccinate_queue.at(day).add(vac->person); }
         }
 
         void reschedule_remaining_revaccinations(size_t day) {
@@ -152,6 +154,24 @@ class Vac_Campaign {
             }
         }
 
+        /*
+        void reactive_vac_strategy() {
+            // check what strategy is being used
+            // execute appropriate algorithms to detect and add necessary people to urgent queue
+
+            if(reactive_vac_strategy == NUM_OF_REACTIVE_VAC_STRATEGY_TYPES) { return; }
+
+            switch(reactive_vac_strategy) {
+                case RING_VACCINATION:
+                    _ring_vaccination();
+                    break;
+                case GEOGRAPHIC_CLUSTER_VACCINATION:
+                    _geographic_cluster_vaccination();
+                    break;
+            }
+        }
+        */
+
     private:
         std::queue<Person*> urgent_queue;                      // people who need to be vaccinated, determined during simulation
         std::queue<Person*> standard_queue;                    // people who will be vaccinated, known before transmission sim begins
@@ -162,6 +182,10 @@ class Vac_Campaign {
         bool flexible_queue_allocation;                        // can doses be used from any allocation, or only as intended? --> possibly move to _par?
         // ReactiveVaccinationStrategyType reactive_vac_strategy;       // parameter for type of reactive strategy (if one is active) 
         // double reactive_vac_dose_allocation;                         // what proportion of total daily doses are reserved for reactive strategies
+        // double revaccination_follow_up;                              // what proportion of people follow-up for second doses
+
+        // void _ring_vaccination();
+        // void _geographic_cluster_vaccination();
 };
 
 
