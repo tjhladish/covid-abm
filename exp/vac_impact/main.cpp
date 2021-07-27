@@ -6,7 +6,10 @@
 #include "Utility.h"
 #include <unordered_set>
 #include <math.h>
-#include "local_header.h"
+
+#if __has_include("local.h")
+#include "local.h"
+#endif
 
 using namespace std;
 
@@ -256,7 +259,7 @@ Vac_Campaign* generateVac_Campaign(string vaccinationFilename, const Parameters*
 
     if (!iss) {
         cerr << "ERROR: vaccination file " << vaccinationFilename << " not found." << endl;
-        return nullptr;
+        exit(-1);
     }
 
     // if the file exists and can be opened, create a new Vac_Campaign and continue
@@ -287,7 +290,7 @@ Vac_Campaign* generateVac_Campaign(string vaccinationFilename, const Parameters*
     // if it is desired to schedule healthcare workers alongside general population, uncomment below
     // vector<Person*> healthcare_workers;
     // for(Person* p : _people) {
-    //    if((p->getDayLoc()->getType() == HOSPITAL) or (p->getDayLoc()->getType() == NURSINGHOME)) {
+    //    if(p->getDayLoc() and ((p->getDayLoc()->getType() == HOSPITAL) or (p->getDayLoc()->getType() == NURSINGHOME))) {
     //        healthcare_workers.push_back(p);
     //    }
     // }
@@ -295,8 +298,9 @@ Vac_Campaign* generateVac_Campaign(string vaccinationFilename, const Parameters*
     // input variables for file data
     string age_grp, end_of_week_date;
     unsigned int complete, vac_pers;
+    bool stop = false;
 
-    while (getline(iss, buffer) ) {
+    while (getline(iss, buffer) and not stop) {
         line.clear();
         line.str(buffer);
         if (line >> age_grp >> complete >> vac_pers >> end_of_week_date) {
@@ -304,7 +308,7 @@ Vac_Campaign* generateVac_Campaign(string vaccinationFilename, const Parameters*
             int emp_weekly_urgent_doses = 0, emp_weekly_standard_doses = 0;
 
             // keeps track of the min and max of the age_grp
-            unsigned int bin_min, bin_max;
+            int bin_min, bin_max;
 
             // extract age bin min and max from age_grp string
             // if age_grp is 85+, set bin max to max age possible
@@ -322,6 +326,9 @@ Vac_Campaign* generateVac_Campaign(string vaccinationFilename, const Parameters*
             }
 
             // push back sampled people into standard queue who have not been scheduled already
+            // TODO create map of vectors of unvaccinated people by age bin (starts with all people)
+            // key = age group; shuffle each vector; read people from the end of the vector when needed (pop_back)
+            // number select will be binomially distr with np = doses used * (SYNTHPOP/FL POP), n = # people in SYNTHPOP in age bin
             for(Person* p : community->getPeople()) {
                 // if a person is of the correct age, falls within campaign coverage, and has not been previously scheduled, schedule for standard vaccination
                 // set.insert.second returns bool (true if inserted, false if not) --- this keeps track of who has been scheduled and prevents double-scheduling
@@ -338,13 +345,15 @@ Vac_Campaign* generateVac_Campaign(string vaccinationFilename, const Parameters*
                 if(num_scheduled == (vac_pers)) { break; }
             }
 
-            // tally doses used for that day for urgent allocation (reactive strategy)
-            vc->get_reactive_vac_strategy() != NUM_OF_REACTIVE_VAC_STRATEGY_TYPES ? emp_weekly_urgent_doses = vc->get_reactive_vac_dose_allocation() * (vac_pers + complete)
-                                                                                    : emp_weekly_urgent_doses = 0;
+            // tally doses used for that week for urgent allocation (reactive strategy)
+            emp_weekly_urgent_doses = vc->get_reactive_vac_strategy() != NUM_OF_REACTIVE_VAC_STRATEGY_TYPES ?
+                                      vc->get_reactive_vac_dose_allocation() * (vac_pers + complete) :
+                                      0;
 
-            // tally doses used for that day for standard allocation (general strategy)
-            vc->get_reactive_vac_strategy() != NUM_OF_REACTIVE_VAC_STRATEGY_TYPES ? emp_weekly_standard_doses = (1 - vc->get_reactive_vac_dose_allocation()) * (vac_pers + complete)
-                                                                                    : emp_weekly_standard_doses = (vac_pers + complete);
+            // tally doses used for that week for standard allocation (general strategy)
+            emp_weekly_standard_doses = vc->get_reactive_vac_strategy() != NUM_OF_REACTIVE_VAC_STRATEGY_TYPES ?
+                                        (1 - vc->get_reactive_vac_dose_allocation()) * (vac_pers + complete) :
+                                        (vac_pers + complete);
 
             // file reports doses per week so we need to adjust to distribute doses per day
             // take file date --> find week --> for each day push back 1/7 of the weekly doses (add remainder to last day)
@@ -358,22 +367,27 @@ Vac_Campaign* generateVac_Campaign(string vaccinationFilename, const Parameters*
 
             // use date (which is the final day of an week of reported data) from file to cycle through the days in the matching simulation week
             const unsigned int end_of_week = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, end_of_week_date);
-            for(unsigned int day = end_of_week-6; day <= end_of_week; day++) {
+            for(unsigned int day = end_of_week-6; day <= end_of_week; ++day) {
+                if(day >= par->runLength) { stop = true; break; }
                 // if it is day 1-6, push back 1/7 of weekly doses used
                 // if it is day 7, push back 1/7 + the remainder of weekly doses used
                 if(day != end_of_week) {
-                    doses_available.at(day)[URGENT_ALLOCATION]   = emp_daily_urgent_doses;
-                    doses_available.at(day)[STANDARD_ALLOCATION] = emp_daily_standard_doses;
+                    doses_available.at(day)[URGENT_ALLOCATION]   += emp_daily_urgent_doses;
+                    doses_available.at(day)[STANDARD_ALLOCATION] += emp_daily_standard_doses;
                 } else {
-                    doses_available.at(day)[URGENT_ALLOCATION]   = (emp_daily_urgent_doses + emp_urgent_doses_remaining);
-                    doses_available.at(day)[STANDARD_ALLOCATION] = (emp_daily_standard_doses + emp_standard_doses_remaining);
+                    doses_available.at(day)[URGENT_ALLOCATION]   += (emp_daily_urgent_doses + emp_urgent_doses_remaining);
+                    doses_available.at(day)[STANDARD_ALLOCATION] += (emp_daily_standard_doses + emp_standard_doses_remaining);
                 }
             }
+            // TODO shuffle scheduled people after each week
         }
     }
     iss.close();
 
-    // some kind of sanity check that proper number of people of the correct age are queued
+    // TODO some kind of sanity check that proper number of people of the correct age are queued
+        // appx the right number of people queued similar to number of doses used
+        // # of people in each age group 
+        // appx the right coverage overall
 
     vc->set_doses_available(doses_available);
     community->setVac_Campaign(vc);
@@ -607,7 +621,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         par->vaccineLeaky          = false;
         par->numVaccineDoses       = 2;
         par->vaccineDoseInterval   = 21;
-        par->vaccineTargetCoverage = 0.7;
+        par->vaccineTargetCoverage = 0.55;  // for healthcare workers only
 
         vc = generateVac_Campaign(vaccination_file, par, community);
 
@@ -658,7 +672,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     string output = ss.str();
     fputs(output.c_str(), stderr);
 
-    delete vc;           // should this be here?
+    if(vc) { delete vc; }           // should this be here?
     delete par;
     delete community;
 
