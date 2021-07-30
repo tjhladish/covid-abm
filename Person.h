@@ -130,6 +130,8 @@ class Person {
         SexType getSex() const { return sex; }
         void setSex(SexType s) { sex = s; }
 
+        bool isHCW() { return getDayLoc() and ((getDayLoc()->getType() == HOSPITAL) or (getDayLoc()->getType() == NURSINGHOME)); }
+
         size_t getDaysImmune() const { return daysImmune; }
         void setDaysImmune(size_t di) { daysImmune = di; }
 
