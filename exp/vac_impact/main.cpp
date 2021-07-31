@@ -312,6 +312,7 @@ size_t tot_sch = 0;
             const double rate_denom = unscheduled_people[bin_min].size() * 7.0;
             assert(rate_denom > 0);
             last_known_vac_rate[bin_min] = {mrna_dose_1/rate_denom, mrna_dose_2/rate_denom, jj_doses/rate_denom };    // used to project future vaccination rates
+
             // keeps track of which week is being processed
             // if the current week has changed, shuffle the previous week's people and schedule
             if(end_of_week_date != prev_wk) {
@@ -321,7 +322,7 @@ size_t tot_sch = 0;
                 prev_wk = end_of_week_date;
             }
 
-            // tally weekly dose totals for this age bin
+            // tally daily dose totals for this age bin
             const double daily_total_first_doses = (mrna_dose_1 + jj_doses)/7.0;
             const double daily_total_doses = daily_total_first_doses + (mrna_dose_2/7.0);
 
@@ -335,10 +336,10 @@ size_t tot_sch = 0;
                 // binomial distribution parameters
                 const size_t sch_binom_n = unscheduled_people[bin_min].size();      // n = number of unscheduled people remaining in age bin
                 const double sch_binom_p = sch_binom_np/sch_binom_n;                // p = probability of selecting someone from the age group to be vaccinated
-cerr << "day, n, p: " << day << ", " << sch_binom_n << ", " << sch_binom_p << endl;
                 // select number of people to vaccinate for this week from this age group using binomial distribution
                 const size_t num_to_schedule = gsl_ran_binomial(RNG, sch_binom_p, sch_binom_n);
-
+//need day, age group, n , p. num to sch
+//cerr << "day, bin_min, n, p, num_sch, " << day << ", " << bin_min << ", " << sch_binom_n << ", " << sch_binom_p << ", " << num_to_schedule << endl;
                 // schedule proper number of vaccinations from proper age group and remove from unscheduled data structure
                 for(size_t num_scheduled = 0; num_scheduled < num_to_schedule; ++num_scheduled){
                     Person* p = unscheduled_people[bin_min].back();
@@ -347,7 +348,7 @@ cerr << "day, n, p: " << day << ", " << sch_binom_n << ", " << sch_binom_p << en
                     unscheduled_people[bin_min].pop_back();
                 }
 
-                // tally doses used for that week for urgent allocation (reactive strategy) adjusted for synthpop size
+                // tally doses used for that day for urgent allocation (reactive strategy) adjusted for synthpop size
                 const size_t emp_daily_urgent_doses = vc->get_reactive_vac_strategy() != NUM_OF_REACTIVE_VAC_STRATEGY_TYPES ?
                                           (size_t)round(vc->get_reactive_vac_dose_allocation() * daily_total_doses * pop_ratio) :
                                           0;
@@ -387,16 +388,15 @@ cerr << "MAY 29 TOT SYNTHPOP: " << community->getNumPeople() << endl;
             double proj_dose_adj = 0;
             for(auto bin : vax_age_bins) {
                 const size_t bin_min = bin[0];
-                const double sch_binom_p = last_known_vac_rate[bin_min][0] + last_known_vac_rate[bin_min][2];
+                const double sch_binom_p = pop_ratio*(last_known_vac_rate[bin_min][0] + last_known_vac_rate[bin_min][2]);
 
                 // binomial distribution parameters
                 const size_t sch_binom_n = unscheduled_people[bin_min].size();      // n = number of unscheduled people remaining in age bin
                 proj_dose_adj += sch_binom_n;
-//need day, age group, n , p. num to sch
-cerr << "day, n, p: " << day << ", " << sch_binom_n << ", " << sch_binom_p << endl;
                 // select number of people to vaccinate for this week from this age group using binomial distribution
                 const size_t num_to_schedule = gsl_ran_binomial(RNG, sch_binom_p, sch_binom_n);
-
+//need day, age group, n , p. num to sch
+//cerr << "day, bin_min, n, p, num_sch, " << day << ", " << bin_min << ", " << sch_binom_n << ", " << sch_binom_p << ", " << num_to_schedule << endl;
                 // schedule proper number of vaccinations from proper age group and remove from unscheduled data structure
                 for(size_t num_scheduled = 0; num_scheduled < num_to_schedule; ++num_scheduled){
                     Person* p = unscheduled_people[bin_min].back();
