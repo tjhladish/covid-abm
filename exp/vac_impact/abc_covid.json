@@ -4,19 +4,11 @@
     "predictive_prior_fraction" : 1.0,
     "pls_training_fraction"     : 1.0,
 
-    "database_filename"         : "covid_vac_v7.0.sqlite",
+    "database_filename"         : "covid_vac_v8.0.sqlite",
 
     "parameters" : [
         {"name"       : "vaccine",
          "short_name" : "vac",
-         "dist_type"  : "PSEUDO",
-         "num_type"   : "INT",
-         "par1"       : 0,
-         "par2"       : 1,
-         "step"       : 1},
-
-        {"name"       : "vaccination_rate",
-         "short_name" : "vac_rate",
          "dist_type"  : "PSEUDO",
          "num_type"   : "INT",
          "par1"       : 0,
