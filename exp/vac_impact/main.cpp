@@ -43,7 +43,7 @@ const string vaccination_file = pop_dir + "/../fl_vac/fl_vac_v3.txt";
 
 const int RESTART_BURNIN          = 0;
 const int FORECAST_DURATION       = 674;
-//const int FORECAST_DURATION       = 400;
+//const int FORECAST_DURATION       = 456;
 const int OVERRUN                 = 14; // to get accurate Rt estimates near the end of the forecast duration
 const bool RUN_FORECAST           = true;
 const int TOTAL_DURATION          = RUN_FORECAST ? RESTART_BURNIN + FORECAST_DURATION + OVERRUN : RESTART_BURNIN;
@@ -269,12 +269,12 @@ void parseVaccineFile(string vaccinationFilename, const Parameters* par, Communi
     string age_grp, end_of_week_date, prev_wk = "0000-00-00";
     size_t mrna_dose_1, mrna_dose_2, jj_doses;
     size_t bin_min, bin_max;
-    bool stop = false;
 
     // saves the final vaccination rates for each age bin for use in projected vaccination
     map< int, vector<double> > last_known_vac_rate;
 
-    while (getline(iss, buffer) and not stop) {
+    size_t last_day_of_data = 0;
+    while (getline(iss, buffer)) {
         line.clear();
         line.str(buffer);
 
@@ -306,7 +306,8 @@ void parseVaccineFile(string vaccinationFilename, const Parameters* par, Communi
             // use date (which is the final day of an week of reported data) from file to cycle through the days in the matching simulation week
             const size_t end_of_week = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, end_of_week_date);
             for(size_t day = end_of_week-6; day <= end_of_week; ++day) {
-                if(day >= par->runLength) { stop = true; break; }
+                last_day_of_data = max(day, last_day_of_data);
+                if(day >= par->runLength) { continue; }
                 // binomial distribution parameters
                 const size_t sch_binom_n = unscheduled_people[bin_min].size();      // n = number of unscheduled people remaining in age bin
                 const double sch_binom_p = sch_binom_np/sch_binom_n;                // p = probability of selecting someone from the age group to be vaccinated
@@ -337,7 +338,7 @@ void parseVaccineFile(string vaccinationFilename, const Parameters* par, Communi
                 const size_t emp_daily_standard_first_doses = (size_t) round(daily_total_first_doses * pop_ratio);
                 // doses_available.at(day)[URGENT_ALLOCATION]   += emp_daily_urgent_doses;
                 doses_available.at(day)[STANDARD_ALLOCATION] += emp_daily_standard_first_doses;
-                if(day+21 < par->runLength) { doses_available.at(day+21)[STANDARD_ALLOCATION] += emp_daily_standard_first_doses; }
+                if(day+par->vaccineDoseInterval < par->runLength) { doses_available.at(day+par->vaccineDoseInterval)[STANDARD_ALLOCATION] += emp_daily_standard_first_doses; }
             }
         }
         // schedule any remaining people
@@ -349,16 +350,14 @@ void parseVaccineFile(string vaccinationFilename, const Parameters* par, Communi
 
     // PROJECTED VACCINATION TO 2021-08-31
     // at same rate as 2021-05-29, vaccinate people until 2021-08-31
-    {
+    if (par->runLength > last_day_of_data + 1) {
         vector<Person*> people_to_be_scheduled;
-        const size_t may29 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-05-29");
-        const size_t aug31 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-08-31");
 
         // calculate the total number of unscheduled people left on 2021-05-29
-        size_t num_unsch_may29 = 0;
-        for(auto const& [bin_min, unsch_grp] : unscheduled_people) { num_unsch_may29 += unsch_grp.size(); }
+        size_t num_current_unsch = 0;
+        for(auto const& [bin_min, unsch_grp] : unscheduled_people) { num_current_unsch += unsch_grp.size(); }
 
-        for(size_t day = may29+1; day <= aug31; ++day) {
+        for(size_t day = last_day_of_data+1; day < par->runLength; ++day) {
             // const size_t proj_daily_urgent_doses =  * ;
             // const size_t proj_daily_standard_doses = doses_available.at(may29)[STANDARD_ALLOCATION];
             // adjust available doses by the ratio of unscheduled people on day to unscheduled people on 2021-05-29
@@ -387,8 +386,8 @@ void parseVaccineFile(string vaccinationFilename, const Parameters* par, Communi
             people_to_be_scheduled.clear();
 
             // vaccinate same fraction of unvacinated people each day
-            doses_available.at(day)[URGENT_ALLOCATION]   += round(proj_dose_adj*doses_available.at(may29)[URGENT_ALLOCATION] / num_unsch_may29);
-            doses_available.at(day)[STANDARD_ALLOCATION] += round(proj_dose_adj*doses_available.at(may29)[STANDARD_ALLOCATION] / num_unsch_may29);
+            doses_available.at(day)[URGENT_ALLOCATION]   += round(proj_dose_adj*doses_available.at(last_day_of_data)[URGENT_ALLOCATION] / num_current_unsch);
+            doses_available.at(day)[STANDARD_ALLOCATION] += round(proj_dose_adj*doses_available.at(last_day_of_data)[STANDARD_ALLOCATION] / num_current_unsch);
         }
     }
     vc->set_doses_available(doses_available);
@@ -495,6 +494,7 @@ int julian_to_sim_day (const Parameters* par, const size_t julian, const int int
 
 
 vector<double> tally_counts(const Parameters* par, Community* community, int discard_days) {
+    assert((int) par->runLength >= discard_days + OVERRUN);
     const size_t num_weeks = (par->runLength - discard_days - OVERRUN)/7;
 
     //vector<size_t> infected    = community->getNumNewlyInfected();
@@ -507,7 +507,7 @@ vector<double> tally_counts(const Parameters* par, Community* community, int dis
     vector<size_t> Rt_incidence_tally(num_weeks, 0);
 
     vector<double> metrics(num_weeks*3, 0.0);
-    for (size_t t = discard_days; t < par->runLength - OVERRUN; t++) {
+    for (size_t t = discard_days; t < par->runLength - OVERRUN; ++t) {
         const size_t w = (t-discard_days)/7; // which reporting week are we in?
         metrics[w]                 += symptomatic[t];
         metrics[num_weeks + w]     += dead[t];
@@ -630,8 +630,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         const double x_alpha_1 = 0.529; // calculated using quadratic formula: (VES*VEP)x^2 - (VES+VEP)x + VESP_alpha = 0, where VES and VEP are for wildtype
         const double x_alpha_2 = 0.948;
 
-        const double x_delta_1 = 0.338;
-        const double x_delta_2 = 0.843;
+        //const double x_delta_1 = 0.338;
+        //const double x_delta_2 = 0.843;
 
         //par->VES                   = {{WILDTYPE, {0.40, 0.80}}, {B_1_1_7, {0.40*x_alpha_1, 0.80*x_alpha_2}}, {B_1_617_2, {0.40*x_delta_1, 0.80*x_delta_2}}}; // reduce for delta
         par->VES                   = {{WILDTYPE, {0.40, 0.80}}, {B_1_1_7, {0.40*x_alpha_1, 0.80*x_alpha_2}}, {B_1_617_2, {0.05, 0.52}}}; // reduce for delta
@@ -736,6 +736,8 @@ int main(int argc, char* argv[]) {
             requested_serial = atoi(argv[++i]);
         } else if ( strcmp(argv[i], "--posterior" ) == 0 ) {
             requested_posterior_idx = atoi(argv[++i]);
+//        } else if ( strcmp(argv[i], "--runLength" ) == 0 ) {
+//            TOTAL_DURATION = atoi(argv[++i]);
         } else {
             usage();
             exit(101);
