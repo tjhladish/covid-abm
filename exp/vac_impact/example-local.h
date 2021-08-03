@@ -3,7 +3,7 @@
 #ifndef LOCAL_HEADER
 #define LOCAL_HEADER
 //CHANGE LOCAL PATHS BELOW
-std::string localHome = "/home/anpillai/documents";
+std::string localHome = "LOCAL PATH GOES HERE";
 
 // DO NOT ALTER FUNCTION BELOW
 const std::string getHOME() {
