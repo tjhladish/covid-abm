@@ -18,12 +18,12 @@ INCLUDES 	= -I$(GSL_PATH)/include # $(HPC_GSL_INC) $(TACC_GSL_INC)
 LIBS     	= -lm -lgsl -lgslcblas
 DEFINES  	= -DVERBOSE
 
-default: Makefile simulator.h Person.o Location.o Community.o Parameters.o Utility.o
+default: Makefile simulator.h Vac_Campaign.h Person.o Location.o Community.o Parameters.o Utility.o
 
 #model: $(OBJS) Makefile simulator.h Person.o Location.o Community.o Parameters.o Utility.o
 #	$(CPP) $(CFLAGS) $(OPTI) -o model Person.o Location.o Community.o Parameters.o Utility.o $(OBJS) $(LDFLAGS) $(LIBS)
 
-%.o: %.cpp Community.h Location.h Utility.h Parameters.h Person.h Makefile
+%.o: %.cpp Community.h Location.h Utility.h Parameters.h Person.h Vac_Campaign.h Makefile
 	$(CPP) $(CFLAGS) $(OPTI) $(INCLUDES) $(DEFINES) -c $<
 
 clean:
