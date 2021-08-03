@@ -153,7 +153,9 @@ class Vac_Campaign {
         }
 
         void schedule_revaccination(size_t day, Vaccinee* vac) {
-            revaccinate_queue.at(day).insert(vac->person);
+            if (revaccinate_queue.size() > day) {
+                revaccinate_queue[day].insert(vac->person);
+            }
         }
 
         void reschedule_remaining_revaccinations(size_t today) {
