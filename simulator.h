@@ -53,8 +53,7 @@ const gsl_rng* REPORTING_RNG = gsl_rng_alloc(gsl_rng_mt19937);
 
 // Predeclare local functions
 Community* build_community(const Parameters* par);
-void seed_epidemic(const Parameters* par, Community* community);
-vector<string> simulate_epidemic(const Parameters* par, Community* community, const string process_id = "0");
+void seed_epidemic(const Parameters* par, Community* community, StrainType strain);
 void write_immunity_file(const Community* community, const string label, string filename, int runLength);
 void write_immunity_by_age_file(const Community* community, const int year, string filename="");
 void write_daily_buffer( vector<string>& buffer, const string process_id, string filename="", bool overwrite=false);
@@ -89,7 +88,7 @@ cerr << "done.\n"; //  Now sleeping for 20s so ram usage can be checked.\n";
 }
 
 
-void seed_epidemic(const Parameters* par, Community* community) {
+void seed_epidemic(const Parameters* par, Community* community, StrainType strain) {
     // epidemic may be seeded with initial exposure OR initial infection
     bool attempt_initial_infection = true;
     // Normal usage, to simulate epidemic
@@ -97,7 +96,7 @@ void seed_epidemic(const Parameters* par, Community* community) {
     if (par->numInitialExposed > 0) {
         attempt_initial_infection = false;
         for (size_t i=0; i<par->numInitialExposed; i++) {
-            community->infect(gsl_rng_uniform_int(RNG, pop_size));
+            community->infect(gsl_rng_uniform_int(RNG, pop_size), strain);
         }
     } else if (par->probInitialExposure > 0.0) {
         // determine how many people are exposed
@@ -108,7 +107,7 @@ void seed_epidemic(const Parameters* par, Community* community) {
 
         size_t inf_ct = 0;
         for (auto pid: exposed_group) {
-            Infection* inf = community->infect(pid);
+            Infection* inf = community->infect(pid, strain);
             if (inf) { inf_ct++; }
         }
         cerr << "pop size, sampled size, infected size: " << pop_size << ", " << k << ", " << inf_ct << endl;
@@ -121,7 +120,7 @@ void seed_epidemic(const Parameters* par, Community* community) {
 
             // must infect initialInfected persons -- this bit is mysterious
             while (community->getNumInfected(0) < count + par->numInitialInfected) {
-                community->infect(gsl_rng_uniform_int(RNG, pop_size));
+                community->infect(gsl_rng_uniform_int(RNG, pop_size), strain);
             }
         }
     }
@@ -209,18 +208,19 @@ void periodic_output(const Parameters* par, map<string, vector<int> > &periodic_
 }*/
 
 
-int seed_epidemic(const Parameters* par, Community* community, const Date* date, StrainType strain) {
+int seed_epidemic(const Parameters* par, Community* community, const Date* date, vector<StrainType> strains) {
     int introduced_infection_ct = 0;
     const int numperson = community->getNumPeople();
     const size_t dailyExposedIdx = date->day() % par->probDailyExposure.size();
-    const double expected_num_exposed = par->probDailyExposure[dailyExposedIdx] * numperson;
+    const double intro_rate_multiplier = *date > "2021-06-15" ? 2.0 : 1.0;
+    const double expected_num_exposed = intro_rate_multiplier * par->probDailyExposure[dailyExposedIdx] * numperson;
     if (expected_num_exposed > 0) {
         assert(expected_num_exposed <= numperson);
         const int num_exposed = gsl_ran_poisson(RNG, expected_num_exposed);
         for (int i=0; i<num_exposed; i++) {
             // gsl_rng_uniform_int returns on [0, numperson-1]
             int transmit_to_id = gsl_rng_uniform_int(RNG, numperson);
-            if (community->infect(transmit_to_id, strain)) {
+            if (community->infect(transmit_to_id, choice(RNG, strains))) {
                 introduced_infection_ct++;
             }
         }
@@ -232,8 +232,8 @@ int seed_epidemic(const Parameters* par, Community* community, const Date* date,
 void advance_simulator(const Parameters* par, Community* community, Date* date, const string process_id, map<string, vector<int> > &periodic_incidence, vector<int> &periodic_prevalence, vector<int> &epi_sizes) {
     community->tick();
 
-    StrainType strain = WILDTYPE;
-    seed_epidemic(par, community, date, strain);
+    vector<StrainType> strains = {WILDTYPE};
+    seed_epidemic(par, community, date, strains);
 
     for (Person* p: community->getPeople()) {
         const int now = date->day();
@@ -318,17 +318,24 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
     vector<double> trailing_averages(par->runLength);
     const double pop_at_risk = min(community->getNumPeople(), par->numSurveilledPeople);
 
-    vector<string> plot_log_buffer = {"date,sd,seasonality,vocprev,cinf,closed,rcase,rdeath,Rt"};
+    vector<string> plot_log_buffer = {"date,sd,seasonality,vocprev1,vocprev2,cinf,closed,rcase,rdeath,Rt"};
 
     Date* date = community->get_date();
+    vector<StrainType> strains = {WILDTYPE};
     for (; date->day() < (signed) par->runLength; date->increment()) {
         const size_t sim_day = date->day();
         //update_vaccinations(par, community, date);
         community->tick();
 
-        StrainType strain = WILDTYPE;
-        if ( mutant_intro_dates.size() and (*date > mutant_intro_dates[0]) ) { strain = B117; }
-        seed_epidemic(par, community, date, strain);
+        if ( mutant_intro_dates.size() ) {
+            if (*date >= mutant_intro_dates[0] and *date < mutant_intro_dates[1]) {
+                //strains = {WILDTYPE, B_1_1_7};
+                strains = {B_1_1_7};
+            } else if (*date >= mutant_intro_dates[1]) {
+                strains = {B_1_617_2};
+            }
+        }
+        seed_epidemic(par, community, date, strains);
         const vector<size_t> infections         = community->getNumNewlyInfected();
         const vector<size_t> all_reported_cases = community->getNumDetectedCasesReport();
         const size_t reported_cases             = all_reported_cases[sim_day];
@@ -365,7 +372,8 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
         ss << date->to_string({"yyyy", "mm", "dd"}, "-") << ","
            << par->timedInterventions.at(SOCIAL_DISTANCING).at(sim_day) << ","
            << par->seasonality.at(date->julianDay()-1) << ","
-           << (float) community->getNumNewVocInfections()[sim_day]/infections[sim_day] << ","
+           << (float) community->getNumNewInfections(B_1_1_7)[sim_day]/infections[sim_day] << ","
+           << (float) community->getNumNewInfections(B_1_617_2)[sim_day]/infections[sim_day] << ","
            << cAR << ","
            << community->getTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, sim_day)<< ","
            << reported_cases*1e4/pop_at_risk << ","

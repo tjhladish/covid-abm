@@ -144,9 +144,9 @@ bool Person::naturalDeath(int t) {
 }*/
 
 
-bool Person::isInfectable(int time) const {
+bool Person::isInfectable(const int time, const StrainType strain) const {
     return (not isInfected(time)) and gsl_rng_uniform(RNG) < _par->susceptibilityByAge[age]
-              and (isNaive() or (!isCrossProtected(time) and !isVaccineProtected(time)));
+              and (isNaive() or (!isCrossProtected(time, strain) and !isVaccineProtected(time, strain)));
 }
 
 
@@ -169,7 +169,7 @@ double Person::remainingEfficacy(const int time) const {
 }
 
 
-double Person::vaccineProtection(const int time) const {
+double Person::vaccineProtection(const int time, const StrainType strain) const {
     double ves;
     if (not isVaccinated()) {
         ves = 0.0;
@@ -179,9 +179,9 @@ double Person::vaccineProtection(const int time) const {
             ves = 0.0;
         } else {
             if (naiveVaccineProtection == true) {
-                ves = _par->VES_NAIVE_at(dose);
+                ves = _par->VES_NAIVE_at(dose, strain);
             } else {
-                ves = _par->VES_at(dose);
+                ves = _par->VES_at(dose, strain);
             }
             ves *= remainingEfficacy(time);
         }
@@ -226,7 +226,7 @@ Infection* Person::infect(Person* source, const Date* date, Location* sourceloc,
     // Bail now if this person can not become infected
     // Not quite the same as "susceptible"--this person may be e.g. partially immune
     // due to natural infection or vaccination
-    if (check_susceptibility and not isInfectable(time)) { return nullptr; }
+    if (check_susceptibility and not isInfectable(time, strain)) { return nullptr; }
     const double remaining_efficacy = remainingEfficacy(time);  // due to vaccination; needs to be called before initializing new infection (still true?)
 
     // Create a new infection record
@@ -235,16 +235,22 @@ Infection* Person::infect(Person* source, const Date* date, Location* sourceloc,
     if (not source) { infection.strain = strain; }
 
     const size_t dose = vaccineHistory.size() - 1;
-    const double effective_VEP = isVaccinated() ? _par->VEP_at(dose)*remaining_efficacy : 0.0;        // reduced pathogenicity due to vaccine
-    const double effective_VEH = isVaccinated() ? _par->VEH_at(dose)*remaining_efficacy : 0.0;        // reduced severity (hospitalization) due to vaccine
-    const double effective_VEF = isVaccinated() ? _par->VEF_at(dose)*remaining_efficacy : 0.0;        // reduced fatality due to vaccine
-    const double effective_VEI = isVaccinated() ? _par->VEI_at(dose)*remaining_efficacy : 0.0;        // reduced infectiousness
+    const double effective_VEP = isVaccinated() ? _par->VEP_at(dose, strain)*remaining_efficacy : 0.0;        // reduced pathogenicity due to vaccine
+    const double effective_VEH = isVaccinated() ? _par->VEH_at(dose, strain)*remaining_efficacy : 0.0;        // reduced severity (hospitalization) due to vaccine
+    const double effective_VEF = isVaccinated() ? _par->VEF_at(dose, strain)*remaining_efficacy : 0.0;        // reduced fatality due to vaccine
+    const double effective_VEI = isVaccinated() ? _par->VEI_at(dose, strain)*remaining_efficacy : 0.0;        // reduced infectiousness
 
-    const double symptomatic_probability = _par->pathogenicityByAge[age] * (1.0 - effective_VEP);           // may be modified by vaccination
+    double symptomatic_probability = _par->pathogenicityByAge[age] * (1.0 - effective_VEP);           // may be modified by vaccination
     const double severe_given_case = _par->probSeriousOutcome.at(SEVERE)[comorbidity][age] * (1.0 - effective_VEH);
     const double critical_given_severe = _par->probSeriousOutcome.at(CRITICAL)[comorbidity][age];
     infection.relInfectiousness *= (1.0 - effective_VEI); // 0.25 b/c most (== asymptomatic) people are not very infectious
-    if ( infection.strain == B117) { infection.relInfectiousness *= 1.6; }
+    if (infection.strain == B_1_1_7) {
+        infection.relInfectiousness *= 1.6;
+        symptomatic_probability *= 1.1;                  // TODO -- these values shouldn't be hard-coded here
+    } else if (infection.strain == B_1_617_2) {
+        infection.relInfectiousness *= 3.0;
+        symptomatic_probability *= 1.2;
+    }
 
     const double highly_infectious_threshold = 8.04; // 80th %ile for overall SARS-CoV-2 from doi: 10.7554/eLife.65774, "Fig 4-Fig Sup 3"
 
@@ -398,22 +404,28 @@ bool Person::isWithdrawn(int time) const {
 }*/
 
 
-bool Person::isCrossProtected(int time) const { // assumes binary cross-immunity
+bool Person::isCrossProtected(int time, StrainType strain) const { // assumes binary cross-immunity
     int cross_protected_until = INT_MIN;
     if (getNumNaturalInfections() > 0) {
         const Infection* inf = infectionHistory.back();
+        //TODO -- Clean this up!
+        const int base_days_immune = (signed) getDaysImmune();
+        const int days_immune = inf->getStrain() == strain ? base_days_immune :
+                                (inf->getStrain() == WILDTYPE and strain == B_1_1_7) or (inf->getStrain() == B_1_1_7 and strain == WILDTYPE) ? base_days_immune * 0.75 :
+                                base_days_immune * 0.0; // one of the strains must be B_1_617_2
+                                //(inf->getStrain() != B_1_617_2 and strain == B_1_617_2) or (inf->getStrain() == B_1_617_2 and strain != B_1_617_2) ? base_days_immune * 0.5;
         // cannot be reinfected until the last of {immunity, infectiousness, symptomatic period}
-        vector<int> possible_end_dates = {inf->infectedBegin + (signed) getDaysImmune(), inf->infectiousEnd, inf->symptomEnd};
+        vector<int> possible_end_dates = {inf->infectedBegin + days_immune, inf->infectiousEnd, inf->symptomEnd};
         cross_protected_until = covid::util::max_element(possible_end_dates);
     }
     return cross_protected_until >= time;
 }
 
 
-bool Person::isVaccineProtected(int time) const {
+bool Person::isVaccineProtected(const int time, const StrainType strain) const {
     return isVaccinated() and
            ( !_par->vaccineLeaky or // if the vaccine isn't leaky
-           (gsl_rng_uniform(RNG) < vaccineProtection(time)) ); // or it protects (i.e., doesn't leak this time)
+           (gsl_rng_uniform(RNG) < vaccineProtection(time, strain)) ); // or it protects (i.e., doesn't leak this time)
 }
 
 

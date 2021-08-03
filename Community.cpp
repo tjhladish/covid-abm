@@ -40,7 +40,6 @@ int mod(int k, int n) { return ((k %= n) < 0) ? k+n : k; } // correct for non-ne
 Community::Community(const Parameters* parameters, Date* date) :
 //    _exposedQueue(MAX_INCUBATION, vector<Person*>(0)),
     _numNewlyInfected(parameters->runLength), // +1 not needed; runLength is already a valid size
-    _numNewVocInfections(parameters->runLength),
     _numNewlySymptomatic(parameters->runLength),
     _numNewlySevere(parameters->runLength),
     _numNewlyCritical(parameters->runLength),
@@ -64,6 +63,9 @@ Community::Community(const Parameters* parameters, Date* date) :
     _numDetectedCasesReport.resize(_par->runLength);
     _numDetectedHospitalizations.resize(_par->runLength);
     _numDetectedDeaths.resize(_par->runLength);
+    for (int strain = 0; strain < (int) NUM_OF_STRAIN_TYPES; ++strain) {
+        _numNewInfectionsByStrain[(StrainType) strain] = vector<size_t>(_par->runLength);
+    }
     for (auto &e: _isHot) {
         for (size_t locType = 0; locType < NUM_OF_LOCATION_TYPES; ++locType) {
             e[(LocationType) locType] = {};
@@ -106,7 +108,9 @@ void Community::reset() { // used for r-zero calculations, to reset pop after a 
 
 //    _exposedQueue.resize(MAX_INCUBATION, vector<Person*>(0));
     _numNewlyInfected.resize(_par->runLength);
-    _numNewVocInfections.resize(_par->runLength);
+    for (int strain = 0; strain < (int) NUM_OF_STRAIN_TYPES; ++strain) {
+        _numNewInfectionsByStrain[(StrainType) strain] = vector<size_t>(_par->runLength);
+    }
     _numNewlySymptomatic.resize(_par->runLength);
     _numNewlyDead.resize(_par->runLength);
     _numVaccinatedCases.resize(_par->runLength);
@@ -132,7 +136,7 @@ Community::~Community() {
 //    _exposedQueue.clear();
     _personAgeCohort.clear();
     _numNewlyInfected.clear();
-    _numNewVocInfections.clear();
+    _numNewInfectionsByStrain.clear();
     _numNewlySymptomatic.clear();
     _numNewlyDead.clear();
     _numVaccinatedCases.clear();
@@ -605,7 +609,7 @@ void Community::updatePersonStatus() {
                 const Infection* inf = p->getInfection();
                 if (inf->getInfectedTime()==_day) {
                     _numNewlyInfected[_day]++;
-                    if (inf->getStrain() != WILDTYPE) { _numNewVocInfections[_day]++; }
+                    _numNewInfectionsByStrain.at(inf->getStrain())[_day]++;
                 }
 
                 if (inf->getSymptomTime()==_day) {                              // started showing symptoms today
@@ -830,14 +834,15 @@ void Community::nursinghome_transmission() {
 
 
 void Community::_transmission(Location* source_loc, vector<Person*> at_risk_group, const map<double, vector<Person*>> &infectious_groups, const double T) {
-    const bool check_susceptibility = false;
+    const bool check_susceptibility = true;
     for (Person* p: at_risk_group) {
-        if (gsl_rng_uniform(RNG) < T and p->isInfectable(_date->day())) { // isInfectable() seems likely to be more expensive
+        if (gsl_rng_uniform(RNG) < T) {
             Person* infecter     = nullptr;
             Infection* source_infection = nullptr;
             // because we now support multiple strains, we always have to trace, in order to determine what the infecting strain would be
             source_infection = trace_contact(infecter, source_loc, infectious_groups);
-            Infection* transmission = p->infect(infecter, _date, source_loc, source_infection->getStrain(), check_susceptibility); // infect() tests for whether person is infectable
+            // infect() tests for whether person is infectable
+            Infection* transmission = p->infect(infecter, _date, source_loc, source_infection->getStrain(), check_susceptibility);
             if (source_infection and transmission) { source_infection->log_transmission(transmission); } // did we contact trace, and did transmission occur?
         }
     }

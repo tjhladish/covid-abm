@@ -127,7 +127,8 @@ enum ComorbidType{
 
 enum StrainType{
     WILDTYPE,
-    B117,
+    B_1_1_7,
+    B_1_617_2,
     NUM_OF_STRAIN_TYPES
 };
 
@@ -136,7 +137,8 @@ inline std::ostream& operator<<(std::ostream& out, const StrainType value){
 #define PROCESS_VAL(p) case(p): s = #p; break;
     switch(value){
         PROCESS_VAL(WILDTYPE);
-        PROCESS_VAL(B117);
+        PROCESS_VAL(B_1_1_7);
+        PROCESS_VAL(B_1_617_2);
         PROCESS_VAL(NUM_OF_STRAIN_TYPES);
     }
 #undef PROCESS_VAL
@@ -419,12 +421,12 @@ public:
     vector<float> severeFractionByAge;                      // probability of severe disease given clinical disease, index by year of age
     map<OutcomeType, vector< vector<float>>> probSeriousOutcome;        // look up probability of severe, critical, fatal outcomes by age & comorbid status
                                                             // vaccine efficacies, indexed by dose
-    vector<double> VES;                                     // vaccine efficacy for susceptibility (can be leaky or all-or-none)
-    vector<double> VES_NAIVE;                               // VES for initially immunologically naive people
-    vector<double> VEP;                                     // vaccine efficacy for pathogenicity
-    vector<double> VEH;                                     // vaccine efficacy against hospitalization, given infection
-    vector<double> VEF;                                     // vaccine efficacy against death, given infection
-    vector<double> VEI;                                     // vaccine efficacy to reduce infectiousness
+    map<StrainType, vector<double>> VES;                    // vaccine efficacy for susceptibility (can be leaky or all-or-none)
+    map<StrainType, vector<double>> VES_NAIVE;              // VES for initially immunologically naive people
+    map<StrainType, vector<double>> VEP;                    // vaccine efficacy for pathogenicity
+    map<StrainType, vector<double>> VEH;                    // vaccine efficacy against hospitalization, given infection
+    map<StrainType, vector<double>> VEF;                    // vaccine efficacy against death, given infection
+    map<StrainType, vector<double>> VEI;                    // vaccine efficacy to reduce infectiousness
 
     template<typename T>
     inline T stretchy_vector (const vector<T> &data, size_t idx) const {
@@ -432,12 +434,12 @@ public:
         return data.at(idx);                                // using at() to force bounds checking, in case data vector is empty
     }
 
-    double VES_at(size_t dose)       const { return stretchy_vector(VES, dose);}
-    double VES_NAIVE_at(size_t dose) const { return stretchy_vector(VES_NAIVE, dose);}
-    double VEP_at(size_t dose)       const { return stretchy_vector(VEP, dose);}
-    double VEH_at(size_t dose)       const { return stretchy_vector(VEH, dose);}
-    double VEF_at(size_t dose)       const { return stretchy_vector(VEF, dose);}
-    double VEI_at(size_t dose)       const { return stretchy_vector(VEI, dose);}
+    double VES_at(size_t dose, StrainType strain = WILDTYPE)       const { return stretchy_vector(VES.at(strain), dose);}
+    double VES_NAIVE_at(size_t dose, StrainType strain = WILDTYPE) const { return stretchy_vector(VES_NAIVE.at(strain), dose);}
+    double VEP_at(size_t dose, StrainType strain = WILDTYPE)       const { return stretchy_vector(VEP.at(strain), dose);}
+    double VEH_at(size_t dose, StrainType strain = WILDTYPE)       const { return stretchy_vector(VEH.at(strain), dose);}
+    double VEF_at(size_t dose, StrainType strain = WILDTYPE)       const { return stretchy_vector(VEF.at(strain), dose);}
+    double VEI_at(size_t dose, StrainType strain = WILDTYPE)       const { return stretchy_vector(VEI.at(strain), dose);}
 
     size_t symptom_onset() const { // aka incubation period
         return 1 + floor(gsl_ran_gamma(RNG, SYMPTOM_ONSET_GAMMA_SHAPE, SYMPTOM_ONSET_GAMMA_SCALE));

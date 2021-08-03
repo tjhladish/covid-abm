@@ -94,16 +94,17 @@ ed$crdeath = cumsum(ed$rdeath)
 #lines(d$date, d$crdeath/max(d$crdeath), col='green4')
 
 # VOC prevalence
-plot(d$date, d$vocprev, type='n', xlab='', ylab='', xaxt='n', bty='n')
+plot(d$date, d$vocprev1, type='n', xlab='', ylab='', xaxt='n', bty='n')
 shading()
-lines(d$date, d$vocprev, col='royalblue3')
+lines(d$date, d$vocprev1, col='royalblue3')
+lines(d$date, d$vocprev2, col='turquoise4')
 annotate('VOC prevalence')
 
 #        {"name" : "jul19_rcases",      "short_name" : "jul19",      "num_type" : "FLOAT", "value" :  5.26},
 #        {"name" : "peak_julian_day",   "short_name" : "peak_day",   "num_type" : "INT",   "value" :  201},
 
 # cumulative reported cases
-ymax = max(d$crcase, ed$crcase)
+ymax = max(d$crcase, ed$crcase, na.rm=T)
 plot(d$date, d$crcase, type='n', xlab='', ylab='', xaxt='n', ylim=c(0,ymax), bty='n')
 shading()
 lines(ed$date, ed$crcase)
@@ -111,7 +112,7 @@ lines(d$date, d$crcase, col='royalblue3')
 annotate('Cumulative reported cases')
 
 # Reported cases
-ymax = max(d$rcase, ed$rcase)
+ymax = max(d$rcase, ed$rcase, na.rm=T)
 plot(d$date, d$rcase, type='n', xlab='', ylab='', xaxt='n', ylim=c(0,ymax), bty='n')
 shading()
 lines(ed$date, ed$rcase)
@@ -119,7 +120,7 @@ lines(d$date, d$rcase, col='royalblue3')
 annotate('Reported cases')
 
 # reported deaths
-ymax = max(d$rdeath, ed$rdeath)
+ymax = max(d$rdeath, ed$rdeath, na.rm=T)
 plot(d$date, d$rdeath, type='n', xlab='', ylab='', xaxt='n', ylim=c(0,ymax), bty='n')
 shading()
 lines(ed$date, ed$rdeath)
@@ -128,7 +129,7 @@ annotate('Reported deaths')
 #axis(1, at=ticks, labels=format(ticks, "%b"))
 
 # cumulative reported deaths
-ymax = max(d$crdeath, ed$crdeath)
+ymax = max(d$crdeath, ed$crdeath, na.rm=T)
 plot(d$date, d$crdeath, type='n', xlab='', ylab='', xaxt='n', ylim=c(0,ymax), bty='n')
 shading()
 lines(ed$date, ed$crdeath)

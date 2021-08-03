@@ -35,7 +35,7 @@ class Community {
         size_t getNumSymptomatic(int day);
         size_t getNumNaive();
         Person* getPersonByID(int id);
-        Infection*  infect(int id, StrainType strain = WILDTYPE);
+        Infection*  infect(int id, StrainType strain);
         int getDay() { return _day; }                                // what day is it?
         //void swapImmuneStates();
         void updatePersonStatus();
@@ -59,7 +59,7 @@ class Community {
         void setVESs(std::vector<double> f);
         void setVac_Campaign(Vac_Campaign* vc) { vac_campaign = vc; }
         std::vector<size_t> getNumNewlyInfected() { return _numNewlyInfected; }
-        std::vector<size_t> getNumNewVocInfections() { return _numNewVocInfections; }
+        std::vector<size_t> getNumNewInfections(StrainType strain) { return _numNewInfectionsByStrain.at(strain); }
         std::vector<size_t> getNumNewlySymptomatic() { return _numNewlySymptomatic; }
         std::vector<size_t> getNumNewlySevere() { return _numNewlySevere; }
         std::vector<size_t> getNumNewlyCritical() { return _numNewlyCritical; }
@@ -108,7 +108,7 @@ class Community {
         std::vector< std::vector<Person*> > _exposedQueue;                     // queue of people with n days of latency left
         int _day;                                                              // current day
         std::vector<size_t> _numNewlyInfected;
-        std::vector<size_t> _numNewVocInfections;
+        std::map<StrainType, std::vector<size_t>> _numNewInfectionsByStrain;
         std::vector<size_t> _numNewlySymptomatic;                              // true cases, no lag due to detection
         std::vector<size_t> _numNewlySevere;                                   // true cases, no lag due to detection
         std::vector<size_t> _numNewlyCritical;                                 // true cases, no lag due to detection

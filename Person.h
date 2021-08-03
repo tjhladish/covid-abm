@@ -157,8 +157,8 @@ class Person {
 //        void copyImmunity(const Person *p);
         void resetImmunity();
 
-        bool isCrossProtected(int time) const; // assumes binary cross-immunity
-        bool isVaccineProtected(int time) const;
+        bool isCrossProtected(int time, StrainType strain) const; // assumes binary cross-immunity
+        bool isVaccineProtected(int time, StrainType strain) const;
 
         inline Person* getInfectedBy(int infectionsago=0)      const { return getInfection(infectionsago)->infectedBy; }
         inline Location* getInfectedPlace(int infectionsago=0) const { return getInfection(infectionsago)->infectedPlace; }
@@ -182,7 +182,7 @@ class Person {
         const std::vector<int>& getVaccinationHistory()        const { return vaccineHistory; }
         const std::vector<Infection*>& getInfectionHistory()   const { return infectionHistory; }
         int daysSinceVaccination(int time)                     const { assert( vaccineHistory.size() > 0); return time - vaccineHistory.back(); } // isVaccinated() should be called first
-        double vaccineProtection(const int time) const;
+        double vaccineProtection(const int time, const StrainType strain) const;
 
         // strain determined by source, unless source is nullptr
         Infection* infect(Person* source, const Date* date, Location* sourceloc, StrainType strain = NUM_OF_STRAIN_TYPES, bool check_susceptibility = true);
@@ -203,7 +203,7 @@ class Person {
         bool isNewlyDead(int time)      const { return infectionHistory.size() > 0 and time == infectionHistory.back()->deathTime; }
 
         bool isVaccinated() const { return vaccineHistory.size() > 0; } // has been vaccinated
-        bool isInfectable(int time) const;
+        bool isInfectable(int time, StrainType strain) const;
         double remainingEfficacy(const int time) const;
 
         bool isNaive() const { return immune_state == NAIVE; }
