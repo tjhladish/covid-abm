@@ -368,7 +368,8 @@ bool Community::loadLocations(string locationFilename, string networkFilename) {
     }
     _location.clear();
 
-    char buffer[500];
+    string buffer;
+
     int locid, hfid;
     string locTypeStr;
     string essentialStr;
@@ -376,12 +377,12 @@ bool Community::loadLocations(string locationFilename, string networkFilename) {
     double compliance;
     string publicTransmissionRiskStr;
 
-    istringstream line(buffer);
+    istringstream line;
+
     map<Location*, int> house_hospitalID_lookup;
     map<int, Location*> hospitalPtr_lookup;
 
-    while (iss) {
-        iss.getline(buffer,500);
+    while ( getline(iss, buffer) ) {
         line.clear();
         line.str(buffer);
         //if (line >> locid >> locTypeStr >> locX >> locY) {
@@ -461,8 +462,8 @@ bool Community::loadLocations(string locationFilename, string networkFilename) {
         return false;
     }
     int locid1, locid2;
-    while (iss) {
-        iss.getline(buffer,500);
+
+    while ( getline(iss, buffer) ) {
         line.clear();
         line.str(buffer);
         if (line >> locid1 >> locid2) { // data (non-header) line
