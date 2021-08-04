@@ -494,8 +494,9 @@ int julian_to_sim_day (const Parameters* par, const size_t julian, const int int
 
 
 vector<double> tally_counts(const Parameters* par, Community* community, int discard_days) {
-    assert((int) par->runLength >= discard_days + OVERRUN);
-    const size_t num_weeks = (par->runLength - discard_days - OVERRUN)/7;
+    assert((int) par->runLength >= discard_days + OVERRUN);                 // number of sim days for data aggregation must be greater than OVERRUN + days discarded (from the beginning of sim)
+    const size_t num_weeks = (par->runLength - discard_days - OVERRUN)/7;   // number of full weeks of data to be aggregated
+    const size_t end_tally_days = (par->runLength - OVERRUN) - ( (par->runLength - OVERRUN) % 7 );  // the last day in the last complete week to be aggregated
 
     //vector<size_t> infected    = community->getNumNewlyInfected();
     //vector< vector<int> > severe      = community->getNumSevereCases();
@@ -506,8 +507,8 @@ vector<double> tally_counts(const Parameters* par, Community* community, int dis
     vector<pair<size_t, double>> R = community->getMeanNumSecondaryInfections();
     vector<size_t> Rt_incidence_tally(num_weeks, 0);
 
-    vector<double> metrics(num_weeks*3, 0.0);
-    for (size_t t = discard_days; t < par->runLength - OVERRUN; ++t) {
+    vector<double> metrics(num_weeks*3, 0.0);   // possible TODO: revisit metric reporting and indexing (2*num weeks + w) seems possibly fragile
+    for (size_t t = discard_days; t < end_tally_days; ++t) {
         const size_t w = (t-discard_days)/7; // which reporting week are we in?
         metrics[w]                 += symptomatic[t];
         metrics[num_weeks + w]     += dead[t];
@@ -595,7 +596,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     // const size_t realization    = (size_t) args[1];
     const bool mutation          = (bool) args[2];
     vector<string> mutant_intro_dates = {};
-    if (mutation) { mutant_intro_dates = {"2021-02-10", "2021-06-01"}; };
+    if (mutation) { mutant_intro_dates = {"2021-02-10", "2021-06-01"}; };   // extra semicolon?
 
     Community* community = build_community(par);
     Vac_Campaign* vc = nullptr;
