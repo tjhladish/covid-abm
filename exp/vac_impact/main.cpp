@@ -496,7 +496,6 @@ int julian_to_sim_day (const Parameters* par, const size_t julian, const int int
 vector<double> tally_counts(const Parameters* par, Community* community, int discard_days) {
     assert((int) par->runLength >= discard_days + OVERRUN);                 // number of sim days for data aggregation must be greater than OVERRUN + days discarded (from the beginning of sim)
     const size_t num_weeks = (par->runLength - discard_days - OVERRUN)/7;   // number of full weeks of data to be aggregated
-    const size_t end_tally_days = (par->runLength - OVERRUN) - ( (par->runLength - OVERRUN) % 7 );  // the last day in the last complete week to be aggregated
 
     //vector<size_t> infected    = community->getNumNewlyInfected();
     //vector< vector<int> > severe      = community->getNumSevereCases();
@@ -507,8 +506,8 @@ vector<double> tally_counts(const Parameters* par, Community* community, int dis
     vector<pair<size_t, double>> R = community->getMeanNumSecondaryInfections();
     vector<size_t> Rt_incidence_tally(num_weeks, 0);
 
-    vector<double> metrics(num_weeks*3, 0.0);   // possible TODO: revisit metric reporting and indexing (2*num weeks + w) seems possibly fragile
-    for (size_t t = discard_days; t < end_tally_days; ++t) {
+    vector<double> metrics(num_weeks*3, 0.0);
+    for (size_t t = discard_days; t < discard_days + (7*num_weeks); ++t) {
         const size_t w = (t-discard_days)/7; // which reporting week are we in?
         metrics[w]                 += symptomatic[t];
         metrics[num_weeks + w]     += dead[t];
