@@ -29,6 +29,13 @@ class Date {
   public:
     Date():_simulation_day(0),_month_ct(0),_year_ct(0),_julian_day(1),_julian_year(1) {};
     Date(const Parameters* par):_simulation_day(0),_month_ct(0),_year_ct(0),_julian_day(par->startDayOfYear),_julian_year(par->startJulianYear) {};
+    Date(const Date& o) {
+        _simulation_day = o._simulation_day;
+        _month_ct       = o._month_ct;
+        _year_ct        = o._year_ct;
+        _julian_day     = o._julian_day;
+        _julian_year    = o._julian_year; 
+    };
 
     // for use when needing to pass a historical sim day as a Date object, e.g. to model pre-existing natural immunity.  Note that month and year counts are not set!
     Date(const Parameters* par, int sim_day):_simulation_day(sim_day),_month_ct(0),_year_ct(0),_julian_day(par->startDayOfYear),_julian_year(par->startJulianYear) {};
