@@ -507,7 +507,7 @@ vector<double> tally_counts(const Parameters* par, Community* community, int dis
     vector<size_t> Rt_incidence_tally(num_weeks, 0);
 
     vector<double> metrics(num_weeks*3, 0.0);
-    for (size_t t = discard_days; t < par->runLength - OVERRUN; ++t) {
+    for (size_t t = discard_days; t < discard_days + (7*num_weeks); ++t) {
         const size_t w = (t-discard_days)/7; // which reporting week are we in?
         metrics[w]                 += symptomatic[t];
         metrics[num_weeks + w]     += dead[t];
