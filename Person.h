@@ -12,6 +12,11 @@
 class Location;
 
 struct Detection {
+    Detection(const Detection& o) {
+        detected_state = o.detected_state;
+        reported_time  = o.reported_time;
+    };
+
     OutcomeType detected_state;
     int reported_time;
 };
@@ -38,6 +43,27 @@ class Infection {
         strain            = WILDTYPE;
         relInfectiousness = 1.0;
         _detection        = nullptr;
+    };
+
+    Infection(const Infection& o) {
+        infectedBegin       = o.infectedBegin;
+        infectedPlace       = o.infectedPlace;
+        infectedBy          = o.infectedBy;
+        infectiousBegin     = o.infectiousBegin;
+        infectiousEnd       = o.infectiousEnd;
+        symptomBegin        = o.symptomBegin;
+        symptomEnd          = o.symptomEnd;
+        severeBegin         = o.severeBegin;
+        severeEnd           = o.severeEnd;
+        hospitalizedBegin   = o.hospitalizedBegin;
+        criticalBegin       = o.criticalBegin;
+        criticalEnd         = o.criticalEnd;
+        icuBegin            = o.icuBegin;
+        deathTime           = o.deathTime;
+        infections_caused   = o.infections_caused;
+        strain              = o.strain;
+        relInfectiousness   = o.relInfectiousness;
+        _detection          = o._detection;
     };
 
     ~Infection() {
@@ -122,6 +148,22 @@ class Person {
     public:
         Person();
         ~Person();
+        Person(const Person& o) {
+            id                      = o.id;
+            home_loc                = o.home_loc;
+            day_loc                 = o.day_loc;
+            patronized_locs         = o.patronized_locs;
+            age                     = o.age;
+            sex                     = o.sex;
+            long_term_care          = o.long_term_care;
+            comorbidity             = o.comorbidity;
+            naiveVaccineProtection  = o.naiveVaccineProtection;
+            immune_state            = o.immune_state;
+            infectionHistory        = o.infectionHistory;
+            daysImmune              = o.daysImmune;
+            vaccineHistory          = o.vaccineHistory;
+        };
+
         inline int getID() const { return id; }
 
         int getAge() const { return age; }
