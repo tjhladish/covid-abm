@@ -12,6 +12,20 @@ class Location {
     // TODO -- create derived classes for different types of locations
     public:
         Location();
+        Location(const Location& o) {
+            _ID                       = o._ID;
+            _essential                = o._essential;
+            _riskiness                = o._riskiness;
+            _public_transmission_risk = o._public_transmission_risk;
+            _type                     = o._type;
+            _person                   = o._person;
+            _visitors                 = o._visitors;
+            _visit_durations          = o._visit_durations;
+            _neighbors                = o._neighbors;
+            _hospital                 = o._hospital;
+            _coord                    = o._coord;
+        };
+
         virtual ~Location();
 
         struct LocPtrComp { bool operator()(const Location* A, const Location* B) const { return A->getID() < B->getID(); } };
