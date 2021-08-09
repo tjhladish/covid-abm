@@ -86,6 +86,7 @@ d$crcase   = cumsum(d$rcase)
 d$crdeath  = cumsum(d$rdeath)
 #death_underreporting = 20.1/11.8 # excess death / recognized COVID deaths
 ed$rcase = ed$rcase*per10k
+ed$rhosp = ed$rhosp*per10k
 ed$rdeath = ed$rdeath*per10k #*death_underreporting
 ed$crcase  = cumsum(ed$rcase)
 ed$crdeath = cumsum(ed$rdeath)

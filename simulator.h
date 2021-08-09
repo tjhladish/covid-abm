@@ -318,7 +318,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
     vector<double> trailing_averages(par->runLength);
     const double pop_at_risk = min(community->getNumPeople(), par->numSurveilledPeople);
 
-    vector<string> plot_log_buffer = {"date,sd,seasonality,vocprev1,vocprev2,cinf,closed,rcase,rdeath,Rt"};
+    vector<string> plot_log_buffer = {"date,sd,seasonality,vocprev1,vocprev2,cinf,closed,rcase,rdeath,inf,rhosp,Rt"};
 
     Date* date = community->get_date();
     vector<StrainType> strains = {WILDTYPE};
@@ -377,7 +377,9 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
            << cAR << ","
            << community->getTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, sim_day)<< ","
            << reported_cases*1e4/pop_at_risk << ","
-           << rdeaths[sim_day]*1e4/pop_at_risk;
+           << rdeaths[sim_day]*1e4/pop_at_risk << ","
+           << infections[sim_day]*1e4/pop_at_risk << ","
+           << rhosp[sim_day]*1e4/pop_at_risk;
         plot_log_buffer.push_back(ss.str());
     }
 
