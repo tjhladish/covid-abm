@@ -71,11 +71,7 @@ class Infection {
         infections_caused = o.infections_caused;
         strain            = o.strain;
         relInfectiousness = o.relInfectiousness;
-        if(o._detection) {
-            _detection = new Detection(*(o._detection));
-        } else {
-            _detection = nullptr;
-        }
+        _detection        = o._detection ? new Detection(*(o._detection)) : nullptr;
     };
 
     ~Infection() {
