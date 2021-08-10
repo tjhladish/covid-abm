@@ -76,6 +76,15 @@ class Vac_Campaign {
         void prioritize_vaccination(Person* p) { urgent_queue.push(p); }
         void schedule_vaccination(Person* p) { standard_queue.push(p); }
 
+        std::queue<Person*> getUrgentQueue() { return urgent_queue; }
+        void setUrgentQueue(std::queue<Person*> uq) { urgent_queue = uq; }
+
+        std::queue<Person*> getStandardQueue() { return standard_queue; }
+        void setStandardQueue(std::queue<Person*> sq) { standard_queue = sq; }
+
+        std::vector< std::set<Person*> > getRevaccinateQueue() { return revaccinate_queue; }
+        void setRevaccinateQueue(std::vector< std::set<Person*> > rq) { revaccinate_queue = rq; }
+
         void set_doses_available( std::vector< std::vector<int> > da ) {
             doses_available = da;
             //doses_used.resize(da.size(), std::vector<int>(NUM_OF_VACCINATION_QUEUE_TYPES));
