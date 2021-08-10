@@ -13,11 +13,17 @@ class Location;
 class Community;
 
 struct Detection {
-//    Detection() {};
-//    Detection(const Detection& o) {
-//        detected_state = o.detected_state;
-//        reported_time  = o.reported_time;
-//    };
+    Detection() {
+        detected_state = NUM_OF_OUTCOME_TYPES;
+        reported_time = INT_MAX;
+    };
+
+    Detection(OutcomeType ds, int rt) : detected_state(ds), reported_time(rt) {};
+
+    Detection(const Detection& o) {
+        detected_state = o.detected_state;
+        reported_time  = o.reported_time;
+    };
 
     OutcomeType detected_state;
     int reported_time;
@@ -65,7 +71,11 @@ class Infection {
         infections_caused = o.infections_caused;
         strain            = o.strain;
         relInfectiousness = o.relInfectiousness;
-        _detection        = o._detection;
+        if(o._detection) {
+            _detection = new Detection(*(o._detection));
+        } else {
+            _detection = nullptr;
+        }
     };
 
     ~Infection() {
@@ -161,9 +171,13 @@ class Person {
             comorbidity            = o.comorbidity;
             naiveVaccineProtection = o.naiveVaccineProtection;
             immune_state           = o.immune_state;
-            infectionHistory       = o.infectionHistory;
+            for(size_t i = 0; i < o.infectionHistory.size(); ++i) {
+                infectionHistory.push_back(new Infection(*(o.infectionHistory[i])));
+            }
+
             daysImmune             = o.daysImmune;
             vaccineHistory         = o.vaccineHistory;
+
         };
 
         inline int getID() const { return id; }
@@ -197,6 +211,7 @@ class Person {
 
         void addPatronizedLocation(Location* loc) { patronized_locs.push_back(loc); } // person is sometimes a customer of these businesses
         vector<Location*> getPatronizedLocations() const { return patronized_locs; }
+        void setPatronizedLocations(vector<Location*> pl) { patronized_locs = pl; }
 //        void setImmunity() { immune = true; }
 //        void copyImmunity(const Person *p);
         void resetImmunity();
