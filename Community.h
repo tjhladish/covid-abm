@@ -25,6 +25,62 @@ class Community {
         Community(const Parameters* parameters, Date* date);
         ~Community();
 
+        //{// pointer sanitizing in Community copy constructor
+        //    map<Location*, Location*> location_ptr_map;
+        //    for(size_t l = 0; l < o._locations.size(); ++l) {
+        //        _location[l] = new Location(o._location[l]);
+        //        location_ptr_map[o._location[l]] = _location[l];
+        //    }
+
+        //    map<Person*, Person*> person_ptr_map;
+        //    for(size_t p = 0; p < o._people.size(); ++p) {
+        //        _people[p] = new Person(o._people[p]);
+        //        person_ptr_map[o._people[p]] = _people[p];
+        //    }
+
+        //    if(o.vc) { vc = new Vac_Campaign(o.vc); }
+
+        //    for(Person* &p : _people) {
+        //        p->setHomeLoc(location_ptr_map[p->getHomeLoc()]);
+        //        p->setDayLoc(location_ptr_map[p->getDayLoc()]);
+        //        
+        //        vector<Location*> patronizedLocations = p->getPatronizedLocations();
+        //        for(Location* &l : patronizedLocations) { l = location_ptr_map[l]; }
+        //        p->setPatronizedLocations(patronizedLocations);
+        //    }
+
+        //    for(Location* &l : _location) {
+        //        l->setHospital(location_ptr_map[l->getHospital()]);
+
+        //        vector<Person*> people = l->getPeople();
+        //        for(Person* &p : people) { p = person_ptr_map[p]; }
+        //        l->setPeople(people);
+
+        //        vector<Person*> visitors = l->getVisitors();
+        //        for(Person* &v : visitors) { v = person_ptr_map[v]; }
+        //        l->setVisitors(visitors);
+
+        //        set<Location*, LocPtrComp> neighbors = l->getNeighbors();
+        //        for(Location* &n : neighbors) { n = location_ptr_map[n]; }
+        //        l->setNeighbors(neighbors);
+        //    }
+
+        //    queue<Person*> urgent_queue = vc->getUrgentQueue();
+        //    for(Person* &p : urgent_queue) { p = person_ptr_map[p]; }
+        //    vc->setUrgentQueue(urgent_queue);
+
+        //    queue<Person*> standard_queue = vc->getStandardQueue();
+        //    for(Person* &p : standard_queue) { p = person_ptr_map[p]; }
+        //    vc->setStandardQueue(standard_queue);
+
+        //    vector< set<Person*> > revaccinate_queue = vc->getRevaccinateQueue();
+        //    for(auto &q : revaccinate_queue) {
+        //        for(Person* &p : q) { p = person_ptr_map[p]; }
+        //    }
+        //    vc->setRevaccinateQueue(revaccinate_queue);
+
+        //}
+
         Date* get_date();
         bool loadPopulation(std::string populationFilename, std::string comorbidityFilename = "", std::string publicActivityFilename = "", std::string immunityFilename = "");
         bool loadLocations(std::string locationFilename, std::string networkFilename = "");
