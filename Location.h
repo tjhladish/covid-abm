@@ -45,12 +45,15 @@ class Location {
         int getNumPeople() const { return _person.size(); }             // employees, residents, etc.; not including visitors
         int getNumVisitors() const { return _visitors.size(); }          // visitors change daily
         std::vector<Person*> getPeople() { return _person; }
+        void setPeople(std::vector<Person*> p) { _person = p; }
         std::vector<Person*> getVisitors() { return _visitors; }
+        void setVisitors(std::vector<Person*> v) { _visitors = v; }
         std::vector<double> getVisitDurations() { return _visit_durations; }
 //        Person* findMom();                                            // Try to find a resident female of reproductive age
         void addNeighbor(Location* loc);
         int getNumNeighbors() const { return _neighbors.size(); }
         std::set<Location*, LocPtrComp> getNeighbors() { return _neighbors; }
+        void setNeighbors(std::set<Location*, LocPtrComp> n) { _neighbors = n; }
         void setHospital(Location* hosp) { _hospital = hosp; }
         Location* getHospital() const { return _hospital; }
         inline Person* getPerson(int idx) { return _person[idx]; }
