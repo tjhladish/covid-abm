@@ -931,6 +931,21 @@ void Community::tick() {
     hospital_transmission();
     updateHotLocations();
 
+    // do contact tracing
+    // for each person
+        // if has been infected
+            // if most recent infection has detection date == today AND not dead
+                // contact trace that person:
+                // if nusinghome: poisson(5) number of people there
+                // else:
+                // all household members
+                // residents of households they interact with, with 50% probability
+                // poisson(3) distributed number of contacts from workplace or school
+        // push all taced people into level1 contact list
+    // for each person in level1:
+        // repeat process above, pushing all traced people into level2 list
+    // schedule everyone in level1 and level2 for urgent vaccination
+
     // vac_campaign->reactive_vac_strategy();
 
     return;
