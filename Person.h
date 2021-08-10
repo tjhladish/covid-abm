@@ -64,6 +64,8 @@ class Infection {
         strain              = o.strain;
         relInfectiousness   = o.relInfectiousness;
         _detection          = o._detection;
+
+        if(o._detection) { _detection = new Detection(o._detection); }
     };
 
     ~Infection() {
@@ -162,6 +164,10 @@ class Person {
             infectionHistory        = o.infectionHistory;
             daysImmune              = o.daysImmune;
             vaccineHistory          = o.vaccineHistory;
+
+            for(size_t i = 0; i < o.infectionHistory.size(); ++i) {
+                infectionHistory[i] = new Infection(o.infectionHistory[i]);
+            }
         };
 
         inline int getID() const { return id; }
