@@ -23,6 +23,58 @@ class Person;
 class Community {
     public:
         Community(const Parameters* parameters, Date* date);
+/*        Community(const Community& o) {
+            _cumulIncByOutcome           = o._cumulIncByOutcome;// is static
+            _par                         = o._par;// is static const
+            _date                        = o._date;                  // is static
+            _people                      = o._people;
+            _personAgeCohort             = o._personAgeCohort;
+            _location                    = o._location;
+            _public_locations            = o._public_locations;
+            _location_map                = o._location_map;
+            _exposedQueue                = o._exposedQueue;
+            _day                         = o._day;
+            _numNewlyInfected            = o._numNewlyInfected;
+            _numNewInfectionsByStrain    = o._numNewInfectionsByStrain;
+            _numNewlySymptomatic         = o._numNewlySymptomatic;
+            _numNewlySevere              = o._numNewlySevere;
+            _numNewlyCritical            = o._numNewlyCritical;
+            _numNewlyDead                = o._numNewlyDead;
+            _numVaccinatedCases          = o._numVaccinatedCases;
+            _numSeverePrev               = o._numSeverePrev;
+            _numHospInc                  = o._numHospInc;
+            _numHospPrev                 = o._numHospPrev;
+            _numIcuInc                   = o._numIcuInc;
+            _numIcuPrev                  = o._numIcuPrev;
+            _numDetectedCasesOnset       = o._numDetectedCasesOnset;
+            _numDetectedCasesReport      = o._numDetectedCasesReport;
+            _numDetectedHospitalizations = o._numDetectedHospitalizations;
+            _numDetectedDeaths           = o._numDetectedDeaths;
+            _isHot                       = o._isHot;
+            _peopleByAge                 = o._peopleByAge;
+            vac_campaign                 = o.vac_campaign;
+            _revaccinate_set             = o._revaccinate_set;// is static
+            timedInterventions           = o.timedInterventions;// is static
+
+  //          map<Location*, Location*> location_ptr_map;
+  //          for (size_t i = 0; i < o._location.size(); ++i) {
+  //              _location[i] = new Location(o._location[i]);
+  //              location_ptr_map[o._location[i]] = _location[i];
+  //              // clear all the people at this location
+  //          }
+
+  //          map<Person*, *> person_ptr_map;
+  //          for (size_t i = 0; i < o._people.size(); ++i) {
+  //              _people[i] = new Person(o._people[i]);
+  //              person_ptr_map[o._people[i]] = _people[i];
+  //              _people[i]->updateLocations(location_ptr_map);
+            // for each person
+            // new Person
+            // update location to have the new Person
+
+            // now to complete deep copy and clean up circular references
+        }*/
+
         ~Community();
 
         Date* get_date();
@@ -77,10 +129,10 @@ class Community {
         std::vector<size_t> getNumDetectedDeaths() { return _numDetectedDeaths; }
         std::vector<pair<size_t, double>> getMeanNumSecondaryInfections() const ;
 
-        static void flagInfectedLocation(Person* person, double relInfectiousness, LocationType locType, Location* _pLoc, int day);
+        void flagInfectedLocation(Person* person, double relInfectiousness, LocationType locType, Location* _pLoc, int day);
         Infection* trace_contact(Person* &infecter, Location* source_loc, const map<double, vector<Person*>> &infectious_groups);
-        static void reportCase(int onsetDate, long int reportDate, bool hospitalized);
-        static void reportDeath(int eventDate, long int reportDate);
+        void reportCase(int onsetDate, long int reportDate, bool hospitalized);
+        void reportDeath(int eventDate, long int reportDate);
 
 //        int ageIntervalSize(int ageMin, int ageMax) { return std::accumulate(_personAgeCohortSizes+ageMin, _personAgeCohortSizes+ageMax,0); }
 
@@ -119,15 +171,14 @@ class Community {
         std::vector<size_t> _numHospPrev;
         std::vector<size_t> _numIcuInc;
         std::vector<size_t> _numIcuPrev;
-        static std::vector<size_t> _numDetectedCasesOnset;
-        static std::vector<size_t> _numDetectedCasesReport;
-        static std::vector<size_t> _numDetectedHospitalizations;
-        static std::vector<size_t> _numDetectedDeaths;
+        std::vector<size_t> _numDetectedCasesOnset;
+        std::vector<size_t> _numDetectedCasesReport;
+        std::vector<size_t> _numDetectedHospitalizations;
+        std::vector<size_t> _numDetectedDeaths;
 
         // groups of infectious people: indexed by day, location type, location ptr, and relative infectiousness
-        static std::vector< std::map<LocationType, std::map<Location*, std::map<double, std::vector<Person*>>, Location::LocPtrComp>>> _isHot;
+        std::vector< std::map<LocationType, std::map<Location*, std::map<double, std::vector<Person*>>, Location::LocPtrComp>>> _isHot;
         static std::vector<Person*> _peopleByAge;
-        static std::map<int, std::set<std::pair<Person*, Person*> > > _delayedBirthdays;
         Vac_Campaign* vac_campaign;
         static std::set<Person*> _revaccinate_set;          // not automatically re-vaccinated, just checked for boosting, multiple doses
         std::map<TimedIntervention, std::vector<double>> timedInterventions;
@@ -138,7 +189,6 @@ class Community {
         void expandExposedQueues();
 //        void _advanceTimers();
 //        void _processBirthday(Person* p);
-//        void _processDelayedBirthdays();
         //void _swapIfNeitherInfected(Person* p, Person* donor);
 };
 #endif

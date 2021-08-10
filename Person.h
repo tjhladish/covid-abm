@@ -10,12 +10,14 @@
 #include "Location.h"
 
 class Location;
+class Community;
 
 struct Detection {
-    Detection(const Detection& o) {
-        detected_state = o.detected_state;
-        reported_time  = o.reported_time;
-    };
+//    Detection() {};
+//    Detection(const Detection& o) {
+//        detected_state = o.detected_state;
+//        reported_time  = o.reported_time;
+//    };
 
     OutcomeType detected_state;
     int reported_time;
@@ -46,24 +48,24 @@ class Infection {
     };
 
     Infection(const Infection& o) {
-        infectedBegin       = o.infectedBegin;
-        infectedPlace       = o.infectedPlace;
-        infectedBy          = o.infectedBy;
-        infectiousBegin     = o.infectiousBegin;
-        infectiousEnd       = o.infectiousEnd;
-        symptomBegin        = o.symptomBegin;
-        symptomEnd          = o.symptomEnd;
-        severeBegin         = o.severeBegin;
-        severeEnd           = o.severeEnd;
-        hospitalizedBegin   = o.hospitalizedBegin;
-        criticalBegin       = o.criticalBegin;
-        criticalEnd         = o.criticalEnd;
-        icuBegin            = o.icuBegin;
-        deathTime           = o.deathTime;
-        infections_caused   = o.infections_caused;
-        strain              = o.strain;
-        relInfectiousness   = o.relInfectiousness;
-        _detection          = o._detection;
+        infectedBegin     = o.infectedBegin;
+        infectedPlace     = o.infectedPlace;
+        infectedBy        = o.infectedBy;
+        infectiousBegin   = o.infectiousBegin;
+        infectiousEnd     = o.infectiousEnd;
+        symptomBegin      = o.symptomBegin;
+        symptomEnd        = o.symptomEnd;
+        severeBegin       = o.severeBegin;
+        severeEnd         = o.severeEnd;
+        hospitalizedBegin = o.hospitalizedBegin;
+        criticalBegin     = o.criticalBegin;
+        criticalEnd       = o.criticalEnd;
+        icuBegin          = o.icuBegin;
+        deathTime         = o.deathTime;
+        infections_caused = o.infections_caused;
+        strain            = o.strain;
+        relInfectiousness = o.relInfectiousness;
+        _detection        = o._detection;
     };
 
     ~Infection() {
@@ -149,19 +151,19 @@ class Person {
         Person();
         ~Person();
         Person(const Person& o) {
-            id                      = o.id;
-            home_loc                = o.home_loc;
-            day_loc                 = o.day_loc;
-            patronized_locs         = o.patronized_locs;
-            age                     = o.age;
-            sex                     = o.sex;
-            long_term_care          = o.long_term_care;
-            comorbidity             = o.comorbidity;
-            naiveVaccineProtection  = o.naiveVaccineProtection;
-            immune_state            = o.immune_state;
-            infectionHistory        = o.infectionHistory;
-            daysImmune              = o.daysImmune;
-            vaccineHistory          = o.vaccineHistory;
+            id                     = o.id;
+            home_loc               = o.home_loc;
+            day_loc                = o.day_loc;
+            patronized_locs        = o.patronized_locs;
+            age                    = o.age;
+            sex                    = o.sex;
+            long_term_care         = o.long_term_care;
+            comorbidity            = o.comorbidity;
+            naiveVaccineProtection = o.naiveVaccineProtection;
+            immune_state           = o.immune_state;
+            infectionHistory       = o.infectionHistory;
+            daysImmune             = o.daysImmune;
+            vaccineHistory         = o.vaccineHistory;
         };
 
         inline int getID() const { return id; }
@@ -227,9 +229,9 @@ class Person {
         double vaccineProtection(const int time, const StrainType strain) const;
 
         // strain determined by source, unless source is nullptr
-        Infection* infect(Person* source, const Date* date, Location* sourceloc, StrainType strain = NUM_OF_STRAIN_TYPES, bool check_susceptibility = true);
+        Infection* infect(Community* community, Person* source, const Date* date, Location* sourceloc, StrainType strain = NUM_OF_STRAIN_TYPES, bool check_susceptibility = true);
         void processDeath(Infection &infection, const int time);
-        inline Infection* infect(const Date* date, StrainType strain) {return infect(nullptr, date, nullptr, strain);}
+        inline Infection* infect(Community* community, const Date* date, StrainType strain) {return infect(community, nullptr, date, nullptr, strain);}
 
         // TODO -- the following functions assume that only the most recent infection needs to be inspected
         bool inHospital(int time) const { return infectionHistory.size() > 0 and infectionHistory.back()->inHospital(time); }

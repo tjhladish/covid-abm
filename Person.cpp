@@ -76,7 +76,6 @@ Infection& Person::initializeNewInfection() {
 //    setImmunity();
     Infection* infection = new Infection();
     infectionHistory.push_back(infection);
-    Community::_cumulIncByOutcome[ASYMPTOMATIC]++;
 
     switch( immune_state ) {
         case NAIVE:
@@ -221,7 +220,7 @@ void Person::processDeath(Infection &infection, const int deathTime) {
 
 // infect - infect this individual
 // returns non-null pointer if infection occurs
-Infection* Person::infect(Person* source, const Date* date, Location* sourceloc, StrainType strain, bool check_susceptibility) {
+Infection* Person::infect(Community* community, Person* source, const Date* date, Location* sourceloc, StrainType strain, bool check_susceptibility) {
     const int time = date->day();
     // Bail now if this person can not become infected
     // Not quite the same as "susceptible"--this person may be e.g. partially immune
@@ -232,6 +231,7 @@ Infection* Person::infect(Person* source, const Date* date, Location* sourceloc,
     // Create a new infection record
     const size_t incubation_period = _par->symptom_onset(); // may not be symptomatic, but this is used to determine infectiousness onset
     Infection& infection = initializeNewInfection(time, incubation_period, sourceloc, source);
+    community->_cumulIncByOutcome[ASYMPTOMATIC]++;
     if (not source) { infection.strain = strain; }
 
     const size_t dose = vaccineHistory.size() - 1;
@@ -262,14 +262,14 @@ Infection* Person::infect(Person* source, const Date* date, Location* sourceloc,
         // symptomatic
         infection.relInfectiousness *= gsl_ran_weibull(RNG, 7.40, 3.81) > highly_infectious_threshold ? 4.0 : 0.25;
         //const size_t symptom_onset = _par->symptom_onset();
-        Community::_cumulIncByOutcome[MILD]++;
+        community->_cumulIncByOutcome[MILD]++;
         infection.symptomBegin = time + incubation_period;
         if ( not (gsl_rng_uniform(RNG) < severe_given_case) ) {
             // It does not become severe
             infection.symptomEnd = infection.symptomBegin + _par->symptom_duration_mild();
         } else {
             // It does progress and become severe
-            Community::_cumulIncByOutcome[SEVERE]++;
+            community->_cumulIncByOutcome[SEVERE]++;
             infection.severeBegin = infection.symptomBegin + _par->pre_severe_symptomatic();
 
             // Is this person hospitalized when their severe symptoms begin?
@@ -287,7 +287,7 @@ Infection* Person::infect(Person* source, const Date* date, Location* sourceloc,
                 infection.symptomEnd    = infection.severeEnd; // TODO - extend symptoms beyond severe period (relevant for e.g. econ analyses)
             } else {
                 // It does progress to critical disease
-                Community::_cumulIncByOutcome[CRITICAL]++;
+                community->_cumulIncByOutcome[CRITICAL]++;
                 const size_t severe_only_duration = _par->severe_only_duration();
                 const size_t pre_critical_severe  = round((float) severe_only_duration / 2);
                 const size_t post_critical_severe = severe_only_duration - pre_critical_severe;
@@ -363,12 +363,12 @@ Infection* Person::infect(Person* source, const Date* date, Location* sourceloc,
 
         if (detected) {
             infection.detect(detected_state, report_date);
-            Community::reportCase(sample_collection_date, report_date, infection.hospital());
+            community->reportCase(sample_collection_date, report_date, infection.hospital());
             if (infection.fatal()) {
                 long int medical_examiner_report_date = infection.deathTime + _par->deathReportingLag(REPORTING_RNG);
                 // medical examiner only orders post-mortem PCR if sample was not already taken
                 medical_examiner_report_date = max(medical_examiner_report_date, report_date);
-                Community::reportDeath(sample_collection_date, medical_examiner_report_date);
+                community->reportDeath(sample_collection_date, medical_examiner_report_date);
             }
         }
     }
@@ -377,12 +377,12 @@ Infection* Person::infect(Person* source, const Date* date, Location* sourceloc,
     for (int day = std::max(infection.infectiousBegin, 0); day < infection.infectiousEnd; day++) {
         if (infection.inHospital(day)) {
             Location* hospital = getHospital();
-            Community::flagInfectedLocation(this, infection.relInfectiousness, hospital->getType(), hospital, day);
+            community->flagInfectedLocation(this, infection.relInfectiousness, hospital->getType(), hospital, day);
         } else {
-            Community::flagInfectedLocation(this, infection.relInfectiousness, getHomeLoc()->getType(), getHomeLoc(), day); // home loc can be a HOUSE or NURSINGHOME
+            community->flagInfectedLocation(this, infection.relInfectiousness, getHomeLoc()->getType(), getHomeLoc(), day); // home loc can be a HOUSE or NURSINGHOME
             if (getDayLoc()) {
                 // TODO -- people do not stop going to work/school when mild/moderately sick
-                Community::flagInfectedLocation(this, infection.relInfectiousness, getDayLoc()->getType(), getDayLoc(), day);
+                community->flagInfectedLocation(this, infection.relInfectiousness, getDayLoc()->getType(), getDayLoc(), day);
             }
         }
     }
