@@ -995,7 +995,7 @@ void Community::tick() {
         tracedContactsByDepth = traceForwardContacts(tracedCases);
     }
 
-    if(vac_campaign) { vac_campaign->ring_scheduling(_day, tracedContactsByDepth); }
+    if(vac_campaign and vac_campaign->get_reactive_vac_strategy() == RING_VACCINATION) { vac_campaign->ring_scheduling(_day, tracedContactsByDepth); }
     return;
 }
 

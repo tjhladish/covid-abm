@@ -282,6 +282,7 @@ void parseVaccineFile(string vaccinationFilename, const Parameters* par, Communi
 
     // saves the final vaccination rates for each age bin for use in projected vaccination
     map< int, vector<double> > last_known_vac_rate;
+    size_t last_known_revac_doses = 0;
 
     size_t last_day_of_data = 0;
     while (getline(iss, buffer)) {
@@ -349,7 +350,10 @@ void parseVaccineFile(string vaccinationFilename, const Parameters* par, Communi
                 const size_t emp_daily_standard_first_doses = (size_t) round(daily_total_first_doses * pop_ratio);
                 // doses_available.at(day)[URGENT_ALLOCATION]   += emp_daily_urgent_doses;
                 doses_available.at(day)[STANDARD_ALLOCATION] += emp_daily_standard_first_doses;
-                if(revacDay < par->runLength) { doses_available.at(revacDay)[STANDARD_ALLOCATION] += emp_daily_standard_first_doses; }
+                if(revacDay < par->runLength) {
+                    doses_available.at(revacDay)[STANDARD_ALLOCATION] += emp_daily_standard_first_doses;
+                    last_known_revac_doses = doses_available.at(revacDay)[STANDARD_ALLOCATION];
+                }
             }
         }
         // schedule any remaining people
@@ -399,10 +403,8 @@ void parseVaccineFile(string vaccinationFilename, const Parameters* par, Communi
 
             // vaccinate same fraction of unvacinated people each day
             // doses_available.at(day)[URGENT_ALLOCATION]   += round(proj_dose_adj*doses_available.at(last_day_of_data)[URGENT_ALLOCATION] / num_current_unsch);
-            doses_available.at(day)[STANDARD_ALLOCATION] += round(proj_dose_adj*doses_available.at(last_day_of_data)[STANDARD_ALLOCATION] / num_current_unsch);
-            if(revacDay < par->runLength) {
-                doses_available.at(revacDay)[STANDARD_ALLOCATION] += round(proj_dose_adj*doses_available.at(last_day_of_data)[STANDARD_ALLOCATION] / num_current_unsch);
-            }
+            doses_available.at(day)[STANDARD_ALLOCATION] += round(proj_dose_adj*last_known_revac_doses / num_current_unsch);
+            if(revacDay < par->runLength) { doses_available.at(revacDay)[STANDARD_ALLOCATION] += round(proj_dose_adj*last_known_revac_doses / num_current_unsch); }
         }
     }
     for(size_t day = 0; day < doses_available.size(); ++day) {
@@ -668,6 +670,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
         // parameter handling --- how do we want to handle setting these? I just set them here rather than use par
         vc->set_start_of_campaign(RING_VACCINATION, Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-07-01"));
+        assert(vc->get_start_of_campaign(RING_VACCINATION) >= par->beginContactTracing);
 
         vc->set_end_of_campaign(GENERAL_CAMPAIGN, par->runLength);
         vc->set_end_of_campaign(RING_VACCINATION, par->runLength);
