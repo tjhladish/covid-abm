@@ -241,7 +241,7 @@ class Person {
 
         // strain determined by source, unless source is nullptr
         Infection* infect(Community* community, Person* source, const Date* date, Location* sourceloc, StrainType strain = NUM_OF_STRAIN_TYPES, bool check_susceptibility = true);
-        void processDeath(Infection &infection, const int time);
+        void processDeath(Community* community, Infection &infection, const int time);
         inline Infection* infect(Community* community, const Date* date, StrainType strain) {return infect(community, nullptr, date, nullptr, strain);}
 
         // TODO -- the following functions assume that only the most recent infection needs to be inspected

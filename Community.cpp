@@ -23,8 +23,6 @@ using covid::util::choice;
 const Parameters* Community::_par;
 Date* Community::_date;
 //vector< map<LocationType, map<Location*, map<double, vector<Person*>>, Location::LocPtrComp>>> Community::_isHot;
-set<Person*> Community::_revaccinate_set;
-vector<size_t> Community::_cumulIncByOutcome(NUM_OF_OUTCOME_TYPES, 0);
 
 int mod(int k, int n) { return ((k %= n) < 0) ? k+n : k; } // correct for non-negative n
 
@@ -45,6 +43,7 @@ Community::Community(const Parameters* parameters, Date* date) :
     _numDetectedCasesReport(parameters->runLength),
     _numDetectedHospitalizations(parameters->runLength),
     _numDetectedDeaths(parameters->runLength),
+    _cumulIncByOutcome(NUM_OF_OUTCOME_TYPES, 0),
     _isHot(parameters->runLength)
     {
     _par = parameters;

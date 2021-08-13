@@ -564,11 +564,11 @@ void calculate_reporting_ratios(Community* community) {
     cerr << "wave 3: "; cerr_vector(RF[2]); cerr << " [" << (int) (RF[2][0]*cinf + RF[2][1]*ccase + RF[2][2]*csev + RF[2][3]*ccrit + RF[2][4]*cdeath)/(RF[2][4]*cdeath) << "] " << endl;
 
     cerr << "\nIncidence by outcome:\n";
-    cerr << "\t ASYMPTOMATIC :\t" << Community::_cumulIncByOutcome[ASYMPTOMATIC] << endl;
-    cerr << "\t MILD :  \t" << Community::_cumulIncByOutcome[MILD] << endl;
-    cerr << "\t SEVERE :\t" << Community::_cumulIncByOutcome[SEVERE] << endl;
-    cerr << "\t CRITICAL :\t" << Community::_cumulIncByOutcome[CRITICAL] << endl;
-    cerr << "\t DEATH :\t" << Community::_cumulIncByOutcome[DEATH] << endl;
+    cerr << "\t ASYMPTOMATIC :\t" << community->getCumulIncidenceByOutcome(ASYMPTOMATIC) << endl;
+    cerr << "\t MILD :  \t" << community->getCumulIncidenceByOutcome(MILD) << endl;
+    cerr << "\t SEVERE :\t" << community->getCumulIncidenceByOutcome(SEVERE) << endl;
+    cerr << "\t CRITICAL :\t" << community->getCumulIncidenceByOutcome(CRITICAL) << endl;
+    cerr << "\t DEATH :\t" << community->getCumulIncidenceByOutcome(DEATH) << endl;
 }
 
 vector<double> simulator(vector<double> args, const unsigned long int rng_seed, const unsigned long int serial, const ABC::MPI_par* mp = nullptr) {

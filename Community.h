@@ -166,11 +166,14 @@ class Community {
         std::vector<size_t> getNumDetectedHospitalizations() { return _numDetectedHospitalizations; }
         std::vector<size_t> getNumDetectedDeaths() { return _numDetectedDeaths; }
         std::vector<pair<size_t, double>> getMeanNumSecondaryInfections() const ;
+        std::vector<size_t> getCumulIncidenceByOutcome() { return _cumulIncByOutcome; }
+        size_t getCumulIncidenceByOutcome( OutcomeType ot ) { return _cumulIncByOutcome[ot]; }
 
         void flagInfectedLocation(Person* person, double relInfectiousness, LocationType locType, Location* _pLoc, int day);
         Infection* trace_contact(Person* &infecter, Location* source_loc, const map<double, vector<Person*>> &infectious_groups);
         void reportCase(int onsetDate, long int reportDate, bool hospitalized);
         void reportDeath(int eventDate, long int reportDate);
+        void tallyOutcome(OutcomeType ot) { _cumulIncByOutcome[ot]++; }
 
 //        int ageIntervalSize(int ageMin, int ageMax) { return std::accumulate(_personAgeCohortSizes+ageMin, _personAgeCohortSizes+ageMax,0); }
 
@@ -185,7 +188,6 @@ class Community {
         }
         double getTimedIntervention(TimedIntervention ti, size_t day) const { return timedInterventions.at(ti)[day]; }
 
-        static std::vector<size_t> _cumulIncByOutcome;
     protected:
         static const Parameters* _par;
         static Date* _date;
@@ -213,12 +215,13 @@ class Community {
         std::vector<size_t> _numDetectedCasesReport;
         std::vector<size_t> _numDetectedHospitalizations;
         std::vector<size_t> _numDetectedDeaths;
+        std::vector<size_t> _cumulIncByOutcome;
 
         // groups of infectious people: indexed by day, location type, location ptr, and relative infectiousness
         std::vector< std::map<LocationType, std::map<Location*, std::map<double, std::vector<Person*>>, Location::LocPtrComp>>> _isHot;
-        static std::vector<Person*> _peopleByAge;
+        std::vector<Person*> _peopleByAge;
         Vac_Campaign* vac_campaign;
-        static std::set<Person*> _revaccinate_set;          // not automatically re-vaccinated, just checked for boosting, multiple doses
+        std::set<Person*> _revaccinate_set;          // not automatically re-vaccinated, just checked for boosting, multiple doses
         std::map<TimedIntervention, std::vector<double>> timedInterventions;
 
         //bool _uniformSwap;                                            // use original swapping (==true); or parse swap file (==false)
