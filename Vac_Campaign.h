@@ -74,6 +74,7 @@ class Vac_Campaign {
         Vac_Campaign() {
             prioritize_first_doses = false;
             flexible_queue_allocation = false;
+            unlim_urgent_doses = false;
             reactive_vac_strategy = NUM_OF_VAC_CAMPAIGN_TYPES;
             reactive_vac_dose_allocation = 0.0;
             start_of_campaign = vector<int>(NUM_OF_VAC_CAMPAIGN_TYPES, 0);
@@ -87,8 +88,9 @@ class Vac_Campaign {
         int get_end_of_campaign(int campaignType) { return end_of_campaign[campaignType]; }
         void set_end_of_campaign(int campaignType, int day) { end_of_campaign[campaignType] = day; }
 
-        void set_prioritize_first_doses(bool val) { prioritize_first_doses = val; }
+        void set_prioritize_first_doses(bool val)    { prioritize_first_doses = val; }
         void set_flexible_queue_allocation(bool val) { flexible_queue_allocation = val; }
+        void set_unlim_urgent_doses(bool val)        { unlim_urgent_doses = val; }
 
         void set_reactive_vac_strategy(VacCampaignType vct) { reactive_vac_strategy = vct; }
         VacCampaignType get_reactive_vac_strategy() { return reactive_vac_strategy; }
@@ -126,7 +128,7 @@ class Vac_Campaign {
             VaccinationQueueType  vaccinee_queue = NUM_OF_VACCINATION_QUEUE_TYPES;
 
             // Do we have doses available today?
-            const size_t urgent_doses_avail      = doses_available.at(day)[URGENT_ALLOCATION];
+            const size_t urgent_doses_avail      = unlim_urgent_doses ? 1 : doses_available.at(day)[URGENT_ALLOCATION];
             const size_t standard_doses_avail    = doses_available.at(day)[STANDARD_ALLOCATION];
 
             if (urgent_doses_avail + standard_doses_avail == 0) { return nullptr; } // might as well bail
@@ -165,6 +167,7 @@ class Vac_Campaign {
                     urgent_queue.pop();
                     vaccinee_queue = URGENT_QUEUE;
                 }
+                if(unlim_urgent_doses) { doses_available.at(day)[URGENT_ALLOCATION]++; }
             }
 
             if (std_size and not person) {
@@ -185,6 +188,7 @@ class Vac_Campaign {
         }
 
         bool vaccinate(Vaccinee* v, int day) { return is_age_eligible_on(v->get_person()->getAge(), day) and v->vaccinate(day); }
+
         void tally_dose(size_t day, Vaccinee* vac) {
             doses_available.at(day)[vac->dose_source]--;
             queue_tally[day][vac->status]++;
@@ -194,6 +198,9 @@ class Vac_Campaign {
         void schedule_revaccination(size_t day, Vaccinee* vac) {
             if (revaccinate_queue.size() > day) {
                 revaccinate_queue[day].insert(vac->person);
+                if(vac->get_status() == URGENT_QUEUE and unlim_urgent_doses) {
+                    doses_available.at(day)[STANDARD_ALLOCATION]++;
+                }
             }
         }
 
@@ -229,15 +236,21 @@ class Vac_Campaign {
     private:
         std::vector<int> start_of_campaign;                    // index by VacCampaignType and returns start date as sim day
         std::vector<int> end_of_campaign;                      // index by VacCampaignType and returns start date as sim day
+
         std::queue<Person*> urgent_queue;                      // people who need to be vaccinated, determined during simulation
         std::queue<Person*> standard_queue;                    // people who will be vaccinated, known before transmission sim begins
         std::vector< std::set<Person*> > revaccinate_queue;    // indexed by sim day
-        bool prioritize_first_doses;                           // do we prioritize first doses, or completing vac schedules? --> possibly move to _par?
+
+        bool prioritize_first_doses;                           // do we prioritize first doses, or completing vac schedules?
+        bool flexible_queue_allocation;                        // can doses be used from any allocation, or only as intended?
+        bool unlim_urgent_doses;                               // should an unlimited number of doses be used for the urgent queue (i.e. reactive strategy)?
+
         std::vector< std::vector<int> > doses_available;       // for each day, number of doses available for each queue
         std::vector< std::vector<int> > queue_tally;           // for each day, number of doses used for each queue
-        bool flexible_queue_allocation;                        // can doses be used from any allocation, or only as intended? --> possibly move to _par?
-        VacCampaignType reactive_vac_strategy;                 // parameter for type of reactive strategy (if one is active) 
+
+        VacCampaignType reactive_vac_strategy;                 // parameter for type of reactive strategy (if one is active)
         double reactive_vac_dose_allocation;                   // what proportion of total daily doses are reserved for reactive strategies
+
         std::vector<int> min_age;
         // double revaccination_follow_up;                              // what proportion of people follow-up for second doses
 

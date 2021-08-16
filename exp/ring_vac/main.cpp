@@ -284,7 +284,9 @@ void parseVaccineFile(string vaccinationFilename, const Parameters* par, Communi
     map< int, vector<double> > last_known_vac_rate;
     size_t last_known_revac_doses = 0;
 
+    size_t first_day_of_data = INT_MAX;
     size_t last_day_of_data = 0;
+
     while (getline(iss, buffer)) {
         line.clear();
         line.str(buffer);
@@ -318,6 +320,7 @@ void parseVaccineFile(string vaccinationFilename, const Parameters* par, Communi
             const size_t end_of_week = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, end_of_week_date);
             for(size_t day = end_of_week-6; day <= end_of_week; ++day) {
                 const size_t revacDay = day+par->vaccineDoseInterval;
+                first_day_of_data = min(day, first_day_of_data);
                 last_day_of_data = max(day, last_day_of_data);
                 if(day >= par->runLength) { continue; }
                 // binomial distribution parameters
@@ -364,7 +367,7 @@ void parseVaccineFile(string vaccinationFilename, const Parameters* par, Communi
     iss.close();
 
     // PROJECTED VACCINATION TO 2021-08-31
-    // at same rate as 2021-05-29, vaccinate people until 2021-08-31
+    // at same rate as last day of empiriral data read, vaccinate people until 2021-08-31
     if (par->runLength > last_day_of_data + 1) {
         vector<Person*> people_to_be_scheduled;
 
@@ -402,16 +405,13 @@ void parseVaccineFile(string vaccinationFilename, const Parameters* par, Communi
             people_to_be_scheduled.clear();
 
             // vaccinate same fraction of unvacinated people each day
-            // doses_available.at(day)[URGENT_ALLOCATION]   += round(proj_dose_adj*doses_available.at(last_day_of_data)[URGENT_ALLOCATION] / num_current_unsch);
+            // doses_available.at(day)[STANDARD_ALLOCATION]   += round(proj_dose_adj*doses_available.at(last_day_of_data)[STANDARD_ALLOCATION] / num_current_unsch);
             doses_available.at(day)[STANDARD_ALLOCATION] += round(proj_dose_adj*last_known_revac_doses / num_current_unsch);
             if(revacDay < par->runLength) { doses_available.at(revacDay)[STANDARD_ALLOCATION] += round(proj_dose_adj*last_known_revac_doses / num_current_unsch); }
         }
     }
-    for(size_t day = 0; day < doses_available.size(); ++day) {
-        if( (doses_available[day][URGENT_ALLOCATION] > 0) or (doses_available[day][STANDARD_ALLOCATION] > 0) ) { vc->set_start_of_campaign(GENERAL_CAMPAIGN, day); break; }
-    }
+    vc->set_start_of_campaign(GENERAL_CAMPAIGN, first_day_of_data);
     vc->set_doses_available(doses_available);
-
 }
 
 Vac_Campaign* generateVac_Campaign(string vaccinationFilename, const Parameters* par, Community* community) {
@@ -676,9 +676,11 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         vc->set_end_of_campaign(RING_VACCINATION, par->runLength);
 
         vc->set_prioritize_first_doses(false);
-        vc->set_flexible_queue_allocation(true);
+        vc->set_flexible_queue_allocation(false);
+        vc->set_unlim_urgent_doses(true);
 
         vc->set_reactive_vac_strategy(RING_VACCINATION);
+        //vc->set_reactive_vac_strategy(NUM_OF_VAC_CAMPAIGN_TYPES);
         vc->set_reactive_vac_dose_allocation(0.0);
 
         vector<int> min_ages(par->runLength, 12);
