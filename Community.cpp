@@ -817,10 +817,43 @@ void Community::nursinghome_transmission() {
     return;
 }
 
-
 void Community::_transmission(Location* source_loc, vector<Person*> at_risk_group, const map<double, vector<Person*>> &infectious_groups, const double T) {
     const bool check_susceptibility = true;
     for (Person* p: at_risk_group) {
+        /*
+         * Possibly do something here to implement quarantining at different levels
+         *  - full quarantine: stay at home/hospital
+         *  - moderate quarantine: stay at home except for some public activity
+         *  - minimal quarantine: reduce contacts at day loc, public activity (but does NOT stay at home)
+         * NOTE: T must not be const
+
+        QuarantineLevel ql = p->getQuarantineLevel;
+        if(ql == HIGH) {
+            // HIGH --> stay at home
+            // skip this person
+            continue;
+        } else if(ql == MODERATE) {
+            // MODERATE --> stay at home but may interact with home members and neighbors
+            // skip this person except for within/between household transmission
+            switch(source_loc->getType()) {
+                case HOUSE:       { DO SOMETHING; break; }
+                case NURSINGHOME: { DO SOMETHING; break; }
+                case WORK:
+                case SCHOOL:
+                case HOSPITAL: { continue; }
+            }
+        } else if(ql == MINIMAL) {
+            // MINIMAL --> some reduction in contacts, but will not stay at home
+            // reduce this person's risk of transmission (reduction could be different depending on location type)
+            switch(source_loc->getType()) {
+                case HOUSE:       { DO SOMETHING; break; }
+                case WORK:        { DO SOMETHING; break; }
+                case SCHOOL:      { DO SOMETHING; break; }
+                case HOSPITAL:    { DO SOMETHING; break; }
+                case NURSINGHOME: { DO SOMETHING; break; }
+            }
+        }
+         */
         if (gsl_rng_uniform(RNG) < T) {
             Person* infecter     = nullptr;
             Infection* source_infection = nullptr;
@@ -889,10 +922,23 @@ void _conditional_insert(set<Person*> &into, const vector<Person*> &from, set<Pe
     }
 }
 
-vector< set<Person*> > Community::traceForwardContacts(set<Person*> tracedCases) {
+vector< set<Person*> > Community::traceForwardContacts() {
+    vector< set<Person*> > tracedContacts(_par->contactTracingDepth);      // returned data structure of traced contacts of the priumary cases categorized by depth
+    // only do contact tracing after the start date set in main
+    if(_day < _par->beginContactTracing) { return tracedContacts; }
+
+    set<Person*> tracedCases;
+    for(Person* p : _people) {
+        if(p->isAlive(_day) and p->hasBeenInfected()) {
+            Infection* mostRecentInfection = p->getInfection();
+            if(mostRecentInfection->isDetectedOn(_day) and gsl_rng_uniform(RNG) < _par->contactTracingCoverage){
+                tracedCases.insert(p);
+            }
+        }
+    }
+
     set<Person*> allTracedPeople;               // used to ensure all people are traced only once
     set<Person*> allInterviewedPeople;          // used to ensure all people are interviewed only once
-    vector< set<Person*> > tracedContacts(_par->contactTracingDepth);      // returned data structure of traced contacts of the priumary cases categorized by depth
 
     for(size_t depth = 0; depth < _par->contactTracingDepth; ++depth) {
         set<Person*> peopleToInterview = depth == 0 ? tracedCases : tracedContacts[depth-1];
@@ -950,7 +996,10 @@ vector< set<Person*> > Community::traceForwardContacts(set<Person*> tracedCases)
 void Community::tick() {
     _day = _date->day();
 
+cerr << endl << "D (u s)    " << vac_campaign->get_doses_available(_day, URGENT_ALLOCATION) << ' ' << vac_campaign->get_doses_available(_day, STANDARD_ALLOCATION) << endl;
+cerr <<         "Q (u s re) " << vac_campaign->get_urgent_queue_size() << ' ' << vac_campaign->get_standard_queue_size() << ' ' << vac_campaign->get_revaccinate_queue_size(_day) << endl;
     if (vac_campaign) { vaccinate(); }
+cerr <<         "V (u s re) " << vac_campaign->get_dose_tally(_day, URGENT_QUEUE) << ' ' << vac_campaign->get_dose_tally(_day, STANDARD_QUEUE) << ' ' <<  vac_campaign->get_dose_tally(_day, REVACCINATE_QUEUE) << endl;
 
     within_household_transmission();
     between_household_transmission();
@@ -978,22 +1027,8 @@ void Community::tick() {
     hospital_transmission();
     updateHotLocations();
 
-    vector< set<Person*> > tracedContactsByDepth;
-    set<Person*> tracedCases;
-    if(_day >= _par->beginContactTracing) {
-        // store all living people with reported cases today
-        for(Person* p : _people) {
-            if(p->isAlive(_day) and p->hasBeenInfected()) {
-                Infection* mostRecentInfection = p->getInfection();
-                if(mostRecentInfection->isDetectedOn(_day) and gsl_rng_uniform(RNG) < _par->contactTracingCoverage){
-                    tracedCases.insert(p);
-                }
-            }
-        }
-
-        // do contact tracing to a given depth using reported cases from today
-        tracedContactsByDepth = traceForwardContacts(tracedCases);
-    }
+    // do contact tracing to a given depth using reported cases from today if _day is at or after the start of contact tracing
+    vector< set<Person*> > tracedContactsByDepth = traceForwardContacts();
 
     if(vac_campaign and vac_campaign->get_reactive_vac_strategy() == RING_VACCINATION) { vac_campaign->ring_scheduling(_day, tracedContactsByDepth); }
     return;

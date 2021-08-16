@@ -9,6 +9,8 @@
 #include "Parameters.h"
 #include "Location.h"
 
+enum QuarantineLevel {FULL, MODERATE, MINIMAL, NUM_OF_QUARANTINE_LEVELS};
+
 class Location;
 class Vaccinee;
 
@@ -215,6 +217,9 @@ class Person {
 
         bool hasBeenInfected() const { return (bool) infectionHistory.size(); }
         bool isNaive() const { return immune_state == NAIVE; }
+
+        QuarantineLevel getQuarantineLevel() { return quarantine_level; }
+        void setQuarantineLevel(QuarantineLevel ql) { quarantine_level = ql; }
                                                                         // does this person's immune state permit vaccination?
                                                                         // NB: inaccurate test results are possible
         //bool isSeroEligible(VaccineSeroConstraint vsc, double falsePos, double falseNeg) const;
@@ -256,6 +261,8 @@ class Person {
         size_t daysImmune;                                              // number of days this person retains natural immunity
         std::vector<int> vaccineHistory;                                // vector of days on which vaccinations were received
         void clearInfectionHistory();
+
+        QuarantineLevel quarantine_level;                               // current quarantine state of this person (based on infection, tracing, etc.)
 
         bool vaccinate(int time);                                       // vaccinate this person
 

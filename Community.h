@@ -79,7 +79,7 @@ class Community {
 
         static void flagInfectedLocation(Person* person, double relInfectiousness, LocationType locType, Location* _pLoc, int day);
         Infection* trace_contact(Person* &infecter, Location* source_loc, const map<double, vector<Person*>> &infectious_groups);
-        vector< set<Person*> > traceForwardContacts(set<Person*> tracedCases);
+        vector< set<Person*> > traceForwardContacts();
 
         static void reportCase(int onsetDate, long int reportDate, bool hospitalized);
         static void reportDeath(int eventDate, long int reportDate);
