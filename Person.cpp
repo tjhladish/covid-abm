@@ -458,7 +458,7 @@ bool Person::isSeroEligible() const {
 
 
 bool Person::vaccinate(int time) {
-    if (!isDead(time)) {
+    if (isAlive(time)) {
         const size_t dose = vaccineHistory.size(); // this one isn't size() - 1, because it's the dose they're about to receive
         vaccineHistory.push_back(time);
 
