@@ -912,7 +912,7 @@ void Community::tick() {
     workplace_transmission();
     clear_public_activity();
 
-    if (not timedInterventions[SCHOOL_CLOSURE][_day]) school_transmission();
+    if (_date->isWeekday() and not timedInterventions[SCHOOL_CLOSURE][_day]) school_transmission();
     nursinghome_transmission();
 
 //    if (isWeekday(dow)) {
