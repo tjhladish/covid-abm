@@ -175,16 +175,18 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
         {"2020-06-01", 0.05},
         {"2020-07-01", 0.05},
         {"2020-08-01", 0.6},
-        {"2020-09-01", 0.3},
+        {"2020-09-01", 0.35},
         {"2020-10-01", 0.15},
         {"2020-11-01", 0.0},
         {"2020-12-01", 0.0},
-        {"2021-01-01", 0.1},
+        {"2021-01-01", 0.05},
         {"2021-02-01", 0.3},
         {"2021-02-28", 0.1},
-        {"2021-03-01", 0.0},
+        {"2021-03-01", 0.1},
         {"2021-04-01", 0.0},
-        {"2021-05-01", 0.0}
+        {"2021-05-01", 0.0},
+        {"2021-06-01", 0.1},
+        {"2021-07-01", 0.0}
     };
 
     par->timedInterventions[SOCIAL_DISTANCING].clear();
@@ -595,7 +597,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     // const size_t realization    = (size_t) args[1];
     const bool mutation          = (bool) args[2];
     vector<string> mutant_intro_dates = {};
-    if (mutation) { mutant_intro_dates = {"2021-02-10", "2021-06-01"}; };   // extra semicolon?
+    if (mutation) { mutant_intro_dates = {"2021-02-01", "2021-06-13"}; };   // extra semicolon?
 
     Community* community = build_community(par);
     Vac_Campaign* vc = nullptr;

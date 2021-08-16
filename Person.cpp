@@ -245,10 +245,10 @@ Infection* Person::infect(Person* source, const Date* date, Location* sourceloc,
     const double critical_given_severe = _par->probSeriousOutcome.at(CRITICAL)[comorbidity][age];
     infection.relInfectiousness *= (1.0 - effective_VEI); // 0.25 b/c most (== asymptomatic) people are not very infectious
     if (infection.strain == B_1_1_7) {
-        infection.relInfectiousness *= 1.6;
+        infection.relInfectiousness *= 1.8;
         symptomatic_probability *= 1.1;                  // TODO -- these values shouldn't be hard-coded here
     } else if (infection.strain == B_1_617_2) {
-        infection.relInfectiousness *= 3.0;
+        infection.relInfectiousness *= 3.2;
         symptomatic_probability *= 1.2;
     }
 
