@@ -24,9 +24,8 @@ class Community {
     public:
         Community(const Parameters* parameters, Date* date);
         Community(const Community& o) {
-            _cumulIncByOutcome           = o._cumulIncByOutcome;// is static
             _par                         = o._par;// is static const
-            _date                        = o._date;                  // is static
+            _date                        = o._date ? new Date(*(o._date)) : nullptr;
             _people                      = std::vector<Person*>(o._people.size());
             _personAgeCohort             = o._personAgeCohort;
             _location                    = std::vector<Location*>(o._location.size());
@@ -50,11 +49,12 @@ class Community {
             _numDetectedCasesReport      = o._numDetectedCasesReport;
             _numDetectedHospitalizations = o._numDetectedHospitalizations;
             _numDetectedDeaths           = o._numDetectedDeaths;
+            _cumulIncByOutcome           = o._cumulIncByOutcome;
             _isHot                       = o._isHot;
             _peopleByAge                 = o._peopleByAge;
             vac_campaign                 = o.vac_campaign ? new Vac_Campaign(*(o.vac_campaign)) : nullptr;
-            _revaccinate_set             = o._revaccinate_set;// is static
-            timedInterventions           = o.timedInterventions;// is static
+            _revaccinate_set             = o._revaccinate_set;
+            timedInterventions           = o.timedInterventions;
 
             // allocate new location and person objects
             map<Location*, Location*> location_ptr_map;
@@ -190,7 +190,7 @@ class Community {
 
     protected:
         static const Parameters* _par;
-        static Date* _date;
+        Date* _date;
         std::vector<Person*> _people;                                          // the array index is equal to the ID
         std::vector< std::vector<Person*> > _personAgeCohort;                  // array of pointers to people of the same age
         //int _personAgeCohortSizes[NUM_AGE_CLASSES];                          // size of each age cohort

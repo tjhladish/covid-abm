@@ -21,7 +21,7 @@ using covid::util::mean;
 using covid::util::choice;
 
 const Parameters* Community::_par;
-Date* Community::_date;
+//Date* Community::_date;
 //vector< map<LocationType, map<Location*, map<double, vector<Person*>>, Location::LocPtrComp>>> Community::_isHot;
 
 int mod(int k, int n) { return ((k %= n) < 0) ? k+n : k; } // correct for non-negative n

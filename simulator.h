@@ -48,8 +48,8 @@ enum PrevalenceReportingType {
 };
 
 
-const gsl_rng* RNG = gsl_rng_alloc(gsl_rng_taus2);
-const gsl_rng* REPORTING_RNG = gsl_rng_alloc(gsl_rng_mt19937);
+gsl_rng* RNG = gsl_rng_alloc(gsl_rng_taus2);
+gsl_rng* REPORTING_RNG = gsl_rng_alloc(gsl_rng_mt19937);
 
 // Predeclare local functions
 Community* build_community(const Parameters* par);
@@ -84,6 +84,16 @@ cerr << "done.\n"; //  Now sleeping for 20s so ram usage can be checked.\n";
         community->setNoSecondaryTransmission();
     }*/
 
+    return community;
+}
+
+
+Community* deep_copy_community(const Parameters* par) {
+    Date* date = new Date(par);
+    Community* community = new Community(par, date);
+    Person::setPar(par);
+    // deep copy locations
+    // deep copy population
     return community;
 }
 
@@ -309,7 +319,7 @@ size_t tally_decreases(const vector<T> &vals) {
 }
 
 
-vector<string> simulate_epidemic(const Parameters* par, Community* community, const string process_id, vector<string> mutant_intro_dates) {
+vector<string> simulate_epidemic(const Parameters* par, Community* community, const string process_id, const vector<string> mutant_intro_dates) {
     vector<int> epi_sizes;
     vector<string> daily_output_buffer;
 
@@ -322,6 +332,17 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
 
     Date* date = community->get_date();
     vector<StrainType> strains = {WILDTYPE};
+
+    vector<int> epi_sizes_ckpt;
+    vector<string> daily_output_buffer_ckpt;
+    map<string, vector<int> > periodic_incidence_ckpt;
+    vector<int> periodic_prevalence_ckpt;
+    vector<string> plot_log_buffer_ckpt;
+    vector<StrainType> strains_ckpt;
+    Community* community_ckpt   = nullptr;
+    gsl_rng* RNG_ckpt           = nullptr;
+    gsl_rng* REPORTING_RNG_ckpt = nullptr;
+
     for (; date->day() < (signed) par->runLength; date->increment()) {
         const size_t sim_day = date->day();
         //update_vaccinations(par, community, date);
@@ -335,18 +356,18 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
                 strains = {B_1_617_2};
             }
         }
+
         seed_epidemic(par, community, date, strains);
         const vector<size_t> infections         = community->getNumNewlyInfected();
         const vector<size_t> all_reported_cases = community->getNumDetectedCasesReport();
         const size_t reported_cases             = all_reported_cases[sim_day];
-        trailing_averages[sim_day]              = calc_trailing_avg(all_reported_cases, sim_day, 7); // <= 7-day trailing average
+        const double trailing_avg               = calc_trailing_avg(all_reported_cases, sim_day, 7); // <= 7-day trailing average
         const vector<size_t> rhosp              = community->getNumDetectedHospitalizations();
         const vector<size_t> severe_prev        = community->getNumSeverePrev();
         const double cinf                       = accumulate(infections.begin(), infections.begin()+sim_day+1, 0.0);
         const double cAR                        = cinf/pop_at_risk; // cumulative attack rate (I hate this term)
         const vector<size_t> rdeaths            = community->getNumDetectedDeaths();
 
-        const double trailing_avg = trailing_averages[sim_day];
 
         const size_t rc_ct = accumulate(all_reported_cases.begin(), all_reported_cases.begin()+sim_day+1, 0);
         if (date->dayOfMonth()==1) cerr << "        rep sday        date  infinc  cAR     rcases  rcta7  crcases  rdeath  crdeath  sevprev   crhosp  closed  socdist\n";
@@ -381,8 +402,37 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
            << infections[sim_day]*1e4/pop_at_risk << ","
            << rhosp[sim_day]*1e4/pop_at_risk;
         plot_log_buffer.push_back(ss.str());
+
+
+// if checkpoint should be stored now, cache all the stuff
+// else if checkpoint should be restored now, switch to cached version, delete the current version
+        if (sim_day == 30) { // checkpoint now
+            epi_sizes_ckpt           = epi_sizes;
+            daily_output_buffer_ckpt = daily_output_buffer;
+            periodic_incidence_ckpt  = periodic_incidence;
+            periodic_prevalence_ckpt = periodic_prevalence;
+            plot_log_buffer_ckpt     = plot_log_buffer;
+            strains_ckpt             = strains;
+            if (community_ckpt) { delete community_ckpt; }
+            community_ckpt           = new Community(*community);
+            RNG_ckpt                 = gsl_rng_clone(RNG);
+            REPORTING_RNG_ckpt       = gsl_rng_clone(REPORTING_RNG);
+        } else if (sim_day == 45) { // reset now
+            epi_sizes                = epi_sizes_ckpt;
+            daily_output_buffer      = daily_output_buffer_ckpt;
+            periodic_incidence       = periodic_incidence_ckpt;
+            periodic_prevalence      = periodic_prevalence_ckpt;
+            plot_log_buffer          = plot_log_buffer_ckpt;
+            strains                  = strains_ckpt;
+            community                = community_ckpt;
+            date                     = community->get_date();
+            if (RNG_ckpt) { gsl_rng_memcpy(RNG, RNG_ckpt); }
+            if (REPORTING_RNG_ckpt) { gsl_rng_memcpy(REPORTING_RNG, REPORTING_RNG_ckpt); }
+        }
+
     }
 
+    if (community_ckpt) { delete community_ckpt; }
     double cdeath_icu   = 0.0;
     double cdeath2      = 0.0;
     for (Person* p: community->getPeople()) {

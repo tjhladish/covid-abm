@@ -222,10 +222,10 @@ class ReportingLagModel {
 };
 
 
-extern const gsl_rng* RNG;// = gsl_rng_alloc (gsl_rng_taus2);
+extern gsl_rng* RNG;// = gsl_rng_alloc (gsl_rng_taus2);
 // use a second RNG for stochastic reporting; this allows for more powerful analysis of
 // the effects of different reporting models
-extern const gsl_rng* REPORTING_RNG; // = gsl_rng_alloc (gsl_rng_mt19937);
+extern gsl_rng* REPORTING_RNG; // = gsl_rng_alloc (gsl_rng_mt19937);
 
 /*
 // transmission-related probabilities
