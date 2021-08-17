@@ -167,8 +167,10 @@ class Person {
             comorbidity            = o.comorbidity;
             naiveVaccineProtection = o.naiveVaccineProtection;
             immune_state           = o.immune_state;
+            infectionHistory       = std::vector<Infection*>(o.infectionHistory.size());
+
             for(size_t i = 0; i < o.infectionHistory.size(); ++i) {
-                infectionHistory.push_back(new Infection(*(o.infectionHistory[i])));
+                infectionHistory[i] = new Infection(*(o.infectionHistory[i]));
             }
 
             daysImmune             = o.daysImmune;
