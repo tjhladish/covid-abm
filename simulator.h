@@ -343,6 +343,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
     gsl_rng* RNG_ckpt           = nullptr;
     gsl_rng* REPORTING_RNG_ckpt = nullptr;
 
+int checkpointCount = 0;
     for (; date->day() < (signed) par->runLength; date->increment()) {
         const size_t sim_day = date->day();
         //update_vaccinations(par, community, date);
@@ -407,6 +408,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
 // if checkpoint should be stored now, cache all the stuff
 // else if checkpoint should be restored now, switch to cached version, delete the current version
         if (sim_day == 30) { // checkpoint now
+cerr << "CHECKPOINTING" << endl;
             epi_sizes_ckpt           = epi_sizes;
             daily_output_buffer_ckpt = daily_output_buffer;
             periodic_incidence_ckpt  = periodic_incidence;
@@ -417,14 +419,16 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
             community_ckpt           = new Community(*community);
             RNG_ckpt                 = gsl_rng_clone(RNG);
             REPORTING_RNG_ckpt       = gsl_rng_clone(REPORTING_RNG);
-        } else if (sim_day == 45) { // reset now
+        } else if (sim_day == 45 and checkpointCount++ < 3) { // reset now
+cerr << "RESTORING" << endl;
             epi_sizes                = epi_sizes_ckpt;
             daily_output_buffer      = daily_output_buffer_ckpt;
             periodic_incidence       = periodic_incidence_ckpt;
             periodic_prevalence      = periodic_prevalence_ckpt;
             plot_log_buffer          = plot_log_buffer_ckpt;
             strains                  = strains_ckpt;
-            community                = community_ckpt;
+            if (community) { delete community; }
+            community                = new Community(*community_ckpt);
             date                     = community->get_date();
             if (RNG_ckpt) { gsl_rng_memcpy(RNG, RNG_ckpt); }
             if (REPORTING_RNG_ckpt) { gsl_rng_memcpy(REPORTING_RNG, REPORTING_RNG_ckpt); }

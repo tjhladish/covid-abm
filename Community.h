@@ -31,7 +31,7 @@ class Community {
             _location                    = std::vector<Location*>(o._location.size());
             _public_locations            = o._public_locations;
             _location_map                = o._location_map;
-            _exposedQueue                = o._exposedQueue;
+            // _exposedQueue                = o._exposedQueue;
             _day                         = o._day;
             _numNewlyInfected            = o._numNewlyInfected;
             _numNewInfectionsByStrain    = o._numNewInfectionsByStrain;
@@ -50,10 +50,16 @@ class Community {
             _numDetectedHospitalizations = o._numDetectedHospitalizations;
             _numDetectedDeaths           = o._numDetectedDeaths;
             _cumulIncByOutcome           = o._cumulIncByOutcome;
-            _isHot                       = o._isHot;
-            _peopleByAge                 = o._peopleByAge;
+            _isHot                       = std::vector< std::map<LocationType, std::map<Location*, std::map<double, std::vector<Person*>>, Location::LocPtrComp>>>(o._isHot.size());
+            for (auto &e: _isHot) {
+                for (size_t locType = 0; locType < NUM_OF_LOCATION_TYPES; ++locType) {
+                    e[(LocationType) locType] = {};
+                }
+            }
+
+            // _peopleByAge                 = o._peopleByAge;
             vac_campaign                 = o.vac_campaign ? new Vac_Campaign(*(o.vac_campaign)) : nullptr;
-            _revaccinate_set             = o._revaccinate_set;
+            // _revaccinate_set             = o._revaccinate_set;
             timedInterventions           = o.timedInterventions;
 
             // allocate new location and person objects
@@ -93,6 +99,30 @@ class Community {
                 vector<Location*> patronizedLocations = p->getPatronizedLocations();
                 for(Location* &loc : patronizedLocations) { loc = location_ptr_map[loc]; }
                 p->setPatronizedLocations(patronizedLocations);
+            }
+
+            for(auto& v : _personAgeCohort) {
+                for(Person* &p : v) { p = person_ptr_map[p]; }
+            }
+
+            for(Location* &loc : _public_locations) { loc = location_ptr_map[loc]; }
+
+            // for(auto& kv : _location_map) {
+            //     for(Location* &loc : kv.second) { loc = location_ptr_map[loc]; }
+            // }
+
+            // groups of infectious people: indexed by day, location type, location ptr, and relative infectiousness
+            // std::vector< std::map<LocationType, std::map<Location*, std::map<double, std::vector<Person*>>, Location::LocPtrComp>>> _isHot;
+            for (size_t i=0; i < o._isHot.size(); ++i) {
+                for (const auto& [lt, locMap] : o._isHot[i]) {
+                    for (const auto& [loc, relinfMap] : locMap) {
+                        for (const auto& [relinfness, v] : relinfMap) {
+                            for (Person* p : v) {
+                                _isHot[i][lt][location_ptr_map[loc]][relinfness].push_back(person_ptr_map[p]);
+                            }
+                        }
+                    }
+                }
             }
 
             deque<Person*> urgent_queue = o.vac_campaign->getUrgentQueue();
@@ -197,7 +227,7 @@ class Community {
         std::vector<Location*> _location;                                      // index is equal to the ID
         std::vector<Location*> _public_locations;                              // index is arbitrary
         std::map<LocationType, std::set<Location*, Location::LocPtrComp>> _location_map; //
-        std::vector< std::vector<Person*> > _exposedQueue;                     // queue of people with n days of latency left
+        // std::vector< std::vector<Person*> > _exposedQueue;                     // queue of people with n days of latency left
         int _day;                                                              // current day
         std::vector<size_t> _numNewlyInfected;
         std::map<StrainType, std::vector<size_t>> _numNewInfectionsByStrain;
@@ -219,9 +249,9 @@ class Community {
 
         // groups of infectious people: indexed by day, location type, location ptr, and relative infectiousness
         std::vector< std::map<LocationType, std::map<Location*, std::map<double, std::vector<Person*>>, Location::LocPtrComp>>> _isHot;
-        std::vector<Person*> _peopleByAge;
+        // std::vector<Person*> _peopleByAge;
         Vac_Campaign* vac_campaign;
-        std::set<Person*> _revaccinate_set;          // not automatically re-vaccinated, just checked for boosting, multiple doses
+        // std::set<Person*> _revaccinate_set;          // not automatically re-vaccinated, just checked for boosting, multiple doses
         std::map<TimedIntervention, std::vector<double>> timedInterventions;
 
         //bool _uniformSwap;                                            // use original swapping (==true); or parse swap file (==false)
