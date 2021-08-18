@@ -105,6 +105,7 @@ void Community::reset() { // used for r-zero calculations, to reset pop after a 
 Community::~Community() {
     if (_date) delete _date;
     if (_people.size() > 0) { for (Person* p: _people) delete p; }
+    if (vac_campaign) { delete vac_campaign; }
 
     Person::reset_ID_counter();
     _isHot.clear();

@@ -319,7 +319,7 @@ size_t tally_decreases(const vector<T> &vals) {
 }
 
 
-vector<string> simulate_epidemic(const Parameters* par, Community* community, const string process_id, const vector<string> mutant_intro_dates) {
+vector<string> simulate_epidemic(const Parameters* par, Community* &community, const string process_id, const vector<string> mutant_intro_dates) {
     vector<int> epi_sizes;
     vector<string> daily_output_buffer;
 
@@ -436,7 +436,9 @@ cerr << "RESTORING" << endl;
 
     }
 
-    if (community_ckpt) { delete community_ckpt; }
+    if (community_ckpt)     { delete community_ckpt; }
+    if (RNG_ckpt)           { gsl_rng_free(RNG_ckpt); }
+    if (REPORTING_RNG_ckpt) { gsl_rng_free(REPORTING_RNG_ckpt); }
     double cdeath_icu   = 0.0;
     double cdeath2      = 0.0;
     for (Person* p: community->getPeople()) {
@@ -450,6 +452,8 @@ cerr << "RESTORING" << endl;
     cerr << "icu deaths, total deaths, ratio: " << cdeath_icu << ", " << cdeath2 << ", " << cdeath_icu/cdeath2 << endl;
 //  write_daily_buffer(plot_log_buffer, process_id, "plot_log.csv");
     //return epi_sizes;
+    if (RNG) { gsl_rng_free(RNG); }
+    if (REPORTING_RNG) { gsl_rng_free(REPORTING_RNG); }
     return plot_log_buffer;
 }
 

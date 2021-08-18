@@ -57,7 +57,7 @@ vector<vector<double>> REPORTED_FRACTIONS;
 
 const vector< vector<int> > VAX_AGE_BINS{ {12,14}, {15,24}, {25,34}, {35,44}, {45,54}, {55,64}, {65,74}, {75,84}, {85,NUM_AGE_CLASSES-1} };
 
-const gsl_rng* VAX_RNG = gsl_rng_alloc(gsl_rng_mt19937);
+gsl_rng* VAX_RNG = gsl_rng_alloc(gsl_rng_mt19937);
 
 //Parameters* define_simulator_parameters(vector<double> args, const unsigned long int rng_seed) {
 Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned long int rng_seed, const unsigned long int serial, const string /*process_id*/) {
@@ -695,7 +695,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     string output = ss.str();
     fputs(output.c_str(), stderr);
 
-    if(vc) { delete vc; }           // should this be here?
+    // if (vc)      { delete vc; }           // should this be here? MOVED INTO COMMUNITY DESTRUCTOR
+    if (VAX_RNG) { gsl_rng_free(VAX_RNG); }
     delete par;
     delete community;
 
