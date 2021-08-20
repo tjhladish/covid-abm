@@ -15,6 +15,7 @@
 #include "Utility.h"
 #include "sys/stat.h"
 #include "Vac_Campaign.h"
+#include <utility>
 
 using namespace covid::standard;
 using namespace covid::util;
@@ -87,15 +88,15 @@ cerr << "done.\n"; //  Now sleeping for 20s so ram usage can be checked.\n";
     return community;
 }
 
-
-Community* deep_copy_community(const Parameters* par) {
-    Date* date = new Date(par);
-    Community* community = new Community(par, date);
-    Person::setPar(par);
-    // deep copy locations
-    // deep copy population
-    return community;
-}
+// DEPRECATED
+// Community* deep_copy_community(const Parameters* par) {
+//     Date* date = new Date(par);
+//     Community* community = new Community(par, date);
+//     Person::setPar(par);
+//     // deep copy locations
+//     // deep copy population
+//     return community;
+// }
 
 
 void seed_epidemic(const Parameters* par, Community* community, StrainType strain) {
@@ -318,6 +319,122 @@ size_t tally_decreases(const vector<T> &vals) {
     return hits;
 }
 
+/*
+Date,rcase,rdeath,rhosp
+2020-03-02,2,0,
+2021-04-29,5394,81,
+*/
+map<size_t, int> parse_emp_data_file(const Parameters* par, const string emp_data_file) {
+    vector< vector<string> > emp_data = read_2D_vector_file(emp_data_file, ',');
+    map<size_t, int> recast_emp_data;
+
+    for (vector<string> &v : emp_data) {
+        if (v[0] == "Date") { continue; }
+        recast_emp_data[Date::to_sim_day(par->startJulianYear, par->startDayOfYear, v[0])] = stoi(v[1]);
+    }
+    return recast_emp_data;
+}
+
+enum FittingDataSource { EMP, SIM, NUM_OF_FITTING_DATA_SOURCES };
+pair<bool, vector<double> > check_social_contact_fit(map<size_t, int> &emp_data, const vector<size_t> &sim_rcases, const size_t first_sim_day_of_month, const size_t last_sim_day_of_month,
+                                                        const double fitting_threshold) {
+    const size_t emp_start = emp_data.begin()->first;
+    const size_t emp_end   = emp_data.end()->first;
+    // if the emp data does not contain vlaues for the sim window, continue the simulation
+    if ( ((first_sim_day_of_month < emp_start) and (last_sim_day_of_month < emp_start)) or
+         ((first_sim_day_of_month > emp_end) and (last_sim_day_of_month > emp_end)) ) { return pair<bool, vector<double> >{ true, {-1.0, -1.0} }; }
+    else { // check fit here: return true if fit is acceptable and false to re-simulate
+        const double fl_per_10k = 1e4/20609673;//21538187; // TODO(alex): i dont like having these numbers here, but dont know how to solve it yet; will come back to this later
+        const double sim_per_10k = 1e4/375474;
+
+        const size_t overlap_start = max(emp_start, first_sim_day_of_month);
+        const size_t overlap_end   = min(emp_end, last_sim_day_of_month);
+
+        // work with only the data for up to and including the simulated window of time
+        vector< vector<double> > relevant_data(NUM_OF_FITTING_DATA_SOURCES, vector<double>(overlap_end + 1, 0.0));
+        for (size_t day = 0; day <= overlap_end; ++day) {
+            relevant_data[EMP].at(day) = (day >= emp_start) ? emp_data.at(day) * fl_per_10k : 0;
+            relevant_data[SIM].at(day) = sim_rcases.at(day) * sim_per_10k;
+        }
+
+        // calculate cum sum of rcases for emp and sim
+        vector< vector<double> > cumsum_data(NUM_OF_FITTING_DATA_SOURCES, vector<double>(overlap_end + 1, 0.0));
+        for (size_t i = 0; i < NUM_OF_FITTING_DATA_SOURCES; ++i) {
+            double cumsum = 0.0;
+            for (size_t day = 0; day < relevant_data[i].size(); ++day) {
+                cumsum += relevant_data[i].at(day);
+                cumsum_data[i].at(day) = cumsum;
+            }
+        }
+
+//        cerr << "DAILY RCASES" << endl;
+//        for (const vector<double> &v : relevant_data) {
+//            for(const double &val : v) { cerr << val << ' '; }
+//            cerr << endl;
+//        }
+//        cerr << endl;
+
+//        cerr << "DAILY CUMUL RCASES" << endl;
+//        cerr << "WIN DAY" << "\t\t" << "EMP" << "\t\t" << "SIM" << "\t\t" << "SIM-EMP" << "\t\t" << "SQR DIST" << endl;
+        vector<double> sqr_dist;
+        vector<double> dist;
+        for (size_t i = overlap_start; i <= overlap_end; ++i) {
+//            cerr << i << "\t\t" << cumsum_data[EMP].at(i) << "\t\t" << cumsum_data[SIM].at(i) << "\t\t";
+            const double diff = cumsum_data[SIM].at(i) - cumsum_data[EMP].at(i);
+//            cerr << diff << "\t\t" << (diff * diff) << endl;
+            dist.push_back(diff);
+            sqr_dist.push_back( (diff * diff) );
+        }
+//        cerr << endl;
+
+        const double avg_sqr_dist = mean(sqr_dist);
+        const double avg_dist = mean(dist);
+        cerr << "AVG SQR DIST: " << avg_sqr_dist << " AVG DIST: " << avg_dist << endl << endl;
+        //return pair<bool, vector<double> >{ true, {avg_dist, avg_sqr_dist} }; // use for testing/debugging
+        if (avg_sqr_dist < fitting_threshold) {
+            cerr << "ACCEPTABLE FIT" << endl;
+            return pair<bool, vector<double> >{ true, {avg_dist, avg_sqr_dist} };
+        } else {
+            cerr << "UNACCEPTABLE FIT" << endl;
+            return pair<bool, vector<double> >{ false, {avg_dist, avg_sqr_dist} };
+        }
+
+//        cerr << "TRAILING AVGS" << endl;
+//        vector< vector<double> > trail_avgs(relevant_data.size(), vector<double>());
+//        for (size_t i = 0; i < relevant_data.size(); ++i) { trail_avgs[i] = calc_trailing_avg(relevant_data[i], 7); }
+//
+//        for (const vector<double> &v : trail_avgs) {
+//            for (const double &val : v) { cerr << val << ' '; }
+//            cerr << endl;
+//        }
+//        cerr << endl;
+//
+//        cerr << "CENTERED AVGS" << endl;
+//        vector< vector<double> > cen_avgs(relevant_data.size(), vector<double>());
+//        for (size_t i = 0; i < relevant_data.size(); ++i) { cen_avgs[i] = calc_centered_avg(relevant_data[i], 7); }
+//
+//        for (const vector<double> &v : cen_avgs) {
+//            for (const double &val : v) { cerr << val << ' '; }
+//            cerr << endl;
+//        }
+//        cerr << endl;
+
+//        cerr << "WEEKLY SUMS" << endl;
+//        for (const vector<double> &v : relevant_data) {
+//            double wk_sum = 0.0;
+//            for (size_t i = 0; i < v.size(); ++i){
+//                if ((i+1) % 7 == 0) {
+//                    wk_sum += v[i];
+//                    cerr << wk_sum << ' ';
+//                    wk_sum = 0;
+//                } else {
+//                    wk_sum += v[i];
+//                }
+//            }
+//            cerr << wk_sum << endl;
+//        }
+    }
+}
 
 vector<string> simulate_epidemic(const Parameters* par, Community* &community, const string process_id, const vector<string> mutant_intro_dates) {
     vector<int> epi_sizes;
@@ -343,7 +460,30 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
     gsl_rng* RNG_ckpt           = nullptr;
     gsl_rng* REPORTING_RNG_ckpt = nullptr;
 
-int checkpointCount = 0;
+    vector<TimeSeriesAnchorPoint> social_contact_anchors = { // TODO(alex): do something better than just copying this here (but for now its fine)
+        {"2020-01-01", 0.0},
+        {"2020-03-10", 0.20},
+        {"2020-03-15", 0.8},
+        {"2020-04-01", 0.7},
+        {"2020-05-01", 0.6},
+        {"2020-06-01", 0.05},
+        {"2020-07-01", 0.05},
+        {"2020-08-01", 0.6},
+        {"2020-09-01", 0.3},
+        {"2020-10-01", 0.15},
+        {"2020-11-01", 0.0},
+        {"2020-12-01", 0.0},
+        {"2021-01-01", 0.1},
+        {"2021-02-01", 0.3},
+        {"2021-02-28", 0.1},
+        {"2021-03-01", 0.0},
+        {"2021-04-01", 0.0},
+        {"2021-05-01", 0.0}
+    };
+
+//int checkpointCount = 0;
+    map<size_t, int> emp_data = parse_emp_data_file(par, "rcasedeath-florida.csv");
+
     for (; date->day() < (signed) par->runLength; date->increment()) {
         const size_t sim_day = date->day();
         //update_vaccinations(par, community, date);
@@ -407,7 +547,93 @@ int checkpointCount = 0;
 
 // if checkpoint should be stored now, cache all the stuff
 // else if checkpoint should be restored now, switch to cached version, delete the current version
-        if (sim_day == 30) { // checkpoint now
+/*  Things to do in order to implement checkpoint caching with automated fitting of social contact curve:
+        - check if the sim day is a checkpoint (i.e. last day of the month)
+        - if at a checkpointing day --> cache simulation state
+        - continue simulation for up to next checkpoint (i.e. next last day of the month)
+        - check fit of social contact curve (HOW???)
+            - if fit is good --> replace cache --> continue
+            - if fit is bad  --> alter this month's social contact parameter --> reload cache --> continue
+
+        - pass ap into simulate_epidemic by reference
+*/
+
+        if (sim_day == 0) { // create initial cache
+cerr << "INITIAL SIM CACHE" << endl;
+            epi_sizes_ckpt           = epi_sizes;
+            daily_output_buffer_ckpt = daily_output_buffer;
+            periodic_incidence_ckpt  = periodic_incidence;
+            periodic_prevalence_ckpt = periodic_prevalence;
+            plot_log_buffer_ckpt     = plot_log_buffer;
+            strains_ckpt             = strains;
+            if (community_ckpt) { delete community_ckpt; }
+            community_ckpt           = new Community(*community);
+            if (RNG_ckpt)           { gsl_rng_free(RNG_ckpt); }
+            if (REPORTING_RNG_ckpt) { gsl_rng_free(REPORTING_RNG_ckpt); }
+            RNG_ckpt                 = gsl_rng_clone(RNG);
+            REPORTING_RNG_ckpt       = gsl_rng_clone(REPORTING_RNG);
+        } else if (date->endOfMonth()) {
+            // if we are here, sim_day is the last day of the month (day of month - 1 get us to the start of the month)
+            const size_t first_sim_day_of_month = ((signed long) sim_day) - ((signed long) date->dayOfMonth() - 1) > 0
+                                                  ? ((signed long) sim_day) - ((signed long) date->dayOfMonth() - 1)
+                                                  : 0;
+
+            const double fitting_threshold = 1e2;
+            pair<bool, vector<double> > social_contact_fit = check_social_contact_fit(emp_data, all_reported_cases, first_sim_day_of_month, sim_day, fitting_threshold);
+
+            // calculate the change we want to make to the social contact parameter
+            const double avg_dist     = get<vector<double>>(social_contact_fit)[0];
+            const double avg_sqr_dist = get<vector<double>>(social_contact_fit)[1];
+
+            // if avg_dist > 0 --> sim was higher than emp --> need to increase social contact param for that month (decreases transmission)
+            // if avg_dist < 0 --> sim was lower than emp --> need to decrease social contact param for that month (increases transmission)
+            // adjust parameter using logistic curve: y = 0.1/(1 + e^(-0.1(x - 50))) where 0.1 is the max we would change the parameter at one time and 50 is half of the fitting threshold (100 rn)
+            const double max_adj = 0.1;
+            double social_contact_param_adj = (max_adj)/(1 + exp(-max_adj * (avg_sqr_dist - (fitting_threshold/2))));
+            social_contact_param_adj = (avg_dist > 0) ? social_contact_param_adj : -social_contact_param_adj;
+
+            // TODO(alex): auto fitting needs to be able to adjust transmissibility when fit is bad and social contact param is already 0
+            if (get<bool>(social_contact_fit) or
+                ((get<bool>(social_contact_fit) == false) and (community->social_distancing(first_sim_day_of_month) == 0)) ) { // replace cache
+cerr << "REPLACING CACHED SIM" << endl;
+                epi_sizes_ckpt           = epi_sizes;
+                daily_output_buffer_ckpt = daily_output_buffer;
+                periodic_incidence_ckpt  = periodic_incidence;
+                periodic_prevalence_ckpt = periodic_prevalence;
+                plot_log_buffer_ckpt     = plot_log_buffer;
+                strains_ckpt             = strains;
+                if (community_ckpt) { delete community_ckpt; }
+                community_ckpt           = new Community(*community);
+                if (RNG_ckpt)           { gsl_rng_free(RNG_ckpt); }
+                if (REPORTING_RNG_ckpt) { gsl_rng_free(REPORTING_RNG_ckpt); }
+                RNG_ckpt                 = gsl_rng_clone(RNG);
+                REPORTING_RNG_ckpt       = gsl_rng_clone(REPORTING_RNG);
+            } else { // change this month's social contact parameter and restore cache
+                // iterate through ap to find points with date where: first day of current month <= date <= last day of current month
+                for (TimeSeriesAnchorPoint &tsap : social_contact_anchors) {
+                    const size_t tsap_sim_day = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, tsap.date);
+                    if ( (tsap_sim_day >= first_sim_day_of_month) and (tsap_sim_day <= sim_day) ) { tsap.value += social_contact_param_adj; }
+                }
+                // restore cache
+cerr << "RESTORING" << endl;
+                epi_sizes                = epi_sizes_ckpt;
+                daily_output_buffer      = daily_output_buffer_ckpt;
+                periodic_incidence       = periodic_incidence_ckpt;
+                periodic_prevalence      = periodic_prevalence_ckpt;
+                plot_log_buffer          = plot_log_buffer_ckpt;
+                strains                  = strains_ckpt;
+                if (community) { delete community; }
+                community                = new Community(*community_ckpt);
+                date                     = community->get_date();
+                if (RNG_ckpt) { gsl_rng_memcpy(RNG, RNG_ckpt); }
+                if (REPORTING_RNG_ckpt) { gsl_rng_memcpy(REPORTING_RNG, REPORTING_RNG_ckpt); }
+
+                // re-define social contact curve
+                community->setSocialDistancingTimedIntervention(social_contact_anchors);
+            }
+        }
+
+/*        if (sim_day == 30) { // checkpoint now
 cerr << "CHECKPOINTING" << endl;
             epi_sizes_ckpt           = epi_sizes;
             daily_output_buffer_ckpt = daily_output_buffer;
@@ -419,7 +645,7 @@ cerr << "CHECKPOINTING" << endl;
             community_ckpt           = new Community(*community);
             RNG_ckpt                 = gsl_rng_clone(RNG);
             REPORTING_RNG_ckpt       = gsl_rng_clone(REPORTING_RNG);
-        } else if (sim_day == 45 and checkpointCount++ < 3) { // reset now
+        } else if (sim_day == 45 and checkpointCount++ < 1) { // reset now
 cerr << "RESTORING" << endl;
             epi_sizes                = epi_sizes_ckpt;
             daily_output_buffer      = daily_output_buffer_ckpt;
@@ -432,7 +658,7 @@ cerr << "RESTORING" << endl;
             date                     = community->get_date();
             if (RNG_ckpt) { gsl_rng_memcpy(RNG, RNG_ckpt); }
             if (REPORTING_RNG_ckpt) { gsl_rng_memcpy(REPORTING_RNG, REPORTING_RNG_ckpt); }
-        }
+        }*/
 
     }
 
@@ -450,6 +676,11 @@ cerr << "RESTORING" << endl;
         }
     }
     cerr << "icu deaths, total deaths, ratio: " << cdeath_icu << ", " << cdeath2 << ", " << cdeath_icu/cdeath2 << endl;
+
+    cerr << "FINAL SOCIAL CONTACT PARAMS" << endl;
+    cerr << "DATE\t\tVALUE" << endl;
+    for (const TimeSeriesAnchorPoint &tsap : social_contact_anchors) { cerr << tsap.date << "\t\t" << tsap.value << endl; }
+
 //  write_daily_buffer(plot_log_buffer, process_id, "plot_log.csv");
     //return epi_sizes;
     if (RNG) { gsl_rng_free(RNG); }

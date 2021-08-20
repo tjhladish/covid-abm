@@ -216,6 +216,12 @@ class Community {
             timedInterventions.at(ti).resize(date);              // truncate
             timedInterventions.at(ti).resize(current_size, val); // new values
         }
+        void setSocialDistancingTimedIntervention(const vector<TimeSeriesAnchorPoint> &vec) {
+            timedInterventions[SOCIAL_DISTANCING].clear();
+            timedInterventions[SOCIAL_DISTANCING] = Date::linInterpolateTimeSeries(vec, _par->startJulianYear, _par->startDayOfYear);
+            const double last_sd_value = timedInterventions[SOCIAL_DISTANCING].back();
+            timedInterventions[SOCIAL_DISTANCING].resize(_par->runLength, last_sd_value);
+        }
         double getTimedIntervention(TimedIntervention ti, size_t day) const { return timedInterventions.at(ti)[day]; }
 
     protected:
