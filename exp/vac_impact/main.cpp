@@ -272,6 +272,7 @@ void parseVaccineFile(string vaccinationFilename, const Parameters* par, Communi
 
     // saves the final vaccination rates for each age bin for use in projected vaccination
     map< int, vector<double> > last_known_vac_rate;
+    size_t last_known_revac_doses = 0;
 
     size_t last_day_of_data = 0;
     while (getline(iss, buffer)) {
@@ -306,6 +307,7 @@ void parseVaccineFile(string vaccinationFilename, const Parameters* par, Communi
             // use date (which is the final day of an week of reported data) from file to cycle through the days in the matching simulation week
             const size_t end_of_week = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, end_of_week_date);
             for(size_t day = end_of_week-6; day <= end_of_week; ++day) {
+                const size_t revacDay = day+par->vaccineDoseInterval;
                 last_day_of_data = max(day, last_day_of_data);
                 if(day >= par->runLength) { continue; }
                 // binomial distribution parameters
@@ -338,7 +340,10 @@ void parseVaccineFile(string vaccinationFilename, const Parameters* par, Communi
                 const size_t emp_daily_standard_first_doses = (size_t) round(daily_total_first_doses * pop_ratio);
                 // doses_available.at(day)[URGENT_ALLOCATION]   += emp_daily_urgent_doses;
                 doses_available.at(day)[STANDARD_ALLOCATION] += emp_daily_standard_first_doses;
-                if(day+par->vaccineDoseInterval < par->runLength) { doses_available.at(day+par->vaccineDoseInterval)[STANDARD_ALLOCATION] += emp_daily_standard_first_doses; }
+                if(revacDay < par->runLength) {
+                    doses_available.at(revacDay)[STANDARD_ALLOCATION] += emp_daily_standard_first_doses;
+                    last_known_revac_doses = doses_available.at(revacDay)[STANDARD_ALLOCATION];
+                }
             }
         }
         // schedule any remaining people
@@ -358,6 +363,7 @@ void parseVaccineFile(string vaccinationFilename, const Parameters* par, Communi
         for(auto const& [bin_min, unsch_grp] : unscheduled_people) { num_current_unsch += unsch_grp.size(); }
 
         for(size_t day = last_day_of_data+1; day < par->runLength; ++day) {
+            const size_t revacDay = day+par->vaccineDoseInterval;
             // const size_t proj_daily_urgent_doses =  * ;
             // const size_t proj_daily_standard_doses = doses_available.at(may29)[STANDARD_ALLOCATION];
             // adjust available doses by the ratio of unscheduled people on day to unscheduled people on 2021-05-29
@@ -386,8 +392,9 @@ void parseVaccineFile(string vaccinationFilename, const Parameters* par, Communi
             people_to_be_scheduled.clear();
 
             // vaccinate same fraction of unvacinated people each day
-            doses_available.at(day)[URGENT_ALLOCATION]   += round(proj_dose_adj*doses_available.at(last_day_of_data)[URGENT_ALLOCATION] / num_current_unsch);
-            doses_available.at(day)[STANDARD_ALLOCATION] += round(proj_dose_adj*doses_available.at(last_day_of_data)[STANDARD_ALLOCATION] / num_current_unsch);
+            // doses_available.at(day)[URGENT_ALLOCATION]   += round(proj_dose_adj*doses_available.at(last_day_of_data)[URGENT_ALLOCATION] / num_current_unsch);
+            doses_available.at(day)[STANDARD_ALLOCATION] += round(proj_dose_adj*last_known_revac_doses / num_current_unsch);
+            if(revacDay < par->runLength) { doses_available.at(revacDay)[STANDARD_ALLOCATION] += round(proj_dose_adj*last_known_revac_doses / num_current_unsch); }
         }
     }
     vc->set_doses_available(doses_available);
