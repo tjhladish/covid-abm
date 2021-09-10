@@ -562,6 +562,9 @@ public:
 
     VaccineSeroConstraint vaccineSeroConstraint;
     MmodsScenario mmodsScenario;
+
+    bool auto_fitting;
+    size_t fitting_window;
 };
 
 #endif

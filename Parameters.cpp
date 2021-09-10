@@ -95,6 +95,9 @@ void Parameters::define_defaults() {
     seroTestFalseNeg = 0.0;
 
     mmodsScenario = NUM_OF_MMODS_SCENARIOS; // default to no MMODS scenario
+
+    auto_fitting = false;
+    fitting_window = INT_MAX;
 }
 
 
