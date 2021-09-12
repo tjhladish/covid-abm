@@ -40,5 +40,15 @@ vax-thresholds-theoretical.png: fig/critical_immunization_threshold.R
 
 ROOTDIR ?= ../../
 
+R = Rscript $^ $@
+
 rawresults.rds: injest.R ${ROOTDIR}/covid_vac_v9.0.sqlite
-	Rscript $^ $@
+	${R}
+
+variant-impact.png: variant-plots.R rawresults.rds
+	${R}
+
+vacc-impact.png: vacc-plots.R rawresults.rds
+	${R}
+
+figs: variant-impact.png vacc-impact.png
