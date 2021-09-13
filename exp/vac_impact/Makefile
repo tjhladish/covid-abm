@@ -34,3 +34,21 @@ clean:
 	$(MAKE) -C $(ABCDIR) -f Makefile clean
 	$(MAKE) -C $(COVDIR) -f Makefile clean
 	rm -f abc abc_sql
+
+vax-thresholds-theoretical.png: fig/critical_immunization_threshold.R
+	Rscript $^ $@
+
+ROOTDIR ?= ../../
+
+R = Rscript $^ $@
+
+rawresults.rds: injest.R ${ROOTDIR}/covid_vac_v9.0.sqlite
+	${R}
+
+variant-impact.png: variant-plots.R rawresults.rds
+	${R}
+
+vacc-impact.png: vacc-plots.R rawresults.rds
+	${R}
+
+figs: variant-impact.png vacc-impact.png
