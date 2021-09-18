@@ -56,8 +56,32 @@ vacscale <- function(show = TRUE) scale_color_manual(
 
 datescale <- function() scale_x_date(
   name=NULL,
-  date_breaks = "month", minor_breaks = NULL,
-  date_labels = "%b"
+  breaks = function(l) {
+    rl <- round(as.POSIXlt(l), "month")
+    as.Date(seq(rl[1] + 60*60*24*15, rl[2], by="month"))
+  },
+  labels = function(bs) {
+    gsub("^(.).+$","\\1",month.abb[month(bs)])
+  },
+  minor_breaks = NULL
+)
+
+datebg <- function(ylims = c(0,Inf), bandcolor = "grey") list(
+  geom_rect(
+    aes(xmin = start, xmax=end, ymax=ylims[2], ymin=ylims[1]),
+    data = function(dt) {
+      dr <- round(as.POSIXlt(dt[, range(date)]), "month")
+      pts <- seq(dr[1], dr[2], by="month")
+      if (length(pts) %% 2) pts <- head(pts, -1)
+      data.table(
+        start = as.Date(pts[seq(1, length(pts), by=2)]),
+        end = as.Date(pts[seq(2, length(pts), by=2)])
+      )
+    },
+    fill = bandcolor, alpha = 0.1,
+    inherit.aes = FALSE, show.legend = FALSE
+  ),
+  datescale()
 )
 
 effplot <- function(
@@ -72,6 +96,7 @@ effplot <- function(
   facet_grid(var ~ ., scales = "free", labeller = labeller(
     var = c(c="Cumulative Effectiveness on Symptomatic Infections,\nVaccination", d="Cumulative Effectiveness on Deaths,\nVaccination")
   ), switch = "y") +
+  datebg(ylims = c(-Inf,Inf)) +
   geom_line(linetype="solid", alpha = 0.025) +
   geom_line(
     aes(group = NULL),
@@ -80,7 +105,6 @@ effplot <- function(
       by=.(date, mutation, var, vac)
     ]
   ) +
-  datescale() +
   scale_y_continuous(name = NULL) +
   vacscale(show = FALSE) + varscale() +
   coord_cartesian(
@@ -100,6 +124,7 @@ veffplot <- function(
   facet_grid(var ~ ., scales = "free", labeller = labeller(
     var = c(c="Cumulative Effectiveness on Symptomatic Infections,\nNo VoCs", d="Cumulative Effectiveness on Deaths,\nNo VoCs")
   ), switch = "y") +
+  datebg(ylims = c(-Inf,Inf)) +
   geom_line(linetype="solid", alpha = 0.025) +
   geom_line(
     aes(group = NULL),
@@ -108,7 +133,6 @@ veffplot <- function(
                            by=.(date, mutation, var, vac)
     ]
   ) +
-  datescale() +
   scale_y_continuous(name = NULL) +
   vacscale() + varscale(show = FALSE) +
   coord_cartesian(
@@ -124,7 +148,7 @@ epiplot <- function(
   fromdate = "2021-01-01",
   outcomes = c("c"),
   refpop = 375475/1e4,
-  minrate = 1
+  minrate = NA
 ) ggplot(mlt[date >= fromdate][var %in% outcomes]) + aes(
   date, value/refpop,
   color = c("none", "present")[vac + 1],
@@ -134,6 +158,7 @@ epiplot <- function(
   facet_grid(var ~ ., scales = "free_y", labeller = labeller(
     var = c(c="Symptomatic Infections,\nper 10k", d="Deaths, per 10k")
   ), switch = "y") +
+  datebg(ylims = c(0, Inf)) +
   geom_line(linetype="solid", alpha = 0.025) +
   geom_line(
     aes(group = NULL),
@@ -141,7 +166,6 @@ epiplot <- function(
       .(value=median(value)),
       by=.(date, vac, mutation, var)]
   ) +
-  datescale() +
   scale_y_log10(
     name = NULL,
     labels = scales::label_number_si()
@@ -158,7 +182,8 @@ outplot <- (
 ) + plot_layout(guides = "collect") & theme_minimal(
   base_size = 12 # base FONT size in pts
 ) & theme(
-  legend.position = "bottom", strip.placement = "outside"
+  legend.position = "bottom", strip.placement = "outside",
+  panel.grid.major.x = element_blank()
 )
 
 ggsave(tail(.args, 1), outplot, width = 11, height = 11, units = "in", dpi = 600, bg = "white")
