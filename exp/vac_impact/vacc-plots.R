@@ -44,8 +44,10 @@ p <- ggplot(var.impact) + aes(
     "Variant", breaks = c(0,1), labels = c("None", "Some"),
     guide = guide_legend(override.aes = list(alpha=1))
   ) + theme_minimal() + theme(
-    legend.position = c(0+0.05, 1-0.05),
-    legend.justification = c(0, 1)
+    legend.position = c(1-0.05, 1-0.05),
+    legend.justification = c(1, 1)
+  ) + coord_cartesian(
+    ylim = c(-1, NA)
   )
 
 ggsave(tail(.args, 1), p, width = 7, height = 4, units = "in", dpi = 300)
