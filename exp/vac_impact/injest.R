@@ -2,7 +2,7 @@ require(RSQLite)
 require(data.table)
 
 .args <- if (interactive()) c(
-  "../../covid_vac_v9.0.sqlite",
+  "../../covid_vac_v10.0.sqlite",
   "rawresults.rds"
 ) else commandArgs(trailingOnly = TRUE)
 

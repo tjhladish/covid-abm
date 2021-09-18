@@ -48,4 +48,4 @@ p <- ggplot(var.impact) + aes(
     legend.justification = c(0, 1)
   )
 
-ggsave(tail(.args, 1), p, width = 7, height = 4, units = "in", dpi = 300)
+ggsave(tail(.args, 1), p, width = 7, height = 4, units = "in", dpi = 300, bg = "white")

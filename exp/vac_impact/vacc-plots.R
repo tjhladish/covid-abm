@@ -24,7 +24,7 @@ var.impact[order(date), i.cvalue := cumsum(i.value), by=.(realization, var, muta
 var.impact[order(date), excess := value - i.value, by=.(realization, var, mutation) ]
 var.impact[order(date), cexcess := cvalue - i.cvalue, by=.(realization, var, mutation) ]
 # what is relative impact?
-var.impact[order(date), ceff := cexcess/i.cvalue, by=.(realization, var, mutation) ]
+var.impact[order(date), ceff := -cexcess/i.cvalue, by=.(realization, var, mutation) ]
 
 p <- ggplot(var.impact) + aes(
   date, ceff, color = mutation,
@@ -50,4 +50,4 @@ p <- ggplot(var.impact) + aes(
     ylim = c(-1, NA)
   )
 
-ggsave(tail(.args, 1), p, width = 7, height = 4, units = "in", dpi = 300)
+ggsave(tail(.args, 1), p, width = 7, height = 4, units = "in", dpi = 300, bg = "white")
