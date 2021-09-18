@@ -42,7 +42,7 @@ ROOTDIR ?= ../../
 
 R = Rscript $^ $@
 
-rawresults.rds: injest.R ${ROOTDIR}/covid_vac_v9.0.sqlite
+rawresults.rds: injest.R ${ROOTDIR}/covid_vac_v10.0.sqlite
 	${R}
 
 variant-impact.png: variant-plots.R rawresults.rds
@@ -51,4 +51,4 @@ variant-impact.png: variant-plots.R rawresults.rds
 vacc-impact.png: vacc-plots.R rawresults.rds
 	${R}
 
-figs: variant-impact.png vacc-impact.png
+figs: variant-impact.png vacc-impact.png vax-thresholds-theoretical.png
