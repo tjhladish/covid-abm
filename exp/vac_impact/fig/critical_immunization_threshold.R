@@ -16,19 +16,19 @@ dt[, c("lower","upper","susc") := {
   .(f/VE, f/(VE-ve.res), "full")
 }]
 
-pR <- 0.5
+pR <- 0.3
 
 plot.dt <- rbind(
   dt,
   copy(dt)[, c("lower","upper","susc") := {
-    f <- (1-(1/R))
-    .(f/(VE + pR - VE*pR), f/(VE-ve.res + pR - (VE-ve.res)*pR), "part")
+    f <- (1-pR-(1/R))
+    .(f/(VE - VE*pR), f/((VE-ve.res) - (VE-ve.res)*pR), "part")
   }]
 )
 
 plot.dt[VE == min(VE), upper := 1]
 
-legend.inset <- 0.05
+legend.inset <- 0.01
 ve.contours <- seq(.1, .9, by=ve.step)
 
 #' TODO probably superior to annotate the contour lines
@@ -46,14 +46,16 @@ p <- ggplot(plot.dt) + aes(R, group = VE) +
     legend.position = c(1-legend.inset, 0+legend.inset),
     legend.justification = c(1, 0),
     legend.direction = "horizontal",
-    panel.spacing.x = unit(2, "lines")
+    panel.spacing.x = unit(2, "lines"),
+    legend.key.width = unit(2, "lines")
   ) +
   coord_cartesian(ylim=c(0, 1), expand = FALSE) +
   scale_color_continuous(
     expression(italic(VE)),
     breaks = ve.contours,
     labels = scales::label_percent(),
-    aesthetics = c("color","fill")
+    aesthetics = c("color","fill"),
+    guide = guide_colorbar(title.position = "top")
   ) +
   scale_x_continuous(expression("Basic reproductive number, "*italic(R)[0])) +
   scale_y_continuous(
