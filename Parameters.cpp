@@ -35,6 +35,8 @@ void Parameters::define_defaults() {
     contactTracingCoverage = 0.0;
     contactTracingEV       = vector<double>(NUM_OF_LOCATION_TYPES);
     contactTracingDepth    = 0;
+    quarantineProbability  = vector<double>(contactTracingDepth);
+    selfQuarantineDuration = 0;
     //secondaryTransmission = true;
     populationFilename = "population.txt";
     locationFilename = "locations.txt";

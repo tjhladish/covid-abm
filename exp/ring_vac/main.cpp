@@ -95,6 +95,9 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->contactTracingEV[NURSINGHOME] = 5.0;
     par->contactTracingDepth           = 2;
 
+    par->quarantineProbability  = {0.75, 0.5};
+    //par->quarantineProbability  = {0.0, 0.0};
+    par->selfQuarantineDuration = 10;
 
     vector<double> seasonality;
     for (size_t day = 0; day < 366; ++day) {

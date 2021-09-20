@@ -630,6 +630,9 @@ void Community::updatePersonStatus() {
                 }*/
             }
         }
+        if (p->isQuarantining(_day) and not p->isQuarantining(_day+1)) {
+            p->endQuarantine();
+        }
     }
     return;
 }
@@ -820,40 +823,7 @@ void Community::nursinghome_transmission() {
 void Community::_transmission(Location* source_loc, vector<Person*> at_risk_group, const map<double, vector<Person*>> &infectious_groups, const double T) {
     const bool check_susceptibility = true;
     for (Person* p: at_risk_group) {
-        /*
-         * Possibly do something here to implement quarantining at different levels
-         *  - full quarantine: stay at home/hospital
-         *  - moderate quarantine: stay at home except for some public activity
-         *  - minimal quarantine: reduce contacts at day loc, public activity (but does NOT stay at home)
-         * NOTE: T must not be const
-
-        QuarantineLevel ql = p->getQuarantineLevel;
-        if(ql == HIGH) {
-            // HIGH --> stay at home
-            // skip this person
-            continue;
-        } else if(ql == MODERATE) {
-            // MODERATE --> stay at home but may interact with home members and neighbors
-            // skip this person except for within/between household transmission
-            switch(source_loc->getType()) {
-                case HOUSE:       { DO SOMETHING; break; }
-                case NURSINGHOME: { DO SOMETHING; break; }
-                case WORK:
-                case SCHOOL:
-                case HOSPITAL: { continue; }
-            }
-        } else if(ql == MINIMAL) {
-            // MINIMAL --> some reduction in contacts, but will not stay at home
-            // reduce this person's risk of transmission (reduction could be different depending on location type)
-            switch(source_loc->getType()) {
-                case HOUSE:       { DO SOMETHING; break; }
-                case WORK:        { DO SOMETHING; break; }
-                case SCHOOL:      { DO SOMETHING; break; }
-                case HOSPITAL:    { DO SOMETHING; break; }
-                case NURSINGHOME: { DO SOMETHING; break; }
-            }
-        }
-         */
+        if (p->isQuarantining(_date->day())) { continue; }
         if (gsl_rng_uniform(RNG) < T) {
             Person* infecter     = nullptr;
             Infection* source_infection = nullptr;
@@ -989,6 +959,16 @@ vector< set<Person*> > Community::traceForwardContacts() {
                 }
             }
         }
+ size_t num_quarantined = 0;
+        for (Person* p : tracedContacts[depth]) {
+            if ((not p->isQuarantining(_day)) and (gsl_rng_uniform(RNG) < _par->quarantineProbability[depth])) {
+                p->selfQuarantine(_day, _par->selfQuarantineDuration);
+                num_quarantined++;
+            }
+        }
+ cerr << "DEBUG NUM CONTACTS AT DEPTH         " << depth << " IS " << tracedContacts[depth].size() << endl;
+ cerr << "DEBUG PROB OF QUARANTINING AT DEPTH " << depth << " IS " << _par->quarantineProbability[depth] << endl;
+ cerr << "DEBUG NUM QUARANTINED FROM DEPTH    " << depth << " IS " << num_quarantined << endl;
     }
     return tracedContacts;
 }

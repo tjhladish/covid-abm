@@ -567,6 +567,9 @@ public:
 
     VaccineSeroConstraint vaccineSeroConstraint;
     MmodsScenario mmodsScenario;
+
+    std::vector<double> quarantineProbability;
+    size_t selfQuarantineDuration;
 };
 
 #endif

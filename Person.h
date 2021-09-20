@@ -218,8 +218,6 @@ class Person {
         bool hasBeenInfected() const { return (bool) infectionHistory.size(); }
         bool isNaive() const { return immune_state == NAIVE; }
 
-        QuarantineLevel getQuarantineLevel() { return quarantine_level; }
-        void setQuarantineLevel(QuarantineLevel ql) { quarantine_level = ql; }
                                                                         // does this person's immune state permit vaccination?
                                                                         // NB: inaccurate test results are possible
         //bool isSeroEligible(VaccineSeroConstraint vsc, double falsePos, double falseNeg) const;
@@ -231,6 +229,10 @@ class Person {
 
         static void reset_ID_counter() { NEXT_ID = 0; }
         bool isSurveilledPerson() { return id < _par->numSurveilledPeople; }
+
+        void selfQuarantine(const size_t today, const size_t quarantineDuration);
+        void endQuarantine();
+        bool isQuarantining(const size_t today);
 
         void dumper() const {
             cerr << "Person ID: " << id << endl;
@@ -262,7 +264,8 @@ class Person {
         std::vector<int> vaccineHistory;                                // vector of days on which vaccinations were received
         void clearInfectionHistory();
 
-        QuarantineLevel quarantine_level;                               // current quarantine state of this person (based on infection, tracing, etc.)
+        size_t quarantineStart;
+        size_t quarantineEnd;
 
         bool vaccinate(int time);                                       // vaccinate this person
 
