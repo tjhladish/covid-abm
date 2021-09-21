@@ -382,7 +382,7 @@ Infection* Person::infect(Person* source, const Date* date, Location* sourceloc,
             Community::flagInfectedLocation(this, infection.relInfectiousness, hospital->getType(), hospital, day);
         } else {
             Community::flagInfectedLocation(this, infection.relInfectiousness, getHomeLoc()->getType(), getHomeLoc(), day); // home loc can be a HOUSE or NURSINGHOME
-            if (getDayLoc()) {
+            if (getDayLoc() and not (infection.isSevere(day) or infection.isCritical(day))) {
                 // TODO -- people do not stop going to work/school when mild/moderately sick
                 Community::flagInfectedLocation(this, infection.relInfectiousness, getDayLoc()->getType(), getDayLoc(), day);
             }
