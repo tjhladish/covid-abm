@@ -64,4 +64,4 @@ p <- ggplot(plot.dt) + aes(R, group = VE) +
     labels = scales::label_percent()
   )
 
-ggsave(tail(.args, 1), p, width = 5, height = 5, units = "in", dpi = 300, bg = "white")
+ggsave(tail(.args, 1), p, width = 10, height = 5, units = "in", dpi = 300, bg = "white")
