@@ -35,7 +35,7 @@ clean:
 	$(MAKE) -C $(COVDIR) -f Makefile clean
 	rm -f abc abc_sql
 
-vax-thresholds-theoretical.png: fig/critical_immunization_threshold.R
+critical_immunization_threshold.png: fig/critical_immunization_threshold.R
 	Rscript $^ $@
 
 ROOTDIR ?= ../../
@@ -51,4 +51,4 @@ variant-impact.png: variant-plots.R rawresults.rds
 vacc-impact.png: vacc-plots.R rawresults.rds
 	${R}
 
-figs: variant-impact.png vacc-impact.png vax-thresholds-theoretical.png
+figs: variant-impact.png vacc-impact.png critical_immunization_threshold.png
