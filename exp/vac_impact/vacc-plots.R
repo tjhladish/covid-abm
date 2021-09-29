@@ -94,7 +94,8 @@ effplot <- function(
   group = interaction(realization, mutation)
 ) +
   facet_grid(var ~ ., scales = "free", labeller = labeller(
-    var = c(c="Cumulative Effectiveness on Symptomatic Infections,\nVaccination", d="Cumulative Effectiveness on Deaths,\nVaccination")
+    #var = c(c="Cumulative Effectiveness on Symptomatic Infections,\nVaccination", d="Cumulative Effectiveness on Deaths,\nVaccination")
+    var = c(c="Cumul. eff. (symptomatic)", d="Cumul. eff. (deaths)")
   ), switch = "y") +
   datebg(ylims = c(-Inf,Inf)) +
   geom_line(linetype="solid", alpha = 0.025) +
@@ -122,7 +123,7 @@ veffplot <- function(
   group = interaction(realization, vac)
 ) +
   facet_grid(var ~ ., scales = "free", labeller = labeller(
-    var = c(c="Cumulative Effectiveness on Symptomatic Infections,\nNo VoCs", d="Cumulative Effectiveness on Deaths,\nNo VoCs")
+    var = c(c="Cumul. eff. (symptomatic)", d="Cumul. eff. (deaths)")
   ), switch = "y") +
   datebg(ylims = c(-Inf,Inf)) +
   geom_line(linetype="solid", alpha = 0.025) +
@@ -156,7 +157,8 @@ epiplot <- function(
   group = interaction(realization, mutation, vac)
 ) +
   facet_grid(var ~ ., scales = "free_y", labeller = labeller(
-    var = c(c="Symptomatic Infections,\nper 10k", d="Deaths, per 10k")
+    var = c(c="Symptomatic Infections per 10k", d="Deaths per 10k")
+    #var = c(c="Symptomatic Infections,\nper 10k", d="Deaths, per 10k")
   ), switch = "y") +
   datebg(ylims = c(0, Inf)) +
   geom_line(linetype="solid", alpha = 0.025) +
@@ -166,6 +168,7 @@ epiplot <- function(
       .(value=median(value)),
       by=.(date, vac, mutation, var)]
   ) +
+  #scale_y_continuous(
   scale_y_log10(
     name = NULL,
     labels = scales::label_number_si()
@@ -180,10 +183,10 @@ epiplot <- function(
 outplot <- (
   epiplot() / effplot() #/ veffplot()
 ) + plot_layout(guides = "collect") & theme_minimal(
-  base_size = 12 # base FONT size in pts
+  base_size = 24 # base FONT size in pts
 ) & theme(
   legend.position = "bottom", strip.placement = "outside",
   panel.grid.major.x = element_blank()
 )
 
-ggsave(tail(.args, 1), outplot, width = 11, height = 11, units = "in", dpi = 600, bg = "white")
+ggsave(tail(.args, 1), outplot, width = 11, height = 11, units = "in", dpi = 300, bg = "white")
