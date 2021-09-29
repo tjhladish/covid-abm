@@ -1,6 +1,6 @@
 # covid-abm
 ---
-This stochastic, discrete-time, agent-based model of dengue transmission explicitly represents a synthetic population of humans with which transmission of SARS-CoV-2 (including variants of concern) can be simulated.
+This stochastic, discrete-time, agent-based model explicitly represents a synthetic population of humans with which transmission of SARS-CoV-2 (including variants of concern) can be simulated.
 
 This model is adapted from a previous [agent-based model for dengue transmission](https://github.com/tjhladish/dengue).
 
