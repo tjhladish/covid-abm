@@ -16,7 +16,6 @@
 #include "sys/stat.h"
 #include "Vac_Campaign.h"
 #include <utility>
-#include <chrono>
 
 using namespace covid::standard;
 using namespace covid::util;
@@ -674,10 +673,24 @@ public:
     gsl_rng* reporting_rng;
 };
 
-vector<string> simulate_epidemic(const Parameters* par, Community* &community, const string process_id, const vector<string> mutant_intro_dates,
-                                 map<size_t, TimeSeriesAnchorPoint> &social_contact_map) {
+void gen_simvis(vector<string> &plot_log_buffer) {   
+for (size_t i = 1; i < plot_log_buffer.size(); ++i) {
+    //plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt[i-1].second);
+    if (i >= (plot_log_buffer.size() - 14)) {
+        plot_log_buffer[i] = plot_log_buffer[i] + ",0";// + to_string(Rt_ma[i-1]);
+    } else {
+        plot_log_buffer[i] = plot_log_buffer[i];// + to_string(Rt_ma[i-1]);
+    }
+}
+bool overwrite = true;
+write_daily_buffer(plot_log_buffer, "42", "plot_log.csv", overwrite);
+int retval = system("Rscript simvis.R");
+if (retval == -1) { cerr << "System call to `Rscript simvis.R` failed\n"; }
+}
+
+vector<string> simulate_epidemic(const Parameters* par, Community* &community, const string process_id, const vector<string> mutant_intro_dates/*,
+                                 map<size_t, TimeSeriesAnchorPoint> &social_contact_map*/) {
     SimulationLedger* ledger = new SimulationLedger();
-    map<size_t, SimulationCache*> fluid_cache_map;
     SimulationCache* init_cache  = nullptr;
 
     bool window_fit_is_good = true;
@@ -819,54 +832,70 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
             // inital sim cache
             if (sim_day == 0) {
                 init_cache               = new SimulationCache(community, ledger, RNG, REPORTING_RNG);
-                fluid_cache_map[sim_day] = new SimulationCache(community, ledger, RNG, REPORTING_RNG);
+
+                community->_clearSocialDistancingTimedIntervention();
+                cerr << "ENTER SOC_CONTACT PARAM FOR FIRST STEP: " << endl;
+
+                double tmp_val = 0.0;
+                cin >> tmp_val;
+                community->_extendSocialDistancingTimedIntervention(tmp_val);
             } else if ((sim_day + 1) % par->fitting_window == 0) {
-                const pair<bool, pair<size_t, double> > window_fit = check_window_social_contact_fit(par, emp_data, all_reported_cases, sim_day, social_contact_map, 1);
-                window_fit_is_good = get<bool>(window_fit);
+                // const pair<bool, pair<size_t, double> > window_fit = check_window_social_contact_fit(par, emp_data, all_reported_cases, sim_day, social_contact_map, 1);
+                // window_fit_is_good = get<bool>(window_fit);
 
-                if (window_fit_is_good /*or override_fitting*/) {
-                    // update fluid cache
-                    if (fluid_cache_map.size() < 2) {
-                        fluid_cache_map[sim_day] = new SimulationCache(community, ledger, RNG, REPORTING_RNG);
-                    } else if (fluid_cache_map.size() == 2) {
-                        vector<size_t> cache_keys;
-                        for (const auto& [key_day, cache_ptr] : fluid_cache_map) { cache_keys.push_back(key_day); }
-                        if (fluid_cache_map.count(sim_day)) {
-                            delete fluid_cache_map[sim_day];
-                            fluid_cache_map[sim_day] = new SimulationCache(community, ledger, RNG, REPORTING_RNG);
-                        } else {
-                            const size_t oldest_cache_key = min_element(cache_keys);
-                            if (fluid_cache_map[oldest_cache_key]) {
-                                delete fluid_cache_map[oldest_cache_key];
-                                fluid_cache_map.erase(oldest_cache_key);
-                            }
-                            fluid_cache_map[sim_day] = new SimulationCache(community, ledger, RNG, REPORTING_RNG);
-                        }
-                    }
-                    //override_fitting = false;
-                } else {
-                    alter_social_contact_params(par, get< pair<size_t, double> >(window_fit), social_contact_map);
-                    // restore fluid cache
-                    vector<size_t> cache_keys;
-                    for (const auto& [key_day, cache_ptr] : fluid_cache_map) { cache_keys.push_back(key_day); }
-                    const SimulationCache* newest_cache = fluid_cache_map[max_element(cache_keys)];
+                // if (window_fit_is_good /*or override_fitting*/) {
+                //     // update fluid cache
+                //     //override_fitting = false;
+                // } else {
+                //     alter_social_contact_params(par, get< pair<size_t, double> >(window_fit), social_contact_map);
+                //     // restore fluid cache
 
-                    if (ledger) { delete ledger; }
-                    ledger = new SimulationLedger(*(newest_cache->sim_ledger));
+                //     if (ledger) { delete ledger; }
+                //     ledger = new SimulationLedger(*(init_cache->sim_ledger));
         
+                //     if (community) { delete community; }
+                //     community = new Community(*(init_cache->community));
+                //     date      = community->get_date();
+        
+                //     if (init_cache->rng)           { gsl_rng_memcpy(RNG, init_cache->rng); }
+                //     if (init_cache->reporting_rng) { gsl_rng_memcpy(REPORTING_RNG, init_cache->reporting_rng); }
+
+                //     // re-define social contact curve
+                //     vector<TimeSeriesAnchorPoint> tmp;
+                //     for (const auto& [key, tsap] : social_contact_map) {
+                //         tmp.push_back(tsap);
+                //     }
+                //     community->setSocialDistancingTimedIntervention(tmp);
+                // }
+                gen_simvis(ledger->plot_log_buffer);
+                cerr << "IS THE FIT GOOD?" << endl;
+                int fit_is_good = 0;
+                cin >> fit_is_good;
+                if(fit_is_good) {
+                    // update cache and continue
+                    if (init_cache) { delete init_cache; }
+                    init_cache = new SimulationCache(community, ledger, RNG, REPORTING_RNG);
+
+                    cerr << "ENTER NEXT SOC_CONTACT STEP: " << endl;
+                    double next_val = 0.0;
+                    cin >> next_val;
+                    community->_extendSocialDistancingTimedIntervention(next_val);
+                } else {
+                    // reload cache and ask for new values
+                    if (ledger) { delete ledger; }
+                    ledger = new SimulationLedger(*(init_cache->sim_ledger));
+
                     if (community) { delete community; }
-                    community = new Community(*(newest_cache->community));
+                    community = new Community(*(init_cache->community));
                     date      = community->get_date();
         
-                    if (newest_cache->rng)           { gsl_rng_memcpy(RNG, newest_cache->rng); }
-                    if (newest_cache->reporting_rng) { gsl_rng_memcpy(REPORTING_RNG, newest_cache->reporting_rng); }
+                    if (init_cache->rng)           { gsl_rng_memcpy(RNG, init_cache->rng); }
+                    if (init_cache->reporting_rng) { gsl_rng_memcpy(REPORTING_RNG, init_cache->reporting_rng); }
 
-                    // re-define social contact curve
-                    vector<TimeSeriesAnchorPoint> tmp;
-                    for (const auto& [key, tsap] : social_contact_map) {
-                        tmp.push_back(tsap);
-                    }
-                    community->setSocialDistancingTimedIntervention(tmp);
+                    cerr << "ENTER NEW VALUE FOR THIS WINDOW'S SOC_CONTACT PARAM: " << endl;
+                    double update_val;
+                    cin >> update_val;
+                    community->_extendSocialDistancingTimedIntervention(update_val);
                 }
             }
         }
@@ -1006,9 +1035,6 @@ cerr << "RESTORING" << endl;
     //if (RNG_ckpt)           { gsl_rng_free(RNG_ckpt); }
     //if (REPORTING_RNG_ckpt) { gsl_rng_free(REPORTING_RNG_ckpt); }
     if (init_cache)  { delete init_cache; }
-    for (auto& [key, ptr] : fluid_cache_map) {
-        if (ptr) { delete ptr; }
-    }
 
     double cdeath_icu   = 0.0;
     double cdeath2      = 0.0;

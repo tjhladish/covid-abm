@@ -42,7 +42,7 @@ const string output_dir("/ufrc/longini/tjhladish/");
 const string vaccination_file = pop_dir + "/../fl_vac/fl_vac_v3.txt";
 
 const int RESTART_BURNIN          = 0;
-const int FORECAST_DURATION       = 250;//682;
+const int FORECAST_DURATION       = 682;
 //const int FORECAST_DURATION       = 456;
 const int OVERRUN                 = 14; // to get accurate Rt estimates near the end of the forecast duration
 const bool RUN_FORECAST           = true;
@@ -602,30 +602,30 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
     Community* community = build_community(par);
 
-    map<size_t, TimeSeriesAnchorPoint> social_contact_map;
-    vector<TimeSeriesAnchorPoint> initial_social_contact_anchors;
-    if (par->auto_fitting) {
-        const size_t window_size = par->fitting_window;
-
-        Date* param_day = new Date(*community->get_date());
-        for (; (size_t) param_day->day() < par->runLength; param_day->increment()) {
-            if ((param_day->day() % window_size == 0) or ((param_day->day()+1) % window_size == 0) or (param_day->day() % (window_size/2) == 0)) {
-                TimeSeriesAnchorPoint tsap = {param_day->to_ymd(), 0.25};
-                social_contact_map[param_day->day()] = tsap;
-                initial_social_contact_anchors.push_back(tsap);
-            }
-        }
-        delete param_day;
-
-cerr << "TEST AUTO SOCIAL CONTACT PARAM GEN" << endl;
-cerr << "SIM DAY\t\tTSAP DATE\t\tTSAP VAL" << endl;
-for (const auto& [sim_day, tsap] : social_contact_map) {
-    cerr << sim_day << "\t\t" << tsap.date << "\t\t" << tsap.value << endl;
-}
-
-        community->setSocialDistancingTimedIntervention(initial_social_contact_anchors);
-
-    }
+//     map<size_t, TimeSeriesAnchorPoint> social_contact_map;
+//     vector<TimeSeriesAnchorPoint> initial_social_contact_anchors;
+//     if (par->auto_fitting) {
+//         const size_t window_size = par->fitting_window;
+// 
+//         Date* param_day = new Date(*community->get_date());
+//         for (; (size_t) param_day->day() < par->runLength; param_day->increment()) {
+//             if ((param_day->day() % window_size == 0) or (param_day->day() == 0)) {
+//                 TimeSeriesAnchorPoint tsap = {param_day->to_ymd(), 0.00};
+//                 social_contact_map[param_day->day()] = tsap;
+//                 initial_social_contact_anchors.push_back(tsap);
+//             }
+//         }
+//         delete param_day;
+// 
+// cerr << "TEST AUTO SOCIAL CONTACT PARAM GEN" << endl;
+// cerr << "SIM DAY\t\tTSAP DATE\t\tTSAP VAL" << endl;
+// for (const auto& [sim_day, tsap] : social_contact_map) {
+//     cerr << sim_day << "\t\t" << tsap.date << "\t\t" << tsap.value << endl;
+// }
+// 
+//         community->setSocialDistancingTimedIntervention(initial_social_contact_anchors);
+//
+//    }
 
     Vac_Campaign* vc = nullptr;
     community->setVac_Campaign(vc);
@@ -685,7 +685,7 @@ for (const auto& [sim_day, tsap] : social_contact_map) {
     }
 
     seed_epidemic(par, community, WILDTYPE);
-    vector<string> plot_log_buffer = simulate_epidemic(par, community, process_id, mutant_intro_dates, social_contact_map);
+    vector<string> plot_log_buffer = simulate_epidemic(par, community, process_id, mutant_intro_dates/*, social_contact_map*/);
 
 // comment out this block if simvis.R is not needed
 {

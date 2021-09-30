@@ -20,7 +20,7 @@ ed = read.csv("rcasedeath-florida.csv"); per10k = 1e4/pop_florida
 #ed = read.csv("rcasedeath-dade.csv"); per10k = 1e4/pop_dade
 ed$date = as.Date(ed$Date)
 
-ticks <- seq(as.Date('2020-03-01'), d$date[length(d$date)]+5, by = "months") # so much stupid
+ticks <- seq(as.Date('2020-02-01'), d$date[length(d$date)]+5, by = "months") # so much stupid
 
 # for shading the background, we need an even number of months; add 1 if necessary
 shaded_boundaries = ticks

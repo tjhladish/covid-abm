@@ -222,6 +222,19 @@ class Community {
             const double last_sd_value = timedInterventions[SOCIAL_DISTANCING].back();
             timedInterventions[SOCIAL_DISTANCING].resize(_par->runLength, last_sd_value);
         }
+        void _clearSocialDistancingTimedIntervention() {
+            timedInterventions[SOCIAL_DISTANCING].clear();
+        }
+        void _extendSocialDistancingTimedIntervention(double val) {
+            const size_t current_size = timedInterventions.at(SOCIAL_DISTANCING).size();
+            timedInterventions[SOCIAL_DISTANCING].resize(current_size + _par->fitting_window, val);
+        }
+        void _reviseSocialDistancingTimedIntervention(double val) {
+            const size_t current_size = timedInterventions.at(SOCIAL_DISTANCING).size();
+            assert(current_size >= _par->fitting_window);
+            timedInterventions[SOCIAL_DISTANCING].resize(current_size - _par->fitting_window);
+            _extendSocialDistancingTimedIntervention(val);
+        }
         double getTimedIntervention(TimedIntervention ti, size_t day) const { return timedInterventions.at(ti)[day]; }
 
     protected:
