@@ -248,7 +248,7 @@ Infection* Person::infect(Person* source, const Date* date, Location* sourceloc,
         infection.relInfectiousness *= 1.6;
         symptomatic_probability *= 1.1;                  // TODO -- these values shouldn't be hard-coded here
     } else if (infection.strain == B_1_617_2) {
-        infection.relInfectiousness *= 3.0;
+        infection.relInfectiousness *= 4.2;
         symptomatic_probability *= 1.2;
     }
 
@@ -361,6 +361,8 @@ Infection* Person::infect(Person* source, const Date* date, Location* sourceloc,
             detected = true;
         }
 
+        if (report_date >= (long int) _par->runLength) { detected = false; }
+
         if (detected) {
             infection.detect(detected_state, report_date);
             Community::reportCase(sample_collection_date, report_date, infection.hospital());
@@ -395,33 +397,36 @@ Infection* Person::infect(Person* source, const Date* date, Location* sourceloc,
 }
 
 
-/*
-bool Person::isWithdrawn(int time) const {
-    if (infectionHistory.size() > 0) {
-        Infection* infection = infectionHistory.back();
-        if (time >= infection->withdrawnTime and time < infection->recoveryTime and not dead) {
-            return true;
+bool Person::isCrossProtected(int time, StrainType strain) const { // assumes binary cross-immunity
+    bool immune = false;
+    if (getNumNaturalInfections() > 0) {
+        // first check for broad, short term immunity
+        const Infection* last_inf = infectionHistory.back();
+        vector<int> possible_last_infection_end_dates = {last_inf->infectiousEnd, last_inf->symptomEnd};
+        const int last_infection_end_date = covid::util::max_element(possible_last_infection_end_dates);
+        const int time_since_last_infection = time - last_infection_end_date;
+        // don't really know this; assumption based on https://assets.publishing.service.gov.uk/government/uploads/system/uploads/attachment_data/file/1005517/Technical_Briefing_19.pdf 
+        const int general_duration_of_cross_immunity = 180;
+        const int base_days_immune = (signed) getDaysImmune();
+        if (time_since_last_infection <= general_duration_of_cross_immunity and time_since_last_infection <= base_days_immune) {
+            immune = true;
+        }
+
+        if (infectionHistory.size() > 1 and not immune) {
+            // maybe there's longer term, strain-specific immunity
+            for (Infection* inf: infectionHistory) {
+                if (inf->getStrain() == strain) {
+                    vector<int> possible_infection_end_dates = {last_inf->infectiousEnd, last_inf->symptomEnd};
+                    const int time_since_infection = time - covid::util::max_element(possible_infection_end_dates);
+                    if (time_since_infection <= base_days_immune) {
+                        immune = true;
+                    }
+                    break;
+                }
+            }
         }
     }
-    return false;
-}*/
-
-
-bool Person::isCrossProtected(int time, StrainType strain) const { // assumes binary cross-immunity
-    int cross_protected_until = INT_MIN;
-    if (getNumNaturalInfections() > 0) {
-        const Infection* inf = infectionHistory.back();
-        //TODO -- Clean this up!
-        const int base_days_immune = (signed) getDaysImmune();
-        const int days_immune = inf->getStrain() == strain ? base_days_immune :
-                                (inf->getStrain() == WILDTYPE and strain == B_1_1_7) or (inf->getStrain() == B_1_1_7 and strain == WILDTYPE) ? base_days_immune * 0.75 :
-                                base_days_immune * 0.0; // one of the strains must be B_1_617_2
-                                //(inf->getStrain() != B_1_617_2 and strain == B_1_617_2) or (inf->getStrain() == B_1_617_2 and strain != B_1_617_2) ? base_days_immune * 0.5;
-        // cannot be reinfected until the last of {immunity, infectiousness, symptomatic period}
-        vector<int> possible_end_dates = {inf->infectedBegin + days_immune, inf->infectiousEnd, inf->symptomEnd};
-        cross_protected_until = covid::util::max_element(possible_end_dates);
-    }
-    return cross_protected_until >= time;
+    return immune;
 }
 
 
@@ -432,7 +437,6 @@ bool Person::isVaccineProtected(const int time, const StrainType strain) const {
 }
 
 
-//bool Person::isSeroEligible(VaccineSeroConstraint vsc, double falsePos, double falseNeg) const {
 bool Person::isSeroEligible() const {
     const VaccineSeroConstraint vsc = _par->vaccineSeroConstraint;
     const double falsePos = _par->seroTestFalsePos;

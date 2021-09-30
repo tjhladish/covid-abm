@@ -42,7 +42,7 @@ const string output_dir("/ufrc/longini/tjhladish/");
 const string vaccination_file = pop_dir + "/../fl_vac/fl_vac_v3.txt";
 
 const int RESTART_BURNIN          = 0;
-const int FORECAST_DURATION       = 674;
+const int FORECAST_DURATION       = 700;
 //const int FORECAST_DURATION       = 456;
 const int OVERRUN                 = 14; // to get accurate Rt estimates near the end of the forecast duration
 const bool RUN_FORECAST           = true;
@@ -158,8 +158,8 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
 
     const size_t aug09_2021 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-08-09");
     const size_t end_summer_2021 = min(aug09_2021, par->runLength);
-    par->timedInterventions[SCHOOL_CLOSURE].resize(end_summer_2021, 1.0); // 50% reopening on Aug 31
-    par->timedInterventions[SCHOOL_CLOSURE].resize(par->runLength, 0.0); // reopen after beinning of 2021-2022 school year
+    par->timedInterventions[SCHOOL_CLOSURE].resize(end_summer_2021, 1.0); //
+    par->timedInterventions[SCHOOL_CLOSURE].resize(par->runLength, 0.2); // reopen after beinning of 2021-2022 school year
 
     par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].clear();
     par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-04-03"), 0.0);
@@ -175,16 +175,20 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
         {"2020-06-01", 0.05},
         {"2020-07-01", 0.05},
         {"2020-08-01", 0.6},
-        {"2020-09-01", 0.3},
-        {"2020-10-01", 0.15},
+        {"2020-09-01", 0.5},
+        {"2020-10-01", 0.1},
         {"2020-11-01", 0.0},
-        {"2020-12-01", 0.0},
+        {"2020-12-01", 0.1},
         {"2021-01-01", 0.1},
         {"2021-02-01", 0.3},
-        {"2021-02-28", 0.1},
-        {"2021-03-01", 0.0},
+        {"2021-03-01", 0.4},
         {"2021-04-01", 0.0},
-        {"2021-05-01", 0.0}
+        {"2021-05-01", 0.3},
+        {"2021-06-01", 0.2},
+        {"2021-07-01", 0.0},
+        {"2021-08-01", 0.1},
+        {"2021-09-01", 0.25},
+        {"2021-10-01", 0.0}
     };
 
     par->timedInterventions[SOCIAL_DISTANCING].clear();
@@ -602,7 +606,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     // const size_t realization    = (size_t) args[1];
     const bool mutation          = (bool) args[2];
     vector<string> mutant_intro_dates = {};
-    if (mutation) { mutant_intro_dates = {"2021-02-10", "2021-06-01"}; };   // extra semicolon?
+    if (mutation) { mutant_intro_dates = {"2021-02-01", "2021-05-27"}; };   // extra semicolon?
 
     Community* community = build_community(par);
     Vac_Campaign* vc = nullptr;
@@ -637,14 +641,14 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         const double x_alpha_1 = 0.529; // calculated using quadratic formula: (VES*VEP)x^2 - (VES+VEP)x + VESP_alpha = 0, where VES and VEP are for wildtype
         const double x_alpha_2 = 0.948;
 
-        //const double x_delta_1 = 0.338;
-        //const double x_delta_2 = 0.843;
+        const double x_delta_1 = 0.338;
+        const double x_delta_2 = 0.843;
 
-        //par->VES                   = {{WILDTYPE, {0.40, 0.80}}, {B_1_1_7, {0.40*x_alpha_1, 0.80*x_alpha_2}}, {B_1_617_2, {0.40*x_delta_1, 0.80*x_delta_2}}}; // reduce for delta
-        par->VES                   = {{WILDTYPE, {0.40, 0.80}}, {B_1_1_7, {0.40*x_alpha_1, 0.80*x_alpha_2}}, {B_1_617_2, {0.05, 0.52}}}; // reduce for delta
+        par->VES                   = {{WILDTYPE, {0.40, 0.80}}, {B_1_1_7, {0.40*x_alpha_1, 0.80*x_alpha_2}}, {B_1_617_2, {0.40*x_delta_1, 0.80*x_delta_2}}}; // reduce for delta
+        //par->VES                   = {{WILDTYPE, {0.40, 0.80}}, {B_1_1_7, {0.40*x_alpha_1, 0.80*x_alpha_2}}, {B_1_617_2, {0.05, 0.52}}}; // reduce for delta
         par->VES_NAIVE             = par->VES;
-        //par->VEP                   = {{WILDTYPE, {0.67, 0.75}}, {B_1_1_7, {0.67*x_alpha_1, 0.75*x_alpha_2}}, {B_1_617_2, {0.67*x_delta_1, 0.75*x_delta_2}}}; // reduce for delta
-        par->VEP                   = {{WILDTYPE, {0.67, 0.75}}, {B_1_1_7, {0.67*x_alpha_1, 0.75*x_alpha_2}}, {B_1_617_2, {0.29, 0.75}}}; // reduce for delta
+        par->VEP                   = {{WILDTYPE, {0.67, 0.75}}, {B_1_1_7, {0.67*x_alpha_1, 0.75*x_alpha_2}}, {B_1_617_2, {0.67*x_delta_1, 0.75*x_delta_2}}}; // reduce for delta
+        //par->VEP                   = {{WILDTYPE, {0.67, 0.75}}, {B_1_1_7, {0.67*x_alpha_1, 0.75*x_alpha_2}}, {B_1_617_2, {0.29, 0.75}}}; // reduce for delta
         par->VEH                   = {{WILDTYPE, {0.9, 1.0}},   {B_1_1_7, {0.9, 1.0}}, {B_1_617_2, {0.9, 1.0}}};
         par->VEI                   = {{WILDTYPE, {0.4, 0.8}},   {B_1_1_7, {0.2, 0.5}}, {B_1_617_2, {0.1, 0.1}}};
         par->VEF                   = {{WILDTYPE, {0.0, 0.0}},   {B_1_1_7, {0.0, 0.0}}, {B_1_617_2, {0.0, 0.0}}}; // effect likely captured by VEH
@@ -664,6 +668,32 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
     seed_epidemic(par, community, WILDTYPE);
     vector<string> plot_log_buffer = simulate_epidemic(par, community, process_id, mutant_intro_dates);
+
+    vector<double> cases(par->runLength, 0.0);
+    vector<double> deaths(par->runLength, 0.0);
+
+    for (auto person: community->getPeople()) {
+        if (person->getNumNaturalInfections()) {
+            vector<Infection*> infections = person->getInfectionHistory();
+            for (Infection* inf: infections) {
+                if (inf->detection()) {
+                    const int inf_date = inf->detection()->reported_time;
+                    if (inf_date < (int) cases.size()) {
+                        cases[inf_date]++;
+                        if (inf->fatal()) {
+                            deaths[inf_date]++;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+//    Date dummy_date(par);
+//    for (unsigned int i = 0; i < cases.size(); ++i ) {
+//        cerr << "cfr: " << i << " " << dummy_date.to_ymd() << " " << std::setprecision(4) << deaths[i] << " " << cases[i] << endl;
+//        dummy_date.increment();
+//    }
 
 // comment out this block if simvis.R is not needed
 {
