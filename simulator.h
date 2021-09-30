@@ -194,21 +194,8 @@ void periodic_output(const Parameters* par, map<string, vector<int> > &periodic_
     fputs(output.c_str(), stdout);
 }
 
-/*void update_vaccinations(const Parameters* par, Community* community, const Date* date) {
-    const int doseInterval = par->vaccineDoseInterval;
-    assert(doseInterval > 0); // only non-zero positive ints are sensible
-    //const int boostInterval = par->vaccineBoostingInterval;
-    for (CatchupVaccinationEvent cve: par->catchupVaccinationEvents) {
-        // Normal, initial vaccination -- boosting, multiple doses handled in Community::tick()
-        if (date->day() >= (signed) cve.campaignStart and date->day() < (signed) (cve.campaignStart + cve.campaignDuration)) {
-            if (par->abcVerbose) cerr << "vaccinating " << cve.coverage*100 << "% of age " << cve.age << " over " << cve.campaignDuration << " days starting on day " << cve.campaignStart << endl;
-            community->vaccinate(cve);
-        }
-    }
-}*/
 
-
-int seed_epidemic(const Parameters* par, Community* community, const Date* date, vector<StrainType> strains) {
+int seed_epidemic(const Parameters* par, Community* community, const Date* date, vector<double> strain_weights) {
     int introduced_infection_ct = 0;
     const int numperson = community->getNumPeople();
     const size_t dailyExposedIdx = date->day() % par->probDailyExposure.size();
@@ -220,71 +207,12 @@ int seed_epidemic(const Parameters* par, Community* community, const Date* date,
         for (int i=0; i<num_exposed; i++) {
             // gsl_rng_uniform_int returns on [0, numperson-1]
             int transmit_to_id = gsl_rng_uniform_int(RNG, numperson);
-            if (community->infect(transmit_to_id, choice(RNG, strains))) {
+            if (community->infect(transmit_to_id, (StrainType) weighted_choice(RNG, strain_weights))) {
                 introduced_infection_ct++;
             }
         }
     }
     return introduced_infection_ct;
-}
-
-
-void advance_simulator(const Parameters* par, Community* community, Date* date, const string process_id, map<string, vector<int> > &periodic_incidence, vector<int> &periodic_prevalence, vector<int> &epi_sizes) {
-    community->tick();
-
-    vector<StrainType> strains = {WILDTYPE};
-    seed_epidemic(par, community, date, strains);
-
-    for (Person* p: community->getPeople()) {
-        const int now = date->day();
-
-        if (p->isInfected(now) or p->isSymptomatic(now) or p->isDead(now)) {
-            const Infection* infec = p->getInfection();
-            bool intro  = not infec->isLocallyAcquired();
-
-            // Incidence
-            if (infec->getInfectedTime() == now) {
-                periodic_incidence["daily"][INTRO_INF]      += intro;
-                periodic_incidence["daily"][TOTAL_INF]      += 1;
-            }
-
-            if (infec->getSymptomTime() == now) {
-                periodic_incidence["daily"][INTRO_CASE]     += intro;
-                periodic_incidence["daily"][TOTAL_CASE]     += 1;
-            }
-
-            if (infec->getSevereTime() == now) {
-                periodic_incidence["daily"][INTRO_SEVERE]   += intro;
-                periodic_incidence["daily"][TOTAL_SEVERE]   += 1;
-            }
-
-            if (infec->getCriticalTime() == now) {
-                periodic_incidence["daily"][INTRO_CRITICAL] += intro;
-                periodic_incidence["daily"][TOTAL_CRITICAL] += 1;
-            }
-
-            if (infec->getDeathTime() == now) {
-                periodic_incidence["daily"][INTRO_DEATH]    += intro;
-                periodic_incidence["daily"][TOTAL_DEATH]    += 1;
-            }
-
-            // Prevalence
-            periodic_prevalence[INTRO_INF_PREV]      += intro and infec->isInfected(now);
-            periodic_prevalence[INTRO_CASE_PREV]     += intro and infec->isSymptomatic(now);
-            periodic_prevalence[INTRO_SEVERE_PREV]   += intro and infec->isSevere(now);
-            periodic_prevalence[INTRO_CRITICAL_PREV] += intro and infec->isCritical(now);
-            periodic_prevalence[INTRO_DEATH_PREV]    += intro and infec->isDead(now);
-
-            periodic_prevalence[TOTAL_INF_PREV]      += infec->isInfected(now);
-            periodic_prevalence[TOTAL_CASE_PREV]     += infec->isSymptomatic(now);
-            periodic_prevalence[TOTAL_SEVERE_PREV]   += infec->isSevere(now);
-            periodic_prevalence[TOTAL_CRITICAL_PREV] += infec->isCritical(now);
-            periodic_prevalence[TOTAL_DEATH_PREV]    += infec->isDead(now);
-        }
-    }
-
-    periodic_output(par, periodic_incidence, periodic_prevalence, date, process_id, epi_sizes);
-    return;
 }
 
 
@@ -321,7 +249,9 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
     vector<string> plot_log_buffer = {"date,sd,seasonality,vocprev1,vocprev2,cinf,closed,rcase,rdeath,inf,rhosp,Rt"};
 
     Date* date = community->get_date();
-    vector<StrainType> strains = {WILDTYPE};
+    vector<double> strains = {50.0, 0.0, 0.0}; // initially all WILDTYPE
+    assert(strains.size() == NUM_OF_STRAIN_TYPES);
+
     for (; date->day() < (signed) par->runLength; date->increment()) {
         const size_t sim_day = date->day();
         //update_vaccinations(par, community, date);
@@ -329,10 +259,20 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
 
         if ( mutant_intro_dates.size() ) {
             if (*date >= mutant_intro_dates[0] and *date < mutant_intro_dates[1]) {
-                //strains = {WILDTYPE, B_1_1_7};
-                strains = {B_1_1_7};
+                //const int time_since_intro = date->day() - Date::to_sim_day(par->julian_start_day, par->julian_start_year, mutant_intro_dates[0]);
+                if (strains[WILDTYPE] > 1) {
+                    strains[WILDTYPE]--;
+                    strains[B_1_1_7]++;
+                }
             } else if (*date >= mutant_intro_dates[1]) {
-                strains = {B_1_617_2};
+                if (strains[WILDTYPE] > 1) {
+                    strains[WILDTYPE]--;
+                    strains[B_1_617_2]++;
+                }
+                if (strains[B_1_1_7] > 1) {
+                    strains[B_1_1_7]--;
+                    strains[B_1_617_2]++;
+                }
             }
         }
         seed_epidemic(par, community, date, strains);
@@ -393,9 +333,21 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
             cdeath_icu += p->getInfection()->icu();
         }
     }
+
+    const vector<size_t> infections         = community->getNumNewlyInfected();
+    const vector<size_t> symptomatic        = community->getNumNewlySymptomatic();
+//    const vector<size_t> severe             = community->getNumNewlySevere();
+//    const vector<size_t> critical           = community->getNumNewlyCritical();
+//    const vector<size_t> dead               = community->getNumNewlyDead();
+//
+    const double cinf  = accumulate(infections.begin(), infections.end(), 0.0);
+    const double csymp = accumulate(symptomatic.begin(), symptomatic.end(), 0.0);
+//    const double csev  = accumulate(symptomatic.begin(), symptomatic.end(), 0.0);
+//    const double ccrit = accumulate(symptomatic.begin(), symptomatic.end(), 0.0);
+//    const double cdead = accumulate(symptomatic.begin(), symptomatic.end(), 0.0);
+    cerr << "symptomatic infections, total infections, asymptomatic fraction: " << csymp << ", " << cinf << ", " << 1.0 - (csymp/cinf) << endl;
     cerr << "icu deaths, total deaths, ratio: " << cdeath_icu << ", " << cdeath2 << ", " << cdeath_icu/cdeath2 << endl;
 //  write_daily_buffer(plot_log_buffer, process_id, "plot_log.csv");
-    //return epi_sizes;
     return plot_log_buffer;
 }
 

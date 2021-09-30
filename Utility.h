@@ -91,7 +91,21 @@ namespace covid {
         }
 
         template <typename T> inline
-        T choice(const gsl_rng* RNG, const vector<T> &V) {
+        size_t weighted_choice(const gsl_rng* RNG, const vector<T> &V) {
+            const double sum = accumulate(V.begin(), V.end(), 0.0);
+            double ran = sum*gsl_rng_uniform(RNG);
+            for (size_t i = 0; i < V.size(); ++i) {
+                if (ran < V[i]) {
+                    return i;
+                } else {
+                    ran -= V[i];
+                }
+            }
+            return V.size() - 1;
+        }
+
+        template <typename T> inline
+        T uniform_choice(const gsl_rng* RNG, const vector<T> &V) {
             return V[gsl_rng_uniform_int(RNG, V.size())];
         }
 
