@@ -688,8 +688,8 @@ int retval = system("Rscript simvis.R");
 if (retval == -1) { cerr << "System call to `Rscript simvis.R` failed\n"; }
 }
 
-vector<string> simulate_epidemic(const Parameters* par, Community* &community, const string process_id, const vector<string> mutant_intro_dates/*,
-                                 map<size_t, TimeSeriesAnchorPoint> &social_contact_map*/) {
+vector<string> simulate_epidemic(const Parameters* par, Community* &community, const string process_id, const vector<string> mutant_intro_dates,
+                                 map<size_t, TimeSeriesAnchorPoint> &social_contact_map) {
     SimulationLedger* ledger = new SimulationLedger();
     SimulationCache* init_cache  = nullptr;
 
@@ -722,6 +722,8 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
     //gsl_rng* REPORTING_RNG_ckpt = nullptr;
 
     map<size_t, int> emp_data = parse_emp_data_file(par, "rcasedeath-florida.csv");
+
+    size_t fitting_window_ct = 1;
 
     for (; date->day() < (signed) par->runLength; date->increment()) {
         const size_t sim_day = date->day();
@@ -836,10 +838,15 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
                 community->_clearSocialDistancingTimedIntervention();
                 cerr << "ENTER SOC_CONTACT PARAM FOR FIRST STEP: " << endl;
 
-                double tmp_val = 0.0;
-                cin >> tmp_val;
-                community->_extendSocialDistancingTimedIntervention(tmp_val);
-            } else if ((sim_day + 1) % par->fitting_window == 0) {
+                cin >> social_contact_map[0].value >> social_contact_map[par->fitting_window - 1].value;
+
+                // re-define social contact curve
+                vector<TimeSeriesAnchorPoint> tmp;
+                for (const auto& [key, tsap] : social_contact_map) {
+                    tmp.push_back(tsap);
+                }
+                community->setSocialDistancingTimedIntervention(tmp);
+            } else if ((sim_day + 1) == (fitting_window_ct + 1) * par->fitting_window) {
                 // const pair<bool, pair<size_t, double> > window_fit = check_window_social_contact_fit(par, emp_data, all_reported_cases, sim_day, social_contact_map, 1);
                 // window_fit_is_good = get<bool>(window_fit);
 
@@ -872,13 +879,13 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
                 int fit_is_good = 0;
                 cin >> fit_is_good;
                 if(fit_is_good) {
+                    fitting_window_ct++;
                     // update cache and continue
                     if (init_cache) { delete init_cache; }
                     init_cache = new SimulationCache(community, ledger, RNG, REPORTING_RNG);
 
                     cerr << "ENTER NEXT SOC_CONTACT STEP: " << endl;
-                    double next_val = 0.0;
-                    cin >> next_val;
+                    cin >> social_contact_map[].value;
                     community->_extendSocialDistancingTimedIntervention(next_val);
                 } else {
                     // reload cache and ask for new values
