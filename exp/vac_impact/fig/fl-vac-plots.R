@@ -1,45 +1,187 @@
 
-library(RSQLite)
+library(data.table)
 library(dplyr)
 library(ggplot2)
 library(stringr)
 library(tidyr)
 library(lubridate)
 
+.mutation <- TRUE
 .args <- if (interactive()) c(
-  "covid_vac_v11.0.sqlite", ""
-)
+  "rawresults.rds", as.integer(.mutation), "fl-vac-mutation-0.png"
+) else commandArgs(trailingOnly = TRUE)
 
+muttar <- as.integer(.args[2])
+simdata <- readRDS(.args[1])[mutation == muttar]
+
+#' TODO read from some config file?
 #### Initialization and Database ----
 totalpop_10k <- 375.5 # Adjust accordingly
 #totalpop_10k <- 2061.6 # Adjust accordingly
 max_week <- 100 # Adjust accordingly, start counting from 1
-con <- dbConnect(SQLite(), "./covid_vac_v11.0.sqlite")
-#pal <- c("#000000FF", "#440154FF", "#2C5FFFFF",
-#         "#238A8DFF", "#49C16DFF", "#C8CB15FF")
 
-dbListTables(con)
-met <- dbGetQuery(con, "SELECT * FROM met")
-#pars <- dbGetQuery(con, "SELECT * FROM par")
+inc.dt <- simdata[var %in% c("c", "d")]
+novac <- inc.dt[vac == 0][, -c("serial", "seed", "vac", "variable", "week")]
+withvac <- inc.dt[vac == 1][, -c("serial", "seed", "vac", "variable", "week")]
 
-## Lookup table for week -> date
-start_date <- ymd("2020-02-05")
-dates <- seq(start_date, start_date + max_week*7, by = "week")
-weeks_df <- data.frame(week = -1:(max_week-1), date = dates)
-months <- dates
-day(months) <- 1
-months <- unique(months)
+vac.impact <- withvac[novac, on = .(realization, var, date, mutation), nomatch = 0]
 
-#### Functions ----
-calc_eff <- function (incd, incd_control, start_wk) {
-  # start_wk = when should the cumulation begin, range: 1 to Nweek
-  Nweek <- length(incd)
-  eff2 <- rep(NA, Nweek)
-  if (start_wk > 1) eff2[1:(start_wk-1)] <- 0
-  eff2[start_wk:Nweek] <-
-    (1 - cumsum(incd[start_wk:Nweek]) / cumsum(incd_control[start_wk:Nweek]))
-  return(eff2)
-}
+vac.impact[, averted := i.value - value ]
+vac.impact[, c.value := cumsum(i.value), by=.(var, realization) ]
+vac.impact[order(date), c.averted := cumsum(averted), by=.(var, realization)]
+vac.impact[, c.eff := fifelse(c.value == c.averted, 0, c.averted/c.value)]
+
+plot.mlt <- rbind(melt(
+  vac.impact,
+  id.vars = c("realization", "date", "var"),
+  measure.vars = c("value", "c.averted", "c.eff")
+)[, intervention := TRUE ],
+  vac.impact[,.(realization, date, var, variable = "value", value = i.value, intervention = FALSE)]
+)
+
+datescale <- function() scale_x_date(
+  name=NULL,
+  breaks = function(l) {
+    rl <- round(as.POSIXlt(l), "month")
+    as.Date(seq(rl[1] + 60*60*24*15, rl[2], by="month"))
+  },
+  labels = function(bs) {
+    gsub("^(.).+$","\\1",month.abb[month(bs)])
+  },
+  minor_breaks = NULL
+)
+
+datebg <- function(ylims = c(0,Inf), bandcolor = "grey") list(
+  geom_rect(
+    aes(xmin = start, xmax=end, ymax=ylims[2], ymin=ylims[1]),
+    data = function(dt) {
+      dr <- round(as.POSIXlt(dt[, range(date)]), "month")
+      pts <- seq(dr[1], dr[2], by="month")
+      if (length(pts) %% 2) pts <- head(pts, -1)
+      data.table(
+        start = as.Date(pts[seq(1, length(pts), by=2)]),
+        end = as.Date(pts[seq(2, length(pts), by=2)])
+      )
+    },
+    fill = bandcolor, alpha = 0.1,
+    inherit.aes = FALSE, show.legend = FALSE
+  ),
+  geom_vline(xintercept = as.Date("2021-01-01"), linetype = "dotted"),
+  datescale()
+)
+
+ind.alpha = 0.025
+intervention_scale <- scale_color_manual(
+  name = NULL, values = c(`FALSE`="black", `TRUE`="dodgerblue"),
+  labels = c(`FALSE`="No Vaccine", `TRUE`="Vaccine")
+)
+
+Rt.plot <- ggplot(
+  simdata[var == "Rt"][, .(
+    realization, date, intervention = as.logical(vac), value, var
+  )]
+) + aes(date, value, color = intervention) +
+  facet_grid2(
+    var ~ .,
+    switch = "y",
+    labeller = labeller(
+      var = expression(R[t])
+    )
+  ) +
+  datebg() +
+  geom_hline(yintercept = 1, linetype = "dashed") +
+  geom_line(aes(group=interaction(realization, intervention)), alpha = ind.alpha) +
+  geom_line(data = function(dt) dt[,
+    .(value = median(value)),
+    by=.(intervention, date)
+  ]) +
+  scale_y_continuous(name=NULL, breaks = (1:3)/2) +
+  coord_cartesian(ylim = c(0, 2), expand = FALSE) +
+  theme_minimal() + theme(
+    strip.placement = "outside",
+    axis.text.x = element_blank()
+  ) +
+  intervention_scale
+
+percap.plot <- ggplot(
+  plot.mlt[variable == "value"]
+) + aes(date, value/totalpop_10k, color = intervention) +
+  facet_grid2(
+    variable ~ var,
+    scales = "free_y", independent = "y",
+    switch = "y",
+    labeller = labeller(
+      var = c(c="Symptomatic Infections", d="Deaths"),
+      variable = c(
+        value="Incidence per 10k",
+        c.averted="Cum. Averted\nIncidence per 10k",
+        c.eff="Cum. Effectiveness"
+      )
+    )
+  ) +
+  datebg() +
+  geom_line(aes(group = interaction(realization, intervention)), alpha = ind.alpha) +
+  geom_line(
+    data = function(dt) dt[,
+      .(value = median(value)),
+      by=.(variable, var, intervention, date)
+    ]
+  ) +
+  coord_cartesian(expand = FALSE) +
+  scale_y_continuous(name=NULL) +
+  theme_minimal() + theme(
+    strip.placement = "outside",
+    axis.text.x = element_blank()
+  ) +
+  intervention_scale
+
+eff.plot <- ggplot(
+  plot.mlt[variable == "c.eff"]
+) + aes(date, value, color = intervention) +
+  facet_grid2(
+    variable ~ var,
+    switch = "y", scales = "free", independent = "y",
+    labeller = labeller(
+      var = c(c="Symptomatic Infections", d="Deaths"),
+      variable = c(
+        value="Incidence per 10k",
+        c.averted="Cum. Averted\nIncidence per 10k",
+        c.eff="Cum. Effectiveness"
+      )
+    )
+  ) +
+  datebg() +
+  geom_line(aes(group = interaction(realization, intervention)), alpha = ind.alpha) +
+  geom_line(
+    data = function(dt) dt[,
+                           .(value = median(value)),
+                           by=.(variable, var, intervention, date)
+    ]
+  ) +
+  scale_y_continuous(name=NULL) +
+  theme_minimal() + theme(
+    strip.placement = "outside",
+    strip.background.x = element_blank(),
+    strip.text.x = element_blank()
+  ) +
+  coord_cartesian(ylim = c(NA, 1), expand = FALSE) +
+  intervention_scale
+
+# (Rt.plot + guide_area() + percap.plot + eff.plot) + plot_layout(
+#   guides = "collect",
+#   design="
+# AB
+# CC
+# CC
+# DD
+# ")
+
+(Rt.plot + guide_area() + percap.plot) + plot_layout(
+  guides = "collect",
+  design="
+AB
+CC
+")
 
 plot_curves <- function (epc, param, legend = F, hline = NULL, ...) {
 
