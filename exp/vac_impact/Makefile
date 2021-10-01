@@ -51,4 +51,7 @@ variant-impact.png: variant-plots.R rawresults.rds
 vacc-impact.png: vacc-plots.R rawresults.rds
 	${R}
 
-figs: variant-impact.png vacc-impact.png critical_immunization_threshold.png
+# assumes invoked from this directory...
+
+figs:
+	${MAKE} -wC fig
