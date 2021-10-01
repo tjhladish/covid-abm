@@ -42,7 +42,7 @@ const string output_dir("/ufrc/longini/tjhladish/");
 const string vaccination_file = pop_dir + "/../fl_vac/fl_vac_v3.txt";
 
 const int RESTART_BURNIN          = 0;
-const int FORECAST_DURATION       = 682;
+const int FORECAST_DURATION       = 700;
 //const int FORECAST_DURATION       = 456;
 const int OVERRUN                 = 14; // to get accurate Rt estimates near the end of the forecast duration
 const bool RUN_FORECAST           = true;
@@ -158,15 +158,15 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
 
     const size_t aug09_2021 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-08-09");
     const size_t end_summer_2021 = min(aug09_2021, par->runLength);
-    par->timedInterventions[SCHOOL_CLOSURE].resize(end_summer_2021, 1.0); // 50% reopening on Aug 31
-    par->timedInterventions[SCHOOL_CLOSURE].resize(par->runLength, 0.0); // reopen after beinning of 2021-2022 school year
+    par->timedInterventions[SCHOOL_CLOSURE].resize(end_summer_2021, 1.0); //
+    par->timedInterventions[SCHOOL_CLOSURE].resize(par->runLength, 0.2); // reopen after beinning of 2021-2022 school year
 
     par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].clear();
     par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-04-03"), 0.0);
     par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-05-04"), 1.0);
     par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(par->runLength, 0.0);
 
-    vector<TimeSeriesAnchorPoint> ap = { // tuning for whole FL model
+/*    vector<TimeSeriesAnchorPoint> ap = { // tuning for whole FL model
         {"2020-01-01", 0.0},
         {"2020-03-10", 0.20},
         {"2020-03-15", 0.8},
@@ -175,16 +175,20 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
         {"2020-06-01", 0.05},
         {"2020-07-01", 0.05},
         {"2020-08-01", 0.6},
-        {"2020-09-01", 0.3},
-        {"2020-10-01", 0.15},
+        {"2020-09-01", 0.5},
+        {"2020-10-01", 0.1},
         {"2020-11-01", 0.0},
-        {"2020-12-01", 0.0},
+        {"2020-12-01", 0.1},
         {"2021-01-01", 0.1},
         {"2021-02-01", 0.3},
-        {"2021-02-28", 0.1},
-        {"2021-03-01", 0.0},
+        {"2021-03-01", 0.4},
         {"2021-04-01", 0.0},
-        {"2021-05-01", 0.0}
+        {"2021-05-01", 0.3},
+        {"2021-06-01", 0.2},
+        {"2021-07-01", 0.0},
+        {"2021-08-01", 0.1},
+        {"2021-09-01", 0.25},
+        {"2021-10-01", 0.0}
     };
 
     par->timedInterventions[SOCIAL_DISTANCING].clear();
@@ -195,6 +199,7 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
 
     const double last_value = par->timedInterventions[SOCIAL_DISTANCING].back();
     par->timedInterventions[SOCIAL_DISTANCING].resize(par->runLength, last_value);
+    */
     // -------------------------------------------------------------
 
     //par->defaultReportingLag = 14;
@@ -275,6 +280,7 @@ void parseVaccineFile(string vaccinationFilename, const Parameters* par, Communi
 
     // saves the final vaccination rates for each age bin for use in projected vaccination
     map< int, vector<double> > last_known_vac_rate;
+    size_t last_known_revac_doses = 0;
 
     size_t last_day_of_data = 0;
     while (getline(iss, buffer)) {
@@ -309,6 +315,7 @@ void parseVaccineFile(string vaccinationFilename, const Parameters* par, Communi
             // use date (which is the final day of an week of reported data) from file to cycle through the days in the matching simulation week
             const size_t end_of_week = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, end_of_week_date);
             for(size_t day = end_of_week-6; day <= end_of_week; ++day) {
+                const size_t revacDay = day+par->vaccineDoseInterval;
                 last_day_of_data = max(day, last_day_of_data);
                 if(day >= par->runLength) { continue; }
                 // binomial distribution parameters
@@ -341,7 +348,10 @@ void parseVaccineFile(string vaccinationFilename, const Parameters* par, Communi
                 const size_t emp_daily_standard_first_doses = (size_t) round(daily_total_first_doses * pop_ratio);
                 // doses_available.at(day)[URGENT_ALLOCATION]   += emp_daily_urgent_doses;
                 doses_available.at(day)[STANDARD_ALLOCATION] += emp_daily_standard_first_doses;
-                if(day+par->vaccineDoseInterval < par->runLength) { doses_available.at(day+par->vaccineDoseInterval)[STANDARD_ALLOCATION] += emp_daily_standard_first_doses; }
+                if(revacDay < par->runLength) {
+                    doses_available.at(revacDay)[STANDARD_ALLOCATION] += emp_daily_standard_first_doses;
+                    last_known_revac_doses = doses_available.at(revacDay)[STANDARD_ALLOCATION];
+                }
             }
         }
         // schedule any remaining people
@@ -361,6 +371,7 @@ void parseVaccineFile(string vaccinationFilename, const Parameters* par, Communi
         for(auto const& [bin_min, unsch_grp] : unscheduled_people) { num_current_unsch += unsch_grp.size(); }
 
         for(size_t day = last_day_of_data+1; day < par->runLength; ++day) {
+            const size_t revacDay = day+par->vaccineDoseInterval;
             // const size_t proj_daily_urgent_doses =  * ;
             // const size_t proj_daily_standard_doses = doses_available.at(may29)[STANDARD_ALLOCATION];
             // adjust available doses by the ratio of unscheduled people on day to unscheduled people on 2021-05-29
@@ -389,8 +400,9 @@ void parseVaccineFile(string vaccinationFilename, const Parameters* par, Communi
             people_to_be_scheduled.clear();
 
             // vaccinate same fraction of unvacinated people each day
-            doses_available.at(day)[URGENT_ALLOCATION]   += round(proj_dose_adj*doses_available.at(last_day_of_data)[URGENT_ALLOCATION] / num_current_unsch);
-            doses_available.at(day)[STANDARD_ALLOCATION] += round(proj_dose_adj*doses_available.at(last_day_of_data)[STANDARD_ALLOCATION] / num_current_unsch);
+            // doses_available.at(day)[URGENT_ALLOCATION]   += round(proj_dose_adj*doses_available.at(last_day_of_data)[URGENT_ALLOCATION] / num_current_unsch);
+            doses_available.at(day)[STANDARD_ALLOCATION] += round(proj_dose_adj*last_known_revac_doses / num_current_unsch);
+            if(revacDay < par->runLength) { doses_available.at(revacDay)[STANDARD_ALLOCATION] += round(proj_dose_adj*last_known_revac_doses / num_current_unsch); }
         }
     }
     vc->set_doses_available(doses_available);
@@ -598,34 +610,34 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     // const size_t realization    = (size_t) args[1];
     const bool mutation          = (bool) args[2];
     vector<string> mutant_intro_dates = {};
-    if (mutation) { mutant_intro_dates = {"2021-02-10", "2021-06-01"}; };   // extra semicolon?
+    if (mutation) { mutant_intro_dates = {"2021-02-01", "2021-05-27"}; };   // extra semicolon?
 
     Community* community = build_community(par);
 
-    map<size_t, TimeSeriesAnchorPoint> social_contact_map;
-    vector<TimeSeriesAnchorPoint> initial_social_contact_anchors;
-    if (par->auto_fitting) {
-        const size_t window_size = par->fitting_window;
-
-        Date* param_day = new Date(*community->get_date());
-        for (; (size_t) param_day->day() < par->runLength; param_day->increment()) {
-            if ((param_day->day() % window_size == 0) or (param_day->day() == 0)) {
-                TimeSeriesAnchorPoint tsap = {param_day->to_ymd(), 0.00};
-                social_contact_map[param_day->day()] = tsap;
-                initial_social_contact_anchors.push_back(tsap);
-            }
-        }
-        delete param_day;
-
-cerr << "TEST AUTO SOCIAL CONTACT PARAM GEN" << endl;
-cerr << "SIM DAY\t\tTSAP DATE\t\tTSAP VAL" << endl;
-for (const auto& [sim_day, tsap] : social_contact_map) {
-    cerr << sim_day << "\t\t" << tsap.date << "\t\t" << tsap.value << endl;
-}
-
-        community->setSocialDistancingTimedIntervention(initial_social_contact_anchors);
-
-   }
+//    map<size_t, TimeSeriesAnchorPoint> social_contact_map;
+//    vector<TimeSeriesAnchorPoint> initial_social_contact_anchors;
+//    if (par->auto_fitting) {
+//        const size_t window_size = par->fitting_window;
+//
+//        Date* param_day = new Date(*community->get_date());
+//        for (; (size_t) param_day->day() < par->runLength; param_day->increment()) {
+//            if ((param_day->day() % window_size == 0) or (param_day->day() == 0)) {
+//                TimeSeriesAnchorPoint tsap = {param_day->to_ymd(), 0.00};
+//                social_contact_map[param_day->day()] = tsap;
+//                initial_social_contact_anchors.push_back(tsap);
+//            }
+//        }
+//        delete param_day;
+//
+//cerr << "TEST AUTO SOCIAL CONTACT PARAM GEN" << endl;
+//cerr << "SIM DAY\t\tTSAP DATE\t\tTSAP VAL" << endl;
+//for (const auto& [sim_day, tsap] : social_contact_map) {
+//    cerr << sim_day << "\t\t" << tsap.date << "\t\t" << tsap.value << endl;
+//}
+//
+//        community->setSocialDistancingTimedIntervention(initial_social_contact_anchors);
+//
+//   }
 
     Vac_Campaign* vc = nullptr;
     community->setVac_Campaign(vc);
@@ -659,14 +671,14 @@ for (const auto& [sim_day, tsap] : social_contact_map) {
         const double x_alpha_1 = 0.529; // calculated using quadratic formula: (VES*VEP)x^2 - (VES+VEP)x + VESP_alpha = 0, where VES and VEP are for wildtype
         const double x_alpha_2 = 0.948;
 
-        //const double x_delta_1 = 0.338;
-        //const double x_delta_2 = 0.843;
+        const double x_delta_1 = 0.338;
+        const double x_delta_2 = 0.843;
 
-        //par->VES                   = {{WILDTYPE, {0.40, 0.80}}, {B_1_1_7, {0.40*x_alpha_1, 0.80*x_alpha_2}}, {B_1_617_2, {0.40*x_delta_1, 0.80*x_delta_2}}}; // reduce for delta
-        par->VES                   = {{WILDTYPE, {0.40, 0.80}}, {B_1_1_7, {0.40*x_alpha_1, 0.80*x_alpha_2}}, {B_1_617_2, {0.05, 0.52}}}; // reduce for delta
+        par->VES                   = {{WILDTYPE, {0.40, 0.80}}, {B_1_1_7, {0.40*x_alpha_1, 0.80*x_alpha_2}}, {B_1_617_2, {0.40*x_delta_1, 0.80*x_delta_2}}}; // reduce for delta
+        //par->VES                   = {{WILDTYPE, {0.40, 0.80}}, {B_1_1_7, {0.40*x_alpha_1, 0.80*x_alpha_2}}, {B_1_617_2, {0.05, 0.52}}}; // reduce for delta
         par->VES_NAIVE             = par->VES;
-        //par->VEP                   = {{WILDTYPE, {0.67, 0.75}}, {B_1_1_7, {0.67*x_alpha_1, 0.75*x_alpha_2}}, {B_1_617_2, {0.67*x_delta_1, 0.75*x_delta_2}}}; // reduce for delta
-        par->VEP                   = {{WILDTYPE, {0.67, 0.75}}, {B_1_1_7, {0.67*x_alpha_1, 0.75*x_alpha_2}}, {B_1_617_2, {0.29, 0.75}}}; // reduce for delta
+        par->VEP                   = {{WILDTYPE, {0.67, 0.75}}, {B_1_1_7, {0.67*x_alpha_1, 0.75*x_alpha_2}}, {B_1_617_2, {0.67*x_delta_1, 0.75*x_delta_2}}}; // reduce for delta
+        //par->VEP                   = {{WILDTYPE, {0.67, 0.75}}, {B_1_1_7, {0.67*x_alpha_1, 0.75*x_alpha_2}}, {B_1_617_2, {0.29, 0.75}}}; // reduce for delta
         par->VEH                   = {{WILDTYPE, {0.9, 1.0}},   {B_1_1_7, {0.9, 1.0}}, {B_1_617_2, {0.9, 1.0}}};
         par->VEI                   = {{WILDTYPE, {0.4, 0.8}},   {B_1_1_7, {0.2, 0.5}}, {B_1_617_2, {0.1, 0.1}}};
         par->VEF                   = {{WILDTYPE, {0.0, 0.0}},   {B_1_1_7, {0.0, 0.0}}, {B_1_617_2, {0.0, 0.0}}}; // effect likely captured by VEH
@@ -685,7 +697,33 @@ for (const auto& [sim_day, tsap] : social_contact_map) {
     }
 
     seed_epidemic(par, community, WILDTYPE);
-    vector<string> plot_log_buffer = simulate_epidemic(par, community, process_id, mutant_intro_dates, social_contact_map);
+    vector<string> plot_log_buffer = simulate_epidemic(par, community, process_id, mutant_intro_dates);//, social_contact_map);
+
+    vector<double> cases(par->runLength, 0.0);
+    vector<double> deaths(par->runLength, 0.0);
+
+    for (auto person: community->getPeople()) {
+        if (person->getNumNaturalInfections()) {
+            vector<Infection*> infections = person->getInfectionHistory();
+            for (Infection* inf: infections) {
+                if (inf->detection()) {
+                    const int inf_date = inf->detection()->reported_time;
+                    if (inf_date < (int) cases.size()) {
+                        cases[inf_date]++;
+                        if (inf->fatal()) {
+                            deaths[inf_date]++;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+//    Date dummy_date(par);
+//    for (unsigned int i = 0; i < cases.size(); ++i ) {
+//        cerr << "cfr: " << i << " " << dummy_date.to_ymd() << " " << std::setprecision(4) << deaths[i] << " " << cases[i] << endl;
+//        dummy_date.increment();
+//    }
 
 // comment out this block if simvis.R is not needed
 {

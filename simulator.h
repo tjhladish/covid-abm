@@ -205,21 +205,8 @@ void periodic_output(const Parameters* par, map<string, vector<int> > &periodic_
     fputs(output.c_str(), stdout);
 }
 
-/*void update_vaccinations(const Parameters* par, Community* community, const Date* date) {
-    const int doseInterval = par->vaccineDoseInterval;
-    assert(doseInterval > 0); // only non-zero positive ints are sensible
-    //const int boostInterval = par->vaccineBoostingInterval;
-    for (CatchupVaccinationEvent cve: par->catchupVaccinationEvents) {
-        // Normal, initial vaccination -- boosting, multiple doses handled in Community::tick()
-        if (date->day() >= (signed) cve.campaignStart and date->day() < (signed) (cve.campaignStart + cve.campaignDuration)) {
-            if (par->abcVerbose) cerr << "vaccinating " << cve.coverage*100 << "% of age " << cve.age << " over " << cve.campaignDuration << " days starting on day " << cve.campaignStart << endl;
-            community->vaccinate(cve);
-        }
-    }
-}*/
 
-
-int seed_epidemic(const Parameters* par, Community* community, const Date* date, vector<StrainType> strains) {
+int seed_epidemic(const Parameters* par, Community* community, const Date* date, vector<double> strain_weights) {
     int introduced_infection_ct = 0;
     const int numperson = community->getNumPeople();
     const size_t dailyExposedIdx = date->day() % par->probDailyExposure.size();
@@ -231,71 +218,12 @@ int seed_epidemic(const Parameters* par, Community* community, const Date* date,
         for (int i=0; i<num_exposed; i++) {
             // gsl_rng_uniform_int returns on [0, numperson-1]
             int transmit_to_id = gsl_rng_uniform_int(RNG, numperson);
-            if (community->infect(transmit_to_id, choice(RNG, strains))) {
+            if (community->infect(transmit_to_id, (StrainType) weighted_choice(RNG, strain_weights))) {
                 introduced_infection_ct++;
             }
         }
     }
     return introduced_infection_ct;
-}
-
-
-void advance_simulator(const Parameters* par, Community* community, Date* date, const string process_id, map<string, vector<int> > &periodic_incidence, vector<int> &periodic_prevalence, vector<int> &epi_sizes) {
-    community->tick();
-
-    vector<StrainType> strains = {WILDTYPE};
-    seed_epidemic(par, community, date, strains);
-
-    for (Person* p: community->getPeople()) {
-        const int now = date->day();
-
-        if (p->isInfected(now) or p->isSymptomatic(now) or p->isDead(now)) {
-            const Infection* infec = p->getInfection();
-            bool intro  = not infec->isLocallyAcquired();
-
-            // Incidence
-            if (infec->getInfectedTime() == now) {
-                periodic_incidence["daily"][INTRO_INF]      += intro;
-                periodic_incidence["daily"][TOTAL_INF]      += 1;
-            }
-
-            if (infec->getSymptomTime() == now) {
-                periodic_incidence["daily"][INTRO_CASE]     += intro;
-                periodic_incidence["daily"][TOTAL_CASE]     += 1;
-            }
-
-            if (infec->getSevereTime() == now) {
-                periodic_incidence["daily"][INTRO_SEVERE]   += intro;
-                periodic_incidence["daily"][TOTAL_SEVERE]   += 1;
-            }
-
-            if (infec->getCriticalTime() == now) {
-                periodic_incidence["daily"][INTRO_CRITICAL] += intro;
-                periodic_incidence["daily"][TOTAL_CRITICAL] += 1;
-            }
-
-            if (infec->getDeathTime() == now) {
-                periodic_incidence["daily"][INTRO_DEATH]    += intro;
-                periodic_incidence["daily"][TOTAL_DEATH]    += 1;
-            }
-
-            // Prevalence
-            periodic_prevalence[INTRO_INF_PREV]      += intro and infec->isInfected(now);
-            periodic_prevalence[INTRO_CASE_PREV]     += intro and infec->isSymptomatic(now);
-            periodic_prevalence[INTRO_SEVERE_PREV]   += intro and infec->isSevere(now);
-            periodic_prevalence[INTRO_CRITICAL_PREV] += intro and infec->isCritical(now);
-            periodic_prevalence[INTRO_DEATH_PREV]    += intro and infec->isDead(now);
-
-            periodic_prevalence[TOTAL_INF_PREV]      += infec->isInfected(now);
-            periodic_prevalence[TOTAL_CASE_PREV]     += infec->isSymptomatic(now);
-            periodic_prevalence[TOTAL_SEVERE_PREV]   += infec->isSevere(now);
-            periodic_prevalence[TOTAL_CRITICAL_PREV] += infec->isCritical(now);
-            periodic_prevalence[TOTAL_DEATH_PREV]    += infec->isDead(now);
-        }
-    }
-
-    periodic_output(par, periodic_incidence, periodic_prevalence, date, process_id, epi_sizes);
-    return;
 }
 
 
@@ -352,7 +280,7 @@ SCENARIOS (assume that the window is already deemed to have a bad fit):
 
 */
 
-size_t closest_window_param(const signed int day_to_check, const signed int window_start, const signed int window_mid, const signed int window_end) {
+/*size_t closest_window_param(const signed int day_to_check, const signed int window_start, const signed int window_mid, const signed int window_end) {
 //    map<int, size_t> day_to_check_diffs;
 //    vector<int> window_diffs;
 //
@@ -372,9 +300,9 @@ size_t closest_window_param(const signed int day_to_check, const signed int wind
     } else {
         return (size_t) window_start;
     }
-}
+}*/
 
-pair<size_t, double> social_contact_param_to_adj(const Parameters* par, const size_t sim_day, map<size_t, TimeSeriesAnchorPoint> &social_contact_map,
+/*pair<size_t, double> social_contact_param_to_adj(const Parameters* par, const size_t sim_day, map<size_t, TimeSeriesAnchorPoint> &social_contact_map,
                                                  const map<size_t, double> &window_fit_map) {
     size_t window_end = 0;
     for (size_t adj = 0; adj < par->fitting_window; ++adj) {
@@ -474,9 +402,9 @@ cerr << "ADJUSTMENT: " << param_adjustment << endl;
 cerr << "NEW PARAM: " << new_param << endl;
 
     return pair<size_t, double>{day_to_adj, new_param};
-}
+}*/
 
-pair<bool, pair<size_t, double> > check_window_social_contact_fit(const Parameters* par, map<size_t, int> &emp_data, const vector<size_t> &sim_rcases, const size_t sim_day_today,
+/*pair<bool, pair<size_t, double> > check_window_social_contact_fit(const Parameters* par, map<size_t, int> &emp_data, const vector<size_t> &sim_rcases, const size_t sim_day_today,
                                                    map<size_t, TimeSeriesAnchorPoint> &social_contact_map, const double fitting_threshold) {
     const size_t emp_start = emp_data.begin()->first;
     const size_t emp_end   = emp_data.end()->first;
@@ -546,7 +474,7 @@ pair<bool, pair<size_t, double> > check_window_social_contact_fit(const Paramete
             return pair<bool, pair<size_t, double> >{true, {par->runLength, 0.0}};
         }
     }
-}
+}*/
 
 // pair<bool, double> check_daily_social_contact_fit(const Parameters* par, map<size_t, int> &emp_data, const vector<size_t> &sim_rcases, const size_t sim_day_today,
 //                                                      const double fitting_threshold) {
@@ -602,7 +530,7 @@ pair<bool, pair<size_t, double> > check_window_social_contact_fit(const Paramete
 //     }
 // }
 
-void alter_social_contact_params(const Parameters* par, const pair<size_t, double> adjustment, map<size_t, TimeSeriesAnchorPoint> &social_contact_map) {
+/*void alter_social_contact_params(const Parameters* par, const pair<size_t, double> adjustment, map<size_t, TimeSeriesAnchorPoint> &social_contact_map) {
     const size_t day_to_adj               = get<size_t>(adjustment);
     const double social_contact_param_adj = get<double>(adjustment);
 
@@ -621,7 +549,7 @@ void alter_social_contact_params(const Parameters* par, const pair<size_t, doubl
         }
     }
     delete tmp_date;
-}
+}*/
 
 class SimulationLedger {
 public:
@@ -641,7 +569,7 @@ public:
     map<string, vector<int> > periodic_incidence;
     vector<int> periodic_prevalence;
     vector<string> plot_log_buffer;
-    vector<StrainType> strains;
+    vector<double> strains;
 };
 
 class SimulationCache {
@@ -688,12 +616,12 @@ int retval = system("Rscript simvis.R");
 if (retval == -1) { cerr << "System call to `Rscript simvis.R` failed\n"; }
 }
 
-vector<string> simulate_epidemic(const Parameters* par, Community* &community, const string process_id, const vector<string> mutant_intro_dates,
-                                 map<size_t, TimeSeriesAnchorPoint> &social_contact_map) {
-    SimulationLedger* ledger = new SimulationLedger();
-    SimulationCache* init_cache  = nullptr;
+vector<string> simulate_epidemic(const Parameters* par, Community* &community, const string process_id, const vector<string> mutant_intro_dates) {//,
+                                 //map<size_t, TimeSeriesAnchorPoint> &social_contact_map) {
+    SimulationLedger* ledger    = new SimulationLedger();
+    SimulationCache* sim_cache  = nullptr;
 
-    bool window_fit_is_good = true;
+    //bool window_fit_is_good = true;
     //vector<int> epi_sizes;
     //vector<string> daily_output_buffer;
 
@@ -703,41 +631,105 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
     ledger->periodic_prevalence = vector<int>(NUM_OF_PREVALENCE_REPORTING_TYPES, 0);
     vector<double> trailing_averages(par->runLength);
     const double pop_at_risk = min(community->getNumPeople(), par->numSurveilledPeople);
+    vector<TimeSeriesAnchorPoint> social_distancing_anchors;
 
     //vector<string> plot_log_buffer = {"date,sd,seasonality,vocprev1,vocprev2,cinf,closed,rcase,rdeath,inf,rhosp,Rt"};
     ledger->plot_log_buffer = {"date,sd,seasonality,vocprev1,vocprev2,cinf,closed,rcase,rdeath,inf,rhosp,Rt"};
 
     Date* date = community->get_date();
-    //vector<StrainType> strains = {WILDTYPE};
-    ledger->strains = {WILDTYPE};
-
-    //vector<int> epi_sizes_ckpt;
-    //vector<string> daily_output_buffer_ckpt;
-    //map<string, vector<int> > periodic_incidence_ckpt;
-    //vector<int> periodic_prevalence_ckpt;
-    //vector<string> plot_log_buffer_ckpt;
-    //vector<StrainType> strains_ckpt;
-    //Community* community_ckpt   = nullptr;
-    //gsl_rng* RNG_ckpt           = nullptr;
-    //gsl_rng* REPORTING_RNG_ckpt = nullptr;
+    ledger->strains = {50.0, 0.0, 0.0}; // initially all WILDTYPE
+    assert(ledger->strains.size() == NUM_OF_STRAIN_TYPES);
 
     map<size_t, int> emp_data = parse_emp_data_file(par, "rcasedeath-florida.csv");
 
     size_t fitting_window_ct = 1;
 
+    if (par->auto_fitting) {
+        // inital sim cache
+        sim_cache = new SimulationCache(community, ledger, RNG, REPORTING_RNG);
+
+        community->_clearSocialDistancingTimedIntervention();
+        cerr << "ENTER SOC_CONTACT PARAMS FOR FIRST AND SECOND ANCHOR POINTS: " << endl;
+
+        double val1, val2;
+        cin >> val1 >> val2;
+        social_distancing_anchors.emplace_back(Date::to_ymd(0, par), val1);
+        social_distancing_anchors.emplace_back(Date::to_ymd(par->fitting_window - 1, par), val2);
+        community->setSocialDistancingTimedIntervention(social_distancing_anchors);
+    }
+
+    bool recache = false;
+
     for (; date->day() < (signed) par->runLength; date->increment()) {
-        const size_t sim_day = date->day();
+        if (par->auto_fitting) {
+            const size_t day = date->day();
+            if (recache and (day + 1) == fitting_window_ct * par->fitting_window) {
+                if (sim_cache) { delete sim_cache; } 
+                sim_cache = new SimulationCache(community, ledger, RNG, REPORTING_RNG);
+                fitting_window_ct++;
+                recache = false;
+            } else if ((day + 1) == (fitting_window_ct + 1) * par->fitting_window) {
+                gen_simvis(ledger->plot_log_buffer);
+                for (auto anchor: social_distancing_anchors) { cerr << anchor.date << ": " << anchor.value << endl; }
+                for (size_t d = 0; d <= day; ++d) { cerr << d << ": " << community->social_distancing(d) << endl; }
+                cerr << "IS THE FIT GOOD?" << endl;
+                int fit_is_good = 0;
+                cin >> fit_is_good;
+                if(fit_is_good) {
+                    recache = true;
+                    cerr << "ENTER NEXT SOC_CONTACT STEP: " << endl;
+                    double val1;
+                    cin >> val1;
+                    social_distancing_anchors.emplace_back(Date::to_ymd((par->fitting_window * (fitting_window_ct + 1)) - 1, par), val1);
+                } else {
+                    if (fitting_window_ct == 1) {
+                        cerr << "ENTER SOC_CONTACT PARAMS FOR FIRST AND SECOND ANCHOR POINTS: " << endl;
+
+                        double val1, val2;
+                        cin >> val1 >> val2;
+                        social_distancing_anchors[0] = {Date::to_ymd(0, par), val1};
+                        social_distancing_anchors[1] = {Date::to_ymd(par->fitting_window - 1, par), val2};
+                    } else {
+                        cerr << "ENTER NEW VALUE FOR THIS WINDOW'S SOC_CONTACT PARAM: " << endl;
+                        double val;
+                        cin >> val;
+                        social_distancing_anchors.back() = {Date::to_ymd((par->fitting_window * fitting_window_ct) - 1, par), val};
+                    }
+                }
+
+                if (ledger) { delete ledger; }
+                ledger = new SimulationLedger(*(sim_cache->sim_ledger));
+
+                if (community) { delete community; }
+                community = new Community(*(sim_cache->community));
+                date      = community->get_date();
+                community->setSocialDistancingTimedIntervention(social_distancing_anchors);
+
+                if (sim_cache->rng)           { gsl_rng_memcpy(RNG, sim_cache->rng); }
+                if (sim_cache->reporting_rng) { gsl_rng_memcpy(REPORTING_RNG, sim_cache->reporting_rng); }
+            }
+        }
+
         //update_vaccinations(par, community, date);
         community->tick();
+        const size_t sim_day = date->day();
 
         if ( mutant_intro_dates.size() ) {
             if (*date >= mutant_intro_dates[0] and *date < mutant_intro_dates[1]) {
-                //strains = {WILDTYPE, B_1_1_7};
-                //strains = {B_1_1_7};
-                ledger->strains = {B_1_1_7};
+                //const int time_since_intro = date->day() - Date::to_sim_day(par->julian_start_day, par->julian_start_year, mutant_intro_dates[0]);
+                if (ledger->strains[WILDTYPE] > 1) {
+                    ledger->strains[WILDTYPE]--;
+                    ledger->strains[B_1_1_7]++;
+                }
             } else if (*date >= mutant_intro_dates[1]) {
-                //strains = {B_1_617_2};
-                ledger->strains = {B_1_617_2};
+                if (ledger->strains[WILDTYPE] > 1) {
+                    ledger->strains[WILDTYPE]--;
+                    ledger->strains[B_1_617_2]++;
+                }
+                if (ledger->strains[B_1_1_7] > 1) {
+                    ledger->strains[B_1_1_7]--;
+                    ledger->strains[B_1_617_2]++;
+                }
             }
         }
 
@@ -787,261 +779,9 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
            << rhosp[sim_day]*1e4/pop_at_risk;
         ledger->plot_log_buffer.push_back(ss.str());
 
-        // NEW APPROACH: EACH WINDOW IS INDEPENDENT OF EACH OTHER
-        const double fitting_threshold = 0.05;
-        if (par->auto_fitting) {
-//            bool override_fitting = false;
-//            if (not window_fit_is_good) {
-//                // check daily fit
-//                const pair<bool, double> todays_fit   = check_daily_social_contact_fit(par, emp_data, all_reported_cases, sim_day, 0.05);
-//                const bool daily_fit_is_good          = get<bool>(todays_fit);
-//                const double social_contact_param_adj = get<double>(todays_fit);
-//
-//                if (not daily_fit_is_good) {
-//                    alter_social_contact_params(par, sim_day, social_contact_map, social_contact_param_adj);
-//
-//                    // restore most recent fluid cache
-//                    vector<size_t> cache_keys;
-//                    for (const auto& [key_day, cache_ptr] : fluid_cache_map) { cache_keys.push_back(key_day); }
-//                    const SimulationCache* oldest_cache = fluid_cache_map[min_element(cache_keys)];
-//
-//                    if (ledger) { delete ledger; }
-//                    ledger = new SimulationLedger(*(oldest_cache->sim_ledger));
-//        
-//                    if (community) { delete community; }
-//                    community = new Community(*(oldest_cache->community));
-//                    date      = community->get_date();
-//        
-//                    if (oldest_cache->rng)           { gsl_rng_memcpy(RNG, oldest_cache->rng); }
-//                    if (oldest_cache->reporting_rng) { gsl_rng_memcpy(REPORTING_RNG, oldest_cache->reporting_rng); }
-//
-//                    // re-define social contact curve
-//                    vector<TimeSeriesAnchorPoint> tmp;
-//                    for (const auto& [key, tsap] : social_contact_map) {
-//                        tmp.push_back(tsap);
-//                    }
-//                    community->setSocialDistancingTimedIntervention(tmp);
-//
-//                    // check window fit again
-//                    window_fit_is_good = true;
-//                    continue;
-//                } else if ((sim_day + 1) % par->fitting_window == 0) {
-//                    // we are here if daily checks are all good although the window fit was deemed unacceptable
-//                    cerr << "ALL DAYS ARE GOOD" << endl;
-//                    override_fitting = true;
-//                }
-//            }
-            // inital sim cache
-            if (sim_day == 0) {
-                init_cache               = new SimulationCache(community, ledger, RNG, REPORTING_RNG);
-
-                community->_clearSocialDistancingTimedIntervention();
-                cerr << "ENTER SOC_CONTACT PARAM FOR FIRST STEP: " << endl;
-
-                cin >> social_contact_map[0].value >> social_contact_map[par->fitting_window - 1].value;
-
-                // re-define social contact curve
-                vector<TimeSeriesAnchorPoint> tmp;
-                for (const auto& [key, tsap] : social_contact_map) {
-                    tmp.push_back(tsap);
-                }
-                community->setSocialDistancingTimedIntervention(tmp);
-            } else if ((sim_day + 1) == (fitting_window_ct + 1) * par->fitting_window) {
-                // const pair<bool, pair<size_t, double> > window_fit = check_window_social_contact_fit(par, emp_data, all_reported_cases, sim_day, social_contact_map, 1);
-                // window_fit_is_good = get<bool>(window_fit);
-
-                // if (window_fit_is_good /*or override_fitting*/) {
-                //     // update fluid cache
-                //     //override_fitting = false;
-                // } else {
-                //     alter_social_contact_params(par, get< pair<size_t, double> >(window_fit), social_contact_map);
-                //     // restore fluid cache
-
-                //     if (ledger) { delete ledger; }
-                //     ledger = new SimulationLedger(*(init_cache->sim_ledger));
-        
-                //     if (community) { delete community; }
-                //     community = new Community(*(init_cache->community));
-                //     date      = community->get_date();
-        
-                //     if (init_cache->rng)           { gsl_rng_memcpy(RNG, init_cache->rng); }
-                //     if (init_cache->reporting_rng) { gsl_rng_memcpy(REPORTING_RNG, init_cache->reporting_rng); }
-
-                //     // re-define social contact curve
-                //     vector<TimeSeriesAnchorPoint> tmp;
-                //     for (const auto& [key, tsap] : social_contact_map) {
-                //         tmp.push_back(tsap);
-                //     }
-                //     community->setSocialDistancingTimedIntervention(tmp);
-                // }
-                gen_simvis(ledger->plot_log_buffer);
-                cerr << "IS THE FIT GOOD?" << endl;
-                int fit_is_good = 0;
-                cin >> fit_is_good;
-                if(fit_is_good) {
-                    fitting_window_ct++;
-                    // update cache and continue
-                    if (init_cache) { delete init_cache; }
-                    init_cache = new SimulationCache(community, ledger, RNG, REPORTING_RNG);
-
-                    cerr << "ENTER NEXT SOC_CONTACT STEP: " << endl;
-                    cin >> social_contact_map[].value;
-                    community->_extendSocialDistancingTimedIntervention(next_val);
-                } else {
-                    // reload cache and ask for new values
-                    if (ledger) { delete ledger; }
-                    ledger = new SimulationLedger(*(init_cache->sim_ledger));
-
-                    if (community) { delete community; }
-                    community = new Community(*(init_cache->community));
-                    date      = community->get_date();
-        
-                    if (init_cache->rng)           { gsl_rng_memcpy(RNG, init_cache->rng); }
-                    if (init_cache->reporting_rng) { gsl_rng_memcpy(REPORTING_RNG, init_cache->reporting_rng); }
-
-                    cerr << "ENTER NEW VALUE FOR THIS WINDOW'S SOC_CONTACT PARAM: " << endl;
-                    double update_val;
-                    cin >> update_val;
-                    community->_extendSocialDistancingTimedIntervention(update_val);
-                }
-            }
-        }
-
-//        // PREVIOUS APPROACH
-//        if (par->auto_fitting) {
-//            if (sim_day == 0) { // create initial cache
-//    cerr << "INITIAL SIM CACHE" << endl;
-//                sim_cache_map[sim_day] = new SimulationCache(community, ledger, RNG, REPORTING_RNG);
-//            } else if ((sim_day + 1) % par->fitting_window == 0) { // if at a checkpoint...
-//                const size_t window_start_day = (sim_day + 1) - par->fitting_window;
-//                pair<bool, double> social_contact_fit = check_social_contact_fit(par, emp_data, all_reported_cases, sim_day, fitting_threshold);
-//                const bool fit_is_good                = get<bool>(social_contact_fit);
-//                const double new_social_contact_param = get<double>(social_contact_fit);
-//    
-//                // TODO(alex): auto fitting needs to be able to adjust transmissibility when fit is bad and social contact param is already 0
-//                // only replace cache if at the end of the month and the fit is good
-//                if (fit_is_good) { // replace cache
-//                    if (sim_cache_map.size() < 2) {
-//    cerr << "INSERTING CACHED SIM" << endl;
-//                        sim_cache_map[sim_day] = new SimulationCache(community, ledger, RNG, REPORTING_RNG);
-//                    } else if (sim_cache_map.size() == 2) {
-//                        vector<size_t> cache_keys;
-//                        for (const auto& [key_day, cache_ptr] : sim_cache_map) { cache_keys.push_back(key_day); }
-//                        if (sim_cache_map.count(sim_day)) {
-//                            delete sim_cache_map[sim_day];
-//    cerr << "REPLACING CACHED SIM" << endl;
-//                            sim_cache_map[sim_day] = new SimulationCache(community, ledger, RNG, REPORTING_RNG);
-//                        } else {
-//                            const size_t oldest_cache_key = min_element(cache_keys);
-//    cerr << "DELETING OLDEST CACHED SIM" << endl;
-//                            if (sim_cache_map[oldest_cache_key]) {
-//                                delete sim_cache_map[oldest_cache_key];
-//                                sim_cache_map.erase(oldest_cache_key);
-//                            }
-//    cerr << "INSERTING CACHED SIM" << endl;
-//                            sim_cache_map[sim_day] = new SimulationCache(community, ledger, RNG, REPORTING_RNG);
-//                        }
-//                    } else {
-//                        cerr << "WEIRD" << endl; 
-//                        exit(-42);
-//                    }
-//                } else { 
-//                    if ((social_contact_map[window_start_day].value == 1.0 and new_social_contact_param > 0) or 
-//                        (social_contact_map[window_start_day].value == 0.0 and new_social_contact_param < 0)) {
-//                        cerr << "NO PARAMETERS TO CHANGE. CACHING AND CONTINUING..." << endl;
-//                        if (sim_cache_map.size() < 2) {
-//        cerr << "INSERTING CACHED SIM" << endl;
-//                            sim_cache_map[sim_day] = new SimulationCache(community, ledger, RNG, REPORTING_RNG);
-//                        } else if (sim_cache_map.size() == 2) {
-//                            vector<size_t> cache_keys;
-//                            for (const auto& [key_day, cache_ptr] : sim_cache_map) { cache_keys.push_back(key_day); }
-//                            if (sim_cache_map.count(sim_day)) {
-//                                delete sim_cache_map[sim_day];
-//        cerr << "REPLACING CACHED SIM" << endl;
-//                                sim_cache_map[sim_day] = new SimulationCache(community, ledger, RNG, REPORTING_RNG);
-//                            } else {
-//                                const size_t oldest_cache_key = min_element(cache_keys);
-//        cerr << "DELETING OLDEST CACHED SIM" << endl;
-//                                if (sim_cache_map[oldest_cache_key]) {
-//                                    delete sim_cache_map[oldest_cache_key];
-//                                    sim_cache_map.erase(oldest_cache_key);
-//                                }
-//        cerr << "INSERTING CACHED SIM" << endl;
-//                                sim_cache_map[sim_day] = new SimulationCache(community, ledger, RNG, REPORTING_RNG);
-//                            }
-//                        } else {
-//                            cerr << "WEIRD" << endl; 
-//                            exit(-42);
-//                        }
-//                    } else {
-//                        // change this month's social contact parameter and restore cache
-//        cerr << "ALTERING PARAMETER" << endl;
-//                        social_contact_map[window_start_day].value += new_social_contact_param;
-//                        if (social_contact_map[window_start_day].value > 1.0)      { social_contact_map[window_start_day].value = 1.0; }
-//                        else if (social_contact_map[window_start_day].value < 0.0) { social_contact_map[window_start_day].value = 0.0; }
-//    
-//                        vector<TimeSeriesAnchorPoint> tmp;
-//                        for (const auto& [key, tsap] : social_contact_map) {
-//                            tmp.push_back(tsap);
-//                        }
-//        
-//                        // restore cache
-//        cerr << "RESTORING" << endl;
-//                        vector<size_t> cache_keys;
-//                        for (const auto& [key_day, cache_ptr] : sim_cache_map) { cache_keys.push_back(key_day); }
-//        cerr << "OLDEST CACHE " << min_element(cache_keys) << endl;
-//                        const SimulationCache* oldest_cache = sim_cache_map[min_element(cache_keys)];
-//        
-//                        if (ledger) { delete ledger; }
-//                        ledger = new SimulationLedger(*(oldest_cache->sim_ledger));
-//        
-//                        if (community) { delete community; }
-//                        community = new Community(*(oldest_cache->community));
-//                        date      = community->get_date();
-//        
-//                        if (oldest_cache->rng)           { gsl_rng_memcpy(RNG, oldest_cache->rng); }
-//                        if (oldest_cache->reporting_rng) { gsl_rng_memcpy(REPORTING_RNG, oldest_cache->reporting_rng); }
-//        
-//                        // re-define social contact curve
-//                        community->setSocialDistancingTimedIntervention(tmp);
-//                    }
-//                }
-//            }
-//        }
-
-/*        if (sim_day == 30) { // checkpoint now
-cerr << "CHECKPOINTING" << endl;
-            epi_sizes_ckpt           = epi_sizes;
-            daily_output_buffer_ckpt = daily_output_buffer;
-            periodic_incidence_ckpt  = periodic_incidence;
-            periodic_prevalence_ckpt = periodic_prevalence;
-            plot_log_buffer_ckpt     = plot_log_buffer;
-            strains_ckpt             = strains;
-            if (community_ckpt) { delete community_ckpt; }
-            community_ckpt           = new Community(*community);
-            RNG_ckpt                 = gsl_rng_clone(RNG);
-            REPORTING_RNG_ckpt       = gsl_rng_clone(REPORTING_RNG);
-        } else if (sim_day == 45 and checkpointCount++ < 1) { // reset now
-cerr << "RESTORING" << endl;
-            epi_sizes                = epi_sizes_ckpt;
-            daily_output_buffer      = daily_output_buffer_ckpt;
-            periodic_incidence       = periodic_incidence_ckpt;
-            periodic_prevalence      = periodic_prevalence_ckpt;
-            plot_log_buffer          = plot_log_buffer_ckpt;
-            strains                  = strains_ckpt;
-            if (community) { delete community; }
-            community                = new Community(*community_ckpt);
-            date                     = community->get_date();
-            if (RNG_ckpt) { gsl_rng_memcpy(RNG, RNG_ckpt); }
-            if (REPORTING_RNG_ckpt) { gsl_rng_memcpy(REPORTING_RNG, REPORTING_RNG_ckpt); }
-        }*/
-
     }
 
-    //if (community_ckpt)     { delete community_ckpt; }
-    //if (RNG_ckpt)           { gsl_rng_free(RNG_ckpt); }
-    //if (REPORTING_RNG_ckpt) { gsl_rng_free(REPORTING_RNG_ckpt); }
-    if (init_cache)  { delete init_cache; }
+    if (sim_cache)  { delete sim_cache; }
 
     double cdeath_icu   = 0.0;
     double cdeath2      = 0.0;
@@ -1053,6 +793,19 @@ cerr << "RESTORING" << endl;
             cdeath_icu += p->getInfection()->icu();
         }
     }
+
+    const vector<size_t> infections         = community->getNumNewlyInfected();
+    const vector<size_t> symptomatic        = community->getNumNewlySymptomatic();
+//    const vector<size_t> severe             = community->getNumNewlySevere();
+//    const vector<size_t> critical           = community->getNumNewlyCritical();
+//    const vector<size_t> dead               = community->getNumNewlyDead();
+//
+    const double cinf  = accumulate(infections.begin(), infections.end(), 0.0);
+    const double csymp = accumulate(symptomatic.begin(), symptomatic.end(), 0.0);
+//    const double csev  = accumulate(symptomatic.begin(), symptomatic.end(), 0.0);
+//    const double ccrit = accumulate(symptomatic.begin(), symptomatic.end(), 0.0);
+//    const double cdead = accumulate(symptomatic.begin(), symptomatic.end(), 0.0);
+    cerr << "symptomatic infections, total infections, asymptomatic fraction: " << csymp << ", " << cinf << ", " << 1.0 - (csymp/cinf) << endl;
     cerr << "icu deaths, total deaths, ratio: " << cdeath_icu << ", " << cdeath2 << ", " << cdeath_icu/cdeath2 << endl;
 
 //  write_daily_buffer(plot_log_buffer, process_id, "plot_log.csv");

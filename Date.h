@@ -21,6 +21,8 @@ static const std::vector<size_t> LEAP_DAYS_IN_MONTH = {31, 29, 31, 30, 31, 30, 3
 static const std::vector<size_t> LEAP_END_DAY_OF_MONTH = {31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335, 366};
 
 struct TimeSeriesAnchorPoint {
+    TimeSeriesAnchorPoint() {};
+    TimeSeriesAnchorPoint(string d, double v) : date(d), value(v) {};
     string date;
     double value;
 };
@@ -94,7 +96,8 @@ class Date {
     }
 
     DayOfWeekType dayOfWeek() const { return dayOfWeek(julianYear(), julianMonth(), dayOfMonth()); }
-
+    bool isWeekend() const { return dayOfWeek() == SATURDAY or dayOfWeek() == SUNDAY; }
+    bool isWeekday() const { return not isWeekend(); }
 
     string dayOfWeekName(int y, int m, int d) const { return DAY_NAMES[dayOfWeek(y, m, d)]; }
     string dayOfWeekName()   const { return DAY_NAMES[dayOfWeek()]; }
@@ -230,6 +233,16 @@ class Date {
            << setw(2) << julianMonth(julian_day, julian_year) << sep
            << setw(2) << dayOfMonth(julian_day, julian_year);
         return ss.str();
+    }
+
+    static string to_ymd (int sim_day, const Parameters* par) {
+        size_t julian_year  = par->startJulianYear;
+        long int julian_day = par->startDayOfYear + sim_day;
+
+        while (julian_day > (long int) num_days_in_year(julian_year)) { julian_day -= num_days_in_year(julian_year++); }
+        while (julian_day < 1)                                        { julian_day += num_days_in_year(--julian_year); }
+
+        return to_ymd(julian_year, julian_day);
     }
 
     string to_ymd() const {
