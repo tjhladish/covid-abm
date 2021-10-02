@@ -1,10 +1,8 @@
 
 library(data.table)
-library(dplyr)
 library(ggplot2)
-library(stringr)
-library(tidyr)
-library(lubridate)
+library(ggh4x)
+library(grid)
 
 .mutation <- TRUE
 .args <- if (interactive()) c(
@@ -63,7 +61,7 @@ datebg <- function(ylims = c(0,Inf), bandcolor = "grey") list(
         end = as.Date(pts[seq(2, length(pts), by=2)])
       )
     },
-    fill = bandcolor, alpha = 0.1,
+    fill = bandcolor, alpha = 0.25,
     inherit.aes = FALSE, show.legend = FALSE
   ),
   geom_vline(xintercept = as.Date("2021-01-01"), linetype = "dotted"),
@@ -145,11 +143,17 @@ percap.plot <- ggplot(
   theme_minimal() + theme(
     strip.placement = "outside",
     legend.position = c(0.75, 0.75),
-    legend.justification = c(0.5, 0.5)
+    legend.justification = c(0.5, 0.5),
+    panel.grid.major.x = element_blank(),
+    panel.spacing.y = unit(1, "lines")
   ) +
   intervention_scale
 
-ggsave(tail(.args, 1), percap.plot)
+epi.grob <- ggplotGrob(percap.plot)
+idx <- which(epi.grob$layout$name %in% c("panel-2-1", "axis-l-1-2"))
+for (i in idx) epi.grob$grobs[[i]] <- nullGrob()
+
+ggsave(tail(.args, 1), epi.grob, bg = "white", height = 3, width = 6)
 
 # eff.plot <- ggplot(
 #   plot.mlt[variable == "c.eff"]
