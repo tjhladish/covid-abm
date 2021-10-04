@@ -3,27 +3,27 @@ library(data.table)
 library(ggplot2)
 library(ggh4x)
 library(grid)
+library(scales)
 
-.mutation <- TRUE
+.mutation <- FALSE
 .args <- if (interactive()) c(
-  "rawresults.rds", as.integer(.mutation), "fl-vac-mutation-0.png"
+  "rawresults.rds", as.integer(.mutation), sprintf("fl-vac-mutation-%i.png", as.integer(.mutation))
 ) else commandArgs(trailingOnly = TRUE)
 
 muttar <- as.integer(.args[2])
 simdata <- readRDS(.args[1])[mutation == muttar]
 
 #' TODO read from some config file?
-#### Initialization and Database ----
 totalpop_10k <- 375.5 # Adjust accordingly
-#totalpop_10k <- 2061.6 # Adjust accordingly
-max_week <- 100 # Adjust accordingly, start counting from 1
 
+#' incidence data
 inc.dt <- simdata[var %in% c("c", "d")]
+#' separate into vac vs no vac
 novac <- inc.dt[vac == 0][, -c("serial", "seed", "vac", "variable", "week")]
 withvac <- inc.dt[vac == 1][, -c("serial", "seed", "vac", "variable", "week")]
 
+#' create matched series, compute comparisons
 vac.impact <- withvac[novac, on = .(realization, var, date, mutation), nomatch = 0]
-
 vac.impact[, averted := i.value - value ]
 vac.impact[, c.value := cumsum(i.value), by=.(var, realization) ]
 vac.impact[order(date), c.averted := cumsum(averted), by=.(var, realization)]
@@ -37,7 +37,8 @@ plot.mlt <- rbind(melt(
   vac.impact[,.(realization, date, var, variable = "value", value = i.value, intervention = FALSE)]
 )
 
-datescale <- function() scale_x_date(
+#' TODO: use factory method approach?
+datescale <- function(
   name=NULL,
   breaks = function(l) {
     rl <- round(as.POSIXlt(l), "month")
@@ -46,7 +47,13 @@ datescale <- function() scale_x_date(
   labels = function(bs) {
     gsub("^(.).+$","\\1",month.abb[month(bs)])
   },
-  minor_breaks = NULL
+  minor_breaks = NULL,
+  ...
+) scale_x_date(
+  name=name,
+  breaks = breaks,
+  labels = labels,
+  minor_breaks = minor_breaks
 )
 
 datebg <- function(ylims = c(0,Inf), bandcolor = "grey") list(
