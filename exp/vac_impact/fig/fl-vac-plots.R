@@ -138,6 +138,12 @@ percap.plot <- ggplot(
     ), drop = TRUE
   ) +
   datebg() +
+  geom_hline(
+    aes(yintercept = 1),
+    data = function(dt) dt[variable == "R[t]"],
+    linetype = "dashed",
+    alpha = 0.5
+  ) +
   geom_line(aes(group = interaction(realization, intervention)), alpha = ind.alpha) +
   geom_line(
     data = function(dt) dt[,
