@@ -125,8 +125,10 @@ levels(plot.dt$variable) <- c(
   "Cum. Effectiveness"
 )
 
+int.start <- vac.impact[which.max(averted > 0), min(date)]
+
 percap.plot <- ggplot(
-  plot.dt
+  plot.dt[(intervention == FALSE) | date >= int.start]
 ) + aes(date, value, color = intervention) +
   facet_grid2(
     variable ~ var,
@@ -149,8 +151,10 @@ percap.plot <- ggplot(
     data = function(dt) dt[,
       .(value = median(value)),
       by=.(variable, var, intervention, date)
-    ]
+    ],
+    lineend = "round"
   ) +
+#  geom_point(data = function(dt) dt[(intervention == TRUE) & (date == int.start), .(value = median(value)), by=.(date, intervention, var, variable)]) +
   coord_cartesian(expand = FALSE) +
   scale_y_continuous(name=NULL) +
   theme_minimal() + theme(
