@@ -56,6 +56,8 @@ datescale <- function(
   minor_breaks = minor_breaks
 )
 
+int.start <- vac.impact[which.max(averted > 0), min(date)]
+
 datebg <- function(ylims = c(0,Inf), bandcolor = "grey") list(
   geom_rect(
     aes(xmin = start, xmax=end, ymax=ylims[2], ymin=ylims[1]),
@@ -71,7 +73,22 @@ datebg <- function(ylims = c(0,Inf), bandcolor = "grey") list(
     fill = bandcolor, alpha = 0.25,
     inherit.aes = FALSE, show.legend = FALSE
   ),
-  geom_vline(xintercept = as.Date("2021-01-01"), linetype = "dotted"),
+  geom_vline(xintercept = int.start, linetype = "dotted", color = "dodgerblue"),
+  geom_text(
+    aes(label=strftime(date, "Vaccination Start,\n%Y-%m-%d")),
+    data = function(dt) dt[variable == "R[t]",
+      .(
+        intervention = TRUE,
+        date = int.start,
+        value = max(value)
+      ), by = .(variable, var)
+    ],
+    show.legend = FALSE,
+    hjust = "left",
+    vjust = "top",
+    size = 2, alpha = 0.5,
+    nudge_x = 7
+  ),
   datescale()
 )
 
@@ -125,8 +142,6 @@ levels(plot.dt$variable) <- c(
   "Cum. Effectiveness"
 )
 
-int.start <- vac.impact[which.max(averted > 0), min(date)]
-
 percap.plot <- ggplot(
   plot.dt[(intervention == FALSE) | date >= int.start]
 ) + aes(date, value, color = intervention) +
@@ -154,8 +169,7 @@ percap.plot <- ggplot(
     ],
     lineend = "round"
   ) +
-#  geom_point(data = function(dt) dt[(intervention == TRUE) & (date == int.start), .(value = median(value)), by=.(date, intervention, var, variable)]) +
-  coord_cartesian(expand = FALSE) +
+  coord_cartesian(expand = FALSE, clip = "off") +
   scale_y_continuous(name=NULL) +
   theme_minimal() + theme(
     strip.placement = "outside",
