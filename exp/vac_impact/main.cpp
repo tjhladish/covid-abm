@@ -663,7 +663,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         // parameter handling --- how do we want to handle setting these? I just set them here rather than use par
         vc->set_prioritize_first_doses(false);
         vc->set_flexible_queue_allocation(false);
-        vc->set_reactive_vac_strategy(NUM_OF_REACTIVE_VAC_STRATEGY_TYPES);
+        vc->set_reactive_vac_strategy(NUM_OF_VAC_CAMPAIGN_TYPES);
         vc->set_reactive_vac_dose_allocation(0.0);
     }
 
@@ -677,8 +677,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         if (person->getNumNaturalInfections()) {
             vector<Infection*> infections = person->getInfectionHistory();
             for (Infection* inf: infections) {
-                if (inf->detection()) {
-                    const int inf_date = inf->detection()->reported_time;
+                if (inf->getDetection()) {
+                    const int inf_date = inf->getDetection()->reported_time;
                     if (inf_date < (int) cases.size()) {
                         cases[inf_date]++;
                         if (inf->fatal()) {
