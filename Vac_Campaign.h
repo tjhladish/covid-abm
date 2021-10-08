@@ -94,8 +94,8 @@ class Vac_Campaign {
         std::deque<Person*> getStandardQueue() const { return standard_queue; }
         void setStandardQueue(std::deque<Person*> sq) { standard_queue = sq; }
 
-        std::vector< std::set<Person*> > getRevaccinateQueue() const { return revaccinate_queue; }
-        void setRevaccinateQueue(std::vector< std::set<Person*> > rq) { revaccinate_queue = rq; }
+        std::vector< std::set<Person*, Person::PerPtrComp> > getRevaccinateQueue() const { return revaccinate_queue; }
+        void setRevaccinateQueue(std::vector< std::set<Person*, Person::PerPtrComp> > rq) { revaccinate_queue = rq; }
 
         void set_doses_available( std::vector< std::vector<int> > da ) {
             doses_available = da;
@@ -181,7 +181,7 @@ class Vac_Campaign {
 
         void reschedule_remaining_revaccinations(size_t today) {
             const size_t queue_length_in_days = revaccinate_queue.size(); // how many days long is the simulation
-            std::set<Person*> remaining_people = revaccinate_queue[today];
+            std::set<Person*, Person::PerPtrComp> remaining_people = revaccinate_queue[today];
             if (remaining_people.size() and queue_length_in_days > today + 1) {
                 revaccinate_queue[today + 1].insert(remaining_people.begin(), remaining_people.end());
                 revaccinate_queue[today].clear();
@@ -209,7 +209,7 @@ class Vac_Campaign {
     private:
         std::deque<Person*> urgent_queue;                      // people who need to be vaccinated, determined during simulation
         std::deque<Person*> standard_queue;                    // people who will be vaccinated, known before transmission sim begins
-        std::vector< std::set<Person*> > revaccinate_queue;    // indexed by sim day
+        std::vector< std::set<Person*, Person::PerPtrComp> > revaccinate_queue;    // indexed by sim day
         bool prioritize_first_doses;                           // do we prioritize first doses, or completing vac schedules? --> possibly move to _par?
         std::vector< std::vector<int> > doses_available;       // for each day, number of doses available for each queue
         std::vector< std::vector<int> > queue_tally;           // for each day, number of doses used for each queue

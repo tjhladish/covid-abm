@@ -5,7 +5,6 @@
 #include <cstdlib>
 #include "CCRC32.h"
 #include "Utility.h"
-#include <unordered_set>
 #include <math.h>
 
 #if __has_include("local.h")
@@ -239,7 +238,7 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     return par;
 }
 
-void parseVaccineFile(string vaccinationFilename, const Parameters* par, Community* community, Vac_Campaign* vc, set<Person*>& scheduled_people, map<int, int>& sch_hcw_by_age) {
+void parseVaccineFile(string vaccinationFilename, const Parameters* par, Community* community, Vac_Campaign* vc, set<Person*, Person::PerPtrComp>& scheduled_people, map<int, int>& sch_hcw_by_age) {
     // ratio of synthpop to FL pop
     const double pop_ratio = (double)community->getNumPeople()/FL_POP;
 
@@ -411,7 +410,7 @@ void parseVaccineFile(string vaccinationFilename, const Parameters* par, Communi
 
 Vac_Campaign* generateVac_Campaign(string vaccinationFilename, const Parameters* par, Community* community) {
     // keeps track of who has been scheduled to prevent scheduling the same person twice
-    set<Person*> scheduled_people;
+    set<Person*, Person::PerPtrComp> scheduled_people;
 
     // create a new Vac_Campaign
     Vac_Campaign* vc = new Vac_Campaign();
