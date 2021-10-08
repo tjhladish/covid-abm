@@ -122,6 +122,9 @@ class Person {
     public:
         Person();
         ~Person();
+
+        struct PerPtrComp { bool operator()(const Person* A, const Person* B) const { return A->getID() < B->getID(); } };
+
         inline int getID() const { return id; }
 
         int getAge() const { return age; }

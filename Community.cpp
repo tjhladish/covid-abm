@@ -25,7 +25,7 @@ using covid::util::weighted_choice;
 const Parameters* Community::_par;
 Date* Community::_date;
 vector< map<LocationType, map<Location*, map<double, vector<Person*>>, Location::LocPtrComp>>> Community::_isHot;
-set<Person*> Community::_revaccinate_set;
+set<Person*, Person::PerPtrComp> Community::_revaccinate_set;
 vector<size_t> Community::_numDetectedCasesOnset;
 vector<size_t> Community::_numDetectedCasesReport;
 vector<size_t> Community::_numDetectedHospitalizations;
