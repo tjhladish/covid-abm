@@ -56,6 +56,8 @@ Person::Person() {
     naiveVaccineProtection = false;
     long_term_care = false;
     comorbidity = HEALTHY;
+    quarantineStart = INT_MAX;
+    quarantineEnd = INT_MAX;
 }
 
 
@@ -256,10 +258,10 @@ Infection* Person::infect(Person* source, const Date* date, Location* sourceloc,
 
     // determine disease outcome and timings
     if ( gsl_rng_uniform(RNG) > symptomatic_probability ) {
-       // asymptomatic
+       // asymptomatic; est mean relInfectiousness = 6.03
         infection.relInfectiousness *= gsl_ran_weibull(RNG, 6.72, 3.33) > highly_infectious_threshold ? 4.0 : 0.25;
     } else {
-        // symptomatic
+        // symptomatic; est mean relInfectiousness = 6.69
         infection.relInfectiousness *= gsl_ran_weibull(RNG, 7.40, 3.81) > highly_infectious_threshold ? 4.0 : 0.25;
         //const size_t symptom_onset = _par->symptom_onset();
         Community::_cumulIncByOutcome[MILD]++;
@@ -382,7 +384,7 @@ Infection* Person::infect(Person* source, const Date* date, Location* sourceloc,
             Community::flagInfectedLocation(this, infection.relInfectiousness, hospital->getType(), hospital, day);
         } else {
             Community::flagInfectedLocation(this, infection.relInfectiousness, getHomeLoc()->getType(), getHomeLoc(), day); // home loc can be a HOUSE or NURSINGHOME
-            if (getDayLoc()) {
+            if (getDayLoc() and not (infection.isSevere(day) or infection.isCritical(day))) {
                 // TODO -- people do not stop going to work/school when mild/moderately sick
                 Community::flagInfectedLocation(this, infection.relInfectiousness, getDayLoc()->getType(), getDayLoc(), day);
             }
@@ -463,7 +465,7 @@ bool Person::isSeroEligible() const {
 
 
 bool Person::vaccinate(int time) {
-    if (!isDead(time)) {
+    if (isAlive(time)) {
         const size_t dose = vaccineHistory.size(); // this one isn't size() - 1, because it's the dose they're about to receive
         vaccineHistory.push_back(time);
 
@@ -497,4 +499,21 @@ bool Person::vaccinate(int time) {
     } else {
         return false;
     }
+}
+
+void Person::selfQuarantine(const size_t today, const size_t quarantineDuration) {
+    // set quarantine status
+    quarantineStart = today;
+    quarantineEnd   = today + quarantineDuration;
+}
+
+void Person::endQuarantine() {
+    // clear quarantine status
+    quarantineStart = INT_MAX;
+    quarantineEnd   = INT_MAX;
+}
+
+bool Person::isQuarantining(const size_t today) {
+    // check quarantine status
+    return (quarantineStart != INT_MAX and quarantineEnd != INT_MAX) and (today >= quarantineStart) and (today <= quarantineEnd);
 }

@@ -443,6 +443,11 @@ public:
     double VEF_at(size_t dose, StrainType strain = WILDTYPE)       const { return stretchy_vector(VEF.at(strain), dose);}
     double VEI_at(size_t dose, StrainType strain = WILDTYPE)       const { return stretchy_vector(VEI.at(strain), dose);}
 
+    int beginContactTracing;                                // what sim day should contact tracing start
+    double contactTracingCoverage;                          // fraction of detected infections that are contact traced as primary cases
+    vector<double> contactTracingEV;                        // indexed by LocationType; Expected number of recalled contacts; HOME is used for neighbor contacts
+    size_t contactTracingDepth;                             // tracing contacts = 1; tracing contacts-of-contacts = 2; etc...
+
     size_t symptom_onset() const { // aka incubation period
         return 1 + floor(gsl_ran_gamma(RNG, SYMPTOM_ONSET_GAMMA_SHAPE, SYMPTOM_ONSET_GAMMA_SCALE));
     }
@@ -564,6 +569,9 @@ public:
 
     VaccineSeroConstraint vaccineSeroConstraint;
     MmodsScenario mmodsScenario;
+
+    std::vector<double> quarantineProbability;
+    size_t selfQuarantineDuration;
 };
 
 #endif
