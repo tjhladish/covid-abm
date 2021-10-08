@@ -432,6 +432,7 @@ bool Person::isCrossProtected(int time, StrainType strain) const { // assumes bi
 
 bool Person::isVaccineProtected(const int time, const StrainType strain) const {
     return isVaccinated() and
+           ((size_t) daysSinceVaccination(time) >= _par->vaccine_dose_to_protection_lag) and
            ( !_par->vaccineLeaky or // if the vaccine isn't leaky
            (gsl_rng_uniform(RNG) < vaccineProtection(time, strain)) ); // or it protects (i.e., doesn't leak this time)
 }

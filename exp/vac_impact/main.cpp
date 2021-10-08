@@ -656,6 +656,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         par->numVaccineDoses       = 2;
         par->vaccineDoseInterval   = 21;
         par->vaccineTargetCoverage = 0.60;  // for healthcare workers only
+        par->vaccine_dose_to_protection_lag = 10;
 
         vc = generateVac_Campaign(vaccination_file, par, community);
 

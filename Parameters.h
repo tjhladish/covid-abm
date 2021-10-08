@@ -428,6 +428,8 @@ public:
     map<StrainType, vector<double>> VEF;                    // vaccine efficacy against death, given infection
     map<StrainType, vector<double>> VEI;                    // vaccine efficacy to reduce infectiousness
 
+    size_t vaccine_dose_to_protection_lag;                  // number of days between when vaccine dose is administered and when its protection begins
+
     template<typename T>
     inline T stretchy_vector (const vector<T> &data, size_t idx) const {
         idx = idx < 0 ? 0 : min(idx, data.size() - 1);      // shift idx to be within valid range if outside

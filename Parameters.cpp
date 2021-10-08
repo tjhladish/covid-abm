@@ -30,6 +30,7 @@ void Parameters::define_defaults() {
     VEH = {{WILDTYPE, {0.0}}};
     VEF = {{WILDTYPE, {0.0}}};
     VEI = {{WILDTYPE, {0.0}}};
+    vaccine_dose_to_protection_lag = 0;
     vaccineLeaky = false;
     //secondaryTransmission = true;
     populationFilename = "population.txt";
