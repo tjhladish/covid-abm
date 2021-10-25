@@ -188,7 +188,8 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
         {"2021-07-01", 0.0},
         {"2021-08-01", 0.1},
         {"2021-09-01", 0.25},
-        {"2021-10-01", 0.0}
+        {"2021-10-01", 0.125},
+        {"2021-11-01", 0.00}
     };
 
     par->timedInterventions[SOCIAL_DISTANCING].clear();
