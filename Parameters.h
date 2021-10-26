@@ -565,6 +565,7 @@ public:
 
     bool auto_fitting;
     size_t fitting_window;
+    size_t num_preview_windows;
 };
 
 #endif

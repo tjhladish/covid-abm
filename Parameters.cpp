@@ -98,6 +98,7 @@ void Parameters::define_defaults() {
 
     auto_fitting = false;
     fitting_window = INT_MAX;
+    num_preview_windows = INT_MAX;
 }
 
 
