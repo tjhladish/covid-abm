@@ -619,134 +619,90 @@ void gen_simvis(vector<string> &plot_log_buffer) {
 }
 
 // NOTE: USING DEATHS BY DAY OF DEATH NOT DAY OF REPORTING
-vector<double> fitting_error(const Parameters* par, const Community* community, const size_t sim_day, const vector<size_t> &all_rcases,
-                     const vector<size_t> &all_rdeaths, const map<size_t, vector<int>> &emp_data) {
+vector<double> fitting_error(const Parameters* par, const Community* community, const size_t sim_day, vector<size_t> sim_rcases,
+                     const vector<size_t> &all_rdeaths, const map<size_t, vector<int>> &emp_data_map) {
     const int fit_window_size = (par->num_preview_windows + 1) * par->fitting_window;
-    const size_t window_start = ((int) sim_day + 1) - fit_window_size;
-    vector<TimeSeriesAnchorPoint> fit_and_prev_anchors = {{Date::to_ymd(window_start,                                       par), 0.0},
-                                                          {Date::to_ymd((window_start - 1) + par->fitting_window,           par), 1.0},
-                                                          {Date::to_ymd((window_start - 1) + (2 * par->fitting_window),     par), 0.5},
-                                                          {Date::to_ymd((window_start - 1) + (2 * par->fitting_window) + 1, par), 0.5},
-                                                          {Date::to_ymd(sim_day,                                            par), 0.5}};
+    const int window_start = ((int) sim_day + 1) - fit_window_size;
+    vector<TimeSeriesAnchorPoint> fit_and_prev_anchors;
+    if (window_start == 0) {
+        fit_and_prev_anchors = {{Date::to_ymd(window_start,                                       par), 0.0},
+                                {Date::to_ymd((window_start - 1) + par->fitting_window,           par), 1.0},
+                                {Date::to_ymd((window_start - 1) + (2 * par->fitting_window),     par), 0.5},
+                                {Date::to_ymd((window_start - 1) + (2 * par->fitting_window) + 1, par), 0.5},
+                                {Date::to_ymd(sim_day,                                            par), 0.5}};
+    } else {
+        fit_and_prev_anchors = {{Date::to_ymd(0,                                                  par), 0.0},
+                                {Date::to_ymd(window_start,                                       par), 0.0},
+                                {Date::to_ymd((window_start - 1) + par->fitting_window,           par), 1.0},
+                                {Date::to_ymd((window_start - 1) + (2 * par->fitting_window),     par), 0.5},
+                                {Date::to_ymd((window_start - 1) + (2 * par->fitting_window) + 1, par), 0.5},
+                                {Date::to_ymd(sim_day,                                            par), 0.5}};
+    }
+//    if (window_start == 0) { fit_and_prev_anchors.erase(fit_and_prev_anchors.begin()); }
+
     vector<double> fit_weights = Date::linInterpolateTimeSeries(fit_and_prev_anchors, par->startJulianYear, par->startDayOfYear);
 
-    vector<double> sim_crcases(fit_window_size);
-    vector<double> emp_crcases(fit_window_size);
-
-    vector<double> sim_rcases(fit_window_size);
-    vector<double> emp_rcases(fit_window_size);
-
-    vector<double> sim_crdeaths(fit_window_size);
-    vector<double> emp_crdeaths(fit_window_size);
-    double raw_error = 0.0, error = 0.0;
-    double raw_abs_error = 0.0, abs_error = 0.0;
-    double purple_abs_err = 0.0, purple_err = 0.0;
-    double gray_abs_err = 0.0, gray_err = 0.0;
-
-    size_t pre_fit_cr_sim_cases = 0;
-    size_t pre_fit_cr_emp_cases = 0;
-
-    size_t pre_fit_cr_sim_deaths = 0;
-    size_t pre_fit_cr_emp_deaths = 0;
-
-    const double sim_p10k = 1e4/community->getNumPeople();
-    const double fl_p10k  = 1e4/21538187;
-
-    assert(all_rcases.size() == all_rdeaths.size());
+    vector<double> emp_rcases(sim_day, 0.0); // default to 0 if data is missing, for purposes of calculating cumulative sum
     for (size_t day = 0; day <= sim_day; ++day) {
-        if ((int) day < (int) window_start) {
-            if (day < all_rcases.size()) {
-                pre_fit_cr_sim_cases  += all_rcases[day];
-                pre_fit_cr_sim_deaths += all_rdeaths[day];
-            }
-            if (emp_data.count(day)) {
-                pre_fit_cr_emp_cases  += emp_data.at(day)[0];
-                pre_fit_cr_emp_deaths += emp_data.at(day)[1];
-            }
+        if (emp_data_map.count(day)) {
+            emp_rcases[day] = emp_data_map.at(day).at(0);
         } else {
-            if (day < all_rcases.size()) {
-                sim_crcases[day - window_start] = pre_fit_cr_sim_cases + all_rcases[day];
-                sim_rcases[day - window_start]  = all_rcases[day];
-                pre_fit_cr_sim_cases += all_rcases[day];
-
-                sim_crdeaths[day - window_start] = pre_fit_cr_sim_deaths + all_rdeaths[day];
-                pre_fit_cr_sim_deaths += all_rdeaths[day];
-            }
-            if (emp_data.count(day)) {
-                emp_crcases[day - window_start] = pre_fit_cr_emp_cases + emp_data.at(day)[0];
-                emp_rcases[day - window_start]  = emp_data.at(day)[0];
-                pre_fit_cr_emp_cases += emp_data.at(day)[0];
-
-                emp_crdeaths[day - window_start] = pre_fit_cr_emp_deaths + emp_data.at(day)[1];
-                pre_fit_cr_emp_deaths += emp_data.at(day)[1];
-            }
+            fit_weights[day - window_start] = 0.0;
         }
     }
 
-    assert(fit_weights.size() == (size_t) fit_window_size);
+    const double sim_p10k = 1e4/community->getNumPeople();
+    const double fl_pop   = 21538187;
+    const double fl_p10k  = 1e4/fl_pop;
+
+    for (auto& val: emp_rcases) { val *= fl_p10k; }
+    for (auto& val: sim_rcases) { val *= sim_p10k; }
+
+    vector<double> emp_rcases_cumul(emp_rcases.size());
+    vector<double> sim_rcases_cumul(sim_rcases.size());
+    partial_sum(emp_rcases.begin(), emp_rcases.end(), emp_rcases_cumul.begin());
+    partial_sum(sim_rcases.begin(), sim_rcases.end(), sim_rcases_cumul.begin());
+
 cerr << fixed << setprecision(3);
 cerr << "DATE\t\t\tCR ERROR\tADJ ERROR (ADJ)" << endl;
-    for (size_t i = 0; i < (size_t) fit_window_size; ++i) {
-        string date = Date::to_ymd((sim_day + 1) - (fit_window_size - i), par);
-        const double daily_crcase_error  = ((sim_crcases[i]  * sim_p10k) - (emp_crcases[i]  * fl_p10k)) * fit_weights[i];
-        const double daily_crdeath_error = ((sim_crdeaths[i] * sim_p10k) - (emp_crdeaths[i] * fl_p10k)) * fit_weights[i] * 0;//61;
-//if (fit_weights[i] > 0.0) {
-//cerr << daily_crcase_error << endl;
-//} else {
+
+    double distance = 0.0;
+    double error = 0.0;
+    double abs_distance = 0.0;
+    double abs_error = 0.0;
+
+    for (size_t d = 0; d <= sim_day; ++d) {
+        //string date = Date::to_ymd(d, par);
+        const double daily_crcase_error    = sim_rcases_cumul[d] - emp_rcases_cumul[d];
+        const double daily_crcase_distance = daily_crcase_error * fit_weights[d];
+        error    += daily_crcase_error;
+        distance += daily_crcase_distance;
+
+        abs_error    += abs(daily_crcase_error);
+        abs_distance += abs(daily_crcase_distance);
+    }
+
+cerr << "\nTOTAL\t\t\t" << abs_error << " (" << error << ")" << endl;//<< "\t------\t" << abs_error << " (" << (abs_error/raw_abs_error) * 100 << "%)" << endl;
+cerr << "ADJ TOTAL\t\t" << abs_distance << " (" << distance << ")" << endl;//<< "\t------\t" << abs_error << " (" << (abs_error/raw_abs_error) * 100 << "%)" << endl;
+
+    const size_t fit_norm_offset = par->fitting_window * par->num_preview_windows;
+    size_t num_days_to_avg = 3; // might consider 7 (one week)
+    size_t epi_3day_window_start = (int) sim_day - fit_norm_offset - (num_days_to_avg - 1)/2;
+    vector<size_t> rcases_to_avg(emp_rcases.begin() + epi_3day_window_start, emp_rcases.begin() + epi_3day_window_start + num_days_to_avg);
+    const double mean_rcases  = mean(rcases_to_avg);
+
+    vector<double> single_rcase_p10k = {0, 0, (1 * fl_p10k)};
+
+    double avg_3day_rcases_w_offset = mean_rcases == 0 ? mean(single_rcase_p10k) : mean_rcases;
+cerr << "AVG CENTERED ON DAY " << Date::to_ymd(sim_day - fit_norm_offset, par) << endl;
+cerr << "AVG RCASES: " << avg_3day_rcases_w_offset << endl;
+//cerr << "RCASES AVERAGED: ";
+//for (size_t val : tmp_3day_rcases_p10k) { cerr << val << " "; }
 //cerr << endl;
-//}
-        raw_error += (sim_crcases[i]  * sim_p10k) - (emp_crcases[i]  * fl_p10k);
-        error += daily_crcase_error + daily_crdeath_error;
+//if (avg_3day_rcases_w_offset > 0) { cerr << "NORMALIZED ERROR: " << abs_error/avg_3day_rcases_w_offset << " (" << error/avg_3day_rcases_w_offset << ")" << endl; }
+//cerr << defaultfloat;
 
-        raw_abs_error += abs((sim_crcases[i]  * sim_p10k) - (emp_crcases[i]  * fl_p10k));
-        abs_error += abs(daily_crcase_error) + abs(daily_crdeath_error);
-
-//cerr << "(" << i << ") " << date << "\t\t" << ((sim_crcases[i]  * sim_p10k) - (emp_crcases[i]  * fl_p10k)) << "\t\t" << daily_crcase_error << " (" << fit_weights[i] << ")"<< endl;
-if ((i + 1) == par->fitting_window) {
-    purple_abs_err = raw_abs_error; purple_err = raw_error;
-    cerr << "purple\t\t" << purple_abs_err << " (" << purple_err << ")" << endl << "-------------------------------------------------------------" << endl;
-}
-if ((i + 1) == (par->fitting_window * 2)) {
-    gray_abs_err = raw_abs_error - purple_abs_err; gray_err = raw_error - purple_err;
-    cerr << "gray\t\t" << gray_abs_err << " (" << gray_err << ")" << endl       << "-------------------------------------------------------------" << endl;
-}
-    }
-cerr << "\nTOTAL\t\t\t" << raw_abs_error << " (" << raw_error << ")" << endl;//<< "\t------\t" << abs_error << " (" << (abs_error/raw_abs_error) * 100 << "%)" << endl;
-cerr << "ADJ TOTAL\t\t" << abs_error << " (" << error << ")" << endl;//<< "\t------\t" << abs_error << " (" << (abs_error/raw_abs_error) * 100 << "%)" << endl;
-
-size_t fit_norm_offest = par->fitting_window * par->num_preview_windows;
-//vector<size_t> tmp_num_rcases = community->getNumDetectedCasesReport();
-// emp rcases -> emp_data.at(day)[0]
-//assert((sim_day - fit_norm_offest + 1) < emp_data.size());
-size_t offset_center_for_avg = sim_day - fit_norm_offest;
-size_t num_days_to_avg = 3;
-vector<size_t> tmp_rcases_to_avg;
-for (size_t i = offset_center_for_avg - ((num_days_to_avg - 1)/2); i <= offset_center_for_avg + ((num_days_to_avg - 1)/2); ++i) {
-    if (emp_data.count(i)) {
-        tmp_rcases_to_avg.push_back(emp_data.at(i)[0]);
-    } else {
-        tmp_rcases_to_avg.push_back(0);
-    }
-}
-
-//vector<size_t> tmp_3day_rcases = {tmp_num_rcases[day - fit_norm_offest - 1], tmp_num_rcases[day - fit_norm_offest], tmp_num_rcases[day - fit_norm_offest + 1]};
-//vector<double> tmp_3day_rcases_p10k(tmp_3day_rcases.size());
-//for (size_t i = 0; i < tmp_3day_rcases.size(); ++i) { tmp_3day_rcases_p10k[i] = tmp_3day_rcases[i] * (1e4/community->getNumPeople()); }
-vector<double> tmp_3day_rcases_p10k(tmp_rcases_to_avg.size());
-vector<double> tmp_single_rcase_p10k = {0, 0, (1 * fl_p10k)};
-for (size_t i = 0; i < tmp_rcases_to_avg.size(); ++i) { tmp_3day_rcases_p10k[i] = tmp_rcases_to_avg[i] * fl_p10k; }
-
-double avg_3day_rcases_w_offest = (mean(tmp_3day_rcases_p10k) == 0) ? mean(tmp_single_rcase_p10k) : mean(tmp_3day_rcases_p10k);
-//double avg_3day_rcases_w_offest = (mean(tmp_3day_rcases_p10k) >= 1.0) ? mean(tmp_3day_rcases_p10k) : 1.0;
-cerr << "AVG CENTERED ON DAY " << Date::to_ymd(sim_day - fit_norm_offest, par) << endl;
-cerr << "AVG RCASES: " << avg_3day_rcases_w_offest << endl;
-cerr << "RCASES AVERAGED: ";
-for (size_t val : tmp_3day_rcases_p10k) { cerr << val << " "; }
-cerr << endl;
-if (avg_3day_rcases_w_offest > 0) { cerr << "NORMALIZED ERROR: " << abs_error/avg_3day_rcases_w_offest << " (" << error/avg_3day_rcases_w_offest << ")" << endl; }
-cerr << defaultfloat;
-
-    return {abs_error/avg_3day_rcases_w_offest, error/avg_3day_rcases_w_offest};
+    return {abs_distance/avg_3day_rcases_w_offset, distance/avg_3day_rcases_w_offset};
 }
 
 class Range {
@@ -1028,8 +984,8 @@ cerr << "PREVIEW WINDOW: " << window_start_sim_day + par->fitting_window  << " T
         const vector<size_t> severe_prev        = community->getNumSeverePrev();
         const double cinf                       = accumulate(infections.begin(), infections.begin()+sim_day+1, 0.0);
         const double cAR                        = cinf/pop_at_risk; // cumulative attack rate (I hate this term)
-        //const vector<size_t> rdeaths            = community->getNumDetectedDeaths();
-        const vector<size_t> rdeaths            = community->getNumNewlyDead();
+        const vector<size_t> rdeaths            = community->getNumDetectedDeaths();
+        //const vector<size_t> rdeaths            = community->getNumNewlyDead();
 
 
         const size_t rc_ct = accumulate(all_reported_cases.begin(), all_reported_cases.begin()+sim_day+1, 0);
