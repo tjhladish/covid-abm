@@ -519,12 +519,12 @@ public:
     std::string annualIntroductionsFilename;                // time series of some external factor determining introduction rate
     std::vector<double> annualIntroductions;
     double annualIntroductionsCoef;                         // multiplier to rescale external introductions to something sensible
-    size_t sampleDaysImmune(const gsl_rng* RNG) const {
-        const double t_half = 103; // days
-        const double threshold = 215; // below this threshold, susceptible again.  CABP estimated using PHE data and Science paper below
+        size_t sampleDaysImmune(const gsl_rng* RNG) const {
+        const double t_half = 103;             // days
+        const double threshold = 215;          // below this threshold, susceptible again.  CABP estimated using PHE data and Science paper below
         const double antibody_init_mean = 3.0; // Rough estimate from https://science.sciencemag.org/content/early/2021/01/06/science.abf4063/
         const double antibody_init_sd = 0.5;   // ''
-        const double time_to_susceptible = -t_half * log(threshold / pow(gsl_ran_gaussian(RNG, antibody_init_sd) + antibody_init_mean, 10)) / log(2);
+        const double time_to_susceptible = -t_half * log(threshold / pow(10, gsl_ran_gaussian(RNG, antibody_init_sd) + antibody_init_mean)) / log(2);
         return time_to_susceptible < 0 ? 0 : (size_t) round(time_to_susceptible);
     }
     bool linearlyWaningVaccine;
