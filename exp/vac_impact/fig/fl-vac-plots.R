@@ -7,133 +7,42 @@ library(scales)
 
 .mutation <- FALSE
 .args <- if (interactive()) c(
-  "rawresults.rds", as.integer(.mutation), sprintf("fl-vac-mutation-%i.png", as.integer(.mutation))
+  "vaceff.rds",
+  "rt.rds",
+  "plottools.rda",
+  as.integer(.mutation),
+  sprintf("fl-vac-mutation-%i.png", as.integer(.mutation))
 ) else commandArgs(trailingOnly = TRUE)
 
-muttar <- as.integer(.args[2])
-simdata <- readRDS(.args[1])[mutation == muttar]
+muttar <- as.integer(tail(.args, 2)[1])
+vac.impact <- readRDS(.args[1])[mutation == muttar]
+rt.dt <- readRDS(.args[2])
+load(.args[3])
 
 #' TODO read from some config file?
 totalpop_10k <- 375.5 # Adjust accordingly
 
-#' incidence data
-inc.dt <- simdata[var %in% c("c", "d")]
-#' separate into vac vs no vac
-novac <- inc.dt[vac == 0][, -c("serial", "seed", "vac", "variable", "week")]
-withvac <- inc.dt[vac == 1][, -c("serial", "seed", "vac", "variable", "week")]
+int.start <- vac.impact[which.max(averted > 0), min(date)]
 
-#' create matched series, compute comparisons
-vac.impact <- withvac[novac, on = .(realization, var, date, mutation), nomatch = 0]
-vac.impact[, averted := i.value - value ]
-vac.impact[, c.value := cumsum(i.value), by=.(var, realization) ]
-vac.impact[order(date), c.averted := cumsum(averted), by=.(var, realization)]
-vac.impact[, c.eff := fifelse(c.value == c.averted, 0, c.averted/c.value)]
+datebg <- c(month_background_scale(), event_vline(vline.date = int.start))
+
+ind.alpha = 0.025
 
 plot.mlt <- rbind(melt(
   vac.impact,
   id.vars = c("realization", "date", "var"),
-  measure.vars = c("value", "c.averted", "c.eff")
+  measure.vars = c("value", "caverted", "ceff")
 )[, intervention := TRUE ],
   vac.impact[,.(realization, date, var, variable = "value", value = i.value, intervention = FALSE)]
 )
 
-#' TODO: use factory method approach?
-datescale <- function(
-  name=NULL,
-  breaks = function(l) {
-    rl <- round(as.POSIXlt(l), "month")
-    as.Date(seq(rl[1] + 60*60*24*15, rl[2], by="month"))
-  },
-  labels = function(bs) {
-    gsub("^(.).+$","\\1",month.abb[month(bs)])
-  },
-  minor_breaks = NULL,
-  ...
-) scale_x_date(
-  name=name,
-  breaks = breaks,
-  labels = labels,
-  minor_breaks = minor_breaks
-)
 
-int.start <- vac.impact[which.max(averted > 0), min(date)]
-
-datebg <- function(ylims = c(0,Inf), bandcolor = "grey") list(
-  geom_rect(
-    aes(xmin = start, xmax=end, ymax=ylims[2], ymin=ylims[1]),
-    data = function(dt) {
-      dr <- round(as.POSIXlt(dt[, range(date)]), "month")
-      pts <- seq(dr[1], dr[2], by="month")
-      if (length(pts) %% 2) pts <- head(pts, -1)
-      data.table(
-        start = as.Date(pts[seq(1, length(pts), by=2)]),
-        end = as.Date(pts[seq(2, length(pts), by=2)])
-      )
-    },
-    fill = bandcolor, alpha = 0.25,
-    inherit.aes = FALSE, show.legend = FALSE
-  ),
-  geom_vline(xintercept = int.start, linetype = "dotted", color = "dodgerblue"),
-  geom_text(
-    aes(label=strftime(date, "Vaccination Start,\n%Y-%m-%d")),
-    data = function(dt) dt[variable == "R[t]",
-      .(
-        intervention = TRUE,
-        date = int.start,
-        value = max(value)
-      ), by = .(variable, var)
-    ],
-    show.legend = FALSE,
-    hjust = "left",
-    vjust = "top",
-    size = 2, alpha = 0.5,
-    nudge_x = 7
-  ),
-  datescale()
-)
-
-ind.alpha = 0.025
-intervention_scale <- scale_color_manual(
-  name = NULL, values = c(`FALSE`="black", `TRUE`="dodgerblue"),
-  labels = c(`FALSE`="No Vaccine", `TRUE`="Vaccine")
-)
-
-rt.dt <- simdata[var == "Rt"][, .(
-  realization, date, var = "c", variable = "Rt", value, intervention = as.logical(vac)
-)]
 inc.dt <- plot.mlt[variable == "value"][, value := value/totalpop_10k ]
 
 plot.dt <- rbind(
   rt.dt,
   inc.dt
 )
-
-# Rt.plot <- ggplot(
-#   simdata[var == "Rt"][, .(
-#     realization, date, intervention = as.logical(vac), value, var
-#   )]
-# ) + aes(date, value, color = intervention) +
-#   facet_grid2(
-#     var ~ .,
-#     switch = "both",
-#     labeller = labeller(
-#       var = expression(R[t])
-#     )
-#   ) +
-#   datebg() +
-#   geom_hline(yintercept = 1, linetype = "dashed") +
-#   geom_line(aes(group=interaction(realization, intervention)), alpha = ind.alpha) +
-#   geom_line(data = function(dt) dt[,
-#     .(value = median(value)),
-#     by=.(intervention, date)
-#   ]) +
-#   scale_y_continuous(name=NULL, breaks = (1:3)/2) +
-#   coord_cartesian(ylim = c(0, 2), expand = FALSE) +
-#   theme_minimal() + theme(
-#     strip.placement = "outside",
-#     axis.text.x = element_blank()
-#   ) +
-#   intervention_scale
 
 levels(plot.dt$variable) <- c(
   expression(R[t]),
@@ -154,14 +63,14 @@ percap.plot <- ggplot(
       var = c(c="Symptomatic Infections", d="Deaths")
     ), drop = TRUE
   ) +
-  datebg() +
+  datebg +
   geom_hline(
     aes(yintercept = 1),
     data = function(dt) dt[variable == "R[t]"],
     linetype = "dashed",
     alpha = 0.5
   ) +
-  geom_line(aes(group = interaction(realization, intervention)), alpha = ind.alpha) +
+  geom_line(aes(group = interaction(variable, realization, intervention, var)), alpha = ind.alpha) +
   geom_line(
     data = function(dt) dt[,
       .(value = median(value)),
@@ -178,7 +87,7 @@ percap.plot <- ggplot(
     panel.grid.major.x = element_blank(),
     panel.spacing.y = unit(1, "lines")
   ) +
-  intervention_scale
+  scale_color_intervention()
 
 epi.grob <- ggplotGrob(percap.plot)
 idx <- which(epi.grob$layout$name %in% c("panel-2-1", "axis-l-1-2"))

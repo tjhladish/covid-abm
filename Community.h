@@ -79,6 +79,8 @@ class Community {
 
         static void flagInfectedLocation(Person* person, double relInfectiousness, LocationType locType, Location* _pLoc, int day);
         Infection* trace_contact(Person* &infecter, Location* source_loc, const map<double, vector<Person*>> &infectious_groups);
+        vector< set<Person*> > traceForwardContacts();
+
         static void reportCase(int onsetDate, long int reportDate, bool hospitalized);
         static void reportDeath(int eventDate, long int reportDate);
 
@@ -129,7 +131,7 @@ class Community {
         static std::vector<Person*> _peopleByAge;
         static std::map<int, std::set<std::pair<Person*, Person*> > > _delayedBirthdays;
         Vac_Campaign* vac_campaign;
-        static std::set<Person*> _revaccinate_set;          // not automatically re-vaccinated, just checked for boosting, multiple doses
+        static std::set<Person*, Person::PerPtrComp> _revaccinate_set;          // not automatically re-vaccinated, just checked for boosting, multiple doses
         std::map<TimedIntervention, std::vector<double>> timedInterventions;
 
         //bool _uniformSwap;                                            // use original swapping (==true); or parse swap file (==false)

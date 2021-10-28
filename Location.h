@@ -19,37 +19,45 @@ class Location {
         int getID() const { return _ID; }
         static void reset_ID_counter() { NEXT_ID = 0; } // for use by community destructor
 
+        LocationType getType() const { return _type; }
         void setType(LocationType t) { _type = t; }
+
         void setEssential(bool e) { _essential = e; }
         bool isEssential() const { return _essential; }
         bool isNonEssential() const { return !_essential; }
-        LocationType getType() const { return _type; }
+
+        std::vector<Person*> getPeople() { return _person; }
+        int getNumPeople() const { return _person.size(); }             // employees, residents, etc.; not including visitors
+
+        inline Person* getPerson(int idx) { return _person[idx]; }
         void addPerson(Person *p) { _person.push_back(p); }
+        bool removePerson(Person *p);
+
+        std::vector<Person*> getVisitors() { return _visitors; }
+        int getNumVisitors() const { return _visitors.size(); }          // visitors change daily
+        std::vector<double> getVisitDurations() { return _visit_durations; }
         void addVisitor(Person *p, double dur) { _visitors.push_back(p); _visit_durations.push_back(dur); }
         void clearVisitors() { _visitors.clear(); _visit_durations.clear(); }                     // likey don't want to resize
-        bool removePerson(Person *p);
-        int getNumPeople() const { return _person.size(); }             // employees, residents, etc.; not including visitors
-        int getNumVisitors() const { return _visitors.size(); }          // visitors change daily
-        std::vector<Person*> getPeople() { return _person; }
-        std::vector<Person*> getVisitors() { return _visitors; }
-        std::vector<double> getVisitDurations() { return _visit_durations; }
-//        Person* findMom();                                            // Try to find a resident female of reproductive age
-        void addNeighbor(Location* loc);
-        int getNumNeighbors() const { return _neighbors.size(); }
+
         std::set<Location*, LocPtrComp> getNeighbors() { return _neighbors; }
-        void setHospital(Location* hosp) { _hospital = hosp; }
+        int getNumNeighbors() const { return _neighbors.size(); }
+        void addNeighbor(Location* loc);
+
         Location* getHospital() const { return _hospital; }
-        inline Person* getPerson(int idx) { return _person[idx]; }
+        void setHospital(Location* hosp) { _hospital = hosp; }
+
         void setCoordinates(std::pair<double, double> c) { _coord = c; }
         std::pair<double, double> getCoordinates() { return _coord; }
-        void setX(double x) { _coord.first = x; }
-        void setY(double y) { _coord.second = y; }
         double getX() const { return _coord.first; }
+        void setX(double x) { _coord.first = x; }
         double getY() const { return _coord.second; }
-        void setRiskiness(float ra) { _riskiness = ra; }
+        void setY(double y) { _coord.second = y; }
+
         float getRiskiness() const { return _riskiness; }
-        void setPublicTransmissionRisk(PublicTransmissionType pt) { _public_transmission_risk = pt; }
+        void setRiskiness(float ra) { _riskiness = ra; }
+
         PublicTransmissionType getPublicTransmissionRisk() const { return _public_transmission_risk; }
+        void setPublicTransmissionRisk(PublicTransmissionType pt) { _public_transmission_risk = pt; }
 
         bool operator == ( const Location* other ) const { return _ID == other->_ID; }
         void dumper() const;

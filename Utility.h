@@ -119,6 +119,19 @@ namespace covid {
             return sample_vec;
         }
 
+        template <typename T> inline
+        vector<T> merge_vectors(vector< vector<T> > &vec) {
+            vector<T> mergedVec;
+            for(auto v : vec) { mergedVec.insert(mergedVec.end(), v.begin(), v.end()); }
+            return mergedVec;
+        }
+
+        template <typename T> inline
+        vector<T> merge_vectors(vector<T> vec1, vector<T> &vec2) {
+            vec1.insert(vec1.end(), vec2.begin(), vec2.end());
+            return vec1;
+        }
+
         inline double string2double(const std::string& s){ std::istringstream i(s); double x = 0; i >> x; return x; }
 
         template <typename T> inline T sum(vector<T> list) { T sum=0; for (unsigned int i=0; i<list.size(); i++) sum += list[i]; return sum;}

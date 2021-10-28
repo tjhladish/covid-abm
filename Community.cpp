@@ -15,17 +15,19 @@
 #include "Location.h"
 #include "Community.h"
 #include "Parameters.h"
-//#include "Vac_Campaign.h"
+#include "Vac_Campaign.h"
 
 using namespace covid::standard;
 using covid::util::mean;
 using covid::util::uniform_choice;
 using covid::util::weighted_choice;
+using covid::util::choose_k;
+using covid::util::merge_vectors;
 
 const Parameters* Community::_par;
 Date* Community::_date;
 vector< map<LocationType, map<Location*, map<double, vector<Person*>>, Location::LocPtrComp>>> Community::_isHot;
-set<Person*> Community::_revaccinate_set;
+set<Person*, Person::PerPtrComp> Community::_revaccinate_set;
 vector<size_t> Community::_numDetectedCasesOnset;
 vector<size_t> Community::_numDetectedCasesReport;
 vector<size_t> Community::_numDetectedHospitalizations;
@@ -36,7 +38,6 @@ vector<size_t> Community::_cumulIncByOutcome(NUM_OF_OUTCOME_TYPES, 0);
 //map<int, set<pair<Person*,Person*> > > Community::_delayedBirthdays;
 
 int mod(int k, int n) { return ((k %= n) < 0) ? k+n : k; } // correct for non-negative n
-
 
 Community::Community(const Parameters* parameters, Date* date) :
 //    _exposedQueue(MAX_INCUBATION, vector<Person*>(0)),
@@ -507,7 +508,7 @@ void Community::vaccinate() {
     while (v) { // v is not nullptr, e.g. there is actually a dose and a person who might be vaccinatable
         if (((!v->get_person()->isVaccinated() and v->get_person()->isSeroEligible()) // unvaccinated & eligible
           or (v->get_status() == REVACCINATE_QUEUE)) // or scheduled for a subsequent dose
-          and v->vaccinate(_day)) { // and person isn't dead, so got vaccinated
+          and vac_campaign->vaccinate(v, _day)) { // and person isn't dead, so got vaccinated
             vac_campaign->tally_dose(_day, v); // tally dose used, and person vaccinated
 
             // multi-dose vaccines
@@ -527,23 +528,6 @@ void Community::vaccinate() {
     // if we ran out of doses for today but still have people that need revaccination, reschedule them for tomorrow
     vac_campaign->reschedule_remaining_revaccinations(_day);
 }
-
-
-/*
-void Community::targetVaccination(Person* p) {
-    if (_day < _par->vaccineTargetStartDate) return; // not starting yet
-    // expected to be run on p's birthday
-    if (p->getAge()==_par->vaccineTargetAge
-        and not p->isVaccinated()
-        and p->isSeroEligible(_par->vaccineSeroConstraint, _par->seroTestFalsePos, _par->seroTestFalseNeg)
-       ) {
-        // standard vaccination of target age; vaccinate w/ probability = coverage
-        if (gsl_rng_uniform(RNG) < _par->vaccineTargetCoverage) { p->vaccinate(_day); }
-        if (_par->vaccineBoosting or _par->numVaccineDoses > 1) { _revaccinate_set.insert(p); }
-    }
-}
-*/
-
 
 vector<pair<size_t,double>> Community::getMeanNumSecondaryInfections() const {
     // this is not how many secondary infections occurred on day=index,
@@ -646,6 +630,9 @@ void Community::updatePersonStatus() {
                     p->getLocation(HOME_MORNING)->removePerson(p,WORK_DAY);    // stops staying at home
                 }*/
             }
+        }
+        if (p->isQuarantining(_day) and not p->isQuarantining(_day+1)) {
+            p->endQuarantine();
         }
     }
     return;
@@ -827,10 +814,10 @@ void Community::nursinghome_transmission() {
     return;
 }
 
-
 void Community::_transmission(Location* source_loc, vector<Person*> at_risk_group, const map<double, vector<Person*>> &infectious_groups, const double T) {
     const bool check_susceptibility = true;
     for (Person* p: at_risk_group) {
+        if (p->isQuarantining(_date->day())) { continue; }
         if (gsl_rng_uniform(RNG) < T) {
             Person* infecter     = nullptr;
             Infection* source_infection = nullptr;
@@ -903,11 +890,100 @@ void Community::clear_public_activity() {
     }
 }
 
+void _conditional_insert(set<Person*> &into, const vector<Person*> &from, set<Person*> &ref, const size_t day) {
+    for(Person* p : from) {
+        if(p->isAlive(day) and ref.insert(p).second) { into.insert(p); }
+    }
+}
+
+vector< set<Person*> > Community::traceForwardContacts() {
+    vector< set<Person*> > tracedContacts(_par->contactTracingDepth);      // returned data structure of traced contacts of the priumary cases categorized by depth
+    // only do contact tracing after the start date set in main
+    if(_day < _par->beginContactTracing) { return tracedContacts; }
+
+    set<Person*> tracedCases;
+    for(Person* p : _people) {
+        if(p->isAlive(_day) and p->hasBeenInfected()) {
+            Infection* mostRecentInfection = p->getInfection();
+            if(mostRecentInfection->isDetectedOn(_day) and gsl_rng_uniform(RNG) < _par->contactTracingCoverage){
+                tracedCases.insert(p);
+            }
+        }
+    }
+
+    set<Person*> allTracedPeople;               // used to ensure all people are traced only once
+    set<Person*> allInterviewedPeople;          // used to ensure all people are interviewed only once
+
+    for(size_t depth = 0; depth < _par->contactTracingDepth; ++depth) {
+        set<Person*> peopleToInterview = depth == 0 ? tracedCases : tracedContacts[depth-1];
+
+        for(Person* p : peopleToInterview) {
+            // set.insert().second returns bool: T if inserted, F if not inserted
+            // if TRUE --> person has not been traced before
+            if(p->isAlive(_day) and allInterviewedPeople.insert(p).second) {
+                // if home is a nursing home, select contacts from other residents + employees
+                // number of contacts to find based on poisson distribution with defined expected value
+                // all residents + employees of this nursing home
+                // find nursing home contacts for this interviewed person
+                if(p->getHomeLoc()->getType() == NURSINGHOME) {
+                    const size_t numNursingHomeContacts  = gsl_ran_poisson(RNG, _par->contactTracingEV[NURSINGHOME]);
+                    vector<Person*> nursingHomeResidents = p->getHomeLoc()->getPeople();
+                    vector<Person*> nursingHomeContacts  = (numNursingHomeContacts <= nursingHomeResidents.size())
+                                                               ? choose_k(RNG, nursingHomeResidents, numNursingHomeContacts)
+                                                               : nursingHomeResidents;
+
+                    // insert contacts into final data structure at this depth
+                    _conditional_insert(tracedContacts[depth], nursingHomeContacts, allTracedPeople, _day);
+                } else {
+                    // all home residents are known contacts of this interviewed person
+                    vector<Person*> allHomeContacts = p->getHomeLoc()->getPeople();
+                    _conditional_insert(tracedContacts[depth], allHomeContacts, allTracedPeople, _day);
+
+                    // contact trace neighbors
+                    const size_t numNeighborContacts = gsl_ran_poisson(RNG, _par->contactTracingEV[HOME]);
+                    vector<Person*> allNeighbors;
+                    for(Location* loc : p->getHomeLoc()->getNeighbors()) {
+                        for(Person* n : loc->getPeople()) { allNeighbors.push_back(n); }
+                    }
+                    vector<Person*> neighborContacts = (numNeighborContacts <= allNeighbors.size())
+                                                           ? choose_k(RNG, allNeighbors, numNeighborContacts)
+                                                           : allNeighbors;
+                    _conditional_insert(tracedContacts[depth], neighborContacts, allTracedPeople, _day);
+
+                    // contact trace day location people (work or school)
+                    vector<Person*> dayLocContacts;
+                    if(p->getDayLoc()) {
+                        LocationType lt = p->getDayLoc()->getType();
+                        const size_t numDayLocContacts = gsl_ran_poisson(RNG, _par->contactTracingEV[lt]);
+                        vector<Person*> dayLocPeople = p->getDayLoc()->getPeople();
+                        dayLocContacts = (numDayLocContacts <= dayLocPeople.size()) ? choose_k(RNG, dayLocPeople, numDayLocContacts)
+                                                                                    : dayLocPeople;
+                    }
+                    _conditional_insert(tracedContacts[depth], dayLocContacts, allTracedPeople, _day);
+                }
+            }
+        }
+ size_t num_quarantined = 0;
+        for (Person* p : tracedContacts[depth]) {
+            if ((not p->isQuarantining(_day)) and (gsl_rng_uniform(RNG) < _par->quarantineProbability[depth])) {
+                p->selfQuarantine(_day, _par->selfQuarantineDuration);
+                num_quarantined++;
+            }
+        }
+ cerr << "DEBUG NUM CONTACTS AT DEPTH         " << depth << " IS " << tracedContacts[depth].size() << endl;
+ cerr << "DEBUG PROB OF QUARANTINING AT DEPTH " << depth << " IS " << _par->quarantineProbability[depth] << endl;
+ cerr << "DEBUG NUM QUARANTINED FROM DEPTH    " << depth << " IS " << num_quarantined << endl;
+    }
+    return tracedContacts;
+}
 
 void Community::tick() {
     _day = _date->day();
 
+cerr << endl << "D (u s)    " << vac_campaign->get_doses_available(_day, URGENT_ALLOCATION) << ' ' << vac_campaign->get_doses_available(_day, STANDARD_ALLOCATION) << endl;
+cerr <<         "Q (u s re) " << vac_campaign->get_urgent_queue_size() << ' ' << vac_campaign->get_standard_queue_size() << ' ' << vac_campaign->get_revaccinate_queue_size(_day) << endl;
     if (vac_campaign) { vaccinate(); }
+cerr <<         "V (u s re) " << vac_campaign->get_dose_tally(_day, URGENT_QUEUE) << ' ' << vac_campaign->get_dose_tally(_day, STANDARD_QUEUE) << ' ' <<  vac_campaign->get_dose_tally(_day, REVACCINATE_QUEUE) << endl;
 
     within_household_transmission();
     between_household_transmission();
@@ -932,7 +1008,8 @@ void Community::tick() {
     hospital_transmission();
     updateHotLocations();
 
-    // vac_campaign->reactive_vac_strategy();
+    // do contact tracing to a given depth using reported cases from today if _day is at or after the start of contact tracing
+    vector< set<Person*> > tracedContactsByDepth = traceForwardContacts();
 
     // output transmission type data
     //if (_day == (int) _par->runLength -1) {
