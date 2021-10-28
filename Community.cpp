@@ -29,21 +29,21 @@ int mod(int k, int n) { return ((k %= n) < 0) ? k+n : k; } // correct for non-ne
 
 
 Community::Community(const Parameters* parameters, Date* date) :
-    _numNewlyInfected(parameters->runLength), // +1 not needed; runLength is already a valid size
-    _numNewlySymptomatic(parameters->runLength),
-    _numNewlySevere(parameters->runLength),
-    _numNewlyCritical(parameters->runLength),
-    _numNewlyDead(parameters->runLength),
-    _numVaccinatedCases(parameters->runLength),
-    _numSeverePrev(parameters->runLength),
-    _numHospInc(parameters->runLength),
-    _numHospPrev(parameters->runLength),
-    _numIcuInc(parameters->runLength),
-    _numIcuPrev(parameters->runLength),
-    _numDetectedCasesOnset(parameters->runLength),
-    _numDetectedCasesReport(parameters->runLength),
-    _numDetectedHospitalizations(parameters->runLength),
-    _numDetectedDeaths(parameters->runLength),
+    _numNewlyInfected(parameters->runLength, 0), // +1 not needed; runLength is already a valid size
+    _numNewlySymptomatic(parameters->runLength, 0),
+    _numNewlySevere(parameters->runLength, 0),
+    _numNewlyCritical(parameters->runLength, 0),
+    _numNewlyDead(parameters->runLength, 0),
+    _numVaccinatedCases(parameters->runLength, 0),
+    _numSeverePrev(parameters->runLength, 0),
+    _numHospInc(parameters->runLength, 0),
+    _numHospPrev(parameters->runLength, 0),
+    _numIcuInc(parameters->runLength, 0),
+    _numIcuPrev(parameters->runLength, 0),
+    _numDetectedCasesOnset(parameters->runLength, 0),
+    _numDetectedCasesReport(parameters->runLength, 0),
+    _numDetectedHospitalizations(parameters->runLength, 0),
+    _numDetectedDeaths(parameters->runLength, 0),
     _cumulIncByOutcome(NUM_OF_OUTCOME_TYPES, 0),
     _isHot(parameters->runLength)
     {

@@ -267,7 +267,7 @@ class Date {
         // "end" is the value immediately after the sequence produced here
         // e.g. linInterpolate(0.0, 1.0, 5) produces {0.0, 0.2, 0.4, 0.6, 0.8}
         assert(n>=1);
-        cout << "Start: " << start << "; End: " << end << endl;
+//        cout << "Start: " << start << "; End: " << end << endl;
 
         // initialize the n values to the start value
         double step = (end - start)/n;

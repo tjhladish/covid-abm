@@ -626,8 +626,8 @@ vector<double> fitting_error(const Parameters* par, const Community* community, 
     vector<TimeSeriesAnchorPoint> fit_and_prev_anchors = {{Date::to_ymd(window_start,                                       par), 0.0},
                                                           {Date::to_ymd((window_start - 1) + par->fitting_window,           par), 1.0},
                                                           {Date::to_ymd((window_start - 1) + (2 * par->fitting_window),     par), 0.5},
-                                                          {Date::to_ymd((window_start - 1) + (2 * par->fitting_window) + 1, par), 0.0},
-                                                          {Date::to_ymd(sim_day,                                            par), 0.0}};
+                                                          {Date::to_ymd((window_start - 1) + (2 * par->fitting_window) + 1, par), 0.5},
+                                                          {Date::to_ymd(sim_day,                                            par), 0.5}};
     vector<double> fit_weights = Date::linInterpolateTimeSeries(fit_and_prev_anchors, par->startJulianYear, par->startDayOfYear);
 
     vector<double> sim_crcases(fit_window_size);
@@ -701,7 +701,7 @@ cerr << "DATE\t\t\tCR ERROR\tADJ ERROR (ADJ)" << endl;
         raw_abs_error += abs((sim_crcases[i]  * sim_p10k) - (emp_crcases[i]  * fl_p10k));
         abs_error += abs(daily_crcase_error) + abs(daily_crdeath_error);
 
-cerr << "(" << i << ") " << date << "\t\t" << ((sim_crcases[i]  * sim_p10k) - (emp_crcases[i]  * fl_p10k)) << "\t\t" << daily_crcase_error << " (" << fit_weights[i] << ")"<< endl;
+//cerr << "(" << i << ") " << date << "\t\t" << ((sim_crcases[i]  * sim_p10k) - (emp_crcases[i]  * fl_p10k)) << "\t\t" << daily_crcase_error << " (" << fit_weights[i] << ")"<< endl;
 if ((i + 1) == par->fitting_window) {
     purple_abs_err = raw_abs_error; purple_err = raw_error;
     cerr << "purple\t\t" << purple_abs_err << " (" << purple_err << ")" << endl << "-------------------------------------------------------------" << endl;
@@ -753,40 +753,36 @@ class Range {
 public:
     Range() {};
     Range(double _min, double _max) : min(_min), max(_max) {};
+//    Range(initializer_list<double> vals) : min(*(vals.begin())), max(*(vals.begin()+1)) {};
 
     double min;
     double max;
 };
 
-double bin_search_anchor(Range &range, double cur_val, double error) {
-    const double min_adj = 0.01;
+double bin_search_anchor(Range &range, double cur_val, double distance) {
+    const double MIN_ADJ = 0.01;
     double new_val;
-cerr << "CUR BIN SEARCH RANGE: " << range.max << ", " << range.min << endl;
-cerr << "CUR VAL:              " << cur_val << endl;
-    if (error > 0) {
-        range.min = cur_val;
-        double adj = range.max - cur_val;
-        adj /= 2;
-        if (adj < min_adj) {
+cerr << "CUR BIN SEARCH RANGE: [" << range.min << ", " << range.max << "]" << endl;
+cerr << "CUR VAL, fit distance:              " << cur_val << ", " << distance << endl;
+    assert(cur_val <= range.max);
+    assert(cur_val >= range.min);
+    assert(range.max >= range.min);
+
+    range = distance > 0 ? Range(cur_val, range.max) : Range(range.min, cur_val);
+    const double adj = (range.max - range.min) / 2.0;
+    if (adj < MIN_ADJ) {
+        if (distance > 0) {
             new_val = range.max;
-            range.max = max(range.max - min_adj, range.min);
+            range.min = range.max;
         } else {
-            new_val =  cur_val + adj;
-        }
-cerr << "ADJ, NEW VAL:         " << adj << ", " << new_val << endl;
-    } else {
-        range.max = cur_val;
-        double adj = cur_val - range.min;
-        adj /= 2;
-        if (adj < min_adj) {
             new_val = range.min;
-            range.min = min(range.min + min_adj, range.max);
-        } else {
-            new_val = cur_val - adj;
+            range.max = range.min;
         }
-cerr << "ADJ, NEW VAL:         " << adj << ", " << new_val << endl;
+    } else {
+        new_val = range.min + adj;
     }
-cerr << "NEW BIN SEARCH RANGE: " << range.max << ", " << range.min << endl;
+cerr << "ADJ, NEW VAL:         " << adj << ", " << new_val << endl;
+cerr << "NEW BIN SEARCH RANGE: [" << range.min << ", " << range.max << "]" << endl;
     return new_val;
 }
 
@@ -913,7 +909,7 @@ cerr << "PREVIEW WINDOW: " << window_start_sim_day + par->fitting_window  << " T
 
 
                 gen_simvis(ledger->plot_log_buffer);
-                for (auto anchor: social_distancing_anchors) { cerr << anchor.date << ": " << anchor.value << endl; }
+//                for (auto anchor: social_distancing_anchors) { cerr << anchor.date << ": " << anchor.value << endl; }
                 int tmp_cnt = 0;
                 for (auto anchor: social_distancing_anchors) {
                     if (tmp_cnt == 0) { cerr << anchor.value << " "; tmp_cnt++; }
