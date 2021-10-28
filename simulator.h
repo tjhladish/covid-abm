@@ -642,12 +642,12 @@ vector<double> fitting_error(const Parameters* par, const Community* community, 
 
     vector<double> fit_weights = Date::linInterpolateTimeSeries(fit_and_prev_anchors, par->startJulianYear, par->startDayOfYear);
 
-    vector<double> emp_rcases(sim_day, 0.0); // default to 0 if data is missing, for purposes of calculating cumulative sum
+    vector<double> emp_rcases(sim_day + 1, 0.0); // default to 0 if data is missing, for purposes of calculating cumulative sum
     for (size_t day = 0; day <= sim_day; ++day) {
         if (emp_data_map.count(day)) {
             emp_rcases[day] = emp_data_map.at(day).at(0);
         } else {
-            fit_weights[day - window_start] = 0.0;
+            fit_weights[day] = 0.0;
         }
     }
 
@@ -656,12 +656,15 @@ vector<double> fitting_error(const Parameters* par, const Community* community, 
     const double fl_p10k  = 1e4/fl_pop;
 
     for (auto& val: emp_rcases) { val *= fl_p10k; }
-    for (auto& val: sim_rcases) { val *= sim_p10k; }
+
+    vector<double> sim_rcases_cpy(sim_rcases.size());
+    for (size_t i = 0; i < sim_rcases.size(); ++i) { sim_rcases_cpy[i] = sim_rcases[i] * sim_p10k; }
+    //for (auto& val: sim_rcases) { val *= sim_p10k; }
 
     vector<double> emp_rcases_cumul(emp_rcases.size());
-    vector<double> sim_rcases_cumul(sim_rcases.size());
+    vector<double> sim_rcases_cpy_cumul(sim_rcases_cpy.size());
     partial_sum(emp_rcases.begin(), emp_rcases.end(), emp_rcases_cumul.begin());
-    partial_sum(sim_rcases.begin(), sim_rcases.end(), sim_rcases_cumul.begin());
+    partial_sum(sim_rcases_cpy.begin(), sim_rcases_cpy.end(), sim_rcases_cpy_cumul.begin());
 
 cerr << fixed << setprecision(3);
 cerr << "DATE\t\t\tCR ERROR\tADJ ERROR (ADJ)" << endl;
@@ -673,7 +676,7 @@ cerr << "DATE\t\t\tCR ERROR\tADJ ERROR (ADJ)" << endl;
 
     for (size_t d = 0; d <= sim_day; ++d) {
         //string date = Date::to_ymd(d, par);
-        const double daily_crcase_error    = sim_rcases_cumul[d] - emp_rcases_cumul[d];
+        const double daily_crcase_error    = sim_rcases_cpy_cumul[d] - emp_rcases_cumul[d];
         const double daily_crcase_distance = daily_crcase_error * fit_weights[d];
         error    += daily_crcase_error;
         distance += daily_crcase_distance;
@@ -699,8 +702,8 @@ cerr << "AVG RCASES: " << avg_3day_rcases_w_offset << endl;
 //cerr << "RCASES AVERAGED: ";
 //for (size_t val : tmp_3day_rcases_p10k) { cerr << val << " "; }
 //cerr << endl;
-//if (avg_3day_rcases_w_offset > 0) { cerr << "NORMALIZED ERROR: " << abs_error/avg_3day_rcases_w_offset << " (" << error/avg_3day_rcases_w_offset << ")" << endl; }
-//cerr << defaultfloat;
+if (avg_3day_rcases_w_offset > 0) { cerr << "NORMALIZED ERROR: " << abs_distance/avg_3day_rcases_w_offset << " (" << distance/avg_3day_rcases_w_offset << ")" << endl; }
+cerr << defaultfloat;
 
     return {abs_distance/avg_3day_rcases_w_offset, distance/avg_3day_rcases_w_offset};
 }
