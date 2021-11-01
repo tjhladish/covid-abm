@@ -43,10 +43,13 @@ enum ContactTracingGroupType {
 enum VacCampaignType {
     GENERAL_CAMPAIGN,
     RING_VACCINATION,
+    GEO_VACCINATION,
+    LOCATION_VACCINATION,
     NUM_OF_VAC_CAMPAIGN_TYPES
 };
 
 class Vac_Campaign;
+class Community;
 
 class Vaccinee {
     friend Vac_Campaign;
@@ -214,6 +217,8 @@ class Vac_Campaign {
         }
 
         void ring_scheduling(int day, vector< set<Person*> > tracedContacts);
+        void geographic_scheduling(int day, set<Person*> targetedPeople, Community* community);
+        void location_scheduling(int day, set<Person*> targetedPeople);
 
         /*
         void get_reactive_vac_strategy() {
