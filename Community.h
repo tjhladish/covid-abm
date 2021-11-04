@@ -48,7 +48,9 @@ class Community {
             _numDetectedCasesOnset       = o._numDetectedCasesOnset;
             _numDetectedCasesReport      = o._numDetectedCasesReport;
             _numDetectedHospitalizations = o._numDetectedHospitalizations;
-            _numDetectedDeaths           = o._numDetectedDeaths;
+            //_numDetectedDeaths           = o._numDetectedDeaths;
+            _numDetectedDeathsOnset      = o._numDetectedDeathsOnset;
+            _numDetectedDeathsReport     = o._numDetectedDeathsReport;
             _cumulIncByOutcome           = o._cumulIncByOutcome;
             _isHot                       = std::vector< std::map<LocationType, std::map<Location*, std::map<double, std::vector<Person*>>, Location::LocPtrComp>>>(o._isHot.size());
             for (auto &e: _isHot) {
@@ -196,7 +198,9 @@ class Community {
         std::vector<size_t> getNumDetectedCasesOnset() { return _numDetectedCasesOnset; }
         std::vector<size_t> getNumDetectedCasesReport() { return _numDetectedCasesReport; }
         std::vector<size_t> getNumDetectedHospitalizations() { return _numDetectedHospitalizations; }
-        std::vector<size_t> getNumDetectedDeaths() { return _numDetectedDeaths; }
+        //std::vector<size_t> getNumDetectedDeaths() { return _numDetectedDeaths; }
+        std::vector<size_t> getNumDetectedDeathsOnset() { return _numDetectedDeathsOnset; }
+        std::vector<size_t> getNumDetectedDeathsReport() { return _numDetectedDeathsReport; }
         std::vector<pair<size_t, double>> getMeanNumSecondaryInfections() const ;
         std::vector<size_t> getCumulIncidenceByOutcome() { return _cumulIncByOutcome; }
         size_t getCumulIncidenceByOutcome( OutcomeType ot ) { return _cumulIncByOutcome[ot]; }
@@ -265,7 +269,9 @@ class Community {
         std::vector<size_t> _numDetectedCasesOnset;
         std::vector<size_t> _numDetectedCasesReport;
         std::vector<size_t> _numDetectedHospitalizations;
-        std::vector<size_t> _numDetectedDeaths;
+        //std::vector<size_t> _numDetectedDeaths;
+        std::vector<size_t> _numDetectedDeathsOnset;
+        std::vector<size_t> _numDetectedDeathsReport;
         std::vector<size_t> _cumulIncByOutcome;
 
         // groups of infectious people: indexed by day, location type, location ptr, and relative infectiousness

@@ -756,8 +756,8 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
         const vector<size_t> severe_prev        = community->getNumSeverePrev();
         const double cinf                       = accumulate(infections.begin(), infections.begin()+sim_day+1, 0.0);
         const double cAR                        = cinf/pop_at_risk; // cumulative attack rate (I hate this term)
-        const vector<size_t> rdeaths            = community->getNumDetectedDeaths();
-        //const vector<size_t> rdeaths            = community->getNumNewlyDead();
+        //const vector<size_t> rdeaths            = community->getNumDetectedDeaths();
+        const vector<size_t> rdeaths            = community->getNumDetectedDeathsOnset();
 
 
         const size_t rc_ct = accumulate(all_reported_cases.begin(), all_reported_cases.begin()+sim_day+1, 0);
