@@ -633,6 +633,11 @@ cerr << "RECACHING ON DAY " << day + 1 << endl;
 size_t window_start_sim_day = (day + 1) - ((par->num_preview_windows + 1) * par->fitting_window);
 cerr << "FITTING WINDOW: " << window_start_sim_day << " TO " << window_start_sim_day + par->fitting_window - 1 << endl;
 cerr << "PREVIEW WINDOW: " << window_start_sim_day + par->fitting_window  << " TO " << day << endl;
+size_t num_days_w_emp_data = 0;
+for (size_t d = window_start_sim_day; d <= day; ++d) { if (tuner->emp_data.count(d)) { ++num_days_w_emp_data; } }
+double prop_days_w_emp_data = (((double) num_days_w_emp_data) / (day - window_start_sim_day + 1));
+cerr << "EMP DATA FOR " << num_days_w_emp_data << " OUT OF " << (day - window_start_sim_day + 1) << " DAYS (" << prop_days_w_emp_data * 100 << "%)" << endl;
+
         vector<double> fit_error = fitting_error(par, community, day, community->getNumDetectedCasesReport(), community->getNumNewlyDead(), tuner->emp_data);
 
         gen_simvis(ledger->plot_log_buffer);
@@ -650,7 +655,8 @@ cerr << "PREVIEW WINDOW: " << window_start_sim_day + par->fitting_window  << " T
             cin >> fit_is_good;
         } else {
             cerr << endl;
-            fit_is_good = abs(fit_error[1]) < tuner->fit_threshold
+            //fit_is_good = abs(fit_error[1]) < tuner->fit_threshold
+            fit_is_good = abs(fit_error[1]) < (tuner->fit_threshold * prop_days_w_emp_data)
                           or (fit_error[1] > 0 and tuner->cur_anchor_val == tuner->bin_search_range_max())
                           or (fit_error[1] < 0 and tuner->cur_anchor_val == tuner->bin_search_range_min())
                           or (tuner->bin_search_range_max() == tuner->bin_search_range_min());
