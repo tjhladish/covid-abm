@@ -217,8 +217,10 @@ class Vac_Campaign {
         }
 
         void ring_scheduling(int day, vector< set<Person*> > tracedContacts);
-        void geographic_scheduling(int day, set<Person*> targetedPeople, Community* community);
-        void location_scheduling(int day, set<Person*> targetedPeople);
+        void geographic_scheduling(int day, vector< set<Person*> > targetedPeople, Community* community);
+        void location_scheduling(int day, vector< set<Person*> > targetedPeople);
+
+        void reactive_strategy(int day, vector< set<Person*> > targetedPeople, Community* community);
 
         /*
         void get_reactive_vac_strategy() {
