@@ -25,16 +25,16 @@ void Vac_Campaign::geographic_scheduling(int day, vector< set<Person*> > targete
         for (Person* p : tracedCases) { tracedLocs.insert(p->getHomeLoc()); }
 
         set<Location*> targetedLocs;
-        for (Location* loc : community->getLocations()) {
-            for (Location* center_loc : tracedLocs) {
-                double radius = 0.001;                                  // distance in decimal degrees to add to center_loc to draw the capture area
-                double northern_bound = center_loc->getY() + radius;
-                double southern_bound = center_loc->getY() - radius;
-                double western_bound  = center_loc->getX() + radius;
-                double eastern_bound  = center_loc->getX() - radius;
+        const double radius = 0.001;                                  // distance in decimal degrees to add to center_loc to draw the capture area
+        for (Location* center_loc : tracedLocs) {
+                const double northern_bound = center_loc->getY() + radius;
+                const double southern_bound = center_loc->getY() - radius;
+                const double eastern_bound  = center_loc->getX() + radius;
+                const double western_bound  = center_loc->getX() - radius;
 
+            for (Location* loc : community->getLocations()) {
                 if (loc->getY() > southern_bound and loc->getY() < northern_bound and
-                    loc->getX() > eastern_bound  and loc->getX() < western_bound) { targetedLocs.insert(loc); }
+                    loc->getX() < eastern_bound  and loc->getX() > western_bound) { targetedLocs.insert(loc); }
             }
         }
         //for (Person* p : targetedPeople) {
