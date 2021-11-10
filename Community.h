@@ -78,7 +78,7 @@ class Community {
         std::vector<pair<size_t, double>> getMeanNumSecondaryInfections() const ;
 
         static void flagInfectedLocation(Person* person, double relInfectiousness, LocationType locType, Location* _pLoc, int day);
-        Infection* trace_contact(Person* &infecter, Location* source_loc, const map<double, vector<Person*>> &infectious_groups);
+        Infection* trace_contact(Person* &infecter, Location* source_loc, const map<double, vector<Person*>> &infectious_groups); //TODO: rename to findInfector()
         vector< set<Person*> > traceForwardContacts();
 
         static void reportCase(int onsetDate, long int reportDate, bool hospitalized);
