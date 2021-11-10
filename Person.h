@@ -9,8 +9,11 @@
 #include "Parameters.h"
 #include "Location.h"
 
+enum QuarantineLevel {FULL, MODERATE, MINIMAL, NUM_OF_QUARANTINE_LEVELS};
+
 class Location;
 class Community;
+class Vaccinee;
 
 struct Detection {
     Detection() {
@@ -138,7 +141,11 @@ class Infection {
     bool isDead(int now)          const { return deathTime <= now; }
 
     void detect(OutcomeType detected_state, int report_date) { _detection = new Detection{detected_state, report_date}; }
-    Detection* detection() { return _detection; }
+
+    Detection* getDetection()        { return _detection; }
+    bool isDetected()          const { return (bool) _detection; }
+    bool isDetectedOn(int now) const { return (bool) isDetected() and _detection->reported_time == now; }
+
     void log_transmission(Infection* inf) { infections_caused.push_back(inf); }
     size_t secondary_infection_tally () const { return infections_caused.size(); }
     std::vector<Infection*> get_infections_caused() { return infections_caused; }
@@ -153,9 +160,9 @@ class Infection {
 };
 
 class Person {
+    friend Vaccinee;
     public:
         Person();
-        ~Person();
         Person(const Person& o) {
             id                     = o.id;
             home_loc               = o.home_loc;
@@ -177,6 +184,8 @@ class Person {
             vaccineHistory         = o.vaccineHistory;
 
         };
+
+        ~Person();
 
         struct PerPtrComp { bool operator()(const Person* A, const Person* B) const { return A->getID() < B->getID(); } };
 
@@ -252,6 +261,7 @@ class Person {
         bool inHospital(int time) const { return infectionHistory.size() > 0 and infectionHistory.back()->inHospital(time); }
         bool inIcu(int time)      const { return infectionHistory.size() > 0 and infectionHistory.back()->inIcu(time); }
         bool isDead(int time)     const { return infectionHistory.size() > 0 and infectionHistory.back()->isDead(time); } // no deaths due to other causes
+        bool isAlive(int time)    const { return not isDead(time); }
 
         bool isNewlyInfected(int time)  const { return infectionHistory.size() > 0 and time == infectionHistory.back()->infectedBegin; }
         bool isInfected(int time)       const { return infectionHistory.size() > 0 and infectionHistory.back()->isInfected(time); }
@@ -265,12 +275,13 @@ class Person {
         bool isInfectable(int time, StrainType strain) const;
         double remainingEfficacy(const int time) const;
 
+        bool hasBeenInfected() const { return (bool) infectionHistory.size(); }
         bool isNaive() const { return immune_state == NAIVE; }
+
                                                                         // does this person's immune state permit vaccination?
                                                                         // NB: inaccurate test results are possible
         //bool isSeroEligible(VaccineSeroConstraint vsc, double falsePos, double falseNeg) const;
         bool isSeroEligible() const;
-        bool vaccinate(int time);                                       // vaccinate this person
         static void setPar(const Parameters* par) { _par = par; }
 
         Infection& initializeNewInfection();
@@ -278,6 +289,10 @@ class Person {
 
         static void reset_ID_counter() { NEXT_ID = 0; }
         bool isSurveilledPerson() { return id < _par->numSurveilledPeople; }
+
+        void selfQuarantine(const size_t today, const size_t quarantineDuration);
+        void endQuarantine();
+        bool isQuarantining(const size_t today);
 
         void dumper() const {
             cerr << "Person ID: " << id << endl;
@@ -308,6 +323,11 @@ class Person {
         size_t daysImmune;                                              // number of days this person retains natural immunity
         std::vector<int> vaccineHistory;                                // vector of days on which vaccinations were received
         void clearInfectionHistory();
+
+        size_t quarantineStart;
+        size_t quarantineEnd;
+
+        bool vaccinate(int time);                                       // vaccinate this person
 
         static const Parameters* _par;
         static size_t NEXT_ID;                                          // unique ID to assign to the next Person allocated

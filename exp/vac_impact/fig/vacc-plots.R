@@ -24,8 +24,12 @@ vac.impact[order(date), c(
 ) := {
   cv <- cumsum(value)
   icv <- cumsum(i.value)
-  .(cv, icv, value - i.value, cv-icv, -(cv-icv)/icv)
-}, by=.(realization, var, mutation)][, vac := 1 ]
+  .(cv, icv, value - i.value, icv-cv, (icv-cv)/icv)
+}, by=.(realization, var, mutation)][, 
+  vac := 1
+][,
+  outcome := c(c="Symptomatic Infections", d="Deaths")[var]
+]
 
 novariant <- mlt[mutation == 0][, -c("serial", "seed", "mutation", "variable", "week")]
 variant <- mlt[mutation == 1][, -c("serial", "seed", "mutation", "variable", "week")]
@@ -40,7 +44,15 @@ var.impact[order(date), c(
   cv <- cumsum(value)
   icv <- cumsum(i.value)
   .(cv, icv, value - i.value, cv-icv, (cv-icv)/cv)
-}, by=.(realization, var, vac)][, mutation := 1 ]
+}, by=.(realization, var, vac)][, 
+  mutation := 1
+][,
+  outcome := c(c="Symptomatic Infections", d="Deaths")[var]
+]
+
+mlt[,
+    outcome := c(c="Symptomatic Infections", d="Deaths")[var]
+]
 
 varscale <- function(show = TRUE) scale_linetype_manual(
   "VoCs",
@@ -86,24 +98,21 @@ datebg <- function(ylims = c(0,Inf), bandcolor = "grey") list(
 
 effplot <- function(
   fromdate = "2021-01-01",
-  outcomes = c("c")
-) ggplot(vac.impact[date >= fromdate][var %in% outcomes][, vac := 1 ]) + aes(
+  outcomes = c("c", "d")
+) ggplot(vac.impact[date >= fromdate][var %in% outcomes]) + aes(
   date, ceff,
   linetype = c("none", "present")[mutation + 1],
   color = c("none", "present")[vac + 1],
   group = interaction(realization, mutation)
 ) +
-  facet_grid(var ~ ., scales = "free", labeller = labeller(
-    #var = c(c="Cumulative Effectiveness on Symptomatic Infections,\nVaccination", d="Cumulative Effectiveness on Deaths,\nVaccination")
-    var = c(c="Cumul. eff. (symptomatic)", d="Cumul. eff. (deaths)")
-  ), switch = "y") +
+  facet_grid(. ~ outcome) +
   datebg(ylims = c(-Inf,Inf)) +
   geom_line(linetype="solid", alpha = 0.025) +
   geom_line(
     aes(group = NULL),
     data = function(dt) dt[,
       .(ceff=median(ceff)),
-      by=.(date, mutation, var, vac)
+      by=.(date, mutation, outcome, vac)
     ]
   ) +
   scale_y_continuous(name = NULL) +
@@ -115,7 +124,8 @@ effplot <- function(
 
 veffplot <- function(
   fromdate = "2021-01-01",
-  outcomes = c("c")
+  outcomes = c("c", "d"),
+  flab = FALSE, xlab=TRUE
 ) ggplot(var.impact[date >= fromdate][var %in% outcomes]) + aes(
   date, ceff,
   linetype = c("none", "present")[mutation + 1],
@@ -147,38 +157,43 @@ veffplot <- function(
 
 epiplot <- function(
   fromdate = "2021-01-01",
-  outcomes = c("c"),
+  outcomes = c("c", "d"),
   refpop = 375475/1e4,
-  minrate = NA
+  minrate = NA,
+  flab = TRUE, xlab=FALSE
 ) ggplot(mlt[date >= fromdate][var %in% outcomes]) + aes(
   date, value/refpop,
   color = c("none", "present")[vac + 1],
   linetype = c("none", "present")[mutation + 1],
   group = interaction(realization, mutation, vac)
 ) +
-  facet_grid(var ~ ., scales = "free_y", labeller = labeller(
-    var = c(c="Symptomatic Infections per 10k", d="Deaths per 10k")
-    #var = c(c="Symptomatic Infections,\nper 10k", d="Deaths, per 10k")
-  ), switch = "y") +
+  facet_grid(. ~ outcome, scales = "free_y") +
   datebg(ylims = c(0, Inf)) +
   geom_line(linetype="solid", alpha = 0.025) +
   geom_line(
     aes(group = NULL),
     data = function(dt) dt[,
       .(value=median(value)),
-      by=.(date, vac, mutation, var)]
+      by=.(date, vac, mutation, outcome)]
   ) +
   #scale_y_continuous(
   scale_y_log10(
     name = NULL,
-    labels = scales::label_number_si()
+    labels = scales::label_number_si(accuracy = 0.1)
   ) +
   vacscale() +
   varscale() +
   coord_cartesian(
     ylim = c(minrate, NA),
     expand = FALSE
-  )
+  ) + (if (!flab) theme(
+    strip.text.x = element_blank(),
+    strip.background.x = element_blank()
+  )) + (if (!xlab) theme(
+    axis.text.x = element_blank()
+  ))
+
+avertplot <- function() 
 
 outplot <- (
   epiplot() / effplot() #/ veffplot()

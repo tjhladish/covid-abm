@@ -207,9 +207,12 @@ class Community {
 
         void flagInfectedLocation(Person* person, double relInfectiousness, LocationType locType, Location* _pLoc, int day);
         Infection* trace_contact(Person* &infecter, Location* source_loc, const map<double, vector<Person*>> &infectious_groups);
+
         void reportCase(int onsetDate, long int reportDate, bool hospitalized);
         void reportDeath(int eventDate, long int reportDate);
         void tallyOutcome(OutcomeType ot) { _cumulIncByOutcome[ot]++; }
+        vector< set<Person*> > traceForwardContacts();
+
 
 //        int ageIntervalSize(int ageMin, int ageMax) { return std::accumulate(_personAgeCohortSizes+ageMin, _personAgeCohortSizes+ageMax,0); }
 
@@ -279,6 +282,7 @@ class Community {
         // std::vector<Person*> _peopleByAge;
         Vac_Campaign* vac_campaign;
         // std::set<Person*> _revaccinate_set;          // not automatically re-vaccinated, just checked for boosting, multiple doses
+
         std::map<TimedIntervention, std::vector<double>> timedInterventions;
 
         //bool _uniformSwap;                                            // use original swapping (==true); or parse swap file (==false)

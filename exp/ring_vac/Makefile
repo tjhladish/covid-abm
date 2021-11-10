@@ -7,7 +7,7 @@ CFLAGS = -O2 -std=c++17 -Wall -Wextra -Wno-deprecated-declarations --pedantic
 ABCDIR = $(HOME)/work/AbcSmc
 COVDIR = $(HOME)/work/covid-abm
 GSL_PATH = $(HOME)/work/AbcSmc/gsl_local
-COVOBJ = $(COVDIR)/Person.o $(COVDIR)/Location.o $(COVDIR)/Community.o $(COVDIR)/Parameters.o $(COVDIR)/Utility.o
+COVOBJ = $(COVDIR)/Person.o $(COVDIR)/Location.o $(COVDIR)/Community.o $(COVDIR)/Parameters.o $(COVDIR)/Utility.o $(COVDIR)/Vac_Campaign.o
 SQLDIR = $(ABCDIR)/sqdb
 
 INCLUDE = -I$(ABCDIR) -I$(COVDIR) -I$(GSL_PATH)/include/ -I$(ABCDIR)/jsoncpp/include
@@ -34,8 +34,3 @@ clean:
 	$(MAKE) -C $(ABCDIR) -f Makefile clean
 	$(MAKE) -C $(COVDIR) -f Makefile clean
 	rm -f abc abc_sql
-
-# assumes invoked from this directory...
-
-figs:
-	${MAKE} -wC fig

@@ -27,3 +27,4 @@ local.mk
 *.txt
 abc_sql
 sim_test
+*.json

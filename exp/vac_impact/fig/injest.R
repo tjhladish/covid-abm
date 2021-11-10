@@ -2,7 +2,7 @@ require(RSQLite)
 require(data.table)
 
 .args <- if (interactive()) c(
-  "../../covid_vac_v10.0.sqlite",
+  "covid_vac_v11.0.sqlite",
   "rawresults.rds"
 ) else commandArgs(trailingOnly = TRUE)
 
@@ -16,7 +16,7 @@ mlt[, var := factor(gsub("([^0-9]*)[0-9]+$","\\1",variable)) ]
 
 start_date <- as.Date("2020-02-05")
 
-mlt[, date := start_date + week*7 ]
+mlt[, date := start_date - 1 + (week+1)*7 ]
 
 saveRDS(mlt, tail(.args, 1))
 

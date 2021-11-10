@@ -762,10 +762,11 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
         const vector<size_t> severe_prev        = community->getNumSeverePrev();
         const double cinf                       = accumulate(infections.begin(), infections.begin()+sim_day+1, 0.0);
         const double cAR                        = cinf/pop_at_risk; // cumulative attack rate (I hate this term)
-        //const vector<size_t> rdeaths            = community->getNumDetectedDeaths();
         const vector<size_t> rdeaths            = community->getNumDetectedDeathsOnset();
 
-
+//        const vector<size_t> severe             = community->getNumNewlySevere();
+//        const double trailing_avg = trailing_averages[sim_day];
+//
 //        const size_t rc_ct = accumulate(all_reported_cases.begin(), all_reported_cases.begin()+sim_day+1, 0);
 //        if (date->dayOfMonth()==1) cerr << "        rep sday        date  infinc  cAR     rcases  rcta7  crcases  rdeath  crdeath  sevprev   crhosp  closed  socdist\n";
 //        cerr << right
@@ -782,7 +783,8 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
 //             << setw(9)  << severe_prev[sim_day]
 //             << setw(9)  << accumulate(rhosp.begin(), rhosp.begin()+sim_day+1, 0)
 //             << setw(8)  << community->getTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, sim_day)
-//             << "  "     << setprecision(2) << community->social_distancing(sim_day)//par->timedInterventions.at(SOCIAL_DISTANCING).at(sim_day)
+//             << "  "     << setprecision(2) << par->timedInterventions.at(SOCIAL_DISTANCING).at(sim_day)
+//             << "  "     << setprecision(2) << (double) severe[sim_day] / reported_cases
 //             << endl;
 
         //date,sd,seasonality,vocprev,cinf,closed,rcase,rdeath,Rt
@@ -817,17 +819,21 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
 
     const vector<size_t> infections         = community->getNumNewlyInfected();
     const vector<size_t> symptomatic        = community->getNumNewlySymptomatic();
-//    const vector<size_t> severe             = community->getNumNewlySevere();
-//    const vector<size_t> critical           = community->getNumNewlyCritical();
-//    const vector<size_t> dead               = community->getNumNewlyDead();
+    const vector<size_t> severe             = community->getNumNewlySevere();
+    const vector<size_t> critical           = community->getNumNewlyCritical();
+    const vector<size_t> dead               = community->getNumNewlyDead();
+        const vector<size_t> all_reported_cases = community->getNumDetectedCasesReport();
 //
     const double cinf  = accumulate(infections.begin(), infections.end(), 0.0);
     const double csymp = accumulate(symptomatic.begin(), symptomatic.end(), 0.0);
-//    const double csev  = accumulate(symptomatic.begin(), symptomatic.end(), 0.0);
+    const double csev  = accumulate(symptomatic.begin(), symptomatic.end(), 0.0);
 //    const double ccrit = accumulate(symptomatic.begin(), symptomatic.end(), 0.0);
 //    const double cdead = accumulate(symptomatic.begin(), symptomatic.end(), 0.0);
+        const size_t rc_ct = accumulate(all_reported_cases.begin(), all_reported_cases.end(), 0);
+
     cerr << "symptomatic infections, total infections, asymptomatic fraction: " << csymp << ", " << cinf << ", " << 1.0 - (csymp/cinf) << endl;
     cerr << "icu deaths, total deaths, ratio: " << cdeath_icu << ", " << cdeath2 << ", " << cdeath_icu/cdeath2 << endl;
+    cerr << "severe infections / all reported cases: " << (double) csev / rc_ct << endl;
 
 //  write_daily_buffer(plot_log_buffer, process_id, "plot_log.csv");
     //return epi_sizes;

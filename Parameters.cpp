@@ -30,7 +30,14 @@ void Parameters::define_defaults() {
     VEH = {{WILDTYPE, {0.0}}};
     VEF = {{WILDTYPE, {0.0}}};
     VEI = {{WILDTYPE, {0.0}}};
+    vaccine_dose_to_protection_lag = 0;
     vaccineLeaky = false;
+    beginContactTracing = INT_MAX;
+    contactTracingCoverage = 0.0;
+    contactTracingEV       = vector<double>(NUM_OF_LOCATION_TYPES);
+    contactTracingDepth    = 0;
+    quarantineProbability  = vector<double>(contactTracingDepth);
+    selfQuarantineDuration = 0;
     //secondaryTransmission = true;
     populationFilename = "population.txt";
     locationFilename = "locations.txt";
