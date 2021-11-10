@@ -143,4 +143,4 @@ annotate('Cumulative reported deaths')
 #
 #plot(d$date, d$rdeath, col='green4', type='l', xlab='')
 #lines(ed$date), ed$rdeath)
-dev.off()
+invisible(dev.off())
