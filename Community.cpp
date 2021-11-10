@@ -43,7 +43,9 @@ Community::Community(const Parameters* parameters, Date* date) :
     _numDetectedCasesOnset(parameters->runLength, 0),
     _numDetectedCasesReport(parameters->runLength, 0),
     _numDetectedHospitalizations(parameters->runLength, 0),
-    _numDetectedDeaths(parameters->runLength, 0),
+    //_numDetectedDeaths(parameters->runLength, 0),
+    _numDetectedDeathsOnset(parameters->runLength, 0),
+    _numDetectedDeathsReport(parameters->runLength, 0),
     _cumulIncByOutcome(NUM_OF_OUTCOME_TYPES, 0),
     _isHot(parameters->runLength)
     {
@@ -570,9 +572,15 @@ void Community::reportCase(int onsetDate, long int reportDate, bool hospitalized
 }
 
 
-void Community::reportDeath(int /*eventDate*/, long int reportDate) {
+//void Community::reportDeath(int /*eventDate*/, long int reportDate) {
+//    assert(reportDate >= 0);
+//    if ((unsigned) reportDate < _numDetectedDeaths.size()) _numDetectedDeaths[reportDate]++;
+//}
+void Community::reportDeath(int onsetDate, long int reportDate) {
+    assert(onsetDate >= 0);
     assert(reportDate >= 0);
-    if ((unsigned) reportDate < _numDetectedDeaths.size()) _numDetectedDeaths[reportDate]++;
+    if ((unsigned) onsetDate < _numDetectedDeathsOnset.size()) { _numDetectedDeathsOnset[onsetDate]++; }
+    if ((unsigned) reportDate < _numDetectedDeathsReport.size()) { _numDetectedDeathsReport[reportDate]++; }
 }
 
 
