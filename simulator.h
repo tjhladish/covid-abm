@@ -619,8 +619,7 @@ void gen_simvis(vector<string> &plot_log_buffer) {
 }
 
 // NOTE: USING DEATHS BY DAY OF DEATH NOT DAY OF REPORTING
-vector<double> fitting_error(const Parameters* par, const Community* community, const size_t sim_day, vector<size_t> sim_rcases,
-                     const vector<size_t> &all_rdeaths, const map<size_t, vector<int>> &emp_data_map) {
+vector<double> fitting_error(const Parameters* par, const Community* community, const size_t sim_day, vector<size_t> sim_rcases_szt, const map<size_t, vector<int>> &emp_data_map) {
     const int fit_window_size = (par->num_preview_windows + 1) * par->fitting_window;
     const int window_start = ((int) sim_day + 1) - fit_window_size;
     vector<TimeSeriesAnchorPoint> fit_and_prev_anchors;
@@ -657,14 +656,14 @@ vector<double> fitting_error(const Parameters* par, const Community* community, 
 
     for (auto& val: emp_rcases) { val *= fl_p10k; }
 
-    vector<double> sim_rcases_cpy(sim_rcases.size());
-    for (size_t i = 0; i < sim_rcases.size(); ++i) { sim_rcases_cpy[i] = sim_rcases[i] * sim_p10k; }
+    vector<double> sim_rcases(sim_rcases_szt.size());
+    for (size_t i = 0; i < sim_rcases.size(); ++i) { sim_rcases[i] = sim_rcases_szt[i] * sim_p10k; }
     //for (auto& val: sim_rcases) { val *= sim_p10k; }
 
     vector<double> emp_rcases_cumul(emp_rcases.size());
-    vector<double> sim_rcases_cpy_cumul(sim_rcases_cpy.size());
+    vector<double> sim_rcases_cumul(sim_rcases.size());
     partial_sum(emp_rcases.begin(), emp_rcases.end(), emp_rcases_cumul.begin());
-    partial_sum(sim_rcases_cpy.begin(), sim_rcases_cpy.end(), sim_rcases_cpy_cumul.begin());
+    partial_sum(sim_rcases.begin(), sim_rcases.end(), sim_rcases_cumul.begin());
 
 cerr << fixed << setprecision(3);
 cerr << "DATE\t\t\tCR ERROR\tADJ ERROR (ADJ)" << endl;
@@ -676,7 +675,7 @@ cerr << "DATE\t\t\tCR ERROR\tADJ ERROR (ADJ)" << endl;
 
     for (size_t d = 0; d <= sim_day; ++d) {
         //string date = Date::to_ymd(d, par);
-        const double daily_crcase_error    = sim_rcases_cpy_cumul[d] - emp_rcases_cumul[d];
+        const double daily_crcase_error    = sim_rcases_cumul[d] - emp_rcases_cumul[d];
         const double daily_crcase_distance = daily_crcase_error * fit_weights[d];
         error    += daily_crcase_error;
         distance += daily_crcase_distance;
@@ -745,7 +744,7 @@ cerr << "NEW BIN SEARCH RANGE: [" << range.min << ", " << range.max << "]" << en
     return new_val;
 }
 
-vector<string> simulate_epidemic(const Parameters* par, Community* &community, const string process_id, const vector<string> mutant_intro_dates) {//,
+vector<string> simulate_epidemic(const Parameters* par, Community* &community, const string /*process_id*/, const vector<string> mutant_intro_dates) {//,
                                  //map<size_t, TimeSeriesAnchorPoint> &social_contact_map) {
     SimulationLedger* ledger    = new SimulationLedger();
     SimulationCache* sim_cache  = nullptr;
@@ -864,7 +863,7 @@ cerr << "RECACHING ON DAY " << day + 1 << endl;
 size_t window_start_sim_day = (day + 1) - ((par->num_preview_windows + 1) * par->fitting_window);
 cerr << "FITTING WINDOW: " << window_start_sim_day << " TO " << window_start_sim_day + par->fitting_window - 1 << endl;
 cerr << "PREVIEW WINDOW: " << window_start_sim_day + par->fitting_window  << " TO " << day << endl;
-                vector<double> fit_error = fitting_error(par, community, day, community->getNumDetectedCasesReport(), community->getNumNewlyDead(), emp_data);
+                vector<double> fit_error = fitting_error(par, community, day, community->getNumDetectedCasesReport(), emp_data);
 
 
                 gen_simvis(ledger->plot_log_buffer);
@@ -982,7 +981,7 @@ cerr << "PREVIEW WINDOW: " << window_start_sim_day + par->fitting_window  << " T
         const vector<size_t> infections         = community->getNumNewlyInfected();
         const vector<size_t> all_reported_cases = community->getNumDetectedCasesReport();
         const size_t reported_cases             = all_reported_cases[sim_day];
-        const double trailing_avg               = calc_trailing_avg(all_reported_cases, sim_day, 7); // <= 7-day trailing average
+        //const double trailing_avg               = calc_trailing_avg(all_reported_cases, sim_day, 7); // <= 7-day trailing average
         const vector<size_t> rhosp              = community->getNumDetectedHospitalizations();
         const vector<size_t> severe_prev        = community->getNumSeverePrev();
         const double cinf                       = accumulate(infections.begin(), infections.begin()+sim_day+1, 0.0);
@@ -991,7 +990,7 @@ cerr << "PREVIEW WINDOW: " << window_start_sim_day + par->fitting_window  << " T
         //const vector<size_t> rdeaths            = community->getNumNewlyDead();
 
 
-        const size_t rc_ct = accumulate(all_reported_cases.begin(), all_reported_cases.begin()+sim_day+1, 0);
+//        const size_t rc_ct = accumulate(all_reported_cases.begin(), all_reported_cases.begin()+sim_day+1, 0);
 //        if (date->dayOfMonth()==1) cerr << "        rep sday        date  infinc  cAR     rcases  rcta7  crcases  rdeath  crdeath  sevprev   crhosp  closed  socdist\n";
 //        cerr << right
 //             << setw(11) << process_id

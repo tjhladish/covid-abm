@@ -393,7 +393,7 @@ public:
     int sampleIcuTimeToDeath() const {
     // parameterization based on what you need to produce findings of median = 7, IQR = [3,11]
     // https://www.thelancet.com/journals/lanres/article/PIIS2213-2600(20)30079-5/fulltext
-        const double daily_prob_of_death = 0.2;
+        const double daily_prob_of_death = 0.2; // TODO -- should rename these so they aren't misleading
         const size_t num_days_survive_until_death = 2;
         return gsl_ran_negative_binomial(RNG, daily_prob_of_death, num_days_survive_until_death);
     }
