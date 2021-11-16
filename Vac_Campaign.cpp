@@ -35,7 +35,9 @@ void Vac_Campaign::geographic_scheduling(int day, vector< set<Person*> > targete
                 const double eastern_bound  = center_loc->getX() + radius;
                 const double western_bound  = center_loc->getX() - radius;
 
-            for (Location* loc : community->getLocations()) {
+                vector<Location*> locs_to_search = community->locsAtPixel(center_loc->getXPixel(), center_loc->getYPixel());
+
+            for (Location* loc : locs_to_search) {
                 if (loc->getY() > southern_bound and loc->getY() < northern_bound and
                     loc->getX() < eastern_bound  and loc->getX() > western_bound) { targetedLocs.insert(loc); }
             }

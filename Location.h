@@ -53,6 +53,10 @@ class Location {
         double getY() const { return _coord.second; }
         void setY(double y) { _coord.second = y; }
 
+        void setPixel(double xP, double yP) { _xPixel = xP; _yPixel = yP; }
+        double getXPixel() const { return _xPixel; }
+        double getYPixel() const { return _yPixel; }
+
         float getRiskiness() const { return _riskiness; }
         void setRiskiness(float ra) { _riskiness = ra; }
 
@@ -79,6 +83,7 @@ class Location {
         Location* _hospital;                                          // for houses, the associated hospital (nullptr for others)
         static size_t NEXT_ID;                                        // unique ID to assign to the next Location allocated
         std::pair<double, double> _coord;                             // (x,y) coordinates for location
+        double _xPixel, _yPixel;
 };
 
 

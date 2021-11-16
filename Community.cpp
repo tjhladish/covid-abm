@@ -360,6 +360,10 @@ bool Community::loadPopulation(string populationFilename, string comorbidityFile
     return true;
 }
 
+double _calculatePixel(double coord) {
+    return (floor(coord / 0.01) * 0.01) + 0.005;
+}
+
 
 bool Community::loadLocations(string locationFilename, string networkFilename) {
     ifstream iss(locationFilename);
@@ -419,6 +423,11 @@ bool Community::loadLocations(string locationFilename, string networkFilename) {
             newLoc->setY(locY);
             newLoc->setType(locType); // may be redundant--would save 1 mb per million locations to omit, so probably not worth removing
             newLoc->setEssential((bool) essential);
+
+            double xPixel = _calculatePixel(locX);
+            double yPixel = _calculatePixel(locY);
+            newLoc->setPixel(xPixel, yPixel);
+            _pixelMap[{xPixel, yPixel}].push_back(newLoc);
 
             if ((line >> compliance) and compliance >= 0) { // predetermined compliance values
                 assert(compliance <= 1.0);
