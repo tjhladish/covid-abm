@@ -2,6 +2,9 @@
 #include "Community.h"
 #include "Person.h"
 #include "Location.h"
+#include "Utility.h"
+
+using covid::util::choose_k;
 
 void Vac_Campaign::ring_scheduling(int day, vector< set<Person*> > tracedContacts) {
     if (day >= start_of_campaign[RING_VACCINATION]) {
@@ -64,19 +67,44 @@ void Vac_Campaign::geographic_scheduling(int day, vector< set<Person*> > targete
 
 void Vac_Campaign::location_scheduling(int day, vector< set<Person*> > targetedPeople) {
     if (day >= start_of_campaign[LOCATION_VACCINATION]) {
-        double coverage = 1.0;
+        const double work_and_neighbr_coverage = 0.5;
+        const size_t expected_classroom_size   = 30;
+
         set<Person*> tracedCases = targetedPeople[0];
+        set<Person*> all_people_to_vax;
         //for (Person* tp : targetedPeople) {
         for (Person* tp : tracedCases) {
-            for (Person* p : tp->getHomeLoc()->getPeople()) {
-                if (gsl_rng_uniform(RNG) < coverage and is_age_eligible_on(p->getAge(), day)
-                    and not (p->hasBeenInfected() or p->isVaccinated())) { prioritize_vaccination(p); }
+            Location* homeloc = tp->getHomeLoc();
+            for (Person* p : homeloc->getPeople()) { all_people_to_vax.insert(p); }
+
+            vector<Person*> all_neighbors;
+            for (Location* n : homeloc->getNeighbors()) {
+                for (Person* p : n->getPeople()) { all_neighbors.push_back(p); }
             }
+            const size_t num_neighbors_to_vax = all_neighbors.size() * work_and_neighbr_coverage;
+            vector<Person*> neighbors_to_vax = choose_k(RNG, all_neighbors, num_neighbors_to_vax);
+            for (Person* p : neighbors_to_vax) { all_people_to_vax.insert(p); }
+
             if (tp->getDayLoc()) {
-                for (Person* p : tp->getDayLoc()->getPeople()) {
-                    if (gsl_rng_uniform(RNG) < coverage and is_age_eligible_on(p->getAge(), day)
-                            and not (p->hasBeenInfected() or p->isVaccinated())) { prioritize_vaccination(p); }
+                Location* dayloc = tp->getDayLoc();
+                vector<Person*> dayloc_people_to_vax;
+
+                if (dayloc->getType() == WORK) {
+                    const size_t num_workers_to_vax = dayloc->getNumPeople() * work_and_neighbr_coverage;
+                    vector<Person*> workplace_people = dayloc->getPeople();
+                    dayloc_people_to_vax = choose_k(RNG, workplace_people, num_workers_to_vax);
+                } else if (dayloc->getType() == SCHOOL) {
+                    size_t num_classmates_to_vax = gsl_ran_poisson(RNG, expected_classroom_size);
+                    num_classmates_to_vax = (num_classmates_to_vax > (size_t) dayloc->getNumPeople()) ? dayloc->getNumPeople() : num_classmates_to_vax;
+                    vector<Person*> school_people = dayloc->getPeople();
+                    dayloc_people_to_vax = choose_k(RNG, school_people, num_classmates_to_vax);
                 }
+
+                for (Person* p : dayloc_people_to_vax) { all_people_to_vax.insert(p); }
+            }
+
+            for (Person* p : all_people_to_vax) {
+                if (is_age_eligible_on(p->getAge(), day) and not (p->hasBeenInfected() or p->isVaccinated())) { prioritize_vaccination(p); }
             }
         }
     }
