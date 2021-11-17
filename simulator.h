@@ -554,6 +554,9 @@ void first_tuning_window_setup(const Parameters* par, Community* community, Beha
         val1 = 0.0;//0.25;
         val2 = val1;
         tuner->cur_anchor_val  = val1;
+tuner->output_buffer << right << "  day          window  emp data%  abs dist  sum dist   cur val              search range   new val";
+cerr << right << tuner->output_buffer.str() << endl;
+tuner->clear_output_buffer();
     }
     social_distancing_anchors.emplace_back(Date::to_ymd(0, par), val1);
     social_distancing_anchors.emplace_back(Date::to_ymd(par->fitting_window - 1, par), val2);
@@ -583,16 +586,19 @@ cerr << "FIT IS GOOD" << endl;
             if (tuner->slow_auto) { cin.ignore(); }
             tuner->clear_output_buffer();
             cerr << endl << endl;
+tuner->output_buffer << right << "  day          window  emp data%  abs dist  sum dist   cur val              search range   new val";
+cerr << right << tuner->output_buffer.str() << endl;
+tuner->clear_output_buffer();
         }
 
         social_distancing_anchors.emplace_back(Date::to_ymd((par->fitting_window * (tuner->fitting_window_ct + 1)) - 1, par), val1);
     } else {
 
 tuner->output_buffer << right
-                     << setw(10) << fit_error[0] 
-                     << setw(12) << "(" << fit_error[1] << ")" 
-                     << setw(10) << tuner->cur_anchor_val 
-                     << setw(20) << "[" << tuner->bin_search_range->min << ", " << tuner->bin_search_range->max << "]";
+                     << setprecision(2) << scientific << setw(10) << fit_error[0] 
+                     << setprecision(2) << scientific << setw(10) << fit_error[1]
+                     << setprecision(6) << defaultfloat << setw(10) << tuner->cur_anchor_val 
+                     << setw(3) << "[" << setw(10) << tuner->bin_search_range->min << ", " << setw(10) << tuner->bin_search_range->max << "]";
 
         if (not tuner->manual_control) { tuner->cur_anchor_val = bin_search_anchor(tuner->bin_search_range, tuner->cur_anchor_val, fit_error[1]); }
 
@@ -659,7 +665,7 @@ double prop_days_w_emp_data = (((double) num_days_w_emp_data) / (day - window_st
 
 tuner->output_buffer << right 
                      << setw(5) << day 
-                     << setw(10) << "[" << window_start_sim_day << ", " << day << "]" 
+                     << setw(3) << "[" << setw(5) << window_start_sim_day << ", " << setw(5) << day << "]" 
                      << setw(10) << prop_days_w_emp_data * 100 << "%";
 
         vector<double> fit_error = fitting_error(par, community, day, community->getNumDetectedCasesReport(), tuner->emp_data);
