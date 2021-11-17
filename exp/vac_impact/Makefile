@@ -34,3 +34,8 @@ clean:
 	$(MAKE) -C $(ABCDIR) -f Makefile clean
 	$(MAKE) -C $(COVDIR) -f Makefile clean
 	rm -f abc abc_sql
+
+# assumes invoked from this directory...
+
+figs:
+	${MAKE} -wC fig

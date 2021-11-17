@@ -19,14 +19,15 @@
 
 using namespace covid::standard;
 using covid::util::mean;
-using covid::util::choice;
+using covid::util::uniform_choice;
+using covid::util::weighted_choice;
 using covid::util::choose_k;
 using covid::util::merge_vectors;
 
 const Parameters* Community::_par;
 Date* Community::_date;
 vector< map<LocationType, map<Location*, map<double, vector<Person*>>, Location::LocPtrComp>>> Community::_isHot;
-set<Person*> Community::_revaccinate_set;
+set<Person*, Person::PerPtrComp> Community::_revaccinate_set;
 vector<size_t> Community::_numDetectedCasesOnset;
 vector<size_t> Community::_numDetectedCasesReport;
 vector<size_t> Community::_numDetectedHospitalizations;
@@ -653,30 +654,23 @@ void Community::flagInfectedLocation(Person* person, double relInfectiousness, L
 }
 
 
+//vector<double> trans_type(3, 0.0); // asymptomatic, presymptomatic, symptomatic, for logging transmission type
 Infection* Community::trace_contact(Person* &infecter, Location* source_loc, const map<double, vector<Person*>> &infectious_groups) {
     // Identify who was the source of an exposure event (tracing backward)
     // First we determine which group did the infecting (grouped by infectiousness),
-    // then we chose the person within the group who is the infecter
-    vector<double> individual_weights;
+    // then we choose the person within the group who is the infecter
+    vector<double> relInfectiousnessValues;
     vector<double> group_weights;
     double total = 0.0;
     for (const auto& [relInfectiousness, people]: infectious_groups) {
-        individual_weights.push_back(relInfectiousness);
+        relInfectiousnessValues.push_back(relInfectiousness);
         const double group_weight = relInfectiousness * people.size();
         total += group_weight;
         group_weights.push_back(group_weight);
     }
 
-    double r = total * gsl_rng_uniform(RNG);
-    size_t idx;
-    for (idx = 0; idx<group_weights.size(); ++idx) {
-        if (r < group_weights[idx]) {
-            break;
-        } else {
-            r -= group_weights[idx];
-        }
-    }
-    infecter = choice(RNG, infectious_groups.at(individual_weights[idx]));
+    size_t group_idx = weighted_choice(RNG, group_weights);
+    infecter = uniform_choice(RNG, infectious_groups.at(relInfectiousnessValues[group_idx]));
 
     // sanity check to make sure we've found a legit candidate
     const vector<Person*> people = source_loc->getPeople();
@@ -840,7 +834,17 @@ void Community::_transmission(Location* source_loc, vector<Person*> at_risk_grou
             source_infection = trace_contact(infecter, source_loc, infectious_groups);
             // infect() tests for whether person is infectable
             Infection* transmission = p->infect(infecter, _date, source_loc, source_infection->getStrain(), check_susceptibility);
-            if (source_infection and transmission) { source_infection->log_transmission(transmission); } // did we contact trace, and did transmission occur?
+            if (source_infection and transmission) {
+                source_infection->log_transmission(transmission);
+                // for logging transmission type
+                // if (infecter->isSymptomatic(_day)) {
+                //     trans_type[2]++;
+                // } else if (infecter->getInfection()->symptomatic()) {
+                //     trans_type[1]++;
+                // } else {
+                //     trans_type[0]++;
+                // }
+           } // did we contact trace, and did transmission occur?
         }
     }
 }
@@ -1018,13 +1022,10 @@ cerr <<         "V (u s re) " << vac_campaign->get_dose_tally(_day, URGENT_QUEUE
     workplace_transmission();
     clear_public_activity();
 
-    if (not timedInterventions[SCHOOL_CLOSURE][_day]) school_transmission();
+    if (_date->isWeekday() and not timedInterventions[SCHOOL_CLOSURE][_day]) {
+        school_transmission();
+    }
     nursinghome_transmission();
-
-//    if (isWeekday(dow)) {
-//        school_transmission();
-//    }
-//    local_transmission();
 
     //updateVaccination();
 
@@ -1040,8 +1041,13 @@ cerr <<         "V (u s re) " << vac_campaign->get_dose_tally(_day, URGENT_QUEUE
     // do contact tracing to a given depth using reported cases from today if _day is at or after the start of contact tracing
     vector< set<Person*> > tracedContactsByDepth = traceForwardContacts();
 
-    //if(vac_campaign and vac_campaign->get_reactive_vac_strategy() == RING_VACCINATION) { vac_campaign->ring_scheduling(_day, tracedContactsByDepth); }
-    if(vac_campaign) { vac_campaign->reactive_strategy(_day, tracedContactsByDepth, this); }
+    if(vac_campaign) { vac_campaign->reactive_strategy(_day, tracedContactsByDepth, this); // if there is no reactive strategy, nothing happens
+
+    // output transmission type data
+    //if (_day == (int) _par->runLength -1) {
+    //    double all_trans = accumulate(trans_type.begin(), trans_type.end(), 0.0);
+    //    cerr << "never symptomatic, pre-symptomatic, symptomatic transmission: " << trans_type[0]/all_trans << ", " << trans_type[1]/all_trans << ", " << trans_type[2]/all_trans << endl;
+    //}
     return;
 }
 

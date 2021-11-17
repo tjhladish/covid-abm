@@ -87,7 +87,8 @@ class Date {
     }
 
     DayOfWeekType dayOfWeek() const { return dayOfWeek(julianYear(), julianMonth(), dayOfMonth()); }
-
+    bool isWeekend() const { return dayOfWeek() == SATURDAY or dayOfWeek() == SUNDAY; }
+    bool isWeekday() const { return not isWeekend(); }
 
     string dayOfWeekName(int y, int m, int d) const { return DAY_NAMES[dayOfWeek(y, m, d)]; }
     string dayOfWeekName()   const { return DAY_NAMES[dayOfWeek()]; }

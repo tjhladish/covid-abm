@@ -209,7 +209,7 @@ class Vac_Campaign {
 
         void reschedule_remaining_revaccinations(size_t today) {
             const size_t queue_length_in_days = revaccinate_queue.size(); // how many days long is the simulation
-            std::set<Person*> remaining_people = revaccinate_queue[today];
+            std::set<Person*, Person::PerPtrComp> remaining_people = revaccinate_queue[today];
             if (remaining_people.size() and queue_length_in_days > today + 1) {
                 revaccinate_queue[today + 1].insert(remaining_people.begin(), remaining_people.end());
                 revaccinate_queue[today].clear();
@@ -246,9 +246,9 @@ class Vac_Campaign {
 
         std::queue<Person*> urgent_queue;                      // people who need to be vaccinated, determined during simulation
         std::queue<Person*> standard_queue;                    // people who will be vaccinated, known before transmission sim begins
-        std::vector< std::set<Person*> > revaccinate_queue;    // indexed by sim day
+        std::vector< std::set<Person*, Person::PerPtrComp> > revaccinate_queue;    // indexed by sim day
 
-        bool prioritize_first_doses;                           // do we prioritize first doses, or completing vac schedules?
+        bool prioritize_first_doses;                           // do we prioritize first doses, or completing vac schedules? --> possibly move to _par?
         bool flexible_queue_allocation;                        // can doses be used from any allocation, or only as intended?
         bool unlim_urgent_doses;                               // should an unlimited number of doses be used for the urgent queue (i.e. reactive strategy)?
 
