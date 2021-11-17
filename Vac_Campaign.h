@@ -91,6 +91,7 @@ class Vac_Campaign {
             flexible_queue_allocation    = o.flexible_queue_allocation;
             reactive_vac_strategy        = o.reactive_vac_strategy;
             reactive_vac_dose_allocation = o.reactive_vac_dose_allocation;
+            min_age                      = o.min_age;
         }
         virtual ~Vac_Campaign() {} //is this correct to address a vtable error?
 

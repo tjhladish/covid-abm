@@ -696,6 +696,9 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         vc->set_flexible_queue_allocation(false);
         vc->set_reactive_vac_strategy(NUM_OF_VAC_CAMPAIGN_TYPES);
         vc->set_reactive_vac_dose_allocation(0.0);
+
+        vector<int> min_age(par->runLength, 12);
+        vc->set_min_age(min_age);
     }
 
     seed_epidemic(par, community, WILDTYPE);
