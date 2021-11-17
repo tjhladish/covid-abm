@@ -980,10 +980,10 @@ vector< set<Person*> > Community::traceForwardContacts() {
 void Community::tick() {
     _day = _date->day();
 
-cerr << endl << "D (u s)    " << vac_campaign->get_doses_available(_day, URGENT_ALLOCATION) << ' ' << vac_campaign->get_doses_available(_day, STANDARD_ALLOCATION) << endl;
-cerr <<         "Q (u s re) " << vac_campaign->get_urgent_queue_size() << ' ' << vac_campaign->get_standard_queue_size() << ' ' << vac_campaign->get_revaccinate_queue_size(_day) << endl;
+//cerr << endl << "D (u s)    " << vac_campaign->get_doses_available(_day, URGENT_ALLOCATION) << ' ' << vac_campaign->get_doses_available(_day, STANDARD_ALLOCATION) << endl;
+//cerr <<         "Q (u s re) " << vac_campaign->get_urgent_queue_size() << ' ' << vac_campaign->get_standard_queue_size() << ' ' << vac_campaign->get_revaccinate_queue_size(_day) << endl;
     if (vac_campaign) { vaccinate(); }
-cerr <<         "V (u s re) " << vac_campaign->get_dose_tally(_day, URGENT_QUEUE) << ' ' << vac_campaign->get_dose_tally(_day, STANDARD_QUEUE) << ' ' <<  vac_campaign->get_dose_tally(_day, REVACCINATE_QUEUE) << endl;
+//cerr <<         "V (u s re) " << vac_campaign->get_dose_tally(_day, URGENT_QUEUE) << ' ' << vac_campaign->get_dose_tally(_day, STANDARD_QUEUE) << ' ' <<  vac_campaign->get_dose_tally(_day, REVACCINATE_QUEUE) << endl;
 
     within_household_transmission();
     between_household_transmission();
