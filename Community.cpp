@@ -1041,7 +1041,7 @@ cerr <<         "V (u s re) " << vac_campaign->get_dose_tally(_day, URGENT_QUEUE
     // do contact tracing to a given depth using reported cases from today if _day is at or after the start of contact tracing
     vector< set<Person*> > tracedContactsByDepth = traceForwardContacts();
 
-    if(vac_campaign) { vac_campaign->reactive_strategy(_day, tracedContactsByDepth, this); // if there is no reactive strategy, nothing happens
+    if(vac_campaign) { vac_campaign->reactive_strategy(_day, tracedContactsByDepth, this); } // if there is no reactive strategy, nothing happens
 
     // output transmission type data
     //if (_day == (int) _par->runLength -1) {
