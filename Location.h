@@ -54,6 +54,7 @@ class Location {
         void setY(double y) { _coord.second = y; }
 
         void setPixel(double xP, double yP) { _xPixel = xP; _yPixel = yP; }
+        std::pair<double, double> getPixel() const { return {_xPixel, _yPixel}; }
         double getXPixel() const { return _xPixel; }
         double getYPixel() const { return _yPixel; }
 
