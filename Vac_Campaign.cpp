@@ -30,12 +30,19 @@ void Vac_Campaign::geographic_scheduling(int day, vector< set<Person*> > targete
         set<Location*> targetedLocs;
         const double radius = 0.001;                                  // distance in decimal degrees to add to center_loc to draw the capture area
         for (Location* center_loc : tracedLocs) {
-                const double northern_bound = center_loc->getY() + radius;
-                const double southern_bound = center_loc->getY() - radius;
-                const double eastern_bound  = center_loc->getX() + radius;
-                const double western_bound  = center_loc->getX() - radius;
+            vector<Location*> locs_to_search;
+            for (double y = -0.01; y <= 0.01; y += 0.01) {
+                for (double x = -0.01; x <= 0.01; x += 0.01) {
+                    vector<Location*> tmp = community->locsAtPixel(center_loc->getXPixel() + x, center_loc->getYPixel() + y);
+                    locs_to_search.insert(locs_to_search.end(), tmp.begin(), tmp.end());
+                }
+            }
+            //vector<Location*> locs_to_search = community->locsAtPixel(center_loc->getXPixel(), center_loc->getYPixel());
 
-                vector<Location*> locs_to_search = community->locsAtPixel(center_loc->getXPixel(), center_loc->getYPixel());
+            const double northern_bound = center_loc->getY() + radius;
+            const double southern_bound = center_loc->getY() - radius;
+            const double eastern_bound  = center_loc->getX() + radius;
+            const double western_bound  = center_loc->getX() - radius;
 
             for (Location* loc : locs_to_search) {
                 if (loc->getY() > southern_bound and loc->getY() < northern_bound and
