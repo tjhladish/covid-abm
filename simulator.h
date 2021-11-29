@@ -332,7 +332,7 @@ void gen_simvis(vector<string> &plot_log_buffer) {
 }
 
 // NOTE: USING DEATHS BY DAY OF DEATH NOT DAY OF REPORTING
-vector<double> fitting_error(const Parameters* par, const Community* community, const size_t sim_day, vector<size_t> sim_rcases_szt, const map<size_t, vector<int>> &emp_data_map) {
+double score_fit(const Parameters* par, const Community* community, const size_t sim_day, vector<size_t> sim_rcases_szt, const map<size_t, vector<int>> &emp_data_map) {
     const int fit_window_size = (par->num_preview_windows + 1) * par->fitting_window;
     const int window_start = ((int) sim_day + 1) - fit_window_size;
     vector<TimeSeriesAnchorPoint> fit_and_prev_anchors;
@@ -417,7 +417,8 @@ vector<double> fitting_error(const Parameters* par, const Community* community, 
 //if (avg_3day_rcases_w_offset > 0) { cerr << "NORMALIZED ERROR: " << abs_distance/avg_3day_rcases_w_offset << " (" << distance/avg_3day_rcases_w_offset << ")" << endl; }
 //cerr << defaultfloat;
 
-    return {abs_distance/avg_3day_rcases_w_offset, distance/avg_3day_rcases_w_offset};
+    const double normed_distance = distance/avg_3day_rcases_w_offset;
+    return normed_distance;
 }
 
 class Range {
@@ -433,39 +434,10 @@ public:
 
     double min;
     double max;
+
+    double best_value;
+    double best_distance;
 };
-
-double bin_search_anchor(Range* range, double cur_val, double distance) {
-    const double MIN_ADJ = 0.01;
-    double new_val;
-//cerr << "CUR BIN SEARCH RANGE: [" << range->min << ", " << range->max << "]" << endl;
-//cerr << "CUR VAL, fit distance:              " << cur_val << ", " << distance << endl;
-    assert(cur_val <= range->max);
-    assert(cur_val >= range->min);
-    assert(range->max >= range->min);
-
-    if (distance > 0) {
-        range->set_range(cur_val, range->max);
-    } else {
-        range->set_range(range->min, cur_val);
-    }
-
-    const double adj = (range->max - range->min) / 2.0;
-    if (adj < MIN_ADJ) {
-        if (distance > 0) {
-            new_val = range->max;
-            range->min = range->max;
-        } else {
-            new_val = range->min;
-            range->max = range->min;
-        }
-    } else {
-        new_val = range->min + adj;
-    }
-//cerr << "ADJ, NEW VAL:         " << adj << ", " << new_val << endl;
-//cerr << "NEW BIN SEARCH RANGE: [" << range->min << ", " << range->max << "]" << endl;
-    return new_val;
-}
 
 
 class BehaviorAutoTuner {
@@ -476,6 +448,7 @@ class BehaviorAutoTuner {
     void init_defaults() {
         bin_search_range = new Range(0.0, 1.0);
         cur_anchor_val = 0.0;
+        window_already_scored = false;
 
         fitting_window_ct = 1;
 
@@ -510,12 +483,30 @@ class BehaviorAutoTuner {
     void reset_bin_search_range() {
         bin_search_range->min = 0.0;
         bin_search_range->max = 1.0;
+        window_already_scored = false;
+    }
+
+    void update_best_distance(double new_distance) {
+        if (window_already_scored) {
+            if (abs(new_distance) < abs(best_distance)) {
+                best_distance = new_distance;
+                best_anchor_val = cur_anchor_val;
+            }
+        } else {
+            best_distance = new_distance;
+            best_anchor_val = cur_anchor_val;
+            window_already_scored = true;
+        }
     }
 
     void clear_output_buffer() { output_buffer.str(""); }
 
     Range* bin_search_range;
     double cur_anchor_val;
+
+    double best_anchor_val;
+    double best_distance;
+    bool window_already_scored;
 
     size_t fitting_window_ct;
 
@@ -531,6 +522,46 @@ class BehaviorAutoTuner {
 
     stringstream output_buffer;
 };
+
+
+double bin_search_anchor(BehaviorAutoTuner* tuner, double distance) {
+    Range* range = tuner->bin_search_range;
+    const double cur_val = tuner->cur_anchor_val;
+//    if (abs(range.best_distance) > abs(distance) ) {
+//        range.best_distance = distance;
+//        range.best_value    = cur_val;
+//    }
+    const double MIN_ADJ = 0.01;
+    double new_val;
+//cerr << "CUR BIN SEARCH RANGE: [" << range->min << ", " << range->max << "]" << endl;
+//cerr << "CUR VAL, fit distance:              " << cur_val << ", " << distance << endl;
+    assert(cur_val <= range->max);
+    assert(cur_val >= range->min);
+    assert(range->max >= range->min);
+
+    if (distance > 0) {
+        range->set_range(cur_val, range->max);
+    } else {
+        range->set_range(range->min, cur_val);
+    }
+
+    const double adj = (range->max - range->min) / 2.0;
+    if (adj < MIN_ADJ) {
+        if (distance > 0) {
+            new_val = range->max;
+            range->min = range->max;
+        } else {
+            new_val = range->min;
+            range->max = range->min;
+        }
+    } else {
+        new_val = range->min + adj;
+    }
+//cerr << "ADJ, NEW VAL:         " << adj << ", " << new_val << endl;
+//cerr << "NEW BIN SEARCH RANGE: [" << range->min << ", " << range->max << "]" << endl;
+    return new_val;
+}
+
 
 BehaviorAutoTuner* initialize_behavior_auto_tuning(const Parameters* par, string emp_data_filename) {
     BehaviorAutoTuner* tuner = new BehaviorAutoTuner();
@@ -554,7 +585,7 @@ void first_tuning_window_setup(const Parameters* par, Community* community, Beha
         val1 = 0.0;//0.25;
         val2 = val1;
         tuner->cur_anchor_val  = val1;
-tuner->output_buffer << right << "  day          window  emp data%  abs dist  sum dist   cur val              search range   new val";
+tuner->output_buffer << right << "  day          window  emp data%  sum dist   cur val              search range   new val";
 cerr << right << tuner->output_buffer.str() << endl;
 tuner->clear_output_buffer();
     }
@@ -570,7 +601,7 @@ void overwrite_sim_cache(SimulationCache* &sim_cache, Community* community, Simu
     tuner->recache = false;
 }
 
-void process_behavior_fit(int fit_is_good, vector<double> fit_error, const Parameters* par, BehaviorAutoTuner* tuner, vector<TimeSeriesAnchorPoint> &social_distancing_anchors) {
+void process_behavior_fit(int fit_is_good, double fit_distance, const Parameters* par, BehaviorAutoTuner* tuner, vector<TimeSeriesAnchorPoint> &social_distancing_anchors) {
     if(fit_is_good) {
         tuner->recache = true;
 
@@ -586,7 +617,7 @@ cerr << "FIT IS GOOD" << endl;
             if (tuner->slow_auto) { cin.ignore(); }
             tuner->clear_output_buffer();
             cerr << endl << endl;
-tuner->output_buffer << right << "  day          window  emp data%  abs dist  sum dist   cur val              search range   new val";
+tuner->output_buffer << right << "  day          window  emp data%  sum dist   cur val              search range   new val";
 cerr << right << tuner->output_buffer.str() << endl;
 tuner->clear_output_buffer();
         }
@@ -595,12 +626,11 @@ tuner->clear_output_buffer();
     } else {
 
 tuner->output_buffer << right
-                     << setprecision(2) << scientific << setw(10) << fit_error[0] 
-                     << setprecision(2) << scientific << setw(10) << fit_error[1]
-                     << setprecision(6) << defaultfloat << setw(10) << tuner->cur_anchor_val 
+                     << setprecision(2) << scientific << setw(10) << fit_distance
+                     << setprecision(6) << defaultfloat << setw(10) << tuner->cur_anchor_val
                      << setw(3) << "[" << setw(10) << tuner->bin_search_range->min << ", " << setw(10) << tuner->bin_search_range->max << "]";
 
-        if (not tuner->manual_control) { tuner->cur_anchor_val = bin_search_anchor(tuner->bin_search_range, tuner->cur_anchor_val, fit_error[1]); }
+        if (not tuner->manual_control) { tuner->cur_anchor_val = bin_search_anchor(tuner, fit_distance); }
 
         if (tuner->fitting_window_ct == 1) {
             double val1, val2;
@@ -663,12 +693,14 @@ for (size_t d = window_start_sim_day; d <= day; ++d) { if (tuner->emp_data.count
 double prop_days_w_emp_data = (((double) num_days_w_emp_data) / (day - window_start_sim_day + 1));
 //cerr << "EMP DATA FOR " << num_days_w_emp_data << " OUT OF " << (day - window_start_sim_day + 1) << " DAYS (" << prop_days_w_emp_data * 100 << "%)" << endl;
 
-tuner->output_buffer << right 
-                     << setw(5) << day 
-                     << setw(3) << "[" << setw(5) << window_start_sim_day << ", " << setw(5) << day << "]" 
+tuner->output_buffer << right
+                     << setw(5) << day
+                     << setw(3) << "[" << setw(5) << window_start_sim_day << ", " << setw(5) << day << "]"
                      << setw(10) << prop_days_w_emp_data * 100 << "%";
 
-        vector<double> fit_error = fitting_error(par, community, day, community->getNumDetectedCasesReport(), tuner->emp_data);
+        double fit_distance = score_fit(par, community, day, community->getNumDetectedCasesReport(), tuner->emp_data);
+cerr << "current anchor, score: " << tuner->cur_anchor_val << ", " << fit_distance << endl;
+        tuner->update_best_distance(fit_distance);
 
         gen_simvis(ledger->plot_log_buffer);
 
@@ -685,14 +717,19 @@ tuner->output_buffer << right
             cin >> fit_is_good;
         } else {
             //cerr << endl;
-            //fit_is_good = abs(fit_error[1]) < tuner->fit_threshold
-            fit_is_good = abs(fit_error[1]) < (tuner->fit_threshold * prop_days_w_emp_data)
-                          or (fit_error[1] > 0 and tuner->cur_anchor_val == tuner->bin_search_range_max())
-                          or (fit_error[1] < 0 and tuner->cur_anchor_val == tuner->bin_search_range_min())
+            //fit_is_good = abs(fit_distance) < tuner->fit_threshold
+            fit_is_good = abs(fit_distance) < (tuner->fit_threshold * prop_days_w_emp_data)
+                          or (fit_distance > 0 and tuner->cur_anchor_val == tuner->bin_search_range_max())
+                          or (fit_distance < 0 and tuner->cur_anchor_val == tuner->bin_search_range_min())
                           or (tuner->bin_search_range_max() == tuner->bin_search_range_min());
+
+            if (fit_is_good) {
+                tuner->cur_anchor_val = tuner->best_anchor_val;
+                cerr << "Using anchor val: " << tuner->cur_anchor_val << endl;
+            }
         }
 
-        process_behavior_fit(fit_is_good, fit_error, par, tuner, social_distancing_anchors);
+        process_behavior_fit(fit_is_good, fit_distance, par, tuner, social_distancing_anchors);
         restore_from_cache(community, date, sim_cache, ledger, social_distancing_anchors);
     }
 }
@@ -865,6 +902,8 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
     cerr << "icu deaths, total deaths, ratio: " << cdeath_icu << ", " << cdeath2 << ", " << cdeath_icu/cdeath2 << endl;
     cerr << "severe infections / all reported cases: " << (double) csev / rc_ct << endl;
 
+cerr_vector(community->getTimedIntervention(SOCIAL_DISTANCING));
+
 //  write_daily_buffer(plot_log_buffer, process_id, "plot_log.csv");
     //return epi_sizes;
     if (RNG) { gsl_rng_free(RNG); }
@@ -873,6 +912,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
     vector<string> plot_log_buffer = ledger->plot_log_buffer;
     if (ledger) { delete ledger; }
     if (tuner)  { delete tuner; }
+
 
     return plot_log_buffer;
 }
