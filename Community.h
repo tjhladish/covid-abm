@@ -225,6 +225,12 @@ class Community {
             timedInterventions.at(ti).resize(date);              // truncate
             timedInterventions.at(ti).resize(current_size, val); // new values
         }
+        void setSocialDistancingTimedIntervention(const vector<double> &vec) {
+            timedInterventions[SOCIAL_DISTANCING].clear();
+            timedInterventions[SOCIAL_DISTANCING] = vec;
+            const double last_sd_value = timedInterventions[SOCIAL_DISTANCING].back();
+            timedInterventions[SOCIAL_DISTANCING].resize(_par->runLength, last_sd_value);
+        }
         void setSocialDistancingTimedIntervention(const vector<TimeSeriesAnchorPoint> &vec) {
             timedInterventions[SOCIAL_DISTANCING].clear();
             timedInterventions[SOCIAL_DISTANCING] = Date::linInterpolateTimeSeries(vec, _par->startJulianYear, _par->startDayOfYear);
@@ -236,12 +242,12 @@ class Community {
         }
         void _extendSocialDistancingTimedIntervention(double val) {
             const size_t current_size = timedInterventions.at(SOCIAL_DISTANCING).size();
-            timedInterventions[SOCIAL_DISTANCING].resize(current_size + _par->fitting_window, val);
+            timedInterventions[SOCIAL_DISTANCING].resize(current_size + _par->tuning_window, val);
         }
         void _reviseSocialDistancingTimedIntervention(double val) {
             const size_t current_size = timedInterventions.at(SOCIAL_DISTANCING).size();
-            assert(current_size >= _par->fitting_window);
-            timedInterventions[SOCIAL_DISTANCING].resize(current_size - _par->fitting_window);
+            assert(current_size >= _par->tuning_window);
+            timedInterventions[SOCIAL_DISTANCING].resize(current_size - _par->tuning_window);
             _extendSocialDistancingTimedIntervention(val);
         }
         double getTimedIntervention(TimedIntervention ti, size_t day) const { return timedInterventions.at(ti)[day]; }

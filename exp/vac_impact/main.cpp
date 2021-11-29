@@ -233,9 +233,10 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->networkFilename          = pop_dir    + "/network-"            + SIM_POP + ".txt";
     par->publicActivityFilename   = pop_dir    + "/public-activity-"    + SIM_POP + ".txt";
 
-    par->auto_fitting   = true;
-    par->fitting_window = 14;
+    par->behavioral_auto_tuning = false;
+    par->tuning_window = 14;
     par->num_preview_windows = 3;
+    par->auto_tuning_dataset = "";
 
     return par;
 }

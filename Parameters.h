@@ -570,9 +570,10 @@ public:
     VaccineSeroConstraint vaccineSeroConstraint;
     MmodsScenario mmodsScenario;
 
-    bool auto_fitting;
-    size_t fitting_window;
+    bool behavioral_auto_tuning;
+    size_t tuning_window;
     size_t num_preview_windows;
+    std::string auto_tuning_dataset;
 
     std::vector<double> quarantineProbability;
     size_t selfQuarantineDuration;
