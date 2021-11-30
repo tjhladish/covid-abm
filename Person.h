@@ -175,6 +175,8 @@ class Person {
             naiveVaccineProtection = o.naiveVaccineProtection;
             immune_state           = o.immune_state;
             infectionHistory       = std::vector<Infection*>(o.infectionHistory.size());
+            quarantineStart        = o.quarantineStart;
+            quarantineEnd          = o.quarantineEnd;
 
             for(size_t i = 0; i < o.infectionHistory.size(); ++i) {
                 infectionHistory[i] = new Infection(*(o.infectionHistory[i]));
