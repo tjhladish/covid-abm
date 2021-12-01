@@ -7,7 +7,7 @@ This model is adapted from a previous [agent-based model for dengue transmission
 ## Daily Transmission Cycle
 The model revolves around a daily cycle of human movement and transmission opportunities.
 Susceptible humans can become infected when they co-localize with currently infectious individuals.
-Infections follow an SEIRD model progressing between **S**usceptible, **E**xposed, **I**nfectious, and **R**ecovered, and **D**ead states. 
+Infections follow an SEIRD model progressing between **S**usceptible, **E**xposed, **I**nfectious, and **R**ecovered, and **D**ead states.
 Moreover, infections can develop varying levels of severity: asymptomatic (**I<sub>A</sub>**), mild (**I<sub>M</sub>**), severe (**I<sub>S</sub>**), and critical (**I<sub>C</sub>**).
 
 ## Human Synthetic Population

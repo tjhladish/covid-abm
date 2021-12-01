@@ -86,7 +86,7 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->runLength               = TOTAL_DURATION;
     par->annualIntroductionsCoef = 1;
 
-    par->beginContactTracing           = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-07-01");
+    par->beginContactTracing           = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-06-01");
     par->contactTracingCoverage        = 0.7;
     par->contactTracingEV[HOME]        = 5.0;
     par->contactTracingEV[WORK]        = 3.0;
@@ -95,8 +95,8 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->contactTracingEV[NURSINGHOME] = 5.0;
     par->contactTracingDepth           = 2;
 
-    par->quarantineProbability  = {0.75, 0.5};
-    //par->quarantineProbability  = {0.0, 0.0};
+    //par->quarantineProbability  = {0.0, 0.75, 0.5};
+    par->quarantineProbability  = {0.0, 0.0, 0.0};
     par->selfQuarantineDuration = 10;
 
     vector<double> seasonality;
@@ -672,19 +672,19 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         vc = generateVac_Campaign(vaccination_file, par, community);
 
         // parameter handling --- how do we want to handle setting these? I just set them here rather than use par
-        vc->set_start_of_campaign(RING_VACCINATION, Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-07-01"));
-        assert(vc->get_start_of_campaign(RING_VACCINATION) >= par->beginContactTracing);
-
-        vc->set_end_of_campaign(GENERAL_CAMPAIGN, par->runLength);
-        vc->set_end_of_campaign(RING_VACCINATION, par->runLength);
-
         vc->set_prioritize_first_doses(false);
         vc->set_flexible_queue_allocation(false);
         vc->set_unlim_urgent_doses(true);
 
-        vc->set_reactive_vac_strategy(RING_VACCINATION);
-        //vc->set_reactive_vac_strategy(NUM_OF_VAC_CAMPAIGN_TYPES);
+        VacCampaignType selected_strat = GEO_VACCINATION;
+        vc->set_reactive_vac_strategy(selected_strat);
         vc->set_reactive_vac_dose_allocation(0.0);
+
+        vc->set_start_of_campaign(selected_strat, Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-06-01"));
+        assert(vc->get_start_of_campaign(selected_strat) >= par->beginContactTracing);
+
+        vc->set_end_of_campaign(GENERAL_CAMPAIGN, par->runLength);
+        vc->set_end_of_campaign(selected_strat, par->runLength);
 
         vector<int> min_ages(par->runLength, 12);
         vc->set_min_age(min_ages);       // needed for e.g. urgent vaccinations

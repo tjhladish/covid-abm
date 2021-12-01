@@ -361,6 +361,10 @@ bool Community::loadPopulation(string populationFilename, string comorbidityFile
     return true;
 }
 
+double _calculatePixel(double coord) {
+    return (floor(coord / 0.01) * 0.01) + 0.005;
+}
+
 
 bool Community::loadLocations(string locationFilename, string networkFilename) {
     ifstream iss(locationFilename);
@@ -420,6 +424,11 @@ bool Community::loadLocations(string locationFilename, string networkFilename) {
             newLoc->setY(locY);
             newLoc->setType(locType); // may be redundant--would save 1 mb per million locations to omit, so probably not worth removing
             newLoc->setEssential((bool) essential);
+
+            double xPixel = _calculatePixel(locX);
+            double yPixel = _calculatePixel(locY);
+            newLoc->setPixel(xPixel, yPixel);
+            _pixelMap[{xPixel, yPixel}].push_back(newLoc);
 
             if ((line >> compliance) and compliance >= 0) { // predetermined compliance values
                 assert(compliance <= 1.0);
@@ -897,7 +906,8 @@ void _conditional_insert(set<Person*> &into, const vector<Person*> &from, set<Pe
 }
 
 vector< set<Person*> > Community::traceForwardContacts() {
-    vector< set<Person*> > tracedContacts(_par->contactTracingDepth);      // returned data structure of traced contacts of the priumary cases categorized by depth
+    //vector< set<Person*> > tracedContacts(_par->contactTracingDepth);      // returned data structure of traced contacts of the priumary cases categorized by depth
+    vector< set<Person*> > tracedContacts(_par->contactTracingDepth + 1);      // returned data structure of traced contacts of the priumary cases categorized by depth
     // only do contact tracing after the start date set in main
     if(_day < _par->beginContactTracing) { return tracedContacts; }
 
@@ -911,11 +921,15 @@ vector< set<Person*> > Community::traceForwardContacts() {
         }
     }
 
+    tracedContacts[0] = tracedCases;
+
     set<Person*> allTracedPeople;               // used to ensure all people are traced only once
     set<Person*> allInterviewedPeople;          // used to ensure all people are interviewed only once
 
+    //for(size_t depth = 0; depth < _par->contactTracingDepth; ++depth) {
     for(size_t depth = 0; depth < _par->contactTracingDepth; ++depth) {
-        set<Person*> peopleToInterview = depth == 0 ? tracedCases : tracedContacts[depth-1];
+        //set<Person*> peopleToInterview = depth == 0 ? tracedCases : tracedContacts[depth-1];
+        set<Person*> peopleToInterview = depth == 0 ? tracedCases : tracedContacts[depth];
 
         for(Person* p : peopleToInterview) {
             // set.insert().second returns bool: T if inserted, F if not inserted
@@ -933,11 +947,13 @@ vector< set<Person*> > Community::traceForwardContacts() {
                                                                : nursingHomeResidents;
 
                     // insert contacts into final data structure at this depth
-                    _conditional_insert(tracedContacts[depth], nursingHomeContacts, allTracedPeople, _day);
+                    //_conditional_insert(tracedContacts[depth], nursingHomeContacts, allTracedPeople, _day);
+                    _conditional_insert(tracedContacts[depth + 1], nursingHomeContacts, allTracedPeople, _day);
                 } else {
                     // all home residents are known contacts of this interviewed person
                     vector<Person*> allHomeContacts = p->getHomeLoc()->getPeople();
-                    _conditional_insert(tracedContacts[depth], allHomeContacts, allTracedPeople, _day);
+                    //_conditional_insert(tracedContacts[depth], allHomeContacts, allTracedPeople, _day);
+                    _conditional_insert(tracedContacts[depth + 1], allHomeContacts, allTracedPeople, _day);
 
                     // contact trace neighbors
                     const size_t numNeighborContacts = gsl_ran_poisson(RNG, _par->contactTracingEV[HOME]);
@@ -948,7 +964,8 @@ vector< set<Person*> > Community::traceForwardContacts() {
                     vector<Person*> neighborContacts = (numNeighborContacts <= allNeighbors.size())
                                                            ? choose_k(RNG, allNeighbors, numNeighborContacts)
                                                            : allNeighbors;
-                    _conditional_insert(tracedContacts[depth], neighborContacts, allTracedPeople, _day);
+                    //_conditional_insert(tracedContacts[depth], neighborContacts, allTracedPeople, _day);
+                    _conditional_insert(tracedContacts[depth + 1], neighborContacts, allTracedPeople, _day);
 
                     // contact trace day location people (work or school)
                     vector<Person*> dayLocContacts;
@@ -959,21 +976,34 @@ vector< set<Person*> > Community::traceForwardContacts() {
                         dayLocContacts = (numDayLocContacts <= dayLocPeople.size()) ? choose_k(RNG, dayLocPeople, numDayLocContacts)
                                                                                     : dayLocPeople;
                     }
-                    _conditional_insert(tracedContacts[depth], dayLocContacts, allTracedPeople, _day);
+                    //_conditional_insert(tracedContacts[depth], dayLocContacts, allTracedPeople, _day);
+                    _conditional_insert(tracedContacts[depth + 1], dayLocContacts, allTracedPeople, _day);
                 }
             }
         }
+// size_t num_quarantined = 0;
+//        for (Person* p : tracedContacts[depth]) {
+//            if ((not p->isQuarantining(_day)) and (gsl_rng_uniform(RNG) < _par->quarantineProbability[depth])) {
+//                p->selfQuarantine(_day, _par->selfQuarantineDuration);
+//                num_quarantined++;
+//            }
+//        }
+// cerr << "DEBUG NUM CONTACTS AT DEPTH         " << depth << " IS " << tracedContacts[depth].size() << endl;
+// cerr << "DEBUG PROB OF QUARANTINING AT DEPTH " << depth << " IS " << _par->quarantineProbability[depth] << endl;
+// cerr << "DEBUG NUM QUARANTINED FROM DEPTH    " << depth << " IS " << num_quarantined << endl;
+    }
  size_t num_quarantined = 0;
+ for (size_t depth = 0; depth < tracedContacts.size(); ++depth) {
         for (Person* p : tracedContacts[depth]) {
             if ((not p->isQuarantining(_day)) and (gsl_rng_uniform(RNG) < _par->quarantineProbability[depth])) {
                 p->selfQuarantine(_day, _par->selfQuarantineDuration);
                 num_quarantined++;
             }
         }
- cerr << "DEBUG NUM CONTACTS AT DEPTH         " << depth << " IS " << tracedContacts[depth].size() << endl;
- cerr << "DEBUG PROB OF QUARANTINING AT DEPTH " << depth << " IS " << _par->quarantineProbability[depth] << endl;
- cerr << "DEBUG NUM QUARANTINED FROM DEPTH    " << depth << " IS " << num_quarantined << endl;
-    }
+ //cerr << "DEBUG NUM CONTACTS AT DEPTH         " << depth << " IS " << tracedContacts[depth].size() << endl;
+ //cerr << "DEBUG PROB OF QUARANTINING AT DEPTH " << depth << " IS " << _par->quarantineProbability[depth] << endl;
+ //cerr << "DEBUG NUM QUARANTINED FROM DEPTH    " << depth << " IS " << num_quarantined << endl;
+ }
     return tracedContacts;
 }
 
@@ -1010,6 +1040,8 @@ void Community::tick() {
 
     // do contact tracing to a given depth using reported cases from today if _day is at or after the start of contact tracing
     vector< set<Person*> > tracedContactsByDepth = traceForwardContacts();
+
+    if(vac_campaign) { vac_campaign->reactive_strategy(_day, tracedContactsByDepth, this); } // if there is no reactive strategy, nothing happens
 
     // output transmission type data
     //if (_day == (int) _par->runLength -1) {

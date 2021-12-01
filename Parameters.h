@@ -526,7 +526,7 @@ public:
     std::string annualIntroductionsFilename;                // time series of some external factor determining introduction rate
     std::vector<double> annualIntroductions;
     double annualIntroductionsCoef;                         // multiplier to rescale external introductions to something sensible
-        size_t sampleDaysImmune(const gsl_rng* RNG) const {
+    size_t sampleDaysImmune(const gsl_rng* RNG) const {
         const double t_half = 103;             // days
         const double threshold = 215;          // below this threshold, susceptible again.  CABP estimated using PHE data and Science paper below
         const double antibody_init_mean = 3.0; // Rough estimate from https://science.sciencemag.org/content/early/2021/01/06/science.abf4063/

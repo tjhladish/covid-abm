@@ -78,7 +78,7 @@ class Community {
         std::vector<pair<size_t, double>> getMeanNumSecondaryInfections() const ;
 
         static void flagInfectedLocation(Person* person, double relInfectiousness, LocationType locType, Location* _pLoc, int day);
-        Infection* trace_contact(Person* &infecter, Location* source_loc, const map<double, vector<Person*>> &infectious_groups);
+        Infection* trace_contact(Person* &infecter, Location* source_loc, const map<double, vector<Person*>> &infectious_groups); //TODO: rename to findInfector()
         vector< set<Person*> > traceForwardContacts();
 
         static void reportCase(int onsetDate, long int reportDate, bool hospitalized);
@@ -97,6 +97,9 @@ class Community {
         }
         double getTimedIntervention(TimedIntervention ti, size_t day) const { return timedInterventions.at(ti)[day]; }
 
+        vector<Location*> locsAtPixel(std::pair<double, double> px) { return _pixelMap[{px.first, px.second}]; }
+        vector<Location*> locsAtPixel(double xP, double yP) { return _pixelMap[{xP, yP}]; }
+
         static std::vector<size_t> _cumulIncByOutcome;
     protected:
         static const Parameters* _par;
@@ -107,6 +110,7 @@ class Community {
         std::vector<Location*> _location;                                      // index is equal to the ID
         std::vector<Location*> _public_locations;                              // index is arbitrary
         std::map<LocationType, std::set<Location*, Location::LocPtrComp>> _location_map; //
+        std::map<std::pair<double, double>, std::vector<Location*>> _pixelMap;
         std::vector< std::vector<Person*> > _exposedQueue;                     // queue of people with n days of latency left
         int _day;                                                              // current day
         std::vector<size_t> _numNewlyInfected;
