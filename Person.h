@@ -143,8 +143,10 @@ class Person {
 
         bool isHCW() { return getDayLoc() and ((getDayLoc()->getType() == HOSPITAL) or (getDayLoc()->getType() == NURSINGHOME)); }
 
-        size_t getDaysImmune() const { return daysImmune; }
-        void setDaysImmune(size_t di) { daysImmune = di; }
+        size_t getStartingNaturalEfficacy() const { return startingNaturalEfficacy; }
+        void setStartingNaturalEfficacy(size_t sne) { startingNaturalEfficacy = sne; }
+        //size_t getDaysImmune() const { return daysImmune; }
+        //void setDaysImmune(size_t di) { daysImmune = di; }
 
         bool getLongTermCare() { return long_term_care; }
         void setLongTermCare(bool b) { long_term_care = b; }
@@ -263,7 +265,8 @@ class Person {
 
         ImmuneStateType immune_state;
         std::vector<Infection*> infectionHistory;
-        size_t daysImmune;                                              // number of days this person retains natural immunity
+        //size_t daysImmune;                                              // number of days this person retains natural immunity
+        double startingNaturalEfficacy;                                 // level of protection (Pr{reisting infection}, analogous to VE_S) acquired by person after natural infection
         std::vector<int> vaccineHistory;                                // vector of days on which vaccinations were received
         void clearInfectionHistory();
 

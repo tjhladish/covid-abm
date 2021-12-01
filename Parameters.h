@@ -526,14 +526,31 @@ public:
     std::string annualIntroductionsFilename;                // time series of some external factor determining introduction rate
     std::vector<double> annualIntroductions;
     double annualIntroductionsCoef;                         // multiplier to rescale external introductions to something sensible
-    size_t sampleDaysImmune(const gsl_rng* RNG) const {
-        const double t_half = 103;             // days
-        const double threshold = 215;          // below this threshold, susceptible again.  CABP estimated using PHE data and Science paper below
-        const double antibody_init_mean = 3.0; // Rough estimate from https://science.sciencemag.org/content/early/2021/01/06/science.abf4063/
-        const double antibody_init_sd = 0.5;   // ''
-        const double time_to_susceptible = -t_half * log(threshold / pow(10, gsl_ran_gaussian(RNG, antibody_init_sd) + antibody_init_mean)) / log(2);
-        return time_to_susceptible < 0 ? 0 : (size_t) round(time_to_susceptible);
+    double sampleStartingNaturalEfficacy(const gsl_rng* RNG) const {
+        // neutralization level relative to mean natural immunity following infection, after: https://www.nature.com/articles/s41591-021-01377-8/figures/1
+        const double neut_lvl = pow(2.0, gsl_ran_gaussian(RNG, 1.0));
+        return covid::util::logistic(3.097703*(log10(neut_lvl)-log10(0.2010885)));
     }
+    double remainingEfficacy(double starting_efficacy, double time_delta) const {
+        const double month_delta = time_delta / 30.0; // published data worked in terms of months
+        // KBT fitted logistic model to Pfizer waning data from: https://www.thelancet.com/journals/lancet/article/PIIS0140-6736(21)02183-8/fulltext 
+        //logistic_wane = function(x) {1 / (1 + exp(-(2.4603816 - 0.4148295 * x)))}
+        //logit_wane = function(x) { (log(1/x - 1) + 2.4603816)/0.4148295 }
+        const double k = 0.4148295;
+        const double intcpt = 2.4603816;
+        // first determine where this person's immunity started along the logistic curve
+        const double effective_starting_time = (log(1.0/starting_efficacy - 1.0) + intcpt) / k;
+        const double l = intcpt - k * (effective_starting_time + month_delta);
+        return covid::util::logistic(l);
+    }
+//    size_t sampleDaysImmune(const gsl_rng* RNG) const {
+//        const double t_half = 103;             // days
+//        const double threshold = 215;          // below this threshold, susceptible again.  CABP estimated using PHE data and Science paper below
+//        const double antibody_init_mean = 3.0; // Rough estimate from https://science.sciencemag.org/content/early/2021/01/06/science.abf4063/
+//        const double antibody_init_sd = 0.5;   // ''
+//        const double time_to_susceptible = -t_half * log(threshold / pow(10, gsl_ran_gaussian(RNG, antibody_init_sd) + antibody_init_mean)) / log(2);
+//        return time_to_susceptible < 0 ? 0 : (size_t) round(time_to_susceptible);
+//    }
     bool linearlyWaningVaccine;
     int vaccineImmunityDuration;
     bool vaccineBoosting;                                   // Are we re-vaccinated, either because of waning or because of multi-dose vaccine

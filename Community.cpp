@@ -183,7 +183,8 @@ bool Community::loadPopulation(string populationFilename, string comorbidityFile
             _people.push_back(p);
             p->setAge(age);
             p->setSex((SexType) sex);
-            p->setDaysImmune(_par->sampleDaysImmune(RNG));
+            p->setStartingNaturalEfficacy(_par->sampleStartingNaturalEfficacy(RNG));
+            //p->setDaysImmune(_par->sampleDaysImmune(RNG));
 
             p->setHomeLoc(_location[hid]);
             _location[hid]->addPerson(p);

@@ -152,25 +152,26 @@ bool Person::isInfectable(const int time, const StrainType strain) const {
 }
 
 
-double Person::remainingEfficacy(const int time) const {
-    double remainingFraction = 1.0;
-    if (not isVaccinated()) {
-        remainingFraction = 0.0;
-    } else {
-        if (_par->linearlyWaningVaccine) {
-            // reduce by fraction of immunity duration that has waned
-            int time_since_vac = daysSinceVaccination(time);
-            if (time_since_vac > _par->vaccineImmunityDuration) {
-                remainingFraction = 0.0;
-            } else {
-                remainingFraction -= ((double) time_since_vac) / _par->vaccineImmunityDuration;
-            }
-        }
-    }
-    return remainingFraction;
-}
+//double Person::remainingEfficacy(const int time) const {
+//    double remainingFraction = 1.0;
+//    if (not isVaccinated()) {
+//        remainingFraction = 0.0;
+//    } else {
+//        if (_par->linearlyWaningVaccine) {
+//            // reduce by fraction of immunity duration that has waned
+//            int time_since_vac = daysSinceVaccination(time);
+//            if (time_since_vac > _par->vaccineImmunityDuration) {
+//                remainingFraction = 0.0;
+//            } else {
+//                remainingFraction -= ((double) time_since_vac) / _par->vaccineImmunityDuration;
+//            }
+//        }
+//    }
+//    return remainingFraction;
+//}
 
 
+// TODO -- merge this function with isVaccineProtected
 double Person::vaccineProtection(const int time, const StrainType strain) const {
     double ves;
     if (not isVaccinated()) {
@@ -401,32 +402,31 @@ Infection* Person::infect(Person* source, const Date* date, Location* sourceloc,
 
 bool Person::isCrossProtected(int time, StrainType strain) const { // assumes binary cross-immunity
     bool immune = false;
+
     if (getNumNaturalInfections() > 0) {
         // first check for broad, short term immunity
         const Infection* last_inf = infectionHistory.back();
         vector<int> possible_last_infection_end_dates = {last_inf->infectiousEnd, last_inf->symptomEnd};
         const int last_infection_end_date = covid::util::max_element(possible_last_infection_end_dates);
         const int time_since_last_infection = time - last_infection_end_date;
-        // don't really know this; assumption based on https://assets.publishing.service.gov.uk/government/uploads/system/uploads/attachment_data/file/1005517/Technical_Briefing_19.pdf 
-        const int general_duration_of_cross_immunity = 180;
-        const int base_days_immune = (signed) getDaysImmune();
-        if (time_since_last_infection <= general_duration_of_cross_immunity and time_since_last_infection <= base_days_immune) {
+        const double remaining_natural_efficacy = remainingEfficacy(startingNaturalEfficacy, time_since_last_infection);
+        if (gsl_rng_uniform(RNG) < remaining_natural_efficacy) {
             immune = true;
         }
 
-        if (infectionHistory.size() > 1 and not immune) {
-            // maybe there's longer term, strain-specific immunity
-            for (Infection* inf: infectionHistory) {
-                if (inf->getStrain() == strain) {
-                    vector<int> possible_infection_end_dates = {last_inf->infectiousEnd, last_inf->symptomEnd};
-                    const int time_since_infection = time - covid::util::max_element(possible_infection_end_dates);
-                    if (time_since_infection <= base_days_immune) {
-                        immune = true;
-                    }
-                    break;
-                }
-            }
-        }
+        //if (infectionHistory.size() > 1 and not immune) {
+        //    // maybe there's longer term, strain-specific immunity
+        //    for (Infection* inf: infectionHistory) {
+        //        if (inf->getStrain() == strain) {
+        //            vector<int> possible_infection_end_dates = {last_inf->infectiousEnd, last_inf->symptomEnd};
+        //            const int time_since_infection = time - covid::util::max_element(possible_infection_end_dates);
+        //            if (time_since_infection <= base_days_immune) {
+        //                immune = true;
+        //            }
+        //            break;
+        //        }
+        //    }
+        //}
     }
     return immune;
 }
