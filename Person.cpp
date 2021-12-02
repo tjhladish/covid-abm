@@ -444,9 +444,9 @@ bool Person::isVaccineProtected(const int time, const StrainType strain) const {
         }
 
         const double remaining_vaccine_efficacy = _par->remainingEfficacy(init_ves, daysSinceVaccination(time));
-        immune = ((size_t) daysSinceVaccination(time) >= _par->vaccine_dose_to_protection_lag) and  // past the time lag until protection begins
-                 ( !_par->vaccineLeaky or                                                           // if the vaccine isn't leaky
-                 (gsl_rng_uniform(RNG) < remaining_vaccine_efficacy) );                             // or it protects (i.e., doesn't leak this time)
+        immune = ((size_t) daysSinceVaccination(time) >= _par->vaccine_dose_to_protection_lag) and                          // past the time lag until protection begins
+                 ( (not _par->vaccineLeaky and (immune_state == VACCINATED or immune_state == NATURAL_AND_VACCINATED)) or   // if the vaccine isn't leaky and they have protection
+                 (gsl_rng_uniform(RNG) < remaining_vaccine_efficacy) );                                                     // or it protects (i.e., doesn't leak this time)
     }
     return immune;
 //    return isVaccinated() and
