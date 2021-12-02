@@ -152,23 +152,23 @@ bool Person::isInfectable(const int time, const StrainType strain) const {
 }
 
 
-double Person::remainingEfficacy(const int time) const {
-    double remainingFraction = 1.0;
-    if (not isVaccinated()) {
-        remainingFraction = 0.0;
-    } else {
-        if (_par->linearlyWaningVaccine) {
-            // reduce by fraction of immunity duration that has waned
-            int time_since_vac = daysSinceVaccination(time);
-            if (time_since_vac > _par->vaccineImmunityDuration) {
-                remainingFraction = 0.0;
-            } else {
-                remainingFraction -= ((double) time_since_vac) / _par->vaccineImmunityDuration;
-            }
-        }
-    }
-    return remainingFraction;
-}
+//double Person::remainingEfficacy(const int time) const {
+//    double remainingFraction = 1.0;
+//    if (not isVaccinated()) {
+//        remainingFraction = 0.0;
+//    } else {
+//        if (_par->linearlyWaningVaccine) {
+//            // reduce by fraction of immunity duration that has waned
+//            int time_since_vac = daysSinceVaccination(time);
+//            if (time_since_vac > _par->vaccineImmunityDuration) {
+//                remainingFraction = 0.0;
+//            } else {
+//                remainingFraction -= ((double) time_since_vac) / _par->vaccineImmunityDuration;
+//            }
+//        }
+//    }
+//    return remainingFraction;
+//}
 
 
 //// TODO -- merge this function with isVaccineProtected
@@ -230,18 +230,19 @@ Infection* Person::infect(Person* source, const Date* date, Location* sourceloc,
     // Not quite the same as "susceptible"--this person may be e.g. partially immune
     // due to natural infection or vaccination
     if (check_susceptibility and not isInfectable(time, strain)) { return nullptr; }
-    const double remaining_efficacy = remainingEfficacy(time);  // due to vaccination; needs to be called before initializing new infection (still true?)
+    //const double remaining_efficacy = remainingEfficacy(time);  // due to vaccination; needs to be called before initializing new infection (still true?)
 
     // Create a new infection record
     const size_t incubation_period = _par->symptom_onset(); // may not be symptomatic, but this is used to determine infectiousness onset
     Infection& infection = initializeNewInfection(time, incubation_period, sourceloc, source);
     if (not source) { infection.strain = strain; }
 
+    // current assumption is that only VES wanes, other types of efficacy do not
     const size_t dose = vaccineHistory.size() - 1;
-    const double effective_VEP = isVaccinated() ? _par->VEP_at(dose, strain)*remaining_efficacy : 0.0;        // reduced pathogenicity due to vaccine
-    const double effective_VEH = isVaccinated() ? _par->VEH_at(dose, strain)*remaining_efficacy : 0.0;        // reduced severity (hospitalization) due to vaccine
-    const double effective_VEF = isVaccinated() ? _par->VEF_at(dose, strain)*remaining_efficacy : 0.0;        // reduced fatality due to vaccine
-    const double effective_VEI = isVaccinated() ? _par->VEI_at(dose, strain)*remaining_efficacy : 0.0;        // reduced infectiousness
+    const double effective_VEP = isVaccinated() ? _par->VEP_at(dose, strain) : 0.0;        // reduced pathogenicity due to vaccine
+    const double effective_VEH = isVaccinated() ? _par->VEH_at(dose, strain) : 0.0;        // reduced severity (hospitalization) due to vaccine
+    const double effective_VEF = isVaccinated() ? _par->VEF_at(dose, strain) : 0.0;        // reduced fatality due to vaccine
+    const double effective_VEI = isVaccinated() ? _par->VEI_at(dose, strain) : 0.0;        // reduced infectiousness
 
     double symptomatic_probability = _par->pathogenicityByAge[age] * (1.0 - effective_VEP);           // may be modified by vaccination
     const double severe_given_case = _par->probSeriousOutcome.at(SEVERE)[comorbidity][age] * (1.0 - effective_VEH);
