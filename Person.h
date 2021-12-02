@@ -143,8 +143,8 @@ class Person {
 
         bool isHCW() { return getDayLoc() and ((getDayLoc()->getType() == HOSPITAL) or (getDayLoc()->getType() == NURSINGHOME)); }
 
-        size_t getStartingNaturalEfficacy() const { return startingNaturalEfficacy; }
-        void setStartingNaturalEfficacy(size_t sne) { startingNaturalEfficacy = sne; }
+        double getStartingNaturalEfficacy() const { return startingNaturalEfficacy; }
+        void setStartingNaturalEfficacy(double sne) { startingNaturalEfficacy = sne; }
         //size_t getDaysImmune() const { return daysImmune; }
         //void setDaysImmune(size_t di) { daysImmune = di; }
 
