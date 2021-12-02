@@ -52,7 +52,7 @@ Person::Person() {
     home_loc = nullptr;
     day_loc = nullptr;
     immune_state = NAIVE;
-    daysImmune = INT_MAX;
+    //daysImmune = INT_MAX;
     naiveVaccineProtection = false;
     long_term_care = false;
     comorbidity = HEALTHY;
@@ -152,45 +152,45 @@ bool Person::isInfectable(const int time, const StrainType strain) const {
 }
 
 
-//double Person::remainingEfficacy(const int time) const {
-//    double remainingFraction = 1.0;
-//    if (not isVaccinated()) {
-//        remainingFraction = 0.0;
-//    } else {
-//        if (_par->linearlyWaningVaccine) {
-//            // reduce by fraction of immunity duration that has waned
-//            int time_since_vac = daysSinceVaccination(time);
-//            if (time_since_vac > _par->vaccineImmunityDuration) {
-//                remainingFraction = 0.0;
-//            } else {
-//                remainingFraction -= ((double) time_since_vac) / _par->vaccineImmunityDuration;
-//            }
-//        }
-//    }
-//    return remainingFraction;
-//}
-
-
-// TODO -- merge this function with isVaccineProtected
-double Person::vaccineProtection(const int time, const StrainType strain) const {
-    double ves;
+double Person::remainingEfficacy(const int time) const {
+    double remainingFraction = 1.0;
     if (not isVaccinated()) {
-        ves = 0.0;
+        remainingFraction = 0.0;
     } else {
-        const size_t dose = vaccineHistory.size() - 1;
-        if (daysSinceVaccination(time) > _par->vaccineImmunityDuration) {
-            ves = 0.0;
-        } else {
-            if (naiveVaccineProtection == true) {
-                ves = _par->VES_NAIVE_at(dose, strain);
+        if (_par->linearlyWaningVaccine) {
+            // reduce by fraction of immunity duration that has waned
+            int time_since_vac = daysSinceVaccination(time);
+            if (time_since_vac > _par->vaccineImmunityDuration) {
+                remainingFraction = 0.0;
             } else {
-                ves = _par->VES_at(dose, strain);
+                remainingFraction -= ((double) time_since_vac) / _par->vaccineImmunityDuration;
             }
-            ves *= remainingEfficacy(time);
         }
     }
-    return ves;
+    return remainingFraction;
 }
+
+
+//// TODO -- merge this function with isVaccineProtected
+//double Person::vaccineProtection(const int time, const StrainType strain) const {
+//    double ves;
+//    if (not isVaccinated()) {
+//        ves = 0.0;
+//    } else {
+//        const size_t dose = vaccineHistory.size() - 1;
+//        if (daysSinceVaccination(time) > _par->vaccineImmunityDuration) {
+//            ves = 0.0;
+//        } else {
+//            if (naiveVaccineProtection == true) {
+//                ves = _par->VES_NAIVE_at(dose, strain);
+//            } else {
+//                ves = _par->VES_at(dose, strain);
+//            }
+//            ves *= remainingEfficacy(time);
+//        }
+//    }
+//    return ves;
+//}
 
 //enum MaternalEffect { MATERNAL_PROTECTION, NO_EFFECT, MATERNAL_ENHANCEMENT };
 
@@ -409,7 +409,7 @@ bool Person::isCrossProtected(int time, StrainType strain) const { // assumes bi
         vector<int> possible_last_infection_end_dates = {last_inf->infectiousEnd, last_inf->symptomEnd};
         const int last_infection_end_date = covid::util::max_element(possible_last_infection_end_dates);
         const int time_since_last_infection = time - last_infection_end_date;
-        const double remaining_natural_efficacy = remainingEfficacy(startingNaturalEfficacy, time_since_last_infection);
+        const double remaining_natural_efficacy = _par->remainingEfficacy(startingNaturalEfficacy, time_since_last_infection);
         if (gsl_rng_uniform(RNG) < remaining_natural_efficacy) {
             immune = true;
         }
@@ -433,10 +433,26 @@ bool Person::isCrossProtected(int time, StrainType strain) const { // assumes bi
 
 
 bool Person::isVaccineProtected(const int time, const StrainType strain) const {
-    return isVaccinated() and
-           ((size_t) daysSinceVaccination(time) >= _par->vaccine_dose_to_protection_lag) and
-           ( !_par->vaccineLeaky or // if the vaccine isn't leaky
-           (gsl_rng_uniform(RNG) < vaccineProtection(time, strain)) ); // or it protects (i.e., doesn't leak this time)
+    bool immune = false;
+    if (isVaccinated()) {
+        const size_t dose = vaccineHistory.size() - 1;
+        double init_ves;
+        if (naiveVaccineProtection == true) {
+            init_ves = _par->VES_NAIVE_at(dose, strain);
+        } else {
+            init_ves = _par->VES_at(dose, strain);
+        }
+
+        const double remaining_vaccine_efficacy = _par->remainingEfficacy(init_ves, daysSinceVaccination(time));
+        immune = ((size_t) daysSinceVaccination(time) >= _par->vaccine_dose_to_protection_lag) and  // past the time lag until protection begins
+                 ( !_par->vaccineLeaky or                                                           // if the vaccine isn't leaky
+                 (gsl_rng_uniform(RNG) < remaining_vaccine_efficacy) );                             // or it protects (i.e., doesn't leak this time)
+    }
+    return immune;
+//    return isVaccinated() and
+//           ((size_t) daysSinceVaccination(time) >= _par->vaccine_dose_to_protection_lag) and
+//           ( !_par->vaccineLeaky or // if the vaccine isn't leaky
+//           (gsl_rng_uniform(RNG) < vaccineProtection(time, strain)) ); // or it protects (i.e., doesn't leak this time)
 }
 
 
