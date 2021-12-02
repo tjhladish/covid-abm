@@ -249,6 +249,9 @@ class Person {
             cerr << "\tsex: " << sex << endl;
             cerr << "\tltc: " << long_term_care << endl;
             cerr << "\tinfection history size: " << infectionHistory.size() << endl;
+            cerr << "\tinfection days: "; for (size_t i = 0; i < infectionHistory.size(); ++i) { cerr << getInfectedTime(i) << ' '; } cerr << endl;
+            cerr << "\tvaccination history size: " << vaccineHistory.size() << endl;
+            cerr << "\tvaccine dose days: "; for (int d : vaccineHistory) { cerr << d << ' '; } cerr << endl;
         }
 
 
