@@ -1154,11 +1154,9 @@ size_t Community::getNumSymptomatic(int day) {
     return count;
 }
 
-// getNumSusceptible - counts number of susceptible residents
+// getNumNaive - counts number of residents with no infection/vaccination history whatsoever
 size_t Community::getNumNaive() {
     size_t count = 0;
-    for (Person* p: _people) {
-        if (p->isNaive()) count++;
-    }
+    for (Person* p: _people) { if (p->isImmuneState(NAIVE)) count++; }
     return count;
 }

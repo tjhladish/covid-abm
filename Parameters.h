@@ -87,6 +87,7 @@ inline std::ostream& operator<<(std::ostream& out, const PublicTransmissionType 
     return out << s;
 }
 
+// immune state does not indicate protection, only history of infection/vaccination
 enum ImmuneStateType {
     NAIVE,
     NATURAL,
@@ -413,7 +414,7 @@ public:
     double school_transmissibility;                         // per-day probability of transmission, scaled by the fraction of infectious students/staff
     double hospital_transmissibility;                       // per-day probability of transmission, scaled by the fraction of infectious staff/patients
     double nursinghome_transmissibility;                    // per-day probability of transmission, scaled by the fraction of infectious staff/residents
-    std::vector<double> seasonality;                       // transmissibility multiplier, index by simulation day
+    std::vector<double> seasonality;                        // transmissibility multiplier, index by simulation day
     double seasonality_on (const Date *date) const;
 
     vector<float> susceptibilityByAge;                      // probability of infection given exposure, index by year of age
@@ -428,7 +429,7 @@ public:
     map<StrainType, vector<double>> VEF;                    // vaccine efficacy against death, given infection
     map<StrainType, vector<double>> VEI;                    // vaccine efficacy to reduce infectiousness
 
-    size_t vaccine_dose_to_protection_lag;                  // number of days between when vaccine dose is administered and when its protection begins
+    int vaccine_dose_to_protection_lag;                     // number of days between when vaccine dose is administered and when its protection begins
 
     template<typename T>
     inline T stretchy_vector (const vector<T> &data, size_t idx) const {

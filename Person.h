@@ -221,7 +221,8 @@ class Person {
         double remainingEfficacy(const int time) const;
 
         bool hasBeenInfected() const { return (bool) infectionHistory.size(); }
-        bool isNaive() const { return immune_state == NAIVE; }
+        //bool isNaive() const { return immune_state == NAIVE; }
+        bool isImmuneState(ImmuneStateType is) const { return is == immune_state; }
 
                                                                         // does this person's immune state permit vaccination?
                                                                         // NB: inaccurate test results are possible
