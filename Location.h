@@ -12,6 +12,20 @@ class Location {
     // TODO -- create derived classes for different types of locations
     public:
         Location();
+        Location(const Location& o) {
+            _ID                       = o._ID;
+            _essential                = o._essential;
+            _riskiness                = o._riskiness;
+            _public_transmission_risk = o._public_transmission_risk;
+            _type                     = o._type;
+            _person                   = o._person;
+            _visitors                 = o._visitors;
+            _visit_durations          = o._visit_durations;
+            _neighbors                = o._neighbors;
+            _hospital                 = o._hospital;
+            _coord                    = o._coord;
+        };
+
         virtual ~Location();
 
         struct LocPtrComp { bool operator()(const Location* A, const Location* B) const { return A->getID() < B->getID(); } };
@@ -26,21 +40,27 @@ class Location {
         bool isEssential() const { return _essential; }
         bool isNonEssential() const { return !_essential; }
 
-        std::vector<Person*> getPeople() { return _person; }
         int getNumPeople() const { return _person.size(); }             // employees, residents, etc.; not including visitors
+        int getNumVisitors() const { return _visitors.size(); }          // visitors change daily
 
+        std::vector<Person*> getPeople() { return _person; }
         inline Person* getPerson(int idx) { return _person[idx]; }
+        void setPeople(std::vector<Person*> p) { _person = p; }
+
         void addPerson(Person *p) { _person.push_back(p); }
         bool removePerson(Person *p);
 
         std::vector<Person*> getVisitors() { return _visitors; }
-        int getNumVisitors() const { return _visitors.size(); }          // visitors change daily
+        void setVisitors(std::vector<Person*> v) { _visitors = v; }
+
         std::vector<double> getVisitDurations() { return _visit_durations; }
         void addVisitor(Person *p, double dur) { _visitors.push_back(p); _visit_durations.push_back(dur); }
         void clearVisitors() { _visitors.clear(); _visit_durations.clear(); }                     // likey don't want to resize
 
         std::set<Location*, LocPtrComp> getNeighbors() { return _neighbors; }
+
         int getNumNeighbors() const { return _neighbors.size(); }
+        void setNeighbors(std::set<Location*, LocPtrComp> n) { _neighbors = n; }
         void addNeighbor(Location* loc);
 
         Location* getHospital() const { return _hospital; }

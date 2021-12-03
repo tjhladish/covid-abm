@@ -3,7 +3,7 @@
 #define __VAC_CAMPAIGN_H
 
 #include "Person.h"
-#include <queue>
+#include <deque>
 
 class Person;
 
@@ -56,6 +56,7 @@ class Vaccinee {
     public:
         Vaccinee() : person(nullptr), status(NUM_OF_VACCINATION_QUEUE_TYPES), dose_source(NUM_OF_VACCINE_ALLOCATION_TYPES) {}
         Vaccinee(Person* p, VaccinationQueueType stat, VaccineAllocationType source) : person(p), status(stat), dose_source(source) {}
+
         int getNumVaccinations () { return person->getNumVaccinations(); }
         Person* get_person() { return person; }
         VaccinationQueueType get_status() { return status; }
@@ -83,6 +84,18 @@ class Vac_Campaign {
             start_of_campaign = vector<int>(NUM_OF_VAC_CAMPAIGN_TYPES, 0);
             end_of_campaign = vector<int>(NUM_OF_VAC_CAMPAIGN_TYPES, 0);
         }
+        Vac_Campaign(const Vac_Campaign& o) {
+            urgent_queue                 = o.urgent_queue;
+            standard_queue               = o.standard_queue;
+            revaccinate_queue            = o.revaccinate_queue;
+            prioritize_first_doses       = o.prioritize_first_doses;
+            doses_available              = o.doses_available;
+            queue_tally                  = o.queue_tally;
+            flexible_queue_allocation    = o.flexible_queue_allocation;
+            reactive_vac_strategy        = o.reactive_vac_strategy;
+            reactive_vac_dose_allocation = o.reactive_vac_dose_allocation;
+            min_age                      = o.min_age;
+        }
         virtual ~Vac_Campaign() {} //is this correct to address a vtable error?
 
         int get_start_of_campaign(int campaignType) { return start_of_campaign[campaignType]; }
@@ -107,8 +120,17 @@ class Vac_Campaign {
         size_t get_standard_queue_size() { return standard_queue.size(); }
         size_t get_revaccinate_queue_size(int day) { return revaccinate_queue[day].size(); }
 
-        void prioritize_vaccination(Person* p) { urgent_queue.push(p); }
-        void schedule_vaccination(Person* p) { standard_queue.push(p); }
+        void prioritize_vaccination(Person* p) { urgent_queue.push_back(p); }
+        void schedule_vaccination(Person* p) { standard_queue.push_back(p); }
+
+        std::deque<Person*> getUrgentQueue() const { return urgent_queue; }
+        void setUrgentQueue(std::deque<Person*> uq) { urgent_queue = uq; }
+
+        std::deque<Person*> getStandardQueue() const { return standard_queue; }
+        void setStandardQueue(std::deque<Person*> sq) { standard_queue = sq; }
+
+        std::vector< std::set<Person*, Person::PerPtrComp> > getRevaccinateQueue() const { return revaccinate_queue; }
+        void setRevaccinateQueue(std::vector< std::set<Person*, Person::PerPtrComp> > rq) { revaccinate_queue = rq; }
 
         int get_doses_available(int day, VaccineAllocationType alloc) { return doses_available[day][alloc]; }
         void set_doses_available( std::vector< std::vector<int> > da ) {
@@ -167,7 +189,7 @@ class Vac_Campaign {
 
                 if (source_of_dose < NUM_OF_VACCINE_ALLOCATION_TYPES) {
                     person = urgent_queue.front();
-                    urgent_queue.pop();
+                    urgent_queue.pop_front();
                     vaccinee_queue = URGENT_QUEUE;
                 }
                 if(unlim_urgent_doses) { doses_available.at(day)[URGENT_ALLOCATION]++; }
@@ -180,7 +202,7 @@ class Vac_Campaign {
 
                 if (source_of_dose < NUM_OF_VACCINE_ALLOCATION_TYPES) {
                     person = standard_queue.front();
-                    standard_queue.pop();
+                    standard_queue.pop_front();
                     vaccinee_queue = STANDARD_QUEUE;
                 }
             }
@@ -241,12 +263,12 @@ class Vac_Campaign {
         */
 
     private:
+        std::deque<Person*> urgent_queue;                      // people who need to be vaccinated, determined during simulation
+        std::deque<Person*> standard_queue;                    // people who will be vaccinated, known before transmission sim begins
+        std::vector< std::set<Person*, Person::PerPtrComp> > revaccinate_queue;    // indexed by sim day
+
         std::vector<int> start_of_campaign;                    // index by VacCampaignType and returns start date as sim day
         std::vector<int> end_of_campaign;                      // index by VacCampaignType and returns start date as sim day
-
-        std::queue<Person*> urgent_queue;                      // people who need to be vaccinated, determined during simulation
-        std::queue<Person*> standard_queue;                    // people who will be vaccinated, known before transmission sim begins
-        std::vector< std::set<Person*, Person::PerPtrComp> > revaccinate_queue;    // indexed by sim day
 
         bool prioritize_first_doses;                           // do we prioritize first doses, or completing vac schedules? --> possibly move to _par?
         bool flexible_queue_allocation;                        // can doses be used from any allocation, or only as intended?

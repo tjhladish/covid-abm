@@ -25,46 +25,33 @@ using covid::util::choose_k;
 using covid::util::merge_vectors;
 
 const Parameters* Community::_par;
-Date* Community::_date;
-vector< map<LocationType, map<Location*, map<double, vector<Person*>>, Location::LocPtrComp>>> Community::_isHot;
-set<Person*, Person::PerPtrComp> Community::_revaccinate_set;
-vector<size_t> Community::_numDetectedCasesOnset;
-vector<size_t> Community::_numDetectedCasesReport;
-vector<size_t> Community::_numDetectedHospitalizations;
-vector<size_t> Community::_numDetectedDeaths;
-vector<size_t> Community::_cumulIncByOutcome(NUM_OF_OUTCOME_TYPES, 0);
-
-//vector<Person*> Community::_peopleByAge;
-//map<int, set<pair<Person*,Person*> > > Community::_delayedBirthdays;
 
 int mod(int k, int n) { return ((k %= n) < 0) ? k+n : k; } // correct for non-negative n
 
 Community::Community(const Parameters* parameters, Date* date) :
-//    _exposedQueue(MAX_INCUBATION, vector<Person*>(0)),
-    _numNewlyInfected(parameters->runLength), // +1 not needed; runLength is already a valid size
-    _numNewlySymptomatic(parameters->runLength),
-    _numNewlySevere(parameters->runLength),
-    _numNewlyCritical(parameters->runLength),
-    _numNewlyDead(parameters->runLength),
-    _numVaccinatedCases(parameters->runLength),
-    _numSeverePrev(parameters->runLength),
-    _numHospInc(parameters->runLength),
-    _numHospPrev(parameters->runLength),
-    _numIcuInc(parameters->runLength),
-    _numIcuPrev(parameters->runLength)
+    _numNewlyInfected(parameters->runLength, 0), // +1 not needed; runLength is already a valid size
+    _numNewlySymptomatic(parameters->runLength, 0),
+    _numNewlySevere(parameters->runLength, 0),
+    _numNewlyCritical(parameters->runLength, 0),
+    _numNewlyDead(parameters->runLength, 0),
+    _numVaccinatedCases(parameters->runLength, 0),
+    _numSeverePrev(parameters->runLength, 0),
+    _numHospInc(parameters->runLength, 0),
+    _numHospPrev(parameters->runLength, 0),
+    _numIcuInc(parameters->runLength, 0),
+    _numIcuPrev(parameters->runLength, 0),
+    _numDetectedCasesOnset(parameters->runLength, 0),
+    _numDetectedCasesReport(parameters->runLength, 0),
+    _numDetectedHospitalizations(parameters->runLength, 0),
+    //_numDetectedDeaths(parameters->runLength, 0),
+    _numDetectedDeathsOnset(parameters->runLength, 0),
+    _numDetectedDeathsReport(parameters->runLength, 0),
+    _cumulIncByOutcome(NUM_OF_OUTCOME_TYPES, 0),
+    _isHot(parameters->runLength)
     {
     _par = parameters;
     _date = date;
     _day = 0;
-    //_mortality = NULL;
-    //_bNoSecondaryTransmission = false;
-    //_uniformSwap = true;
-//    for (int a = 0; a<NUM_AGE_CLASSES; a++) _personAgeCohortSizes[a] = 0;
-    _isHot.resize(_par->runLength);
-    _numDetectedCasesOnset.resize(_par->runLength);
-    _numDetectedCasesReport.resize(_par->runLength);
-    _numDetectedHospitalizations.resize(_par->runLength);
-    _numDetectedDeaths.resize(_par->runLength);
     for (int strain = 0; strain < (int) NUM_OF_STRAIN_TYPES; ++strain) {
         _numNewInfectionsByStrain[(StrainType) strain] = vector<size_t>(_par->runLength);
     }
@@ -74,7 +61,6 @@ Community::Community(const Parameters* parameters, Date* date) :
         }
     }
     timedInterventions = _par->timedInterventions;
-    // vac_campaign = nullptr;
 }
 
 
@@ -122,6 +108,7 @@ void Community::reset() { // used for r-zero calculations, to reset pop after a 
 Community::~Community() {
     if (_date) delete _date;
     if (_people.size() > 0) { for (Person* p: _people) delete p; }
+    if (vac_campaign) { delete vac_campaign; }
 
     Person::reset_ID_counter();
     _isHot.clear();
@@ -509,7 +496,7 @@ Person* Community::getPersonByID(int pid) {
 // infect - infects person id
 Infection* Community::infect(int id, StrainType strain) {
     Person* person = getPersonByID(id);
-    return person->infect(_date, strain);
+    return person->infect(this, _date, strain);
 }
 
 
@@ -578,9 +565,15 @@ void Community::reportCase(int onsetDate, long int reportDate, bool hospitalized
 }
 
 
-void Community::reportDeath(int /*eventDate*/, long int reportDate) {
+//void Community::reportDeath(int /*eventDate*/, long int reportDate) {
+//    assert(reportDate >= 0);
+//    if ((unsigned) reportDate < _numDetectedDeaths.size()) _numDetectedDeaths[reportDate]++;
+//}
+void Community::reportDeath(int onsetDate, long int reportDate) {
+    assert(onsetDate >= 0);
     assert(reportDate >= 0);
-    if ((unsigned) reportDate < _numDetectedDeaths.size()) _numDetectedDeaths[reportDate]++;
+    if ((unsigned) onsetDate < _numDetectedDeathsOnset.size()) { _numDetectedDeathsOnset[onsetDate]++; }
+    if ((unsigned) reportDate < _numDetectedDeathsReport.size()) { _numDetectedDeathsReport[reportDate]++; }
 }
 
 
@@ -834,7 +827,7 @@ void Community::_transmission(Location* source_loc, vector<Person*> at_risk_grou
             // because we now support multiple strains, we always have to trace, in order to determine what the infecting strain would be
             source_infection = trace_contact(infecter, source_loc, infectious_groups);
             // infect() tests for whether person is infectable
-            Infection* transmission = p->infect(infecter, _date, source_loc, source_infection->getStrain(), check_susceptibility);
+            Infection* transmission = p->infect(this, infecter, _date, source_loc, source_infection->getStrain(), check_susceptibility);
             if (source_infection and transmission) {
                 source_infection->log_transmission(transmission);
                 // for logging transmission type

@@ -21,6 +21,8 @@ static const std::vector<size_t> LEAP_DAYS_IN_MONTH = {31, 29, 31, 30, 31, 30, 3
 static const std::vector<size_t> LEAP_END_DAY_OF_MONTH = {31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335, 366};
 
 struct TimeSeriesAnchorPoint {
+    TimeSeriesAnchorPoint() {};
+    TimeSeriesAnchorPoint(string d, double v) : date(d), value(v) {};
     string date;
     double value;
 };
@@ -29,6 +31,13 @@ class Date {
   public:
     Date():_simulation_day(0),_month_ct(0),_year_ct(0),_julian_day(1),_julian_year(1) {};
     Date(const Parameters* par):_simulation_day(0),_month_ct(0),_year_ct(0),_julian_day(par->startDayOfYear),_julian_year(par->startJulianYear) {};
+    Date(const Date& o) {
+        _simulation_day = o._simulation_day;
+        _month_ct       = o._month_ct;
+        _year_ct        = o._year_ct;
+        _julian_day     = o._julian_day;
+        _julian_year    = o._julian_year; 
+    };
 
     // for use when needing to pass a historical sim day as a Date object, e.g. to model pre-existing natural immunity.  Note that month and year counts are not set!
     Date(const Parameters* par, int sim_day):_simulation_day(sim_day),_month_ct(0),_year_ct(0),_julian_day(par->startDayOfYear),_julian_year(par->startJulianYear) {};
@@ -226,6 +235,16 @@ class Date {
         return ss.str();
     }
 
+    static string to_ymd (int sim_day, const Parameters* par) {
+        size_t julian_year  = par->startJulianYear;
+        long int julian_day = par->startDayOfYear + sim_day;
+
+        while (julian_day > (long int) num_days_in_year(julian_year)) { julian_day -= num_days_in_year(julian_year++); }
+        while (julian_day < 1)                                        { julian_day += num_days_in_year(--julian_year); }
+
+        return to_ymd(julian_year, julian_day);
+    }
+
     string to_ymd() const {
         return to_ymd(julianYear(), julianDay());
     }
@@ -248,7 +267,7 @@ class Date {
         // "end" is the value immediately after the sequence produced here
         // e.g. linInterpolate(0.0, 1.0, 5) produces {0.0, 0.2, 0.4, 0.6, 0.8}
         assert(n>=1);
-        cout << "Start: " << start << "; End: " << end << endl;
+//        cout << "Start: " << start << "; End: " << end << endl;
 
         // initialize the n values to the start value
         double step = (end - start)/n;

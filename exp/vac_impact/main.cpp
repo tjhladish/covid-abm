@@ -5,7 +5,6 @@
 #include <cstdlib>
 #include "CCRC32.h"
 #include "Utility.h"
-#include <unordered_set>
 #include <math.h>
 
 #if __has_include("local.h")
@@ -57,7 +56,7 @@ vector<vector<double>> REPORTED_FRACTIONS;
 
 const vector< vector<int> > VAX_AGE_BINS{ {12,14}, {15,24}, {25,34}, {35,44}, {45,54}, {55,64}, {65,74}, {75,84}, {85,NUM_AGE_CLASSES-1} };
 
-const gsl_rng* VAX_RNG = gsl_rng_alloc(gsl_rng_mt19937);
+gsl_rng* VAX_RNG = gsl_rng_alloc(gsl_rng_mt19937);
 
 //Parameters* define_simulator_parameters(vector<double> args, const unsigned long int rng_seed) {
 Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned long int rng_seed, const unsigned long int serial, const string /*process_id*/) {
@@ -166,7 +165,7 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-05-04"), 1.0);
     par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(par->runLength, 0.0);
 
-    vector<TimeSeriesAnchorPoint> ap = { // tuning for whole FL model
+/*    vector<TimeSeriesAnchorPoint> ap = { // tuning for whole FL model
         {"2020-01-01", 0.0},
         {"2020-03-10", 0.20},
         {"2020-03-15", 0.8},
@@ -200,6 +199,7 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
 
     const double last_value = par->timedInterventions[SOCIAL_DISTANCING].back();
     par->timedInterventions[SOCIAL_DISTANCING].resize(par->runLength, last_value);
+    */
     // -------------------------------------------------------------
 
     //par->defaultReportingLag = 14;
@@ -233,10 +233,15 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->networkFilename          = pop_dir    + "/network-"            + SIM_POP + ".txt";
     par->publicActivityFilename   = pop_dir    + "/public-activity-"    + SIM_POP + ".txt";
 
+    par->behavioral_auto_tuning = true;
+    par->tuning_window = 14;
+    par->num_preview_windows = 3;
+    par->auto_tuning_dataset = "";
+
     return par;
 }
 
-void parseVaccineFile(string vaccinationFilename, const Parameters* par, Community* community, Vac_Campaign* vc, set<Person*>& scheduled_people, map<int, int>& sch_hcw_by_age) {
+void parseVaccineFile(string vaccinationFilename, const Parameters* par, Community* community, Vac_Campaign* vc, set<Person*, Person::PerPtrComp>& scheduled_people, map<int, int>& sch_hcw_by_age) {
     // ratio of synthpop to FL pop
     const double pop_ratio = (double)community->getNumPeople()/FL_POP;
 
@@ -408,7 +413,7 @@ void parseVaccineFile(string vaccinationFilename, const Parameters* par, Communi
 
 Vac_Campaign* generateVac_Campaign(string vaccinationFilename, const Parameters* par, Community* community) {
     // keeps track of who has been scheduled to prevent scheduling the same person twice
-    set<Person*> scheduled_people;
+    set<Person*, Person::PerPtrComp> scheduled_people;
 
     // create a new Vac_Campaign
     Vac_Campaign* vc = new Vac_Campaign();
@@ -576,11 +581,11 @@ void calculate_reporting_ratios(Community* community) {
     cerr << "wave 3: "; cerr_vector(RF[2]); cerr << " [" << (int) (RF[2][0]*cinf + RF[2][1]*ccase + RF[2][2]*csev + RF[2][3]*ccrit + RF[2][4]*cdeath)/(RF[2][4]*cdeath) << "] " << endl;
 
     cerr << "\nIncidence by outcome:\n";
-    cerr << "\t ASYMPTOMATIC :\t" << Community::_cumulIncByOutcome[ASYMPTOMATIC] << endl;
-    cerr << "\t MILD :  \t" << Community::_cumulIncByOutcome[MILD] << endl;
-    cerr << "\t SEVERE :\t" << Community::_cumulIncByOutcome[SEVERE] << endl;
-    cerr << "\t CRITICAL :\t" << Community::_cumulIncByOutcome[CRITICAL] << endl;
-    cerr << "\t DEATH :\t" << Community::_cumulIncByOutcome[DEATH] << endl;
+    cerr << "\t ASYMPTOMATIC :\t" << community->getCumulIncidenceByOutcome(ASYMPTOMATIC) << endl;
+    cerr << "\t MILD :  \t" << community->getCumulIncidenceByOutcome(MILD) << endl;
+    cerr << "\t SEVERE :\t" << community->getCumulIncidenceByOutcome(SEVERE) << endl;
+    cerr << "\t CRITICAL :\t" << community->getCumulIncidenceByOutcome(CRITICAL) << endl;
+    cerr << "\t DEATH :\t" << community->getCumulIncidenceByOutcome(DEATH) << endl;
 }
 
 vector<double> simulator(vector<double> args, const unsigned long int rng_seed, const unsigned long int serial, const ABC::MPI_par* mp = nullptr) {
@@ -610,6 +615,32 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     if (mutation) { mutant_intro_dates = {"2021-02-01", "2021-05-27"}; };   // extra semicolon?
 
     Community* community = build_community(par);
+
+//    map<size_t, TimeSeriesAnchorPoint> social_contact_map;
+//    vector<TimeSeriesAnchorPoint> initial_social_contact_anchors;
+//    if (par->auto_fitting) {
+//        const size_t window_size = par->fitting_window;
+//
+//        Date* param_day = new Date(*community->get_date());
+//        for (; (size_t) param_day->day() < par->runLength; param_day->increment()) {
+//            if ((param_day->day() % window_size == 0) or (param_day->day() == 0)) {
+//                TimeSeriesAnchorPoint tsap = {param_day->to_ymd(), 0.00};
+//                social_contact_map[param_day->day()] = tsap;
+//                initial_social_contact_anchors.push_back(tsap);
+//            }
+//        }
+//        delete param_day;
+//
+//cerr << "TEST AUTO SOCIAL CONTACT PARAM GEN" << endl;
+//cerr << "SIM DAY\t\tTSAP DATE\t\tTSAP VAL" << endl;
+//for (const auto& [sim_day, tsap] : social_contact_map) {
+//    cerr << sim_day << "\t\t" << tsap.date << "\t\t" << tsap.value << endl;
+//}
+//
+//        community->setSocialDistancingTimedIntervention(initial_social_contact_anchors);
+//
+//   }
+
     Vac_Campaign* vc = nullptr;
     community->setVac_Campaign(vc);
 
@@ -666,12 +697,13 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         vc->set_flexible_queue_allocation(false);
         vc->set_reactive_vac_strategy(NUM_OF_VAC_CAMPAIGN_TYPES);
         vc->set_reactive_vac_dose_allocation(0.0);
+
         vector<int> min_ages(par->runLength, 12);
         vc->set_min_age(min_ages);       // needed for e.g. urgent vaccinations
     }
 
     seed_epidemic(par, community, WILDTYPE);
-    vector<string> plot_log_buffer = simulate_epidemic(par, community, process_id, mutant_intro_dates);
+    vector<string> plot_log_buffer = simulate_epidemic(par, community, process_id, mutant_intro_dates);//, social_contact_map);
 
     vector<double> cases(par->runLength, 0.0);
     vector<double> deaths(par->runLength, 0.0);
@@ -736,7 +768,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     string output = ss.str();
     fputs(output.c_str(), stderr);
 
-    if(vc) { delete vc; }           // should this be here?
+    // if (vc)      { delete vc; }           // should this be here? MOVED INTO COMMUNITY DESTRUCTOR
+    if (VAX_RNG) { gsl_rng_free(VAX_RNG); }
     delete par;
     delete community;
 
