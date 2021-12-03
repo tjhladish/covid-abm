@@ -146,8 +146,10 @@ bool Person::naturalDeath(int t) {
 
 
 bool Person::isInfectable(const int time, const StrainType strain) const {
-    return (not isInfected(time)) and gsl_rng_uniform(RNG) < _par->susceptibilityByAge[age]
-              and (isNaive() or (!isCrossProtected(time, strain) and !isVaccineProtected(time, strain)));
+    return (not isInfected(time)) and                                   // not already infected
+           gsl_rng_uniform(RNG) < _par->susceptibilityByAge[age] and    // not innately resistant
+           !isCrossProtected(time, strain) and                          // no infection-based cross-immunity
+           !isVaccineProtected(time, strain);                           // no vaccine-based immunity
 }
 
 
@@ -445,7 +447,7 @@ bool Person::isVaccineProtected(const int time, const StrainType strain) const {
             init_ves = _par->VES_at(dose, strain);
         }
 
-        const double remaining_vaccine_efficacy = _par->remainingEfficacy(init_ves, daysSinceVaccination(time));
+        const double remaining_vaccine_efficacy = _par->remainingEfficacy(init_ves, daysSinceVaccination(time) - _par->vaccine_dose_to_protection_lag);
         immune = ((size_t) daysSinceVaccination(time) >= _par->vaccine_dose_to_protection_lag) and                          // past the time lag until protection begins
                  ( (not _par->vaccineLeaky and (immune_state == VACCINATED or immune_state == NATURAL_AND_VACCINATED)) or   // if the vaccine isn't leaky and they have protection
                  (gsl_rng_uniform(RNG) < remaining_vaccine_efficacy) );                                                     // or it protects (i.e., doesn't leak this time)
@@ -469,7 +471,7 @@ bool Person::isSeroEligible() const {
     assert(falseNeg >= 0.0 and falseNeg <= 1.0);
     assert(vsc == VACCINATE_SEROPOSITIVE_ONLY or vsc == VACCINATE_SERONEGATIVE_ONLY);
 
-    bool isSeroPos = not isNaive(); // fully susceptible == seronegative == false
+    bool isSeroPos = not isImmuneState(NAIVE); // fully susceptible == seronegative == false
 
     if ((isSeroPos and (falseNeg > gsl_rng_uniform(RNG)))       // sero+ but tests negative
         or (!isSeroPos and (falsePos > gsl_rng_uniform(RNG)))) { // sero- but tests positive
@@ -487,15 +489,17 @@ bool Person::vaccinate(int time) {
         const size_t dose = vaccineHistory.size(); // this one isn't size() - 1, because it's the dose they're about to receive
         vaccineHistory.push_back(time);
 
-        if ( isNaive() ) {
+        if ( isImmuneState(NAIVE) ) {
             naiveVaccineProtection = true;
         } else {
             naiveVaccineProtection = false;
         }
 
-        if ( _par->vaccineLeaky == false ) { // all-or-none VE_S protection
-            if ( (isNaive() and gsl_rng_uniform(RNG) < _par->VES_NAIVE_at(dose)) // vac someone who's naive
-                 or gsl_rng_uniform(RNG) < _par->VES_at(dose) ) {                          // vac someone previously infected
+        if ( _par->vaccineLeaky == true or      // vaccine is leaky, so update immune state
+           ( _par->vaccineLeaky == false and    // vaccine is all-or-none, so update immune state if...
+               ( (isImmuneState(NAIVE) and gsl_rng_uniform(RNG) < _par->VES_NAIVE_at(dose))             // person is naive and naive VES takes
+                   or (not isImmuneState(NAIVE) and gsl_rng_uniform(RNG) < _par->VES_at(dose)) ) ) ) {  // person is not naive and non-naive VES takes
+
                  switch( immune_state ) {
                     case NAIVE:
                     case VACCINATED:
@@ -510,8 +514,6 @@ bool Person::vaccinate(int time) {
                         exit(-1);
                         break;
                 }
-
-            }
         }
         return true;
     } else {
