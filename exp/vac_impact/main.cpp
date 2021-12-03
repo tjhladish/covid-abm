@@ -639,13 +639,13 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
             par->catchupVaccinationEvents.emplace_back(general_vac_sim_day, general_vac_campaign_duration, catchup_age, catchup_coverage);
         }
         */
-        const double x_alpha_1 = 0.529; // calculated using quadratic formula: (VES*VEP)x^2 - (VES+VEP)x + VESP_alpha = 0, where VES and VEP are for wildtype
-        const double x_alpha_2 = 0.948;
+        const double x_alpha_1 = 1;//0.529; // calculated using quadratic formula: (VES*VEP)x^2 - (VES+VEP)x + VESP_alpha = 0, where VES and VEP are for wildtype
+        const double x_alpha_2 = 1;//0.948;
 
-        const double x_delta_1 = 0.338;
-        const double x_delta_2 = 0.843;
+        const double x_delta_1 = 1;//0.338;
+        const double x_delta_2 = 1;//0.843;
 
-        par->VES                   = {{WILDTYPE, {0.40, 0.80}}, {B_1_1_7, {0.40*x_alpha_1, 0.80*x_alpha_2}}, {B_1_617_2, {0.40*x_delta_1, 0.80*x_delta_2}}}; // reduce for delta
+        par->VES                   = {{WILDTYPE, {pow(0.40, 0.5), pow(0.80, 0.5)}}, {B_1_1_7, {pow(0.40, 0.5)*x_alpha_1, pow(0.80, 0.5)*x_alpha_2}}, {B_1_617_2, {pow(0.40, 0.5)*x_delta_1, pow(0.80, 0.5)*x_delta_2}}}; // reduce for delta
         //par->VES                   = {{WILDTYPE, {0.40, 0.80}}, {B_1_1_7, {0.40*x_alpha_1, 0.80*x_alpha_2}}, {B_1_617_2, {0.05, 0.52}}}; // reduce for delta
         par->VES_NAIVE             = par->VES;
         par->VEP                   = {{WILDTYPE, {0.67, 0.75}}, {B_1_1_7, {0.67*x_alpha_1, 0.75*x_alpha_2}}, {B_1_617_2, {0.67*x_delta_1, 0.75*x_delta_2}}}; // reduce for delta
@@ -653,7 +653,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         par->VEH                   = {{WILDTYPE, {0.9, 1.0}},   {B_1_1_7, {0.9, 1.0}}, {B_1_617_2, {0.9, 1.0}}};
         par->VEI                   = {{WILDTYPE, {0.4, 0.8}},   {B_1_1_7, {0.2, 0.5}}, {B_1_617_2, {0.1, 0.1}}};
         par->VEF                   = {{WILDTYPE, {0.0, 0.0}},   {B_1_1_7, {0.0, 0.0}}, {B_1_617_2, {0.0, 0.0}}}; // effect likely captured by VEH
-        par->vaccineLeaky          = false;
+        par->vaccineLeaky          = true;
         par->numVaccineDoses       = 2;
         par->vaccineDoseInterval   = 21;
         par->vaccineTargetCoverage = 0.60;  // for healthcare workers only

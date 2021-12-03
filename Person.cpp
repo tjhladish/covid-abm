@@ -252,7 +252,7 @@ Infection* Person::infect(Person* source, const Date* date, Location* sourceloc,
         infection.relInfectiousness *= 1.6;
         symptomatic_probability *= 1.1;                  // TODO -- these values shouldn't be hard-coded here
     } else if (infection.strain == B_1_617_2) {
-        infection.relInfectiousness *= 4.2;
+        infection.relInfectiousness *= 2.56;
         symptomatic_probability *= 1.2;
     }
 
