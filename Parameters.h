@@ -535,7 +535,7 @@ public:
         return covid::util::logistic(3.097703*(log10(neut_lvl)-log10(0.2010885)));
     }
 
-    const double __IMMUNE_DECAY_SLOPE = 0.4148295;
+    const double __IMMUNE_DECAY_SLOPE = 0.2;//0.4148295;
     const double __IMMUNE_DECAY_INTCPT = 2.4603816;
 
     double _immunityEffectiveStartingTime(double starting_efficacy) const {
