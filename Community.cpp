@@ -184,6 +184,8 @@ bool Community::loadPopulation(string populationFilename, string comorbidityFile
             p->setAge(age);
             p->setSex((SexType) sex);
             p->setStartingNaturalEfficacy(_par->sampleStartingNaturalEfficacy(RNG));
+            p->setImmunityQuantile(gsl_rng_uniform(RNG));
+            p->setNaturalImmunityDuration(_par->immunityDuration(p->getImmunityQuantile(), p->getStartingNaturalEfficacy()));
             //p->setDaysImmune(_par->sampleDaysImmune(RNG));
 
             p->setHomeLoc(_location[hid]);
@@ -1112,20 +1114,20 @@ void Community::tick() {
         double inf_risk_ratio = (double) vax_inf_risk/unvax_inf_risk;
         double VEs            = 1.0 - inf_risk_ratio;
 
-        double unvax_dis_risk = (double) num_unvaxd_dis/num_ppl_unvaxd;
-        double vax_dis_risk   = (double) num_breakthru_dis/num_ppl_fully_vaxd;
-        double dis_risk_ratio = (double) vax_dis_risk/unvax_dis_risk;
-        double VEp            = 1.0 - dis_risk_ratio;
-
-        double unvax_hosp_risk = (double) num_unvaxd_hosp/num_ppl_unvaxd;
-        double vax_hosp_risk   = (double) num_breakthru_hosp/num_ppl_fully_vaxd;
-        double hosp_risk_ratio = (double) vax_hosp_risk/unvax_hosp_risk;
-        double VEh            = 1.0 - hosp_risk_ratio;
-
-        double unvax_dth_risk = (double) num_unvaxd_dths/num_ppl_unvaxd;
-        double vax_dth_risk   = (double) num_breakthru_dths/num_ppl_fully_vaxd;
-        double dth_risk_ratio = (double) vax_dth_risk/unvax_dth_risk;
-        double VEd            = 1.0 - dth_risk_ratio;
+//        double unvax_dis_risk = (double) num_unvaxd_dis/num_ppl_unvaxd;
+//        double vax_dis_risk   = (double) num_breakthru_dis/num_ppl_fully_vaxd;
+//        double dis_risk_ratio = (double) vax_dis_risk/unvax_dis_risk;
+//        double VEp            = 1.0 - dis_risk_ratio;
+//
+//        double unvax_hosp_risk = (double) num_unvaxd_hosp/num_ppl_unvaxd;
+//        double vax_hosp_risk   = (double) num_breakthru_hosp/num_ppl_fully_vaxd;
+//        double hosp_risk_ratio = (double) vax_hosp_risk/unvax_hosp_risk;
+//        double VEh            = 1.0 - hosp_risk_ratio;
+//
+//        double unvax_dth_risk = (double) num_unvaxd_dths/num_ppl_unvaxd;
+//        double vax_dth_risk   = (double) num_breakthru_dths/num_ppl_fully_vaxd;
+//        double dth_risk_ratio = (double) vax_dth_risk/unvax_dth_risk;
+//        double VEd            = 1.0 - dth_risk_ratio;
 cerr << setprecision(6) << "tsVEs: " << _day << ' ' << VEs << ' ' << num_unvaxd_infs << ' ' << num_ppl_unvaxd << ' ' << num_breakthru_infs << ' ' << num_ppl_fully_vaxd << endl;
     }
     return;

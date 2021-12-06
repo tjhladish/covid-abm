@@ -12,6 +12,7 @@
 #include <bitset>
 #include <assert.h>
 #include <gsl/gsl_rng.h>
+#include <gsl/gsl_cdf.h>
 #include <climits>
 #include "Utility.h"
 
@@ -527,22 +528,51 @@ public:
     std::string annualIntroductionsFilename;                // time series of some external factor determining introduction rate
     std::vector<double> annualIntroductions;
     double annualIntroductionsCoef;                         // multiplier to rescale external introductions to something sensible
+
     double sampleStartingNaturalEfficacy(const gsl_rng* RNG) const {
         // neutralization level relative to mean natural immunity following infection, after: https://www.nature.com/articles/s41591-021-01377-8/figures/1
         const double neut_lvl = pow(2.0, gsl_ran_gaussian(RNG, 1.0));
         return covid::util::logistic(3.097703*(log10(neut_lvl)-log10(0.2010885)));
     }
+
+    double _immunityEffectiveStartingTime(double starting_efficacy) const {
+        const double k = 0.4148295;
+        const double intcpt = 2.4603816;
+        return (log(1.0/starting_efficacy - 1.0) + intcpt) / k;     // this is a logit transformation
+    }
+
     double remainingEfficacy(double starting_efficacy, double time_delta) const {
         const double month_delta = time_delta / 30.0; // published data worked in terms of months
-        // KBT fitted logistic model to Pfizer waning data from: https://www.thelancet.com/journals/lancet/article/PIIS0140-6736(21)02183-8/fulltext 
+        // KBT fitted logistic model to Pfizer waning data from: https://www.thelancet.com/journals/lancet/article/PIIS0140-6736(21)02183-8/fulltext
         //logistic_wane = function(x) {1 / (1 + exp(-(2.4603816 - 0.4148295 * x)))}
         //logit_wane = function(x) { (log(1/x - 1) + 2.4603816)/0.4148295 }
         const double k = 0.4148295;
         const double intcpt = 2.4603816;
         // first determine where this person's immunity started along the logistic curve
-        const double effective_starting_time = (log(1.0/starting_efficacy - 1.0) + intcpt) / k;
+        const double effective_starting_time = _immunityEffectiveStartingTime(starting_efficacy);
         const double l = intcpt - k * (effective_starting_time + month_delta);
         return covid::util::logistic(l);
+    }
+
+    //int sampleImmunityDuration(const gsl_rng* RNG, const double starting_efficacy) const {
+    //    //double immunityDuration = gsl_ran_logistic(RNG, -1.0/k) + offset;   // duration in months
+    //    return immunityDuration(gsl_rng_uniform(RNG), starting_efficacy);
+    //}
+
+    int immunityDuration(const double quantile, const double starting_efficacy) const {
+        const double k = 0.4148295;
+        // logit to determine offset
+        const double offset = _immunityEffectiveStartingTime(0.5) - _immunityEffectiveStartingTime(starting_efficacy);
+        // sample from logistic distr and add offset to find time to immunity loss
+        double immunityDuration = gsl_cdf_logistic_Pinv(quantile, -1.0/k) + offset;     // duration in months
+        if (immunityDuration < 0) { immunityDuration = 0; }
+        //cerr << starting_efficacy << ' ' << offset << ' ' << immunityDuration << endl;
+        return 30 * immunityDuration;
+    }
+
+    int immunityDuration(const double quantile, const size_t dose, StrainType strain) const {
+        const double starting_efficacy = VES_at(dose, strain);
+        return immunityDuration(quantile, starting_efficacy);
     }
 //    size_t sampleDaysImmune(const gsl_rng* RNG) const {
 //        const double t_half = 103;             // days
