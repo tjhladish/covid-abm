@@ -171,6 +171,8 @@ bool Community::loadPopulation(string populationFilename, string comorbidityFile
             p->setAge(age);
             p->setSex((SexType) sex);
             p->setStartingNaturalEfficacy(_par->sampleStartingNaturalEfficacy(RNG));
+            p->setImmunityQuantile(gsl_rng_uniform(RNG));
+            p->setNaturalImmunityDuration(_par->immunityDuration(p->getImmunityQuantile(), p->getStartingNaturalEfficacy()));
             //p->setDaysImmune(_par->sampleDaysImmune(RNG));
 
             p->setHomeLoc(_location[hid]);

@@ -206,6 +206,14 @@ class Person {
         //size_t getDaysImmune() const { return daysImmune; }
         //void setDaysImmune(size_t di) { daysImmune = di; }
 
+        int getNaturalImmunityDuration() const { return naturalImmunityDuration; }
+        void setNaturalImmunityDuration(int nid) { naturalImmunityDuration = nid; }
+
+        int getVaccineImmunityDuration(size_t dose, StrainType strain) const { return _par->immunityDuration(immunityQuantile, dose, strain); }
+
+        double getImmunityQuantile() const { return immunityQuantile; }
+        void setImmunityQuantile(double iq) { immunityQuantile = iq; }
+
         bool getLongTermCare() { return long_term_care; }
         void setLongTermCare(bool b) { long_term_care = b; }
 
@@ -328,8 +336,11 @@ class Person {
 
         ImmuneStateType immune_state;
         std::vector<Infection*> infectionHistory;
-        //size_t daysImmune;                                              // number of days this person retains natural immunity
+
+        int naturalImmunityDuration;                                    // number of days this person retains natural immunity (for all-or-none immunity model)
         double startingNaturalEfficacy;                                 // level of protection (Pr{reisting infection}, analogous to VE_S) acquired by person after natural infection
+        double immunityQuantile;                                        // represents the individual's immune durability
+
         std::vector<int> vaccineHistory;                                // vector of days on which vaccinations were received
         void clearInfectionHistory();
 

@@ -414,23 +414,20 @@ bool Person::isCrossProtected(int time, StrainType strain) const { // assumes bi
         const int last_infection_end_date = covid::util::max_element(possible_last_infection_end_dates);
         const int time_since_last_infection = time - last_infection_end_date;
         const double remaining_natural_efficacy = _par->remainingEfficacy(startingNaturalEfficacy, time_since_last_infection);
-        if (gsl_rng_uniform(RNG) < remaining_natural_efficacy) {
+        if ( (_par->vaccineLeaky and (gsl_rng_uniform(RNG) < remaining_natural_efficacy)) or
+             (not _par->vaccineLeaky and (time_since_last_infection < naturalImmunityDuration)) ) {
             immune = true;
         }
 
-        //if (infectionHistory.size() > 1 and not immune) {
-        //    // maybe there's longer term, strain-specific immunity
-        //    for (Infection* inf: infectionHistory) {
-        //        if (inf->getStrain() == strain) {
-        //            vector<int> possible_infection_end_dates = {last_inf->infectiousEnd, last_inf->symptomEnd};
-        //            const int time_since_infection = time - covid::util::max_element(possible_infection_end_dates);
-        //            if (time_since_infection <= base_days_immune) {
-        //                immune = true;
-        //            }
-        //            break;
-        //        }
-        //    }
-        //}
+        if (infectionHistory.size() > 1 and not immune) {
+            // maybe there's longer term, strain-specific immunity
+            for (Infection* inf: infectionHistory) {
+                if (inf->getStrain() == strain) {
+                    immune = true;
+                    break;
+                }
+            }
+        }
     }
     return immune;
 }
@@ -448,9 +445,12 @@ bool Person::isVaccineProtected(const int time, const StrainType strain) const {
         }
 
         const double remaining_vaccine_efficacy = _par->remainingEfficacy(init_ves, daysSinceVaccination(time) - _par->vaccine_dose_to_protection_lag);
-        immune = ((size_t) daysSinceVaccination(time) >= _par->vaccine_dose_to_protection_lag) and                          // past the time lag until protection begins
-                 ( (not _par->vaccineLeaky and (immune_state == VACCINATED or immune_state == NATURAL_AND_VACCINATED)) or   // if the vaccine isn't leaky and they have protection
-                 (gsl_rng_uniform(RNG) < remaining_vaccine_efficacy) );                                                     // or it protects (i.e., doesn't leak this time)
+
+        const bool beyond_vaccine_dose_protection_lag = daysSinceVaccination(time) >= _par->vaccine_dose_to_protection_lag;
+        const bool protection_remains = _par->vaccineLeaky ? gsl_rng_uniform(RNG) < remaining_vaccine_efficacy
+                                                           : (daysSinceVaccination(time) - _par->vaccine_dose_to_protection_lag) < getVaccineImmunityDuration(dose, strain);
+
+        immune = beyond_vaccine_dose_protection_lag and protection_remains;
     }
     return immune;
 //    return isVaccinated() and
