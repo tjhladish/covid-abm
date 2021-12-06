@@ -254,8 +254,8 @@ Infection* Person::infect(Community* community, Person* source, const Date* date
         infection.relInfectiousness *= 1.6;
         symptomatic_probability *= 1.1;                  // TODO -- these values shouldn't be hard-coded here
     } else if (infection.strain == B_1_617_2) {
-        infection.relInfectiousness *= 2.56;
-        symptomatic_probability *= 1.2;
+        infection.relInfectiousness *= 1.6 * 1.6;
+        symptomatic_probability *= 1.1 * 2.83;
     }
 
     const double highly_infectious_threshold = 8.04; // 80th %ile for overall SARS-CoV-2 from doi: 10.7554/eLife.65774, "Fig 4-Fig Sup 3"

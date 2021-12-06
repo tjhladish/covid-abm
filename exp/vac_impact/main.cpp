@@ -64,7 +64,7 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->define_defaults();
     par->serial = serial;
 
-    const float T = 0.0355;//0.022; // 0.0215 for the fl pop, 0.022 for the pseudo 1000k pop
+    const float T = 0.033;//0.022; // 0.0215 for the fl pop, 0.022 for the pseudo 1000k pop
 
     par->household_transmissibility   = T;
     par->social_transmissibility      = T; // assumes complete graphs between households
@@ -233,7 +233,7 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->networkFilename          = pop_dir    + "/network-"            + SIM_POP + ".txt";
     par->publicActivityFilename   = pop_dir    + "/public-activity-"    + SIM_POP + ".txt";
 
-    par->behavioral_auto_tuning = true;
+    par->behavioral_auto_tuning = false;
     par->tuning_window = 14;
     par->num_preview_windows = 3;
     par->auto_tuning_dataset = "";
@@ -684,7 +684,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         par->VEH                   = {{WILDTYPE, {0.9, 1.0}},   {B_1_1_7, {0.9, 1.0}}, {B_1_617_2, {0.9, 1.0}}};
         par->VEI                   = {{WILDTYPE, {0.4, 0.8}},   {B_1_1_7, {0.2, 0.5}}, {B_1_617_2, {0.1, 0.1}}};
         par->VEF                   = {{WILDTYPE, {0.0, 0.0}},   {B_1_1_7, {0.0, 0.0}}, {B_1_617_2, {0.0, 0.0}}}; // effect likely captured by VEH
-        par->vaccineLeaky          = true;
+        par->vaccineLeaky          = false;
         par->numVaccineDoses       = 2;
         par->vaccineDoseInterval   = 21;
         par->vaccineTargetCoverage = 0.60;  // for healthcare workers only
