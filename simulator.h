@@ -576,7 +576,7 @@ double bin_search_anchor(BehaviorAutoTuner* tuner, double distance) {
 
 
 // if auto tuning, this is the first step (create a new tuner, initialize defaults, ask user if manual control is desired)
-BehaviorAutoTuner* initialize_behavior_auto_tuning(const Parameters* par, string emp_data_filename) {
+BehaviorAutoTuner* initialize_behavior_autotuning(const Parameters* par, string emp_data_filename) {
     BehaviorAutoTuner* tuner = new BehaviorAutoTuner();
     tuner->init_defaults();
     tuner->user_sim_setup();
@@ -700,7 +700,7 @@ void restore_from_cache(Community* &community, Date* &date, SimulationCache* sim
 
 
 // main helper function to control the behavior auto tuning system
-void behavior_auto_tuning(const Parameters* par, Community* &community, Date* &date, SimulationLedger* &ledger, BehaviorAutoTuner* tuner, SimulationCache* &sim_cache, vector<TimeSeriesAnchorPoint> &social_distancing_anchors) {
+void behavior_autotuning(const Parameters* par, Community* &community, Date* &date, SimulationLedger* &ledger, BehaviorAutoTuner* tuner, SimulationCache* &sim_cache, vector<TimeSeriesAnchorPoint> &social_distancing_anchors) {
     const size_t day = date->day();
 
     if (tuner->recache and (day + 1) == tuner->tuning_window_ct * par->tuning_window) {
@@ -758,7 +758,7 @@ cerr << "Decision made." << endl;
 
 // if using previous tuned values, parse that file and save the behavior vals
 void init_behavioral_vals_from_file(const Parameters* par, Community* community) {
-    vector< vector<string> > tuning_data = read_2D_vector_file(par->auto_tuning_dataset, ',');
+    vector< vector<string> > tuning_data = read_2D_vector_file(par->autotuning_dataset, ',');
     vector<double> behavior_vals;
 
     for (vector<string> &v : tuning_data) {
@@ -822,12 +822,12 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
     ledger->strains = {50.0, 0.0, 0.0}; // initially all WILDTYPE
     assert(ledger->strains.size() == NUM_OF_STRAIN_TYPES);
 
-    if (par->behavioral_auto_tuning) {
+    if (par->behavioral_autotuning) {
         // create tuner and initialize first simulation cache
-        tuner = initialize_behavior_auto_tuning(par, "rcasedeath-florida.csv");
+        tuner = initialize_behavior_autotuning(par, "rcasedeath-florida.csv");
         sim_cache = new SimulationCache(community, ledger, RNG, REPORTING_RNG);
         first_tuning_window_setup(par, community, tuner, social_distancing_anchors);
-    } else if (not par->auto_tuning_dataset.empty()) {
+    } else if (not par->autotuning_dataset.empty()) {
         // filename provided for a dataset with behavioral values to use
         init_behavioral_vals_from_file(par, community);
     }
@@ -835,7 +835,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
     for (; date->day() < (signed) par->runLength; date->increment()) {
         community->tick();
 
-        if (par->behavioral_auto_tuning) { behavior_auto_tuning(par, community, date, ledger, tuner, sim_cache, social_distancing_anchors); }
+        if (par->behavioral_autotuning) { behavior_autotuning(par, community, date, ledger, tuner, sim_cache, social_distancing_anchors); }
 
         //update_vaccinations(par, community, date);
         //community->tick();
@@ -875,7 +875,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
         const double trailing_avg = trailing_averages[sim_day];
 
         const size_t rc_ct = accumulate(all_reported_cases.begin(), all_reported_cases.begin()+sim_day+1, 0);
-        if (not par->behavioral_auto_tuning) {
+        if (not par->behavioral_autotuning) {
             if (date->dayOfMonth()==1) cerr << "        rep sday        date  infinc  cAR     rcases  rcta7  crcases  rdeath  crdeath  sevprev   crhosp  closed  socdist\n";
             cerr << right
                 << setw(11) << "NA" //process_id
@@ -914,8 +914,8 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
     }
 
     const vector<size_t> sim_reported_cases = community->getNumDetectedCasesReport();
-    if (par->behavioral_auto_tuning) {
-        ofstream ofs("auto_tuning_dataset.csv");
+    if (par->behavioral_autotuning) {
+        ofstream ofs("autotuning_dataset.csv");
         ofs << "date,sim_rcase,emp_rcase,behavior" << endl;
         for (size_t i = 0; i < par->runLength; ++i) {
             int daily_emp_data = tuner->emp_data.count(i) ? tuner->emp_data.at(i)[0] : 0;
