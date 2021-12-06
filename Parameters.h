@@ -506,7 +506,7 @@ public:
 
     //size_t meanDeathReportingLag;                           // number of days from when death occurs to when it's reported
     void createSocialDistancingModel(std::string filename, size_t metric_col, float mobility_logit_shift, float mobility_logit_stretch);
-    bool vaccineLeaky;                                      // if false, vaccine is all-or-none
+    bool immunityLeaky;                                     // if false, natural and vaccine immunity is all-or-none
     bool retroactiveMatureVaccine;                          // if true, infection causes leaky vaccine to jump from naive to mature protection
     double seroTestFalsePos;                                // probability that seroneg person tests positive -- leaky test
     double seroTestFalseNeg;                                // probability that seropos person tests negative -- leaky test
@@ -535,10 +535,11 @@ public:
         return covid::util::logistic(3.097703*(log10(neut_lvl)-log10(0.2010885)));
     }
 
+    const double __IMMUNE_DECAY_SLOPE = 0.4148295;
+    const double __IMMUNE_DECAY_INTCPT = 2.4603816;
+
     double _immunityEffectiveStartingTime(double starting_efficacy) const {
-        const double k = 0.4148295;
-        const double intcpt = 2.4603816;
-        return (log(1.0/starting_efficacy - 1.0) + intcpt) / k;     // this is a logit transformation
+        return (log(1.0/starting_efficacy - 1.0) + __IMMUNE_DECAY_INTCPT) / __IMMUNE_DECAY_SLOPE;     // this is a logit transformation
     }
 
     double remainingEfficacy(double starting_efficacy, double time_delta) const {
@@ -546,25 +547,22 @@ public:
         // KBT fitted logistic model to Pfizer waning data from: https://www.thelancet.com/journals/lancet/article/PIIS0140-6736(21)02183-8/fulltext
         //logistic_wane = function(x) {1 / (1 + exp(-(2.4603816 - 0.4148295 * x)))}
         //logit_wane = function(x) { (log(1/x - 1) + 2.4603816)/0.4148295 }
-        const double k = 0.4148295;
-        const double intcpt = 2.4603816;
         // first determine where this person's immunity started along the logistic curve
         const double effective_starting_time = _immunityEffectiveStartingTime(starting_efficacy);
-        const double l = intcpt - k * (effective_starting_time + month_delta);
+        const double l = __IMMUNE_DECAY_INTCPT - __IMMUNE_DECAY_SLOPE * (effective_starting_time + month_delta);
         return covid::util::logistic(l);
     }
 
     //int sampleImmunityDuration(const gsl_rng* RNG, const double starting_efficacy) const {
-    //    //double immunityDuration = gsl_ran_logistic(RNG, -1.0/k) + offset;   // duration in months
+    //    //double immunityDuration = gsl_ran_logistic(RNG, -1.0/__IMMUNE_DECAY_SLOPE) + offset;   // duration in months
     //    return immunityDuration(gsl_rng_uniform(RNG), starting_efficacy);
     //}
 
     int immunityDuration(const double quantile, const double starting_efficacy) const {
-        const double k = 0.4148295;
         // logit to determine offset
         const double offset = _immunityEffectiveStartingTime(0.5) - _immunityEffectiveStartingTime(starting_efficacy);
         // sample from logistic distr and add offset to find time to immunity loss
-        double immunityDuration = gsl_cdf_logistic_Pinv(quantile, -1.0/k) + offset;     // duration in months
+        double immunityDuration = gsl_cdf_logistic_Pinv(quantile, -1.0/__IMMUNE_DECAY_SLOPE) + offset;     // duration in months
         if (immunityDuration < 0) { immunityDuration = 0; }
         //cerr << starting_efficacy << ' ' << offset << ' ' << immunityDuration << endl;
         return 30 * immunityDuration;

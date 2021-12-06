@@ -31,7 +31,7 @@ void Parameters::define_defaults() {
     VEF = {{WILDTYPE, {0.0}}};
     VEI = {{WILDTYPE, {0.0}}};
     vaccine_dose_to_protection_lag = 10;
-    vaccineLeaky = false;
+    immunityLeaky = false;
     beginContactTracing = INT_MAX;
     contactTracingCoverage = 0.0;
     contactTracingEV       = vector<double>(NUM_OF_LOCATION_TYPES);
