@@ -535,11 +535,15 @@ public:
         return covid::util::logistic(3.097703*(log10(neut_lvl)-log10(0.2010885)));
     }
 
-    const double __IMMUNE_DECAY_SLOPE = 0.2;//0.4148295;
-    const double __IMMUNE_DECAY_INTCPT = 2.4603816;
+    const double __IMMUNE_DECAY_SLOPE   = 0.4148295;
+    const double __IMMUNE_DECAY_INTCPT  = 2.4603816;
+//    const double __IMMUNE_DECAY_MAX     = 0.9213173;
+//    const double __IMMUNE_DECAY_MIN     = 0.3;
+//    const double __IMMUNE_DECAY_RANGE   = __IMMUNE_DECAY_MAX - __IMMUNE_DECAY_MIN;
 
     double _immunityEffectiveStartingTime(double starting_efficacy) const {
         return (log(1.0/starting_efficacy - 1.0) + __IMMUNE_DECAY_INTCPT) / __IMMUNE_DECAY_SLOPE;     // this is a logit transformation
+        //return (log(1.0/((starting_efficacy - __IMMUNE_DECAY_MIN)/__IMMUNE_DECAY_RANGE) - 1.0) + __IMMUNE_DECAY_INTCPT) / __IMMUNE_DECAY_SLOPE;     // this is a logit transformation
     }
 
     double remainingEfficacy(double starting_efficacy, double time_delta) const {
@@ -551,12 +555,8 @@ public:
         const double effective_starting_time = _immunityEffectiveStartingTime(starting_efficacy);
         const double l = __IMMUNE_DECAY_INTCPT - __IMMUNE_DECAY_SLOPE * (effective_starting_time + month_delta);
         return covid::util::logistic(l);
+//        return covid::util::logistic(l) * __IMMUNE_DECAY_RANGE + __IMMUNE_DECAY_MIN;
     }
-
-    //int sampleImmunityDuration(const gsl_rng* RNG, const double starting_efficacy) const {
-    //    //double immunityDuration = gsl_ran_logistic(RNG, -1.0/__IMMUNE_DECAY_SLOPE) + offset;   // duration in months
-    //    return immunityDuration(gsl_rng_uniform(RNG), starting_efficacy);
-    //}
 
     int immunityDuration(const double quantile, const double starting_efficacy) const {
         // logit to determine offset
@@ -616,10 +616,10 @@ public:
     VaccineSeroConstraint vaccineSeroConstraint;
     MmodsScenario mmodsScenario;
 
-    bool behavioral_auto_tuning;
+    bool behavioral_autotuning;
     size_t tuning_window;
     size_t num_preview_windows;
-    std::string auto_tuning_dataset;
+    std::string autotuning_dataset;
 
     std::vector<double> quarantineProbability;
     size_t selfQuarantineDuration;
