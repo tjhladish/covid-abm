@@ -504,7 +504,7 @@ class BehaviorAutoTuner {
     void clear_output_buffer() { output_buffer.str(""); }
 
     void print_header() {
-        output_buffer << right << "  day          window  emp data%  sum dist   cur val              search range   new val";
+        output_buffer << right << "  day          window  emp data%  sum dist   cur val  new best              search range   new val";
         cerr << right << output_buffer.str() << endl;
         clear_output_buffer();
     }
@@ -621,9 +621,11 @@ void overwrite_sim_cache(SimulationCache* &sim_cache, Community* community, Simu
 // helper function to handle main processing of a tuning window
 void process_behavior_fit(int fit_is_good, double fit_distance, const Parameters* par, BehaviorAutoTuner* tuner, vector<TimeSeriesAnchorPoint> &social_distancing_anchors) {
     // add more data to the output
+    string best_str = tuner->cur_anchor_val == tuner->best_anchor_val ? "  *       " : "          ";
     tuner->output_buffer << right
                          << setprecision(2) << scientific << setw(10) << fit_distance
                          << setprecision(6) << defaultfloat << setw(10) << tuner->cur_anchor_val
+                         << best_str
                          << setw(3) << "[" << setw(10) << tuner->bin_search_range->min << ", " << setw(10) << tuner->bin_search_range->max << "]";
 
     if(fit_is_good) { // calling scope deemed window's fit as "good"
@@ -742,9 +744,10 @@ void behavior_autotuning(const Parameters* par, Community* &community, Date* &da
             if (fit_is_good) {
                 // if the fit is deemed "good" ensure that we will use the best val found
                 tuner->cur_anchor_val = tuner->best_anchor_val;
+                fit_distance = tuner->best_distance;
 cerr << "Decision made." << endl;
 //cerr << "Using anchor val: " << tuner->cur_anchor_val << endl;
-                if (tuner->tuning_window_ct > 1 and prop_days_w_emp_data == 0) {
+                if (tuner->tuning_window_ct > 1 and prop_days_w_emp_data == 0.25) {
                     tuner->cur_anchor_val = min_element(community->getTimedIntervention(SOCIAL_DISTANCING));
                 }
             }
