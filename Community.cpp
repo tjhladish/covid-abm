@@ -1044,85 +1044,6 @@ void Community::tick() {
     //    double all_trans = accumulate(trans_type.begin(), trans_type.end(), 0.0);
     //    cerr << "never symptomatic, pre-symptomatic, symptomatic transmission: " << trans_type[0]/all_trans << ", " << trans_type[1]/all_trans << ", " << trans_type[2]/all_trans << endl;
     //}
-
-    // testing VE calculations
-    // need to know #of infs in those vax'd and unvax'd and the #of vax'd and unvax'd people
-//    if (vac_campaign) {
-//        size_t num_ppl_fully_vaxd = 0;
-//
-//        size_t num_breakthru_infs = 0;
-//        size_t num_breakthru_dis  = 0;
-//        size_t num_breakthru_hosp = 0;
-//        size_t num_breakthru_dths = 0;
-//
-//        size_t num_unvaxd_infs = 0;
-//        size_t num_unvaxd_dis  = 0;
-//        size_t num_unvaxd_hosp = 0;
-//        size_t num_unvaxd_dths = 0;
-//
-//        for (Person* p : _people) {
-//            bool fully_vaxd_w_protection = p->isVaccinated() and p->getNumVaccinations() > 1 and p->daysSinceVaccination(_day) >= _par->vaccine_dose_to_protection_lag;
-//            if (fully_vaxd_w_protection) {
-//                ++num_ppl_fully_vaxd;
-//            }
-//            if (p->hasBeenInfected()) {
-//                if (p->getInfectedTime() == _day) {      // for VEs
-//                    if (fully_vaxd_w_protection) {
-//                        ++num_breakthru_infs;
-//                    } else {
-//                        ++num_unvaxd_infs;
-//                    }
-//                }
-//
-//                if (p->getSymptomTime() == _day) {       // for VEp
-//                    if (fully_vaxd_w_protection) {
-//                        ++num_breakthru_dis;
-//                    } else {
-//                        ++num_unvaxd_dis;
-//                    }
-//                }
-//
-//                if (p->getHospitalizedTime() == _day) {  // for VEh
-//                    if (fully_vaxd_w_protection) {
-//                        ++num_breakthru_hosp;
-//                    } else {
-//                        ++num_unvaxd_hosp;
-//                    }
-//                }
-//
-//                if (p->getDeathTime() == _day) {         // for VEd
-//                    if (fully_vaxd_w_protection) {
-//                        ++num_breakthru_dths;
-//                    } else {
-//                        ++num_unvaxd_dths;
-//                    }
-//                }
-//            }
-//        }
-//
-//        size_t num_ppl_unvaxd = getNumPeople() - num_ppl_fully_vaxd;
-//
-//        double unvax_inf_risk = (double) num_unvaxd_infs/num_ppl_unvaxd;
-//        double vax_inf_risk   = (double) num_breakthru_infs/num_ppl_fully_vaxd;
-//        double inf_risk_ratio = (double) vax_inf_risk/unvax_inf_risk;
-//        double VEs            = 1.0 - inf_risk_ratio;
-//
-//        double unvax_dis_risk = (double) num_unvaxd_dis/num_ppl_unvaxd;
-//        double vax_dis_risk   = (double) num_breakthru_dis/num_ppl_fully_vaxd;
-//        double dis_risk_ratio = (double) vax_dis_risk/unvax_dis_risk;
-//        double VEp            = 1.0 - dis_risk_ratio;
-//
-//        double unvax_hosp_risk = (double) num_unvaxd_hosp/num_ppl_unvaxd;
-//        double vax_hosp_risk   = (double) num_breakthru_hosp/num_ppl_fully_vaxd;
-//        double hosp_risk_ratio = (double) vax_hosp_risk/unvax_hosp_risk;
-//        double VEh            = 1.0 - hosp_risk_ratio;
-//
-//        double unvax_dth_risk = (double) num_unvaxd_dths/num_ppl_unvaxd;
-//        double vax_dth_risk   = (double) num_breakthru_dths/num_ppl_fully_vaxd;
-//        double dth_risk_ratio = (double) vax_dth_risk/unvax_dth_risk;
-//        double VEd            = 1.0 - dth_risk_ratio;
-//cerr << setprecision(6) << "tsVEs: " << _day << ' ' << VEs << ' ' << num_unvaxd_infs << ' ' << num_ppl_unvaxd << ' ' << num_breakthru_infs << ' ' << num_ppl_fully_vaxd << endl;
-//    }
     return;
 }
 
@@ -1154,4 +1075,68 @@ size_t Community::getNumNaive() {
     size_t count = 0;
     for (Person* p: _people) { if (p->isImmuneState(NAIVE)) count++; }
     return count;
+}
+
+map<string, double> Community::calculate_daily_direct_VE() {
+    map<string, double> VE_map;
+    if (vac_campaign) {
+        size_t num_ppl_fully_vaxd = 0;
+        size_t num_breakthru_infs = 0, num_breakthru_dis  = 0, num_breakthru_hosp = 0, num_breakthru_dths = 0;
+        size_t num_unvaxd_infs = 0, num_unvaxd_dis  = 0, num_unvaxd_hosp = 0, num_unvaxd_dths = 0;
+
+        for (Person* p : _people) {
+            bool fully_vaxd_w_protection = p->isVaccinated() and p->getNumVaccinations() > 1 and p->daysSinceVaccination(_day) >= _par->vaccine_dose_to_protection_lag;
+            if (fully_vaxd_w_protection) { ++num_ppl_fully_vaxd; }
+            if (p->hasBeenInfected()) {
+                if (p->getInfectedTime() == _day) {      // for VEs
+                    if (fully_vaxd_w_protection) { ++num_breakthru_infs; }
+                    else { ++num_unvaxd_infs; }
+                }
+
+                if (p->getSymptomTime() == _day) {       // for VEp
+                    if (fully_vaxd_w_protection) { ++num_breakthru_dis; }
+                    else { ++num_unvaxd_dis; }
+                }
+
+                if (p->getHospitalizedTime() == _day) {  // for VEh
+                    if (fully_vaxd_w_protection) { ++num_breakthru_hosp; }
+                    else { ++num_unvaxd_hosp; }
+                }
+
+                if (p->getDeathTime() == _day) {         // for VEd
+                    if (fully_vaxd_w_protection) { ++num_breakthru_dths; }
+                    else { ++num_unvaxd_dths; }
+                }
+            }
+        }
+
+        size_t num_ppl_unvaxd = getNumPeople() - num_ppl_fully_vaxd;
+
+        double unvax_inf_risk = (double) num_unvaxd_infs/num_ppl_unvaxd;
+        double vax_inf_risk   = (double) num_breakthru_infs/num_ppl_fully_vaxd;
+        double inf_risk_ratio = (double) vax_inf_risk/unvax_inf_risk;
+        VE_map["VES"]         = 1.0 - inf_risk_ratio;
+
+        double unvax_dis_risk = (double) num_unvaxd_dis/num_ppl_unvaxd;
+        double vax_dis_risk   = (double) num_breakthru_dis/num_ppl_fully_vaxd;
+        double dis_risk_ratio = (double) vax_dis_risk/unvax_dis_risk;
+        VE_map["VEP"]         = 1.0 - dis_risk_ratio;
+
+        double unvax_hosp_risk = (double) num_unvaxd_hosp/num_ppl_unvaxd;
+        double vax_hosp_risk   = (double) num_breakthru_hosp/num_ppl_fully_vaxd;
+        double hosp_risk_ratio = (double) vax_hosp_risk/unvax_hosp_risk;
+        VE_map["VEH"]          = 1.0 - hosp_risk_ratio;
+
+        double unvax_dth_risk = (double) num_unvaxd_dths/num_ppl_unvaxd;
+        double vax_dth_risk   = (double) num_breakthru_dths/num_ppl_fully_vaxd;
+        double dth_risk_ratio = (double) vax_dth_risk/unvax_dth_risk;
+        VE_map["VED"]         = 1.0 - dth_risk_ratio;
+
+        VE_map["breakthruRatio"] = (double) num_breakthru_infs/(num_breakthru_infs + num_unvaxd_infs);
+        VE_map["vaxInfs"]        = (double) num_breakthru_infs;
+        VE_map["unvaxInfs"]      = (double) num_unvaxd_infs;
+        VE_map["vaxHosp"]        = (double) num_breakthru_hosp;
+        VE_map["unvaxHosp"]      = (double) num_unvaxd_hosp;
+    }
+    return VE_map;
 }
