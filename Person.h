@@ -182,9 +182,10 @@ class Person {
                 infectionHistory[i] = new Infection(*(o.infectionHistory[i]));
             }
 
+            naturalImmunityDuration = o.naturalImmunityDuration;
             startingNaturalEfficacy = o.startingNaturalEfficacy;
+            immunityQuantile        = o.immunityQuantile;
             vaccineHistory          = o.vaccineHistory;
-
         };
 
         ~Person();
