@@ -246,16 +246,23 @@ Infection* Person::infect(Community* community, Person* source, const Date* date
     const double effective_VEF = isVaccinated() ? _par->VEF_at(dose, strain) : 0.0;        // reduced fatality due to vaccine
     const double effective_VEI = isVaccinated() ? _par->VEI_at(dose, strain) : 0.0;        // reduced infectiousness
 
-    double symptomatic_probability = _par->pathogenicityByAge[age] * (1.0 - effective_VEP);           // may be modified by vaccination
-    const double severe_given_case = _par->probSeriousOutcome.at(SEVERE)[comorbidity][age] * (1.0 - effective_VEH);
+    double symptomatic_probability     = _par->pathogenicityByAge[age] * (1.0 - effective_VEP);           // may be modified by vaccination
+    double severe_given_case     = _par->probSeriousOutcome.at(SEVERE)[comorbidity][age] * (1.0 - effective_VEH);
     const double critical_given_severe = _par->probSeriousOutcome.at(CRITICAL)[comorbidity][age];
-    infection.relInfectiousness *= (1.0 - effective_VEI); // 0.25 b/c most (== asymptomatic) people are not very infectious
+    double icuMortality                = _par->icuMortality(comorbidity, age, infection.icuBegin) * (1.0 - effective_VEF);
+    infection.relInfectiousness       *= (1.0 - effective_VEI);
+
     if (infection.strain == B_1_1_7) {
         infection.relInfectiousness *= 1.6;
-        symptomatic_probability *= 1.1;                  // TODO -- these values shouldn't be hard-coded here
+        symptomatic_probability     *= 1.1;                  // TODO -- these values shouldn't be hard-coded here
     } else if (infection.strain == B_1_617_2) {
         infection.relInfectiousness *= 1.6 * 1.6;
-        symptomatic_probability *= 1.1 * 2.83;
+        symptomatic_probability     *= 1.1 * 2.83;
+        severe_given_case           *= not isVaccineProtected(time, strain) ? 2.0 : 1.0;
+        icuMortality                *= not isVaccineProtected(time, strain) ? 3.0 : 1.0;
+// cout << "sp " << symptomatic_probability << endl;
+// cout << "icumort " << icuMortality << endl;
+// cout << "sgc " << severe_given_case << endl;
     }
 
     const double highly_infectious_threshold = 8.04; // 80th %ile for overall SARS-CoV-2 from doi: 10.7554/eLife.65774, "Fig 4-Fig Sup 3"
@@ -309,7 +316,7 @@ Infection* Person::infect(Community* community, Person* source, const Date* date
                     // Patient goes to intensive care
                     infection.icuBegin = infection.criticalBegin;
                     if (not hosp) { infection.hospitalizedBegin = infection.icuBegin; } // if they weren't hospitalized before, they are now
-                    death = gsl_rng_uniform(RNG) < _par->icuMortality(comorbidity, age, infection.icuBegin) * (1.0 - effective_VEF);
+                    death = gsl_rng_uniform(RNG) < icuMortality;
                     if (death) {
                         // uniform randomly chose a day from the critical duration when death happens
                         processDeath(community, infection, infection.criticalBegin + _par->sampleIcuTimeToDeath());
@@ -419,7 +426,7 @@ bool Person::isCrossProtected(int time, StrainType strain) const { // assumes bi
             immune = true;
         }
 
-        if (infectionHistory.size() > 1 and not immune) {
+        if (not immune) {
             // maybe there's longer term, strain-specific immunity
             for (Infection* inf: infectionHistory) {
                 if (inf->getStrain() == strain) {
