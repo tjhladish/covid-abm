@@ -616,10 +616,10 @@ public:
     VaccineSeroConstraint vaccineSeroConstraint;
     MmodsScenario mmodsScenario;
 
-    bool behavioral_auto_tuning;
+    bool behavioral_autotuning;
     size_t tuning_window;
     size_t num_preview_windows;
-    std::string auto_tuning_dataset;
+    std::string autotuning_dataset;
 
     std::vector<double> quarantineProbability;
     size_t selfQuarantineDuration;

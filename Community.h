@@ -255,6 +255,8 @@ class Community {
         vector<Location*> locsAtPixel(std::pair<double, double> px) { return _pixelMap[{px.first, px.second}]; }
         vector<Location*> locsAtPixel(double xP, double yP) { return _pixelMap[{xP, yP}]; }
 
+        map<std::string, double> calculate_daily_direct_VE();
+
     protected:
         static const Parameters* _par;
         Date* _date;

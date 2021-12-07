@@ -816,7 +816,8 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
     community->setSocialDistancingTimedIntervention(social_distancing_anchors);
 
     //vector<string> plot_log_buffer = {"date,sd,seasonality,vocprev1,vocprev2,cinf,closed,rcase,rdeath,inf,rhosp,Rt"};
-    ledger->plot_log_buffer = {"date,sd,seasonality,vocprev1,vocprev2,cinf,closed,rcase,rdeath,inf,rhosp,Rt"};
+    ledger->plot_log_buffer = {"date,sd,seasonality,vocprev1,vocprev2,cinf,closed,rcase,rdeath,inf,rhosp,VES,brkthruRatio,vaxInfs,unvaxInfs,hospInc,hospPrev,icuInc,icuPrev,vaxHosp,unvaxHosp,Rt"};
+    //ledger->plot_log_buffer = {"date,sd,seasonality,vocprev1,vocprev2,cinf,closed,rcase,rdeath,inf,rhosp,Rt"};
 
     Date* date = community->get_date();
     ledger->strains = {50.0, 0.0, 0.0}; // initially all WILDTYPE
@@ -875,6 +876,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
         const double trailing_avg = trailing_averages[sim_day];
 
         const size_t rc_ct = accumulate(all_reported_cases.begin(), all_reported_cases.begin()+sim_day+1, 0);
+        map<string, double> VE_data = community->calculate_daily_direct_VE();
         if (not par->behavioral_autotuning) {
             if (date->dayOfMonth()==1) cerr << "        rep sday        date  infinc  cAR     rcases  rcta7  crcases  rdeath  crdeath  sevprev   crhosp  closed  socdist\n";
             cerr << right
@@ -908,7 +910,17 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
            << reported_cases*1e4/pop_at_risk << ","
            << rdeaths[sim_day]*1e4/pop_at_risk << ","
            << infections[sim_day]*1e4/pop_at_risk << ","
-           << rhosp[sim_day]*1e4/pop_at_risk;
+           << rhosp[sim_day]*1e4/pop_at_risk << ","
+           << VE_data["VES"] << ","
+           << VE_data["breakthruRatio"] << ","
+           << VE_data["vaxInfs"]*1e4/pop_at_risk << ","
+           << VE_data["unvaxInfs"]*1e4/pop_at_risk << ","
+           << community->getNumHospInc()[sim_day]*1e4/pop_at_risk << ","
+           << community->getNumHospPrev()[sim_day]*1e4/pop_at_risk << ","
+           << community->getNumIcuInc()[sim_day]*1e4/pop_at_risk << ","
+           << community->getNumIcuPrev()[sim_day]*1e4/pop_at_risk << ","
+           << VE_data["vaxHosp"]*1e4/pop_at_risk << ","
+           << VE_data["unvaxHosp"]*1e4/pop_at_risk;
         ledger->plot_log_buffer.push_back(ss.str());
 
     }

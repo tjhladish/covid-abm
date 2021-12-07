@@ -103,10 +103,10 @@ void Parameters::define_defaults() {
 
     mmodsScenario = NUM_OF_MMODS_SCENARIOS; // default to no MMODS scenario
 
-    behavioral_auto_tuning = false;
+    behavioral_autotuning = false;
     tuning_window = INT_MAX;
     num_preview_windows = INT_MAX;
-    auto_tuning_dataset = "";
+    autotuning_dataset = "";
 }
 
 
