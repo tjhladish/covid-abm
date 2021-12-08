@@ -28,6 +28,7 @@ cdc$date = as.Date("2020-12-27") + (cdc$MMWR.week*7)
 d$crcase   = cumsum(d$rcase)
 d$crdeath  = cumsum(d$rdeath)
 is.na(d) = sapply(d, is.infinite)
+d$VESAvg = filter(d$VES, rep(1/7, 7), sides = 2)
 d$brkthruRatioAvg = filter(d$brkthruRatio, rep(1/7, 7), sides = 2)
 #death_underreporting = 20.1/11.8 # excess death / recognized COVID deaths
 ed$rcase = ed$rcase*per10k
@@ -150,14 +151,15 @@ annotate('Cumulative reported deaths')
 ymax = max(d$vaxInfs, d$unvaxInfs, na.rm=T)
 plot(d$date, d$vaxInfs, type='n', xlab='', ylab='', xaxt='n', ylim=c(0,ymax), bty='n')
 shading()
-lines(d$date, d$vaxInfs, col='brown')
-lines(d$date, d$unvaxInfs, col='tan')
+lines(d$date, d$vaxInfs, col='dodgerblue4')
+lines(d$date, d$unvaxInfs, col='coral')
 annotate('Infections by vax status')
 
 # VES over time
 plot(d$date, d$VES, type='n', xlab='', ylab='', xaxt='n', ylim=c(0,1), bty='n')
 shading()
-lines(d$date, d$VES, col='brown')
+lines(d$date, d$VES, col='dodgerblue1')
+lines(d$date, d$VESAvg, col='dodgerblue4', lwd = 2)
 annotate('Direct VES')
 
 # breakthrough ratio over time
@@ -166,14 +168,14 @@ shading()
 lines(d$date, d$brkthruRatio, col='tan')
 lines(d$date, d$brkthruRatioAvg, col='tan4', lwd = 2)
 lines(cdc$date, cdc$brkthruRatio)
-annotate('Breakthru ratio')
+annotate('Breakthrough ratio')
 
 # hosp by vax status
 ymax = max(d$vaxHosp, d$unvaxHosp, rm.na=T)
 plot(d$date, d$vaxHosp, type='n', xlab='', ylab='', xaxt='n', ylim=c(0,ymax), bty='n')
 shading()
-lines(d$date, d$vaxHosp, col='salmon2')
-lines(d$date, d$unvaxHosp, col='wheat')
+lines(d$date, d$vaxHosp, col='dodgerblue4')
+lines(d$date, d$unvaxHosp, col='coral')
 annotate('Hosp by vax status')
 
 # hosp inc/prev
