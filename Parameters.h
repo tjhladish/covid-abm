@@ -532,10 +532,12 @@ public:
     double sampleStartingNaturalEfficacy(const gsl_rng* RNG) const {
         // neutralization level relative to mean natural immunity following infection, after: https://www.nature.com/articles/s41591-021-01377-8/figures/1
         const double neut_lvl = pow(2.0, gsl_ran_gaussian(RNG, 1.0));
-        return covid::util::logistic(3.097703*(log10(neut_lvl)-log10(0.2010885)));
+        const double VESP = covid::util::logistic(3.097703*(log10(neut_lvl/0.2010885)));
+        const double VEP = 0.75;
+        return 1 - (1 - VESP)/(1 - VEP);
     }
 
-    const double __IMMUNE_DECAY_SLOPE   = 0.4148295;
+    const double __IMMUNE_DECAY_SLOPE   = 0.2;//0.4148295;
     const double __IMMUNE_DECAY_INTCPT  = 2.4603816;
 //    const double __IMMUNE_DECAY_MAX     = 0.9213173;
 //    const double __IMMUNE_DECAY_MIN     = 0.3;

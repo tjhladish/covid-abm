@@ -258,7 +258,7 @@ Infection* Person::infect(Community* community, Person* source, const Date* date
     } else if (infection.strain == B_1_617_2) {
         infection.relInfectiousness *= 1.6 * 1.6;
         symptomatic_probability     *= 1.1 * 2.83;
-        severe_given_case           *= not isVaccineProtected(time, strain) ? 2.0 : 1.0;
+        severe_given_case           *= not isVaccineProtected(time, strain) ? 3.0 : 1.0;
         icuMortality                *= not isVaccineProtected(time, strain) ? 3.0 : 1.0;
 // cout << "sp " << symptomatic_probability << endl;
 // cout << "icumort " << icuMortality << endl;
