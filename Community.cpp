@@ -1081,8 +1081,8 @@ map<string, double> Community::calculate_daily_direct_VE() {
     map<string, double> VE_map;
     if (vac_campaign) {
         size_t num_ppl_fully_vaxd = 0;
-        size_t num_breakthru_infs = 0, num_breakthru_dis  = 0, num_breakthru_hosp = 0, num_breakthru_dths = 0;
-        size_t num_unvaxd_infs = 0, num_unvaxd_dis  = 0, num_unvaxd_hosp = 0, num_unvaxd_dths = 0;
+        size_t num_breakthru_infs = 0, num_breakthru_dis = 0, num_breakthru_hosp = 0, num_breakthru_dths = 0, num_breakthru_reported = 0;
+        size_t num_unvaxd_infs = 0, num_unvaxd_dis  = 0, num_unvaxd_hosp = 0, num_unvaxd_dths = 0, num_unvaxd_reported = 0;
 
         for (Person* p : _people) {
             bool fully_vaxd_w_protection = p->isVaccinated() and p->getNumVaccinations() > 1 and p->daysSinceVaccination(_day) >= _par->vaccine_dose_to_protection_lag;
@@ -1107,10 +1107,16 @@ map<string, double> Community::calculate_daily_direct_VE() {
                     if (fully_vaxd_w_protection) { ++num_breakthru_dths; }
                     else { ++num_unvaxd_dths; }
                 }
+
+                if (p->getInfection()->isDetectedOn(_day)) {
+                    if (fully_vaxd_w_protection) { ++num_breakthru_reported; }
+                    else { ++num_unvaxd_reported; }
+                }
             }
         }
 
         size_t num_ppl_unvaxd = getNumPeople() - num_ppl_fully_vaxd;
+        VE_map["coverage"]    = (double) num_ppl_fully_vaxd / getNumPeople();
 
         double unvax_inf_risk = (double) num_unvaxd_infs/num_ppl_unvaxd;
         double vax_inf_risk   = (double) num_breakthru_infs/num_ppl_fully_vaxd;
@@ -1132,7 +1138,8 @@ map<string, double> Community::calculate_daily_direct_VE() {
         double dth_risk_ratio = (double) vax_dth_risk/unvax_dth_risk;
         VE_map["VED"]         = 1.0 - dth_risk_ratio;
 
-        VE_map["breakthruRatio"] = (double) num_breakthru_infs/(num_breakthru_infs + num_unvaxd_infs);
+        //VE_map["breakthruRatio"] = (double) num_breakthru_infs/(num_breakthru_infs + num_unvaxd_infs);
+        VE_map["breakthruRatio"] = (double) num_breakthru_reported/(num_breakthru_reported + num_unvaxd_reported);
         VE_map["vaxInfs"]        = (double) num_breakthru_infs;
         VE_map["unvaxInfs"]      = (double) num_unvaxd_infs;
         VE_map["vaxHosp"]        = (double) num_breakthru_hosp;

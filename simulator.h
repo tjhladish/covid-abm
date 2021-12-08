@@ -881,7 +881,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
         const size_t rc_ct = accumulate(all_reported_cases.begin(), all_reported_cases.begin()+sim_day+1, 0);
         map<string, double> VE_data = community->calculate_daily_direct_VE();
         if (not par->behavioral_autotuning) {
-            if (date->dayOfMonth()==1) cerr << "        rep sday        date  infinc  cAR     rcases  rcta7  crcases  rdeath  crdeath  sevprev   crhosp  closed  socdist\n";
+            if (date->dayOfMonth()==1) cerr << "        rep sday        date  infinc  cAR     rcases  rcta7  crcases  rdeath  crdeath  sevprev   crhosp  closed  socdist  coverage\n";
             cerr << right
                 << setw(11) << "NA" //process_id
                 << setw(5)  << sim_day
@@ -897,6 +897,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
                 << setw(9)  << accumulate(rhosp.begin(), rhosp.begin()+sim_day+1, 0)
                 << setw(8)  << community->getTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, sim_day)
                 << "  "     << setprecision(2) << community->getTimedIntervention(SOCIAL_DISTANCING, sim_day)
+                << "  "     << setprecision(2) << VE_data["coverage"]
                 //             << "  "     << setprecision(2) << (double) severe[sim_day] / reported_cases
                 << endl;
         }
