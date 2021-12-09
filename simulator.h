@@ -819,11 +819,11 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
     community->setSocialDistancingTimedIntervention(social_distancing_anchors);
 
     //vector<string> plot_log_buffer = {"date,sd,seasonality,vocprev1,vocprev2,cinf,closed,rcase,rdeath,inf,rhosp,Rt"};
-    ledger->plot_log_buffer = {"date,sd,seasonality,vocprev1,vocprev2,cinf,closed,rcase,rdeath,inf,rhosp,VES,brkthruRatio,vaxInfs,unvaxInfs,hospInc,hospPrev,icuInc,icuPrev,vaxHosp,unvaxHosp,Rt"};
+    ledger->plot_log_buffer = {"date,sd,seasonality,vocprev1,vocprev2,vocprev3,cinf,closed,rcase,rdeath,inf,rhosp,VES,brkthruRatio,vaxInfs,unvaxInfs,hospInc,hospPrev,icuInc,icuPrev,vaxHosp,unvaxHosp,Rt"};
     //ledger->plot_log_buffer = {"date,sd,seasonality,vocprev1,vocprev2,cinf,closed,rcase,rdeath,inf,rhosp,Rt"};
 
     Date* date = community->get_date();
-    ledger->strains = {50.0, 0.0, 0.0}; // initially all WILDTYPE
+    ledger->strains = {50.0, 0.0, 0.0, 0.0}; // initially all WILDTYPE
     assert(ledger->strains.size() == NUM_OF_STRAIN_TYPES);
 
     if (par->behavioral_autotuning) {
@@ -850,16 +850,29 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
                 //const int time_since_intro = date->day() - Date::to_sim_day(par->julian_start_day, par->julian_start_year, mutant_intro_dates[0]);
                 if (ledger->strains[WILDTYPE] > 1) {
                     ledger->strains[WILDTYPE]--;
-                    ledger->strains[B_1_1_7]++;
+                    ledger->strains[ALPHA]++;
                 }
-            } else if (*date >= mutant_intro_dates[1]) {
+            } else if (*date >= mutant_intro_dates[1] and *date < mutant_intro_dates[2]) {
                 if (ledger->strains[WILDTYPE] > 1) {
                     ledger->strains[WILDTYPE]--;
-                    ledger->strains[B_1_617_2]++;
+                    ledger->strains[DELTA]++;
                 }
-                if (ledger->strains[B_1_1_7] > 1) {
-                    ledger->strains[B_1_1_7]--;
-                    ledger->strains[B_1_617_2]++;
+                if (ledger->strains[ALPHA] > 1) {
+                    ledger->strains[ALPHA]--;
+                    ledger->strains[DELTA]++;
+                }
+            } else if (*date >= mutant_intro_dates[2]) {
+                if (ledger->strains[WILDTYPE] > 1) {
+                    ledger->strains[WILDTYPE]--;
+                    ledger->strains[OMICRON]++;
+                }
+                if (ledger->strains[ALPHA] > 1) {
+                    ledger->strains[ALPHA]--;
+                    ledger->strains[OMICRON]++;
+                }
+                if (ledger->strains[DELTA] > 1) {
+                    ledger->strains[DELTA]--;
+                    ledger->strains[OMICRON]++;
                 }
             }
         }
@@ -907,8 +920,9 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
         ss << date->to_string({"yyyy", "mm", "dd"}, "-") << ","
            << community->social_distancing(sim_day)/*par->timedInterventions.at(SOCIAL_DISTANCING).at(sim_day)*/ << ","
            << par->seasonality.at(date->julianDay()-1) << ","
-           << (float) community->getNumNewInfections(B_1_1_7)[sim_day]/infections[sim_day] << ","
-           << (float) community->getNumNewInfections(B_1_617_2)[sim_day]/infections[sim_day] << ","
+           << (float) community->getNumNewInfections(ALPHA)[sim_day]/infections[sim_day] << ","
+           << (float) community->getNumNewInfections(DELTA)[sim_day]/infections[sim_day] << ","
+           << (float) community->getNumNewInfections(OMICRON)[sim_day]/infections[sim_day] << ","
            << cAR << ","
            << community->getTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, sim_day)<< ","
            << reported_cases*1e4/pop_at_risk << ","

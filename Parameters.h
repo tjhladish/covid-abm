@@ -129,8 +129,9 @@ enum ComorbidType{
 
 enum StrainType{
     WILDTYPE,
-    B_1_1_7,
-    B_1_617_2,
+    ALPHA, //B_1_1_7,
+    DELTA, //B_1_617_2,
+    OMICRON,
     NUM_OF_STRAIN_TYPES
 };
 
@@ -139,8 +140,9 @@ inline std::ostream& operator<<(std::ostream& out, const StrainType value){
 #define PROCESS_VAL(p) case(p): s = #p; break;
     switch(value){
         PROCESS_VAL(WILDTYPE);
-        PROCESS_VAL(B_1_1_7);
-        PROCESS_VAL(B_1_617_2);
+        PROCESS_VAL(ALPHA);
+        PROCESS_VAL(DELTA);
+        PROCESS_VAL(OMICRON);
         PROCESS_VAL(NUM_OF_STRAIN_TYPES);
     }
 #undef PROCESS_VAL
@@ -532,23 +534,21 @@ public:
     double sampleStartingNaturalEfficacy(const gsl_rng* RNG) const {
         // neutralization level relative to mean natural immunity following infection, after: https://www.nature.com/articles/s41591-021-01377-8/figures/1
         const double neut_lvl = pow(2.0, gsl_ran_gaussian(RNG, 1.0));
-        const double VESP = covid::util::logistic(3.097703*(log10(neut_lvl/0.2010885)));
-        const double VEP = 0.75;
-        return 1 - (1 - VESP)/(1 - VEP);
+        const double AESP = covid::util::logistic(3.097703*(log10(neut_lvl/0.2010885)));
+        const double AEP = 0.75;
+        //const double VEP = 1 - (1 - 0.93)/(1 - 0.52); // values from https://www.thelancet.com/journals/lancet/article/PIIS0140-6736(21)00675-9/fulltext
+        return 1 - (1 - AESP)/(1 - AEP);
     }
 
     const double __IMMUNE_DECAY_SLOPE   = 0.2;//0.4148295;
     const double __IMMUNE_DECAY_INTCPT  = 2.4603816;
-//    const double __IMMUNE_DECAY_MAX     = 0.9213173;
-//    const double __IMMUNE_DECAY_MIN     = 0.3;
-//    const double __IMMUNE_DECAY_RANGE   = __IMMUNE_DECAY_MAX - __IMMUNE_DECAY_MIN;
 
     double _immunityEffectiveStartingTime(double starting_efficacy) const {
         return (log(1.0/starting_efficacy - 1.0) + __IMMUNE_DECAY_INTCPT) / __IMMUNE_DECAY_SLOPE;     // this is a logit transformation
-        //return (log(1.0/((starting_efficacy - __IMMUNE_DECAY_MIN)/__IMMUNE_DECAY_RANGE) - 1.0) + __IMMUNE_DECAY_INTCPT) / __IMMUNE_DECAY_SLOPE;     // this is a logit transformation
     }
 
     double remainingEfficacy(double starting_efficacy, double time_delta) const {
+        if (not immunityWanes) { return starting_efficacy; }
         const double month_delta = time_delta / 30.0; // published data worked in terms of months
         // KBT fitted logistic model to Pfizer waning data from: https://www.thelancet.com/journals/lancet/article/PIIS0140-6736(21)02183-8/fulltext
         //logistic_wane = function(x) {1 / (1 + exp(-(2.4603816 - 0.4148295 * x)))}
@@ -557,7 +557,6 @@ public:
         const double effective_starting_time = _immunityEffectiveStartingTime(starting_efficacy);
         const double l = __IMMUNE_DECAY_INTCPT - __IMMUNE_DECAY_SLOPE * (effective_starting_time + month_delta);
         return covid::util::logistic(l);
-//        return covid::util::logistic(l) * __IMMUNE_DECAY_RANGE + __IMMUNE_DECAY_MIN;
     }
 
     int immunityDuration(const double quantile, const double starting_efficacy) const {
@@ -582,7 +581,7 @@ public:
 //        const double time_to_susceptible = -t_half * log(threshold / pow(10, gsl_ran_gaussian(RNG, antibody_init_sd) + antibody_init_mean)) / log(2);
 //        return time_to_susceptible < 0 ? 0 : (size_t) round(time_to_susceptible);
 //    }
-    bool linearlyWaningVaccine;
+    bool immunityWanes;                                      // innate waning of both natural and vaccine immunity
     int vaccineImmunityDuration;
     bool vaccineBoosting;                                   // Are we re-vaccinated, either because of waning or because of multi-dose vaccine
     int numVaccineDoses;                                    // Number of times to boost; default is INT_MAX

@@ -109,6 +109,7 @@ plot(d$date, d$vocprev1, type='n', xlab='', ylab='', xaxt='n', bty='n')
 shading()
 lines(d$date, d$vocprev1, col='royalblue3')
 lines(d$date, d$vocprev2, col='turquoise4')
+lines(d$date, d$vocprev3, col='darkorchid3')
 annotate('VOC prevalence')
 
 #        {"name" : "jul19_rcases",      "short_name" : "jul19",      "num_type" : "FLOAT", "value" :  5.26},
@@ -148,12 +149,12 @@ lines(d$date, d$crdeath, col='green4')
 annotate('Cumulative reported deaths')
 
 # infections by vax status
-ymax = max(d$vaxInfs, d$unvaxInfs, na.rm=T)
+ymax = max(d$vaxInfs + d$unvaxInfs, na.rm=T)
 plot(d$date, d$vaxInfs, type='n', xlab='', ylab='', xaxt='n', ylim=c(0,ymax), bty='n')
 shading()
 lines(d$date, d$vaxInfs, col='dodgerblue4')
-lines(d$date, d$unvaxInfs, col='coral')
-annotate('Infections by vax status')
+lines(d$date, d$unvaxInfs + d$vaxInfs, col='coral')
+annotate('Infections by vax status (stacked)')
 
 # VES over time
 plot(d$date, d$VES, type='n', xlab='', ylab='', xaxt='n', ylim=c(0,1), bty='n')

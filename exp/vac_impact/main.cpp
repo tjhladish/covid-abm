@@ -41,7 +41,7 @@ const string output_dir("/ufrc/longini/tjhladish/");
 const string vaccination_file = pop_dir + "/../fl_vac/fl_vac_v4.txt";
 
 const int RESTART_BURNIN          = 0;
-const int FORECAST_DURATION       = 700;
+const int FORECAST_DURATION       = 800;
 //const int FORECAST_DURATION       = 456;
 const int OVERRUN                 = 14; // to get accurate Rt estimates near the end of the forecast duration
 const bool RUN_FORECAST           = true;
@@ -606,7 +606,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     // const size_t realization    = (size_t) args[1];
     const bool mutation          = (bool) args[2];
     vector<string> mutant_intro_dates = {};
-    if (mutation) { mutant_intro_dates = {"2021-02-01", "2021-05-27"}; };   // extra semicolon?
+    if (mutation) { mutant_intro_dates = {"2021-02-01", "2021-05-27", "2021-12-01"}; };   // extra semicolon?
 
     Community* community = build_community(par);
 
@@ -670,15 +670,20 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         const double x_delta_1 = 1;//0.338;
         const double x_delta_2 = 1;//0.843;
 
-        par->VES                   = {{WILDTYPE, {0.40, 0.80}}, {B_1_1_7, {0.40*x_alpha_1, 0.80*x_alpha_2}}, {B_1_617_2, {0.40*x_delta_1, 0.80*x_delta_2}}}; // reduce for delta
-        //par->VES                   = {{WILDTYPE, {0.40, 0.80}}, {B_1_1_7, {0.40*x_alpha_1, 0.80*x_alpha_2}}, {B_1_617_2, {0.05, 0.52}}}; // reduce for delta
+        par->VES                   = {{WILDTYPE, {0.40, 0.80}},
+                                      {ALPHA, {0.40*x_alpha_1, 0.80*x_alpha_2}},
+                                      {DELTA, {0.40*x_delta_1, 0.80*x_delta_2}},    // efficacy currently is being reduced in Person.cpp
+                                      {OMICRON, {0.40*x_delta_1, 0.80*x_delta_2}}};
         par->VES_NAIVE             = par->VES;
-        par->VEP                   = {{WILDTYPE, {0.67, 0.75}}, {B_1_1_7, {0.67*x_alpha_1, 0.75*x_alpha_2}}, {B_1_617_2, {0.67*x_delta_1, 0.75*x_delta_2}}}; // reduce for delta
-        //par->VEP                   = {{WILDTYPE, {0.67, 0.75}}, {B_1_1_7, {0.67*x_alpha_1, 0.75*x_alpha_2}}, {B_1_617_2, {0.29, 0.75}}}; // reduce for delta
-        par->VEH                   = {{WILDTYPE, {0.9, 1.0}},   {B_1_1_7, {0.9, 1.0}}, {B_1_617_2, {0.9, 1.0}}};
-        par->VEI                   = {{WILDTYPE, {0.4, 0.8}},   {B_1_1_7, {0.4, 0.8}}, {B_1_617_2, {0.4, 0.8}}};
-        par->VEF                   = {{WILDTYPE, {0.0, 0.0}},   {B_1_1_7, {0.0, 0.0}}, {B_1_617_2, {0.0, 0.0}}}; // effect likely captured by VEH
-        par->immunityLeaky         = false;
+        par->VEP                   = {{WILDTYPE, {0.67, 0.75}},
+                                      {ALPHA, {0.67*x_alpha_1, 0.75*x_alpha_2}},
+                                      {DELTA, {0.67*x_delta_1, 0.75*x_delta_2}},
+                                      {OMICRON, {0.67*x_delta_1, 0.75*x_delta_2}}};
+        par->VEH                   = {{WILDTYPE, {0.9, 1.0}},   {ALPHA, {0.9, 1.0}}, {DELTA, {0.9, 1.0}}, {OMICRON, {0.9, 1.0}}};
+        par->VEI                   = {{WILDTYPE, {0.4, 0.8}},   {ALPHA, {0.4, 0.8}}, {DELTA, {0.4, 0.8}}, {OMICRON, {0.4, 0.8}}};
+        par->VEF                   = {{WILDTYPE, {0.0, 0.0}},   {ALPHA, {0.0, 0.0}}, {DELTA, {0.0, 0.0}}, {OMICRON, {0.0, 0.0}}}; // effect likely captured by VEH
+        par->immunityLeaky         = true;
+        par->immunityWanes         = false;
         par->numVaccineDoses       = 2;
         par->vaccineDoseInterval   = 21;
         par->vaccineTargetCoverage = 0.60;  // for healthcare workers only

@@ -73,7 +73,7 @@ void Parameters::define_defaults() {
     numVaccineDoses = 3;
     vaccineDoseInterval = 182;
 
-    linearlyWaningVaccine = false;
+    immunityWanes = false;
     vaccineImmunityDuration = INT_MAX;
     vaccineBoosting = false;
     vaccineBoostingInterval = 730;
