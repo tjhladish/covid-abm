@@ -763,12 +763,38 @@ cerr << "Decision made." << endl;
 void init_behavioral_vals_from_file(const Parameters* par, Community* community) {
     vector< vector<string> > tuning_data = read_2D_vector_file(par->autotuning_dataset, ',');
     vector<double> behavior_vals;
+    vector<pair<int,double>> vals_to_interpolate;
+    bool interpolating = false;
 
     for (vector<string> &v : tuning_data) {
         if (v[0] == "date") { continue; }
-        double behavior = stod(v[3]);
-        behavior_vals.push_back(behavior);
+        if (v[0] == "interpolate") { interpolating = true; continue; }
+
+        if (interpolating) {
+            int sim_day = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, v[0]);
+            double val  = stod(v[3]);
+            vals_to_interpolate.push_back({sim_day, val});
+        } else {
+            double behavior = stod(v[3]);
+            behavior_vals.push_back(behavior);
+        }
     }
+
+    if (interpolating) {
+        if (vals_to_interpolate.size() > 1) {
+            for (size_t i = 1; i < vals_to_interpolate.size(); ++i) {
+                int time_delta   = vals_to_interpolate[i].first - vals_to_interpolate[i - 1].first;
+                double start_val = vals_to_interpolate[i - 1].second;
+                double end_val   = vals_to_interpolate[i].second;
+                vector<double> interpolated_behavior = Date::linInterpolate(start_val, end_val, time_delta);
+                behavior_vals.insert(behavior_vals.end(), interpolated_behavior.begin(), interpolated_behavior.end());
+            }
+        } else {
+            cerr << "ERROR: to interpolate PPB, more than one anchor point is needed in " << par->autotuning_dataset << endl;
+            exit(-2);
+        }
+    }
+
     community->setSocialDistancingTimedIntervention(behavior_vals);
 }
 
