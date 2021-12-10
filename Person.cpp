@@ -247,8 +247,8 @@ Infection* Person::infect(Community* community, Person* source, const Date* date
     const double effective_VEI = isVaccinated() ? _par->VEI_at(dose, strain) : 0.0;        // reduced infectiousness
 
     double symptomatic_probability     = _par->pathogenicityByAge[age];
-    //symptomatic_probability            *= isVaccinated() ? (1.0 - effective_VEP) : getNumNaturalInfections() > 0 ? (1.0 - 0.75) : 1.0 ;           // may be modified by vaccination
-    symptomatic_probability            *= isVaccinated() ? (1.0 - effective_VEP) : 1.0; //getNumNaturalInfections() > 0 ? (1.0 - 0.75) : 1.0 ;           // may be modified by vaccination
+    symptomatic_probability            *= isVaccinated() ? (1.0 - effective_VEP) : getNumNaturalInfections() > 1 ? (1.0 - 0.75) : 1.0 ;           // may be modified by vaccination
+    //symptomatic_probability            *= isVaccinated() ? (1.0 - effective_VEP) : 1.0;                                                           // may be modified by vaccination
     double severe_given_case     = _par->probSeriousOutcome.at(SEVERE)[comorbidity][age] * (1.0 - effective_VEH);
     const double critical_given_severe = _par->probSeriousOutcome.at(CRITICAL)[comorbidity][age];
     double icuMortality                = _par->icuMortality(comorbidity, age, infection.icuBegin) * (1.0 - effective_VEF);
