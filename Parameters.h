@@ -179,6 +179,20 @@ struct GammaPars {
     double b; // scale
 };
 
+class StrainPars {
+  public:
+    StrainPars() : type(WILDTYPE), relInfectiousness(1.0), relPathogenicity(1.0), relSeverity(1.0), relCriticality(1.0), relMortality(1.0), relIcuMortality(1.0), immuneEscapeProb(1.0) {}
+    StrainPars(StrainType t) : StrainPars() { type = t; }
+    StrainType type;
+    double relInfectiousness;
+    double relPathogenicity;
+    double relSeverity;
+    double relCriticality;
+    double relMortality;
+    double relIcuMortality;
+    double immuneEscapeProb;
+};
+
 class ReportingLagModel {
   public:
     ReportingLagModel() {};
@@ -591,6 +605,9 @@ public:
     int vaccineTargetAge;
     double vaccineTargetCoverage;
     int vaccineTargetStartDate;
+
+    vector<StrainPars> strainPars;
+
     size_t numSurveilledPeople;
 
     // bool vacCampaign_prioritize_first_doses;

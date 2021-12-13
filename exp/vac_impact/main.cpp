@@ -607,63 +607,19 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     const bool mutation          = (bool) args[2];
     vector<string> mutant_intro_dates = {};
     if (mutation) { mutant_intro_dates = {"2021-02-01", "2021-05-27", "2021-12-01"}; }
+//    par->strainPars[DELTA].relInfectiousness = ;
+//    par->strainPars[DELTA].relInfectiousness = ;
+//    par->strainPars[DELTA].relInfectiousness = ;
+//    par->strainPars[DELTA].relInfectiousness = ;
+//    par->strainPars[DELTA].relInfectiousness = ;
+//    par->strainPars[DELTA].relInfectiousness = ;
 
     Community* community = build_community(par);
-
-//    map<size_t, TimeSeriesAnchorPoint> social_contact_map;
-//    vector<TimeSeriesAnchorPoint> initial_social_contact_anchors;
-//    if (par->auto_fitting) {
-//        const size_t window_size = par->fitting_window;
-//
-//        Date* param_day = new Date(*community->get_date());
-//        for (; (size_t) param_day->day() < par->runLength; param_day->increment()) {
-//            if ((param_day->day() % window_size == 0) or (param_day->day() == 0)) {
-//                TimeSeriesAnchorPoint tsap = {param_day->to_ymd(), 0.00};
-//                social_contact_map[param_day->day()] = tsap;
-//                initial_social_contact_anchors.push_back(tsap);
-//            }
-//        }
-//        delete param_day;
-//
-//cerr << "TEST AUTO SOCIAL CONTACT PARAM GEN" << endl;
-//cerr << "SIM DAY\t\tTSAP DATE\t\tTSAP VAL" << endl;
-//for (const auto& [sim_day, tsap] : social_contact_map) {
-//    cerr << sim_day << "\t\t" << tsap.date << "\t\t" << tsap.value << endl;
-//}
-//
-//        community->setSocialDistancingTimedIntervention(initial_social_contact_anchors);
-//
-//   }
 
     Vac_Campaign* vc = nullptr;
     community->setVac_Campaign(vc);
 
     if (vaccine) {
-    // TODO -- Schedule health care workers first, then either use actual age dist data, or sample from over 65, over 16, over 12, etc.
-        //double target_coverage  = coverage;
-
-        // below was previous vaccination system
-        /*
-        double catchup_coverage = 0.6;
-        const int target = 16;
-        const int senior_threshold = 65;
-        size_t senior_vac_campaign_duration = vac_rate == SLOW ? 86 : 35; // 0.12% per day vs 0.3% per day for [65, max_age]
-        size_t general_vac_campaign_duration = vac_rate == SLOW ? 257 : 103; // same, for those [16, 64]
-        const size_t senior_vac_sim_day  = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-01-08"); // jan 1 + 7 days for efficacy
-        const size_t general_vac_sim_day = senior_vac_sim_day + senior_vac_campaign_duration;
-
-        for (int catchup_age = senior_threshold; catchup_age <= NUM_AGE_CLASSES - 1; catchup_age++) {
-        cerr << "scheduling vaccinations:" << catchup_age << " " << senior_vac_sim_day << endl;
-            //const int vacDate = julian_to_sim_day(par, JULIAN_TALLY_DATE + 1, RESTART_BURNIN);
-            par->catchupVaccinationEvents.emplace_back(senior_vac_sim_day, senior_vac_campaign_duration, catchup_age, catchup_coverage);
-        }
-
-        for (int catchup_age = target; catchup_age < senior_threshold; catchup_age++) {
-        cerr << "scheduling vaccinations:" << catchup_age << " " << general_vac_sim_day << endl;
-            //const int vacDate = julian_to_sim_day(par, JULIAN_TALLY_DATE + 1, RESTART_BURNIN);
-            par->catchupVaccinationEvents.emplace_back(general_vac_sim_day, general_vac_campaign_duration, catchup_age, catchup_coverage);
-        }
-        */
         const double x_alpha_1 = 1;//0.529; // calculated using quadratic formula: (VES*VEP)x^2 - (VES+VEP)x + VESP_alpha = 0, where VES and VEP are for wildtype
         const double x_alpha_2 = 1;//0.948;
 

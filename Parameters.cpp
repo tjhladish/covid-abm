@@ -83,6 +83,10 @@ void Parameters::define_defaults() {
     // vacCampaign_flexible_queue_allocation = false;
     // vacCampaign_reactive_strategy = NUM_OF_REACTIVE_VAC_STRATEGY_TYPES;
 
+    for (int strain = 0; strain < NUM_OF_STRAIN_TYPES; ++strain) {
+        strainPars.emplace_back((StrainType) strain);
+    }
+
     numSurveilledPeople = INT_MAX;
 
     traceContacts = false;
