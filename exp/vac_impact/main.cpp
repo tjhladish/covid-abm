@@ -606,7 +606,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     // const size_t realization    = (size_t) args[1];
     const bool mutation          = (bool) args[2];
     vector<string> mutant_intro_dates = {};
-    if (mutation) { mutant_intro_dates = {"2021-02-01", "2021-05-27", "2021-12-01"}; };   // extra semicolon?
+    if (mutation) { mutant_intro_dates = {"2021-02-01", "2021-05-27", "2021-12-01"}; }
 
     Community* community = build_community(par);
 

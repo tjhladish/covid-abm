@@ -260,7 +260,7 @@ Infection* Person::infect(Community* community, Person* source, const Date* date
     } else if (infection.strain == DELTA) {
         infection.relInfectiousness *= 1.6 * 1.4;
         symptomatic_probability     *= 1.1 * 2.83;
-        severe_given_case           *= not isVaccineProtected(time, strain) ? 2.5 : 1.0;
+        severe_given_case           *= not isVaccineProtected(time, strain) ? 2.5 : 1.0; // TODO - maybe more like 1.3? CABP, based on mortality increase
         icuMortality                *= 2.0;
 // cout << "sp " << symptomatic_probability << endl;
 // cout << "icumort " << icuMortality << endl;
@@ -442,7 +442,7 @@ bool Person::isCrossProtected(int time, StrainType strain) const { // assumes bi
         if (not immune) {
             // maybe there's longer term, strain-specific immunity
             for (Infection* inf: infectionHistory) {
-                if (inf->getStrain() == strain) {
+                if (inf->getStrain() == strain and (gsl_rng_uniform(RNG) < 0.85)) { // CABP: https://www.sciencedirect.com/science/article/pii/S0140673621006759
                     immune = true;
                     break;
                 }
