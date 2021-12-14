@@ -246,35 +246,15 @@ Infection* Person::infect(Community* community, Person* source, const Date* date
     const double effective_VEF = isVaccinated() ? _par->VEF_at(dose, strain) : 0.0;        // reduced fatality due to vaccine
     const double effective_VEI = isVaccinated() ? _par->VEI_at(dose, strain) : 0.0;        // reduced infectiousness
 
-    double symptomatic_probability     = _par->pathogenicityByAge[age];
+    double symptomatic_probability     = _par->pathogenicityByAge[age] * _par->strainPars[strain].relPathogenicity;
     //symptomatic_probability            *= isVaccinated() ? (1.0 - effective_VEP) : getNumNaturalInfections() > 1 ? (1.0 - 0.75) : 1.0 ;           // may be modified by vaccination
-    symptomatic_probability            *= isVaccinated() ? (1.0 - effective_VEP) : 1.0;                                                           // may be modified by vaccination
-    double severe_given_case     = _par->probSeriousOutcome.at(SEVERE)[comorbidity][age] * (1.0 - effective_VEH);
+    symptomatic_probability           *= isVaccinated() ? (1.0 - effective_VEP) : 1.0;                                                           // may be modified by vaccination
+    double severe_given_case           = _par->probSeriousOutcome.at(SEVERE)[comorbidity][age] * (1.0 - effective_VEH);
+    severe_given_case                 *= not isVaccineProtected(time, strain) ? _par->strainPars[strain].relSeverity : 1.0;
     const double critical_given_severe = _par->probSeriousOutcome.at(CRITICAL)[comorbidity][age];
     double icuMortality                = _par->icuMortality(comorbidity, age, infection.icuBegin) * (1.0 - effective_VEF);
-    infection.relInfectiousness       *= (1.0 - effective_VEI);
-
-    if (infection.strain == ALPHA) {
-        infection.relInfectiousness *= 1.6;
-        symptomatic_probability     *= 1.1;                  // TODO -- these values shouldn't be hard-coded here
-    } else if (infection.strain == DELTA) {
-        infection.relInfectiousness *= 1.6 * 1.4;
-        symptomatic_probability     *= 1.1 * 2.83;
-        severe_given_case           *= not isVaccineProtected(time, strain) ? 2.5 : 1.0; // TODO - maybe more like 1.3? CABP, based on mortality increase
-        icuMortality                *= 2.0;
-// cout << "sp " << symptomatic_probability << endl;
-// cout << "icumort " << icuMortality << endl;
-// cout << "sgc " << severe_given_case << endl;
-    } else if (infection.strain == OMICRON) {
-        infection.relInfectiousness *= 1.6 * 1.4 * 1.5;
-        symptomatic_probability     *= 1.1;
-        severe_given_case           *= not isVaccineProtected(time, strain) ? 1.1 : 1.0;
-        icuMortality                *= 2.0;
-// cout << "sp " << symptomatic_probability << endl;
-// cout << "icumort " << icuMortality << endl;
-// cout << "sgc " << severe_given_case << endl;
-    }
-
+    icuMortality                      *= _par->strainPars[strain].relIcuMortality;
+    infection.relInfectiousness       *= _par->strainPars[strain].relInfectiousness * (1.0 - effective_VEI);
 
     const double highly_infectious_threshold = 8.04; // 80th %ile for overall SARS-CoV-2 from doi: 10.7554/eLife.65774, "Fig 4-Fig Sup 3"
 
@@ -432,8 +412,7 @@ bool Person::isCrossProtected(int time, StrainType strain) const { // assumes bi
         const int last_infection_end_date = covid::util::max_element(possible_last_infection_end_dates);
         const int time_since_last_infection = time - last_infection_end_date;
         double remaining_natural_efficacy = _par->remainingEfficacy(startingNaturalEfficacy, time_since_last_infection);
-        remaining_natural_efficacy *= strain == DELTA ? 0.85 :
-                                      strain == OMICRON ? 0.3 : 1.0;
+        remaining_natural_efficacy *= 1.0 - _par->strainPars[strain].immuneEscapeProb;
         if ( (_par->immunityLeaky and (gsl_rng_uniform(RNG) < remaining_natural_efficacy)) or
              (not _par->immunityLeaky and (time_since_last_infection < naturalImmunityDuration)) ) {
             immune = true;
@@ -465,8 +444,7 @@ bool Person::isVaccineProtected(const int time, const StrainType strain) const {
         }
 
         double remaining_vaccine_efficacy = _par->remainingEfficacy(init_ves, daysSinceVaccination(time) - _par->vaccine_dose_to_protection_lag);
-        remaining_vaccine_efficacy *= strain == DELTA   ? 0.85 :
-                                      strain == OMICRON ? 0.3 : 1.0;
+        remaining_vaccine_efficacy *= 1.0 - _par->strainPars[strain].immuneEscapeProb;
 
         const bool beyond_vaccine_dose_protection_lag = daysSinceVaccination(time) >= _par->vaccine_dose_to_protection_lag;
         const bool protection_remains = _par->immunityLeaky ? gsl_rng_uniform(RNG) < remaining_vaccine_efficacy
@@ -475,10 +453,6 @@ bool Person::isVaccineProtected(const int time, const StrainType strain) const {
         immune = beyond_vaccine_dose_protection_lag and protection_remains;
     }
     return immune;
-//    return isVaccinated() and
-//           ((size_t) daysSinceVaccination(time) >= _par->vaccine_dose_to_protection_lag) and
-//           ( !_par->immunityLeaky or // if the vaccine isn't leaky
-//           (gsl_rng_uniform(RNG) < vaccineProtection(time, strain)) ); // or it protects (i.e., doesn't leak this time)
 }
 
 

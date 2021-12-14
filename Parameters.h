@@ -181,7 +181,7 @@ struct GammaPars {
 
 class StrainPars {
   public:
-    StrainPars() : type(WILDTYPE), relInfectiousness(1.0), relPathogenicity(1.0), relSeverity(1.0), relCriticality(1.0), relMortality(1.0), relIcuMortality(1.0), immuneEscapeProb(1.0) {}
+    StrainPars() : type(WILDTYPE), relInfectiousness(1.0), relPathogenicity(1.0), relSeverity(1.0), relCriticality(1.0), relMortality(1.0), relIcuMortality(1.0), immuneEscapeProb(0.0) {}
     StrainPars(StrainType t) : StrainPars() { type = t; }
     StrainType type;
     double relInfectiousness;

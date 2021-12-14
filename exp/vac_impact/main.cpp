@@ -238,6 +238,54 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     return par;
 }
 
+
+void define_strain_parameters(Parameters* par) {
+    const double x_alpha_1 = 1;//0.529; // calculated using quadratic formula: (VES*VEP)x^2 - (VES+VEP)x + VESP_alpha = 0, where VES and VEP are for wildtype
+    const double x_alpha_2 = 1;//0.948;
+
+    const double x_delta_1 = 1;//0.338;
+    const double x_delta_2 = 1;//0.843;
+
+    par->VES                   = {{WILDTYPE, {0.40, 0.80}},
+                                  {ALPHA, {0.40*x_alpha_1, 0.80*x_alpha_2}},
+                                  {DELTA, {0.40*x_delta_1, 0.80*x_delta_2}},    // efficacy currently is being reduced in Person.cpp
+                                  {OMICRON, {0.40*x_delta_1, 0.80*x_delta_2}}};
+    par->VES_NAIVE             = par->VES;
+    par->VEP                   = {{WILDTYPE, {0.67, 0.75}},
+                                  {ALPHA, {0.67*x_alpha_1, 0.75*x_alpha_2}},
+                                  {DELTA, {0.67*x_delta_1, 0.75*x_delta_2}},
+                                  {OMICRON, {0.67*x_delta_1, 0.75*x_delta_2}}};
+    par->VEH                   = {{WILDTYPE, {0.9, 1.0}},   {ALPHA, {0.9, 1.0}}, {DELTA, {0.9, 1.0}}, {OMICRON, {0.9, 1.0}}};
+    par->VEI                   = {{WILDTYPE, {0.4, 0.8}},   {ALPHA, {0.4, 0.8}}, {DELTA, {0.4, 0.8}}, {OMICRON, {0.4, 0.8}}};
+    par->VEF                   = {{WILDTYPE, {0.0, 0.0}},   {ALPHA, {0.0, 0.0}}, {DELTA, {0.0, 0.0}}, {OMICRON, {0.0, 0.0}}}; // effect likely captured by VEH
+
+    par->strainPars[ALPHA].relInfectiousness   = 1.6;
+    par->strainPars[ALPHA].relPathogenicity    = 1.1;
+  //par->strainPars[ALPHA].relSeverity         = 1.0;
+  //par->strainPars[ALPHA].relCriticality      = 1.0;
+  //par->strainPars[ALPHA].relMortality        = 1.0;
+  //par->strainPars[ALPHA].relIcuMortality     = 1.0;
+    par->strainPars[ALPHA].immuneEscapeProb    = 0.0;
+
+    par->strainPars[DELTA].relInfectiousness   = par->strainPars[ALPHA].relInfectiousness * 1.4;
+    par->strainPars[DELTA].relPathogenicity    = par->strainPars[ALPHA].relPathogenicity * 2.83;
+    par->strainPars[DELTA].relSeverity         = 2.5; // relSeverity only applies if not vaccine protected; CABP - may be more like 1.3 based on mortality increase
+  //par->strainPars[DELTA].relCriticality      = 1.0;
+  //par->strainPars[DELTA].relMortality        = 1.0;
+    par->strainPars[DELTA].relIcuMortality     = 2.0; // TODO - this is due to icu crowding.  should be represented differently
+    par->strainPars[DELTA].immuneEscapeProb    = 0.15;
+
+    par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.5;
+    par->strainPars[OMICRON].relPathogenicity  = par->strainPars[ALPHA].relPathogenicity;
+    par->strainPars[OMICRON].relSeverity       = 1.1; // only applies if not vaccine protected
+  //par->strainPars[OMICRON].relCriticality    = 1.0;
+  //par->strainPars[OMICRON].relMortality      = 1.0;
+    par->strainPars[OMICRON].relIcuMortality   = 2.0;
+    par->strainPars[OMICRON].immuneEscapeProb  = 0.7;
+
+}
+
+
 void parseVaccineFile(string vaccinationFilename, const Parameters* par, Community* community, Vac_Campaign* vc, set<Person*, Person::PerPtrComp>& scheduled_people, vector<int>& sch_hcw_by_age) {
     // ratio of synthpop to FL pop
     const double pop_ratio = (double)community->getNumPeople()/FL_POP;
@@ -602,17 +650,12 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     for (auto _p: args) { cerr << " " << _p; } cerr << endl;
 
     Parameters* par = define_simulator_parameters(args, rng_seed, serial, process_id);
+    define_strain_parameters(par);
     const bool vaccine             = (bool) args[0];
     // const size_t realization    = (size_t) args[1];
     const bool mutation          = (bool) args[2];
     vector<string> mutant_intro_dates = {};
     if (mutation) { mutant_intro_dates = {"2021-02-01", "2021-05-27", "2021-12-01"}; }
-//    par->strainPars[DELTA].relInfectiousness = ;
-//    par->strainPars[DELTA].relInfectiousness = ;
-//    par->strainPars[DELTA].relInfectiousness = ;
-//    par->strainPars[DELTA].relInfectiousness = ;
-//    par->strainPars[DELTA].relInfectiousness = ;
-//    par->strainPars[DELTA].relInfectiousness = ;
 
     Community* community = build_community(par);
 
@@ -620,24 +663,6 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     community->setVac_Campaign(vc);
 
     if (vaccine) {
-        const double x_alpha_1 = 1;//0.529; // calculated using quadratic formula: (VES*VEP)x^2 - (VES+VEP)x + VESP_alpha = 0, where VES and VEP are for wildtype
-        const double x_alpha_2 = 1;//0.948;
-
-        const double x_delta_1 = 1;//0.338;
-        const double x_delta_2 = 1;//0.843;
-
-        par->VES                   = {{WILDTYPE, {0.40, 0.80}},
-                                      {ALPHA, {0.40*x_alpha_1, 0.80*x_alpha_2}},
-                                      {DELTA, {0.40*x_delta_1, 0.80*x_delta_2}},    // efficacy currently is being reduced in Person.cpp
-                                      {OMICRON, {0.40*x_delta_1, 0.80*x_delta_2}}};
-        par->VES_NAIVE             = par->VES;
-        par->VEP                   = {{WILDTYPE, {0.67, 0.75}},
-                                      {ALPHA, {0.67*x_alpha_1, 0.75*x_alpha_2}},
-                                      {DELTA, {0.67*x_delta_1, 0.75*x_delta_2}},
-                                      {OMICRON, {0.67*x_delta_1, 0.75*x_delta_2}}};
-        par->VEH                   = {{WILDTYPE, {0.9, 1.0}},   {ALPHA, {0.9, 1.0}}, {DELTA, {0.9, 1.0}}, {OMICRON, {0.9, 1.0}}};
-        par->VEI                   = {{WILDTYPE, {0.4, 0.8}},   {ALPHA, {0.4, 0.8}}, {DELTA, {0.4, 0.8}}, {OMICRON, {0.4, 0.8}}};
-        par->VEF                   = {{WILDTYPE, {0.0, 0.0}},   {ALPHA, {0.0, 0.0}}, {DELTA, {0.0, 0.0}}, {OMICRON, {0.0, 0.0}}}; // effect likely captured by VEH
         par->immunityLeaky         = true;
         par->immunityWanes         = false;
         par->numVaccineDoses       = 2;
