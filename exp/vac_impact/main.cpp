@@ -41,7 +41,7 @@ const string output_dir("/ufrc/longini/tjhladish/");
 const string vaccination_file = pop_dir + "/../fl_vac/fl_vac_v4.txt";
 
 const int RESTART_BURNIN          = 0;
-const int FORECAST_DURATION       = 800;
+const int FORECAST_DURATION       = 863;
 //const int FORECAST_DURATION       = 456;
 const int OVERRUN                 = 14; // to get accurate Rt estimates near the end of the forecast duration
 const bool RUN_FORECAST           = true;
@@ -61,7 +61,7 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->define_defaults();
     par->serial = serial;
 
-    const float T = 0.033;//0.022; // 0.0215 for the fl pop, 0.022 for the pseudo 1000k pop
+    const float T = 0.034;//0.022; // 0.0215 for the fl pop, 0.022 for the pseudo 1000k pop
 
     par->household_transmissibility   = T;
     par->social_transmissibility      = T; // assumes complete graphs between households
@@ -239,7 +239,7 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
 }
 
 
-void define_strain_parameters(Parameters* par) {
+void define_strain_parameters(Parameters* par, const size_t omicron_scenario) {
     const double x_alpha_1 = 1;//0.529; // calculated using quadratic formula: (VES*VEP)x^2 - (VES+VEP)x + VESP_alpha = 0, where VES and VEP are for wildtype
     const double x_alpha_2 = 1;//0.948;
 
@@ -267,7 +267,7 @@ void define_strain_parameters(Parameters* par) {
   //par->strainPars[ALPHA].relIcuMortality     = 1.0;
     par->strainPars[ALPHA].immuneEscapeProb    = 0.0;
 
-    par->strainPars[DELTA].relInfectiousness   = par->strainPars[ALPHA].relInfectiousness * 1.4;
+    par->strainPars[DELTA].relInfectiousness   = par->strainPars[ALPHA].relInfectiousness * 1.5;
     par->strainPars[DELTA].relPathogenicity    = par->strainPars[ALPHA].relPathogenicity * 2.83;
     par->strainPars[DELTA].relSeverity         = 2.5; // relSeverity only applies if not vaccine protected; CABP - may be more like 1.3 based on mortality increase
   //par->strainPars[DELTA].relCriticality      = 1.0;
@@ -275,14 +275,43 @@ void define_strain_parameters(Parameters* par) {
     par->strainPars[DELTA].relIcuMortality     = 2.0; // TODO - this is due to icu crowding.  should be represented differently
     par->strainPars[DELTA].immuneEscapeProb    = 0.15;
 
-    par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.5;
-    par->strainPars[OMICRON].relPathogenicity  = par->strainPars[ALPHA].relPathogenicity;
-    par->strainPars[OMICRON].relSeverity       = 1.1; // only applies if not vaccine protected
-  //par->strainPars[OMICRON].relCriticality    = 1.0;
-  //par->strainPars[OMICRON].relMortality      = 1.0;
-    par->strainPars[OMICRON].relIcuMortality   = 2.0;
-    par->strainPars[OMICRON].immuneEscapeProb  = 0.7;
+//    const size_t omicron_scenario = 0;
 
+    switch (omicron_scenario) {
+        case 0: // high immune escape, low transmissibility; low severity
+            par->strainPars[OMICRON].immuneEscapeProb  = 0.7;
+            par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.5;
+            par->strainPars[OMICRON].relPathogenicity  = par->strainPars[ALPHA].relPathogenicity;
+            par->strainPars[OMICRON].relSeverity       = 1.0;
+            break;
+        case 1: // high immune escape, low transmissibility; delta severity
+            par->strainPars[OMICRON].immuneEscapeProb  = 0.7;
+            par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.5;
+            par->strainPars[OMICRON].relPathogenicity  = par->strainPars[DELTA].relPathogenicity;
+            par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity;
+            break;
+        case 2: // moderate immune escape, high transmissibility; low severity
+            par->strainPars[OMICRON].immuneEscapeProb  = 0.5;
+            par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 2.0;
+            par->strainPars[OMICRON].relPathogenicity  = par->strainPars[ALPHA].relPathogenicity;
+            par->strainPars[OMICRON].relSeverity       = 1.0;
+            break;
+        case 3: // moderate immune escape, high transmissibility; delta severity
+            par->strainPars[OMICRON].immuneEscapeProb  = 0.5;
+            par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 2.0;
+            par->strainPars[OMICRON].relPathogenicity  = par->strainPars[DELTA].relPathogenicity;
+            par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity;
+            break;
+    }
+
+    par->strainPars[OMICRON].relIcuMortality   = 2.0;
+//    par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.5;
+//    par->strainPars[OMICRON].relPathogenicity  = par->strainPars[ALPHA].relPathogenicity;
+//    par->strainPars[OMICRON].relSeverity       = 1.1; // only applies if not vaccine protected
+//  //par->strainPars[OMICRON].relCriticality    = 1.0;
+//  //par->strainPars[OMICRON].relMortality      = 1.0;
+//    par->strainPars[OMICRON].relIcuMortality   = 2.0;
+//    par->strainPars[OMICRON].immuneEscapeProb  = 0.7;
 }
 
 
@@ -649,11 +678,14 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     cerr << "SCENARIO " << rng_seed;
     for (auto _p: args) { cerr << " " << _p; } cerr << endl;
 
-    Parameters* par = define_simulator_parameters(args, rng_seed, serial, process_id);
-    define_strain_parameters(par);
     const bool vaccine             = (bool) args[0];
     // const size_t realization    = (size_t) args[1];
     const bool mutation          = (bool) args[2];
+    const size_t omicron_scenario = (size_t) args[3];
+
+    Parameters* par = define_simulator_parameters(args, rng_seed, serial, process_id);
+    define_strain_parameters(par, omicron_scenario);
+
     vector<string> mutant_intro_dates = {};
     if (mutation) { mutant_intro_dates = {"2021-02-01", "2021-05-27", "2021-12-01"}; }
 
@@ -723,7 +755,10 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     }
     bool overwrite = true;
     write_daily_buffer(plot_log_buffer, process_id, "plot_log.csv", overwrite);
-    int retval = system("Rscript expanded_simvis.R");
+    stringstream ss;
+    ss << "Rscript expanded_simvis.R " << args[3];
+    string cmd_str = ss.str();
+    int retval = system(cmd_str.c_str());
     if (retval == -1) { cerr << "System call to `Rscript simvis.R` failed\n"; }
 }
 
