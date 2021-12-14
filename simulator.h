@@ -349,15 +349,15 @@ double score_fit(const Parameters* par, const Community* community, const size_t
         fit_and_prev_anchors = {{Date::to_ymd(window_start,                                      par), 0.0},
                                 {Date::to_ymd((window_start - 1) + par->tuning_window,           par), 1.0},
                                 {Date::to_ymd((window_start - 1) + (2 * par->tuning_window),     par), 0.5},
-                                {Date::to_ymd((window_start - 1) + (2 * par->tuning_window) + 1, par), 0.5},
-                                {Date::to_ymd(sim_day,                                           par), 0.5}};
+//                                {Date::to_ymd((window_start - 1) + (2 * par->tuning_window) + 1, par), 0.5},
+                                {Date::to_ymd(sim_day,                                           par), 0.0}};
     } else {
         fit_and_prev_anchors = {{Date::to_ymd(0,                                                 par), 0.0},
                                 {Date::to_ymd(window_start,                                      par), 0.0},
                                 {Date::to_ymd((window_start - 1) + par->tuning_window,           par), 1.0},
                                 {Date::to_ymd((window_start - 1) + (2 * par->tuning_window),     par), 0.5},
-                                {Date::to_ymd((window_start - 1) + (2 * par->tuning_window) + 1, par), 0.5},
-                                {Date::to_ymd(sim_day,                                           par), 0.5}};
+//                                {Date::to_ymd((window_start - 1) + (2 * par->tuning_window) + 1, par), 0.5},
+                                {Date::to_ymd(sim_day,                                           par), 0.0}};
     }
 //    if (window_start == 0) { fit_and_prev_anchors.erase(fit_and_prev_anchors.begin()); }
 
