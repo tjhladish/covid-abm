@@ -1,3 +1,9 @@
+#!/usr/bin/env Rscript
+args = commandArgs(trailingOnly=TRUE)
+
+suffix = ''
+if (length(args)>0) {suffix = args[1]}
+
 calc_centered_avg = function(vals, halfwindow) {
     n       = length(vals)
     indices = 1:n
@@ -69,7 +75,7 @@ annotate = function(text) {
 #        {"name" : "mar18oct5_hosps",   "short_name" : "hosps",      "num_type" : "FLOAT", "value" :  21.7},
 
 
-png('simvis.png', height=1200, width=2400, res=200)
+png(paste0('simvis', suffix, '.png'), height=1200, width=2400, res=200)
 par(mfrow=c(5,3), mar=c(1,2.1,0.5,0.5), oma=c(2,0.5,1,0.5))
 
 # Social distancing
