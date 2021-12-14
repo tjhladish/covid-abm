@@ -661,8 +661,10 @@ void calculate_reporting_ratios(Community* community) {
 
 vector<double> simulator(vector<double> args, const unsigned long int rng_seed, const unsigned long int serial, const ABC::MPI_par* mp = nullptr) {
     cerr << "rng seed: " << rng_seed << endl;
-    gsl_rng_set(RNG, rng_seed); // seed the rng using sys time and the process id
-    gsl_rng_set(VAX_RNG, rng_seed); // seed the rng using sys time and the process id
+    //gsl_rng_set(RNG, rng_seed);
+    //gsl_rng_set(VAX_RNG, rng_seed);
+    gsl_rng_set(RNG, 1);
+    gsl_rng_set(VAX_RNG, 1);
     // initialize bookkeeping for run
     time_t start, end;
     time (&start);
@@ -756,7 +758,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     bool overwrite = true;
     write_daily_buffer(plot_log_buffer, process_id, "plot_log.csv", overwrite);
     stringstream ss;
-    ss << "Rscript expanded_simvis.R " << args[3];
+    //ss << "Rscript expanded_simvis.R " << args[3];
+    ss << "Rscript expanded_simvis.R " << serial;
     string cmd_str = ss.str();
     int retval = system(cmd_str.c_str());
     if (retval == -1) { cerr << "System call to `Rscript simvis.R` failed\n"; }
