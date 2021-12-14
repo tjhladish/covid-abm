@@ -145,12 +145,12 @@ bool Person::naturalDeath(int t) {
 }*/
 
 
-bool Person::isInfectable(const int time, const StrainType strain) const {
-    return (not isInfected(time)) and                                   // not already infected
-           gsl_rng_uniform(RNG) < _par->susceptibilityByAge[age] and    // not innately resistant
-           !isCrossProtected(time, strain) and                          // no infection-based cross-immunity
-           !isVaccineProtected(time, strain);                           // no vaccine-based immunity
-}
+//bool Person::isInfectable(const int time, const StrainType strain) const {
+//    return (not isInfected(time)) and                                   // not already infected
+//           gsl_rng_uniform(RNG) < _par->susceptibilityByAge[age] and    // not innately resistant
+//           !isCrossProtected(time, strain) and                          // no infection-based cross-immunity
+//           !isVaccineProtected(time, strain);                           // no vaccine-based immunity
+//}
 
 
 //double Person::remainingEfficacy(const int time) const {
@@ -225,12 +225,15 @@ void Person::processDeath(Community* community, Infection &infection, const int 
 
 // infect - infect this individual
 // returns non-null pointer if infection occurs
-Infection* Person::infect(Community* community, Person* source, const Date* date, Location* sourceloc, StrainType strain, bool check_susceptibility) {
+Infection* Person::infect(Community* community, Person* source, const Date* date, Location* sourceloc, StrainType strain, bool /*check_susceptibility*/) {
     const int time = date->day();
     // Bail now if this person can not become infected
     // Not quite the same as "susceptible"--this person may be e.g. partially immune
     // due to natural infection or vaccination
-    if (check_susceptibility and not isInfectable(time, strain)) { return nullptr; }
+    if (isInfected(time) or gsl_rng_uniform(RNG) > _par->susceptibilityByAge[age]) { return nullptr; }
+    const bool crossProtected   = isCrossProtected(time, strain);         // no infection-based cross-immunity
+    const bool vaccineProtected = isVaccineProtected(time, strain);       // no vaccine-based immunity
+    if (crossProtected or vaccineProtected) { return nullptr; }
     //const double remaining_efficacy = remainingEfficacy(time);  // due to vaccination; needs to be called before initializing new infection (still true?)
 
     // Create a new infection record
@@ -247,10 +250,10 @@ Infection* Person::infect(Community* community, Person* source, const Date* date
     const double effective_VEI = isVaccinated() ? _par->VEI_at(dose, strain) : 0.0;        // reduced infectiousness
 
     double symptomatic_probability     = _par->pathogenicityByAge[age] * _par->strainPars[strain].relPathogenicity;
-    //symptomatic_probability            *= isVaccinated() ? (1.0 - effective_VEP) : getNumNaturalInfections() > 1 ? (1.0 - 0.75) : 1.0 ;           // may be modified by vaccination
-    symptomatic_probability           *= isVaccinated() ? (1.0 - effective_VEP) : 1.0;                                                           // may be modified by vaccination
+    symptomatic_probability           *= getNumNaturalInfections() > 1 ? (1.0 - 0.75) : 1.0;
+    symptomatic_probability           *= isVaccinated() ? (1.0 - effective_VEP) : 1.0;
     double severe_given_case           = _par->probSeriousOutcome.at(SEVERE)[comorbidity][age] * (1.0 - effective_VEH);
-    severe_given_case                 *= not isVaccineProtected(time, strain) ? _par->strainPars[strain].relSeverity : 1.0;
+    severe_given_case                 *= not isVaccinated() ? _par->strainPars[strain].relSeverity : 1.0;
     const double critical_given_severe = _par->probSeriousOutcome.at(CRITICAL)[comorbidity][age];
     double icuMortality                = _par->icuMortality(comorbidity, age, infection.icuBegin) * (1.0 - effective_VEF);
     icuMortality                      *= _par->strainPars[strain].relIcuMortality;
