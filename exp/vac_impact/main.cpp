@@ -255,7 +255,7 @@ void define_strain_parameters(Parameters* par, const size_t omicron_scenario) {
                                   {ALPHA, {0.67*x_alpha_1, 0.75*x_alpha_2}},
                                   {DELTA, {0.67*x_delta_1, 0.75*x_delta_2}},
                                   {OMICRON, {0.67*x_delta_1, 0.75*x_delta_2}}};
-    par->VEH                   = {{WILDTYPE, {0.9, 1.0}},   {ALPHA, {0.9, 1.0}}, {DELTA, {0.9, 1.0}}, {OMICRON, {0.9, 1.0}}};
+    par->VEH                   = {{WILDTYPE, {0.9, 1.0}},   {ALPHA, {0.9, 1.0}}, {DELTA, {0.9, 0.93}}, {OMICRON, {0.35, 0.7}}};
     par->VEI                   = {{WILDTYPE, {0.4, 0.8}},   {ALPHA, {0.4, 0.8}}, {DELTA, {0.4, 0.8}}, {OMICRON, {0.4, 0.8}}};
     par->VEF                   = {{WILDTYPE, {0.0, 0.0}},   {ALPHA, {0.0, 0.0}}, {DELTA, {0.0, 0.0}}, {OMICRON, {0.0, 0.0}}}; // effect likely captured by VEH
 
@@ -282,25 +282,25 @@ void define_strain_parameters(Parameters* par, const size_t omicron_scenario) {
             par->strainPars[OMICRON].immuneEscapeProb  = 0.7;
             par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.5;
             par->strainPars[OMICRON].relPathogenicity  = par->strainPars[ALPHA].relPathogenicity;
-            par->strainPars[OMICRON].relSeverity       = 1.0;
+            par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.25;
             break;
         case 1: // high immune escape, low transmissibility; delta severity
             par->strainPars[OMICRON].immuneEscapeProb  = 0.7;
             par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.5;
             par->strainPars[OMICRON].relPathogenicity  = par->strainPars[DELTA].relPathogenicity;
-            par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity;
+            par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.5;
             break;
         case 2: // moderate immune escape, high transmissibility; low severity
             par->strainPars[OMICRON].immuneEscapeProb  = 0.5;
             par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 2.0;
             par->strainPars[OMICRON].relPathogenicity  = par->strainPars[ALPHA].relPathogenicity;
-            par->strainPars[OMICRON].relSeverity       = 1.0;
+            par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.25;
             break;
         case 3: // moderate immune escape, high transmissibility; delta severity
             par->strainPars[OMICRON].immuneEscapeProb  = 0.5;
             par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 2.0;
             par->strainPars[OMICRON].relPathogenicity  = par->strainPars[DELTA].relPathogenicity;
-            par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity;
+            par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.5;
             break;
     }
 
@@ -756,13 +756,13 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt_ma[i-1]);
     }
     bool overwrite = true;
-    write_daily_buffer(plot_log_buffer, process_id, "plot_log.csv", overwrite);
+    string filename = "plot_log" + to_string(serial) + ".csv";
+    write_daily_buffer(plot_log_buffer, process_id, filename, overwrite);
     stringstream ss;
-    //ss << "Rscript expanded_simvis.R " << args[3];
     ss << "Rscript expanded_simvis.R " << serial;
     string cmd_str = ss.str();
     int retval = system(cmd_str.c_str());
-    if (retval == -1) { cerr << "System call to `Rscript simvis.R` failed\n"; }
+    if (retval == -1) { cerr << "System call to `Rscript expanded_simvis.R` failed\n"; }
 }
 
     time (&end);

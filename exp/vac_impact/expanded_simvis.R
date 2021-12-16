@@ -14,7 +14,7 @@ calc_centered_avg = function(vals, halfwindow) {
     return(ma)
 }
 
-d = read.csv("plot_log.csv")
+d = read.csv(paste0("plot_log", suffix, ".csv"))
 d$date = as.Date(d$date)
 
 #escambia_fraction    = 0.0153 # fraction of FL pop that lives in Escambia

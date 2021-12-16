@@ -799,8 +799,7 @@ void init_behavioral_vals_from_file(const Parameters* par, Community* community)
 }
 
 
-vector<string> simulate_epidemic(const Parameters* par, Community* &community, const string /*process_id*/, const vector<string> mutant_intro_dates) {//,
-                                 //map<size_t, TimeSeriesAnchorPoint> &social_contact_map) {
+vector<string> simulate_epidemic(const Parameters* par, Community* &community, const string process_id, const vector<string> mutant_intro_dates) {
     SimulationLedger* ledger    = new SimulationLedger();
     SimulationCache* sim_cache  = nullptr;
 
@@ -845,7 +844,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
     community->setSocialDistancingTimedIntervention(social_distancing_anchors);
 
     //vector<string> plot_log_buffer = {"date,sd,seasonality,vocprev1,vocprev2,cinf,closed,rcase,rdeath,inf,rhosp,Rt"};
-    ledger->plot_log_buffer = {"date,sd,seasonality,vocprev1,vocprev2,vocprev3,cinf,closed,rcase,rdeath,inf,rhosp,VES,brkthruRatio,vaxInfs,unvaxInfs,hospInc,hospPrev,icuInc,icuPrev,vaxHosp,unvaxHosp,Rt"};
+    ledger->plot_log_buffer = {"serial,date,sd,seasonality,vocprev1,vocprev2,vocprev3,cinf,closed,rcase,rdeath,inf,rhosp,VES,brkthruRatio,vaxInfs,unvaxInfs,hospInc,hospPrev,icuInc,icuPrev,vaxHosp,unvaxHosp,Rt"};
     //ledger->plot_log_buffer = {"date,sd,seasonality,vocprev1,vocprev2,cinf,closed,rcase,rdeath,inf,rhosp,Rt"};
 
     Date* date = community->get_date();
@@ -944,7 +943,8 @@ if (*date == "2021-12-01") { gsl_rng_set(RNG, par->randomseed); }
 
         //date,sd,seasonality,vocprev,cinf,closed,rcase,rdeath,Rt
         stringstream ss;
-        ss << date->to_string({"yyyy", "mm", "dd"}, "-") << ","
+        ss << process_id << ","
+           << date->to_string({"yyyy", "mm", "dd"}, "-") << ","
            << community->social_distancing(sim_day)/*par->timedInterventions.at(SOCIAL_DISTANCING).at(sim_day)*/ << ","
            << par->seasonality.at(date->julianDay()-1) << ","
            << (float) community->getNumNewInfections(ALPHA)[sim_day]/infections[sim_day] << ","
@@ -1014,8 +1014,6 @@ if (*date == "2021-12-01") { gsl_rng_set(RNG, par->randomseed); }
 
 cerr_vector(community->getTimedIntervention(SOCIAL_DISTANCING));
 
-//  write_daily_buffer(plot_log_buffer, process_id, "plot_log.csv");
-    //return epi_sizes;
     if (RNG) { gsl_rng_free(RNG); }
     if (REPORTING_RNG) { gsl_rng_free(REPORTING_RNG); }
 
