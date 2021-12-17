@@ -1,0 +1,72 @@
+#!/usr/bin/env Rscript
+library(lubridate)
+args = commandArgs(trailingOnly=TRUE)
+
+data_dir = '.'
+if (length(args) == 1) {
+  data_dir = args[1]
+} else {
+  stop("Pass data directory as command-line argument")
+}
+
+# files named plot_log#.csv where # is the serial
+tmp = read.table(file=grep(paste0("^", data_dir, "/plot_log(\\d+).csv"), list.files(data_dir, full.names=T), value=T)[1],
+                 sep=',', stringsAsFactors=F, header=T)
+d1 = data.frame(epiweek = integer(), inc_rcase = double(), inc_rdeath = double(), inc_hosp = double(),
+                cuml_rcase = double(), cuml_rdeath = double(), cuml_hosp = double())
+d2 = data.frame(epiweek = integer(), inc_rcase = double(), inc_rdeath = double(), inc_hosp = double(),
+                cuml_rcase = double(), cuml_rdeath = double(), cuml_hosp = double())
+d3 = data.frame(epiweek = integer(), inc_rcase = double(), inc_rdeath = double(), inc_hosp = double(),
+                cuml_rcase = double(), cuml_rdeath = double(), cuml_hosp = double())
+d4 = data.frame(epiweek = integer(), inc_rcase = double(), inc_rdeath = double(), inc_hosp = double(),
+                cuml_rcase = double(), cuml_rdeath = double(), cuml_hosp = double())
+
+for (file in list.files(data_dir, full.names=T)) {
+  if (grepl(paste0("^", data_dir, "/plot_log(\\d+).csv"), file)) {
+    tmp = read.table(file=file, sep=',', stringsAsFactors=F, header=T)
+    tmp_serial = as.integer(sub(paste0("^", data_dir, "/plot_log(\\d+).csv"), '\\1', file))
+    tmp = tmp[(tmp$date >= "2021-12-19" & tmp$date <= "2022-05-12"),]
+    
+    cut_tmp = data.frame(inc_rcase = tmp$rcase, inc_rdeath = tmp$rdeath, inc_hosp = tmp$hospInc)
+    cut_tmp$epiweek = epiweek(tmp$date)
+    cut_tmp$cuml_rcase = cumsum(cut_tmp$inc_rcase)
+    cut_tmp$cuml_rdeath = cumsum(cut_tmp$inc_rdeath)
+    cut_tmp$cuml_hosp = cumsum(cut_tmp$inc_hosp)
+    
+    agg_tmp = aggregate(cut_tmp[,-4], by=list(epiweek=cut_tmp$epiweek), FUN=sum)
+    
+    if (tmp_serial < 100) {
+      d1 = rbind(d1, agg_tmp)
+    } else if (tmp_serial >= 100 & tmp_serial < 200) {
+      d2 = rbind(d2, agg_tmp)
+    } else if (tmp_serial >= 200 & tmp_serial < 300) {
+      d3 = rbind(d3, agg_tmp)
+    } else if (tmp_serial >= 300) {
+      d4 = rbind(d4, agg_tmp)
+    }
+  }
+}
+
+percentiles = c(0.00, 0.01, 0.025, seq(0.05, 0.95, by=0.05), 0.975, 0.99, 1.00)
+pctl_cols = paste0('x.', percentiles)
+scen_d = list(d1, d2, d3, d4)
+
+final_df = data.frame(scenario = integer(1), met = character(1), epiweek = integer(1))
+final_df[pctl_cols] = NA
+final_colnames = colnames(final_df)
+final_df = final_df[-1,]
+colnames(final_df) = final_colnames
+
+for (df in 1:length(scen_d)) {
+  for (col in colnames(scen_d[[df]])[-1]) {
+    for (epwk in unique(scen_d[[df]]$epiweek)) {
+      tmp_quantiles = quantile(scen_d[[df]][scen_d[[df]]$epiweek==epwk,col], percentiles)
+      tmp_bind = data.frame(scenario = df, met = col, epiweek = epwk)
+      tmp_bind[pctl_cols] = tmp_quantiles
+      colnames(tmp_bind) = colnames(final_df)
+      final_df = rbind(final_df, tmp_bind)
+    }
+  }
+}
+
+write.table(final_df, file='midas_rd11.csv', sep=',', quote=F, row.names=F)
