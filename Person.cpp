@@ -250,11 +250,23 @@ Infection* Person::infect(Community* community, Person* source, const Date* date
     const double effective_VEI = isVaccinated() ? _par->VEI_at(dose, strain) : 0.0;        // reduced infectiousness
 
     double symptomatic_probability     = _par->pathogenicityByAge[age] * _par->strainPars[strain].relPathogenicity;
-    symptomatic_probability           *= getNumNaturalInfections() > 1 ? (1.0 - 0.75) : 1.0;
+    if (_par->csmhScenario == CSMH_A or _par->csmhScenario == CSMH_B) {
+        symptomatic_probability           *= getNumNaturalInfections() > 1 ? (strain == OMICRON ? (1.0 - 0.85) : (1.0 - 0.70)) : 1.0; // need to adjust for alt scenario
+    } else {
+        symptomatic_probability           *= getNumNaturalInfections() > 1 ? (1.0 - 0.70) : 1.0; // need to adjust for alt scenario
+    }
     symptomatic_probability           *= isVaccinated() ? (1.0 - effective_VEP) : 1.0;
+
     double severe_given_case           = _par->probSeriousOutcome.at(SEVERE)[comorbidity][age] * (1.0 - effective_VEH);
+    //severe_given_case                 *= getNumNaturalInfections() > 1 ? (1.0 - 0.7) : 1.0;
     severe_given_case                 *= not isVaccinated() ? _par->strainPars[strain].relSeverity : 1.0;
-    const double critical_given_severe = _par->probSeriousOutcome.at(CRITICAL)[comorbidity][age];
+
+    double critical_given_severe       = _par->probSeriousOutcome.at(CRITICAL)[comorbidity][age];
+    if (_par->csmhScenario == CSMH_A or _par->csmhScenario == CSMH_B) {
+        critical_given_severe             *= getNumNaturalInfections() > 1 ? (strain == OMICRON ? (1.0 - 0.8333333) : (1.0 - 0.5)) : 1.0; // need to solve for .5, based on desired protection against death
+    } else {
+        critical_given_severe             *= getNumNaturalInfections() > 1 ? (1.0 - 0.5) : 1.0; // need to solve for .5, based on desired protection against death
+    }
     double icuMortality                = _par->icuMortality(comorbidity, age, infection.icuBegin) * (1.0 - effective_VEF);
     icuMortality                      *= _par->strainPars[strain].relIcuMortality;
     infection.relInfectiousness       *= _par->strainPars[strain].relInfectiousness * (1.0 - effective_VEI);

@@ -163,12 +163,12 @@ enum TimedIntervention {
     NUM_OF_TIMED_INTERVNETIONS
 };
 
-enum MmodsScenario {
-    MMODS_CLOSED,   //0
-    MMODS_2WEEKS,   //1
-    MMODS_5PERCENT, //2
-    MMODS_OPEN,     //3
-    NUM_OF_MMODS_SCENARIOS
+enum CsmhScenario {
+    CSMH_A,
+    CSMH_B,
+    CSMH_C,
+    CSMH_D,
+    NUM_OF_CSMH_SCENARIOS
 };
 
 struct GammaPars {
@@ -549,7 +549,7 @@ public:
         // neutralization level relative to mean natural immunity following infection, after: https://www.nature.com/articles/s41591-021-01377-8/figures/1
         const double neut_lvl = pow(2.0, gsl_ran_gaussian(RNG, 1.0));
         const double AESP = covid::util::logistic(3.097703*(log10(neut_lvl/0.2010885)));
-        const double AEP = 0.75;
+        const double AEP = 0.7;
         //const double VEP = 1 - (1 - 0.93)/(1 - 0.52); // values from https://www.thelancet.com/journals/lancet/article/PIIS0140-6736(21)00675-9/fulltext
         return 1 - (1 - AESP)/(1 - AEP);
     }
@@ -632,7 +632,7 @@ public:
     unsigned long int serial;
 
     VaccineSeroConstraint vaccineSeroConstraint;
-    MmodsScenario mmodsScenario;
+    CsmhScenario csmhScenario;
 
     bool behavioral_autotuning;
     size_t tuning_window;
