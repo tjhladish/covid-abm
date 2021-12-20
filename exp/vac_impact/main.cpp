@@ -282,13 +282,13 @@ void define_strain_parameters(Parameters* par, const size_t omicron_scenario) {
         case 0: // high immune escape, low transmissibility; low severity
             par->strainPars[OMICRON].immuneEscapeProb  = 0.8;
             par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.0;
-            par->strainPars[OMICRON].relPathogenicity  = par->strainPars[ALPHA].relPathogenicity;
+            par->strainPars[OMICRON].relPathogenicity  = par->strainPars[DELTA].relPathogenicity;
             par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.5;
             break;
        case 1: // moderate immune escape, high transmissibility; low severity
             par->strainPars[OMICRON].immuneEscapeProb  = 0.5;
-            par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.5;
-            par->strainPars[OMICRON].relPathogenicity  = par->strainPars[ALPHA].relPathogenicity;
+            par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.66;
+            par->strainPars[OMICRON].relPathogenicity  = par->strainPars[DELTA].relPathogenicity;
             par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.5;
             break;
         case 2: // high immune escape, low transmissibility; delta severity
@@ -299,7 +299,7 @@ void define_strain_parameters(Parameters* par, const size_t omicron_scenario) {
             break;
          case 3: // moderate immune escape, high transmissibility; delta severity
             par->strainPars[OMICRON].immuneEscapeProb  = 0.5;
-            par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.5;
+            par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.66;
             par->strainPars[OMICRON].relPathogenicity  = par->strainPars[DELTA].relPathogenicity;
             par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity;
             break;
