@@ -56,7 +56,7 @@ vaccine_efficacy_transmission: >
   first dose and 80% after the second dose."
 vaccine_efficacy_delay: >
   "Vaccine protection is assumed to begin 10 days after a dose is administered."
-vaccine_hesitancy:
+vaccine_hesitancy: "Not applicable"
 vaccine_immunity_duration: >
   "Vaccine protection is assumed to last indefinitely but can vary depending on VOC."
 natural_immunity_duration: >
