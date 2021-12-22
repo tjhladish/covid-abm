@@ -9,7 +9,22 @@ model_contributors: >
   Ira Longini Jr. (University of Florida) <>
 website_url: "Not applicable"
 license: LICENSE
-methods:
+methods: >
+  "The model is a data-driven, stochastic, discrete-time, ABM with an explicit representation of
+  people and places. The model represents 20.6 million people residing in 11.2 million households
+  and 3.8 thousand long-term care facilities and who work in 2.3 million workplaces and attend 7.6
+  thousand schools. However, for this simulation study, we created a smaller sample of the entire
+  synthetic population totalling 375,000 people. People in the model vary in behaviors that may
+  result in transmission, and have attributes that may affect infection outcome including age and
+  the presence or absence of comorbidities.
+
+  We use this synthetic population as an input to a model of SARS-CoV-2 transmission, detection and
+  reporting. The model centers on a daily cycle of transmission opportunities based on the
+  co-localization of infectious and susceptible individuals in households, workplaces (both as employees
+  and as customers), schools, long-term care facilities, and hospitals. This approach naturally produces
+  crucial interaction patterns between locality-type and age, e.g., school-age individuals are assigned
+  to a specific school during the day, where they face a risk of infection from other children from the
+  same geographic locale."
 modeling_NPI: >
   "Two types of NPIs are incorporated into our model: government interventions and
   personal-protective behaviors.
@@ -25,7 +40,17 @@ modeling_NPI: >
   level of social contact and the patronage of high-risk businesses (such as bars and restaurants)."
 compliance_NPI:
 contact_tracing: "Not applicable"
-testing:
+testing: >
+  "Infections become known with a certain probability dependent on the severity of symptoms. If an infection
+  is detected and the individual dies, this is counted as a death. The chance of detection at each stage,
+  exclusive of detection at previous stages, is 0.15 (mild), 0.6 (severe), 0.1 (critical) and 0.01 (death).
+  The overall chance of detection cannot be determined from these parameters alone, without assuming an
+  age-specific distribution of infections (which tends to change throughout a simulation). In practice,
+  these rates of detection result in net detection rate of 60 to 70 % for severe cases, critical cases, or deaths.
+
+  The observation model includes a time-dependent delay in reporting based on observed changes in reporting. In
+  the model, the reporting delay for a case is sampled from a gamma distribution with a shape that reflects the
+  actual reporting delays for Florida."
 vaccine_efficacy_transmission: >
   "For all viral strains, the vaccine efficacy against infectiousness (VEI) is 40% after the
   first dose and 80% after the second dose."
@@ -46,8 +71,7 @@ age_groups: [0-120]
 importations: >
   "There are two seperate types of seeding events.
 
-  Before the simulation, the population is initially seeded with a number of introductions
-  where the probability of an individual being part of the initial seeding is 4.0e-4.
+  Before the simulation, the population is initially seeded with a probability of exposure of 4.0e-4.
 
   Secondly, during each simulated day, introductions occur with probability 1.0e-4 and
   will account for the the prevalence of different strains in the population."
