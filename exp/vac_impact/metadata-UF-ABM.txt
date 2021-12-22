@@ -1,0 +1,58 @@
+team_name: UF
+model_name: ABM
+model_abbr: UF-ABM
+model_version: 2021-12-21
+model_contributors: >
+  Thomas Hladish (University of Florida) <>,
+  Alexander Pillai (University of Florida) <a.pillai@ufl.edu>,
+  Kok Ben Toh (Northwestern University) <>,
+  Ira Longini Jr. (University of Florida) <>
+website_url: "Not applicable"
+license: LICENSE
+methods:
+modeling_NPI: >
+  "Two types of NPIs are incorporated into our model: government interventions and
+  personal-protective behaviors.
+
+  Top-down, government interventions (such as school and non-essential business closures)
+  are scheduled following the timeline of such interventions in the state of Florida. Because
+  locations in the model have types and businesses are labeled as essential or non-essential,
+  we can incorporate such interventions directly. In our model, these interventions occur early
+  in 2020.
+
+  Personal-protective behaviors (PPB) are modeled as a time-varying parameter that represents
+  the level of protective behaviors in the population. Changing this parameter changes the
+  level of social contact and the patronage of high-risk businesses (such as bars and restaurants)."
+compliance_NPI:
+contact_tracing: "Not applicable"
+testing:
+vaccine_efficacy_transmission: >
+  "For all viral strains, the vaccine efficacy against infectiousness (VEI) is 40% after the
+  first dose and 80% after the second dose."
+vaccine_efficacy_delay: >
+  "Vaccine protection is assumed to begin 10 days after a dose is administered."
+vaccine_hesitancy:
+vaccine_immunity_duration: >
+  "Vaccine protection is assumed to last indefinitely but can vary depending on VOC."
+natural_immunity_duration: >
+  "Individuals have pre-determined durations of infection-derived immunity sampled from a
+  (DESCRIBE DISTRIBUTION)."
+case_fatality_rate:
+infection_fatality_rate:
+asymptomatics: >
+  "The probability of an infection developing symptoms is age- and strain-dependent. This is also
+  by prior immunity (whether infection- or vaccine-derived)."
+age_groups: [0-120]
+importations: >
+  "There are two seperate types of seeding events.
+
+  Before the simulation, the population is initially seeded with a number of introductions
+  where the probability of an individual being part of the initial seeding is 4.0e-4.
+
+  Secondly, during each simulated day, introductions occur with probability 1.0e-4 and
+  will account for the the prevalence of different strains in the population."
+confidence_interval_method:
+calibration:
+spatial_structure: >
+  "Latitude and longitude coordinate data for all locations are incorporated into the model
+  to account for the spatial structure of locations in Florida."
