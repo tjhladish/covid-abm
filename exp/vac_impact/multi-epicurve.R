@@ -3,7 +3,7 @@ library(grDevices)
 
 args = commandArgs(trailingOnly=TRUE)
 
-suffix = '-scenario4'
+suffix = '-scenario3'
 if (length(args)>0) {suffix = args[1]}
 
 calc_centered_avg = function(vals, halfwindow) {
@@ -69,18 +69,24 @@ annotate = function(text) {
 fl_rescale = 2148 # pop of FL/10k
 
 # CURRENTLY ASSUMES SIM DATA STARTS ON WEDNESDAY, FEB 5, 2020
-full_weeks = floor((nrow(d) - 2)/7)
-remainder  = (nrow(d) - 2) %% 7
-week_idx = c(c(0,0), rep(1:full_weeks, each=7), rep(full_weeks+1, remainder)) #
-d$week_idx = week_idx
-weekly = aggregate(d[,c('rcase', 'rdeath')], by=list(week_idx=d$week_idx), FUN=sum)
-ed_tmp = merge(ed, d[,c('date', 'week_idx')], by='date')
-ed_weekly = aggregate(ed_tmp[,c('rcase', 'rdeath')], by=list(week_idx=ed_tmp$week_idx), FUN=sum)
+num_days       = nrow(d[d$serial==min(d$serial),])
+num_replicates = length(unique(d$serial))
+full_weeks     = floor((num_days-2)/7) # -2 because data starts on a Wednesday, want Friday
+remainder      = (num_days-2) %% 7
+week_idx       = c(c(0,0), rep(1:full_weeks, each=7), rep(full_weeks+1, remainder)) #
+d$week_idx     = week_idx
+weekly         = aggregate(d[,c('rcase', 'rdeath')], by=list(week_idx=d$week_idx, serial=d$serial), FUN=sum)
+
+ed_tmp     = merge(ed, d[,c('date', 'week_idx')], by='date')
+ed_weekly  = aggregate(ed_tmp[,c('rcase', 'rdeath')], by=list(week_idx=ed_tmp$week_idx), FUN=sum)
 if (sum(ed_tmp$week_idx == min(ed_tmp$week_idx)) < 7) { ed_weekly = ed_weekly[-1,] }
 if (sum(ed_tmp$week_idx == max(ed_tmp$week_idx)) < 7) { ed_weekly = ed_weekly[1:(nrow(ed_weekly)-1),] }
-weekly$rdate = as.Date('2020-02-07') + (7 * 0:(nrow(weekly) - 1))
+weekly$rdate = as.Date('2020-02-07') + (7 * 0:(length(unique(week_idx))-1))
+
 names(ed_weekly) = c('week_idx', 'ercase', 'erdeath')
 weekly = merge(weekly, ed_weekly, by='week_idx', all.x=T)
+
+weekly_mean = aggregate(cbind(rcase,rdeath) ~ week_idx + rdate, data = weekly, mean, na.rm = TRUE)
 
 d$wildtype = 1 - (d$vocprev1+d$vocprev2+d$vocprev3)
 
