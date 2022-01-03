@@ -108,32 +108,43 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
         vector<double> initial_vals    = {0.0, 0.05, 0.7, 0.1};    // Start of sim (Feb 2020) conditional probabilities
         initial_vals.push_back(calculate_conditional_death_reporting_probability(RF_death_early, initial_vals));
 
+        const int isd1 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-06-01"); // inflection date 1
+
         vector<double> summer2020_vals = {0.02, 0.5, 0.1, 0.1};
         summer2020_vals.push_back(calculate_conditional_death_reporting_probability(RF_death_early, summer2020_vals));
+
+        const int isd2 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-10-01"); // inflection date 2
 
         vector<double> winter2020_vals = {0.1, 0.9, 0.9, 0.0};
         winter2020_vals.push_back(calculate_conditional_death_reporting_probability(RF_death_late, winter2020_vals));
 
-        vector<vector<double>> vals = {initial_vals, summer2020_vals, winter2020_vals};
-        cerr << "death init, mid, fin: " << initial_vals.back() << " " << summer2020_vals.back() << " " << winter2020_vals.back() << endl;
+        const int isd3 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-11-01"); // inflection date 3
 
-        const int isd1 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-06-01");
-        const int isd2 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-10-01");
+        vector<double> winter2021_vals = {0.01, 0.5, 0.9, 0.0};
+        winter2021_vals.push_back(calculate_conditional_death_reporting_probability(RF_death_late, winter2021_vals));
+
+        vector<vector<double>> vals = {initial_vals, summer2020_vals, winter2020_vals, winter2021_vals};
+        cerr << "death init, summer2020, winter2020, winter2021: " << initial_vals.back() << " " << summer2020_vals.back() << " " << winter2020_vals.back() << " " << winter2021_vals.back() << endl;
 
         vector<vector<int>> inflection_sim_day = { vector<int>(NUM_OF_OUTCOME_TYPES, isd1),   // first transition
-                                                   vector<int>(NUM_OF_OUTCOME_TYPES, isd2) }; // second transition
+                                                   vector<int>(NUM_OF_OUTCOME_TYPES, isd2),   // second
+                                                   vector<int>(NUM_OF_OUTCOME_TYPES, isd3) }; // third
 
         vector<vector<double>> slopes = { vector<double>(NUM_OF_OUTCOME_TYPES, 0.1),
+                                          vector<double>(NUM_OF_OUTCOME_TYPES, 0.1),
                                           vector<double>(NUM_OF_OUTCOME_TYPES, 0.1) }; // sign is determined based on initial/final values
 
         par->createDetectionModel(vals, inflection_sim_day, slopes);
 
-        vector<double> reported_frac_init  = par->toReportedFraction(initial_vals);
-        vector<double> reported_frac_mid   = par->toReportedFraction(summer2020_vals);
-        vector<double> reported_frac_final = par->toReportedFraction(winter2020_vals);
+        vector<double> reported_frac_init       = par->toReportedFraction(initial_vals);
+        vector<double> reported_frac_summer2020 = par->toReportedFraction(summer2020_vals);
+        vector<double> reported_frac_winter2020 = par->toReportedFraction(winter2020_vals);
+        vector<double> reported_frac_winter2021 = par->toReportedFraction(winter2021_vals);
+
         cerr_vector(reported_frac_init); cerr << endl;  REPORTED_FRACTIONS.push_back(reported_frac_init);
-        cerr_vector(reported_frac_mid); cerr << endl;   REPORTED_FRACTIONS.push_back(reported_frac_mid);
-        cerr_vector(reported_frac_final); cerr << endl; REPORTED_FRACTIONS.push_back(reported_frac_final);
+        cerr_vector(reported_frac_summer2020); cerr << endl; REPORTED_FRACTIONS.push_back(reported_frac_summer2020);
+        cerr_vector(reported_frac_winter2020); cerr << endl; REPORTED_FRACTIONS.push_back(reported_frac_winter2020);
+        cerr_vector(reported_frac_winter2021); cerr << endl; REPORTED_FRACTIONS.push_back(reported_frac_winter2021);
 
         //cerr << "Detection probability by day\n";
         //for (size_t d = 0; d < par->probFirstDetection.size(); ++d) {
@@ -695,7 +706,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     define_strain_parameters(par, omicron_scenario);
 
     vector<string> mutant_intro_dates = {};
-    if (mutation) { mutant_intro_dates = {"2021-02-01", "2021-05-27", "2021-12-01"}; }
+    if (mutation) { mutant_intro_dates = {"2021-02-01", "2021-05-27", "2021-11-22"}; }
 
     Community* community = build_community(par);
 
