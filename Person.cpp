@@ -106,7 +106,8 @@ Infection& Person::initializeNewInfection(int time, size_t incubation_period, Lo
     infection.strain          = source ? source->getStrain() : WILDTYPE;
     infection.infectiousBegin = time + _par->infectiousness_onset(incubation_period);
     //infection.infectiousEnd   = time + incubation_period + SYMPTOMATIC_INFECTIOUS_PERIOD; // person may not actually be symptomatic!
-    infection.infectiousEnd   = time + incubation_period + _par->strainPars[infection.strain].symptomatic_infectious_period; // person may not actually be symptomatic!
+    infection.infectiousEnd   = time + incubation_period + _par->strainPars[infection.strain].symptomaticInfectiousPeriod; // person may not actually be symptomatic!
+//cerr << "iD " << infection.strain << ' ' << infection.infectiousBegin - time << ' ' << incubation_period << endl;
     return infection;
 }
 
@@ -238,7 +239,7 @@ Infection* Person::infect(Community* community, Person* source, const Date* date
     //const double remaining_efficacy = remainingEfficacy(time);  // due to vaccination; needs to be called before initializing new infection (still true?)
 
     // Create a new infection record
-    const size_t incubation_period = _par->symptom_onset(); // may not be symptomatic, but this is used to determine infectiousness onset
+    const size_t incubation_period = _par->symptom_onset(strain); // may not be symptomatic, but this is used to determine infectiousness onset
     Infection& infection = initializeNewInfection(time, incubation_period, sourceloc, source);
     community->tallyOutcome(ASYMPTOMATIC);
     if (not source) { infection.strain = strain; }
