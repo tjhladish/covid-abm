@@ -56,6 +56,13 @@ vector<vector<double>> REPORTED_FRACTIONS;
 
 gsl_rng* VAX_RNG = gsl_rng_alloc(gsl_rng_mt19937);
 
+const gsl_rng* VAX_RNG = gsl_rng_alloc(gsl_rng_mt19937);
+
+double calculate_conditional_death_reporting_probability(double RF_death, const vector<double> &rho_vals) {
+    const double rho_death  = 1.0 - (1.0 - RF_death)/((1.0 - rho_vals[0])*(1.0 - rho_vals[1])*(1.0 - rho_vals[2])*(1.0 - rho_vals[3]));
+    return rho_death;
+}
+
 Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned long int rng_seed, const unsigned long int serial, const string /*process_id*/) {
     Parameters* par = new Parameters();
     par->define_defaults();
@@ -96,27 +103,22 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
         //par->reportedFraction = {0.0, 0.2, 0.75, 0.75, 0.75};      // fraction of asymptomatic, mild, severe, critical, and deaths reported
         //par->probFirstDetection = {0.0, 0.12, 0.55, 0.1, 0.01};      // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
 
-        const double RF_death_early = 0.8;//0.78; // overall probability of detecting death, at any point
+        const double RF_death_early = 0.8; //0.78; // overall probability of detecting death, at any point
+        const double RF_death_late  = 1.0; //0.78; // overall probability of detecting death, at any point
+
 
         // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
-        vector<vector<double>> vals;
-        vector<double> initial_vals = {0.0, 0.05, 0.7, 0.1};
-        const double rho_death_ini  = 1.0 - (1.0 - RF_death_early)/((1.0 - initial_vals[0])*(1.0 - initial_vals[1])*(1.0 - initial_vals[2])*(1.0 - initial_vals[3]));
-        initial_vals.push_back(rho_death_ini);
-        vals.push_back(initial_vals);
+        vector<double> initial_vals    = {0.0, 0.05, 0.7, 0.1};    // Start of sim (Feb 2020) conditional probabilities
+        initial_vals.push_back(calculate_conditional_death_reporting_probability(RF_death_early, initial_vals));
 
-        vector<double> mid_vals   = {0.02, 0.5, 0.1, 0.1};
-        const double rho_death_mid  = 1.0 - (1.0 - RF_death_early)/((1.0 - mid_vals[0])*(1.0 - mid_vals[1])*(1.0 - mid_vals[2])*(1.0 - mid_vals[3]));
-        mid_vals.push_back(rho_death_mid);
-        vals.push_back(mid_vals);
+        vector<double> summer2020_vals = {0.02, 0.5, 0.1, 0.1};
+        summer2020_vals.push_back(calculate_conditional_death_reporting_probability(RF_death_early, summer2020_vals));
 
-        const double RF_death_late = 1.0;//0.78; // overall probability of detecting death, at any point
-        vector<double> final_vals   = {0.1, 0.9, 0.9, 0.0};
-        const double rho_death_fin  = 1.0 - (1.0 - RF_death_late)/((1.0 - final_vals[0])*(1.0 - final_vals[1])*(1.0 - final_vals[2])*(1.0 - final_vals[3]));
-        final_vals.push_back(rho_death_fin);
-        vals.push_back(final_vals);
+        vector<double> winter2020_vals = {0.1, 0.9, 0.9, 0.0};
+        winter2020_vals.push_back(calculate_conditional_death_reporting_probability(RF_death_late, winter2020_vals));
 
-        cerr << "death init, mid, fin: " << rho_death_ini << " " << rho_death_mid << " " << rho_death_fin << endl;
+        vector<vector<double>> vals = {initial_vals, summer2020_vals, winter2020_vals};
+        cerr << "death init, mid, fin: " << initial_vals.back() << " " << summer2020_vals.back() << " " << winter2020_vals.back() << endl;
 
         const int isd1 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-06-01");
         const int isd2 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-10-01");
@@ -130,8 +132,8 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
         par->createDetectionModel(vals, inflection_sim_day, slopes);
 
         vector<double> reported_frac_init  = par->toReportedFraction(initial_vals);
-        vector<double> reported_frac_mid   = par->toReportedFraction(mid_vals);
-        vector<double> reported_frac_final = par->toReportedFraction(final_vals);
+        vector<double> reported_frac_mid   = par->toReportedFraction(summer2020_vals);
+        vector<double> reported_frac_final = par->toReportedFraction(winter2020_vals);
         cerr_vector(reported_frac_init); cerr << endl;  REPORTED_FRACTIONS.push_back(reported_frac_init);
         cerr_vector(reported_frac_mid); cerr << endl;   REPORTED_FRACTIONS.push_back(reported_frac_mid);
         cerr_vector(reported_frac_final); cerr << endl; REPORTED_FRACTIONS.push_back(reported_frac_final);
