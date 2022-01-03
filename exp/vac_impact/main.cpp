@@ -56,8 +56,6 @@ vector<vector<double>> REPORTED_FRACTIONS;
 
 gsl_rng* VAX_RNG = gsl_rng_alloc(gsl_rng_mt19937);
 
-const gsl_rng* VAX_RNG = gsl_rng_alloc(gsl_rng_mt19937);
-
 double calculate_conditional_death_reporting_probability(double RF_death, const vector<double> &rho_vals) {
     const double rho_death  = 1.0 - (1.0 - RF_death)/((1.0 - rho_vals[0])*(1.0 - rho_vals[1])*(1.0 - rho_vals[2])*(1.0 - rho_vals[3]));
     return rho_death;
@@ -105,8 +103,7 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
 
         const double RF_death_early = 0.8; //0.78; // overall probability of detecting death, at any point
         const double RF_death_late  = 1.0; //0.78; // overall probability of detecting death, at any point
-
-
+        
         // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
         vector<double> initial_vals    = {0.0, 0.05, 0.7, 0.1};    // Start of sim (Feb 2020) conditional probabilities
         initial_vals.push_back(calculate_conditional_death_reporting_probability(RF_death_early, initial_vals));
