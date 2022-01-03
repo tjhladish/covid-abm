@@ -99,29 +99,35 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
         const double RF_death_early = 0.8;//0.78; // overall probability of detecting death, at any point
 
         // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
+        vector<vector<double>> vals;
         vector<double> initial_vals = {0.0, 0.05, 0.7, 0.1};
         const double rho_death_ini  = 1.0 - (1.0 - RF_death_early)/((1.0 - initial_vals[0])*(1.0 - initial_vals[1])*(1.0 - initial_vals[2])*(1.0 - initial_vals[3]));
         initial_vals.push_back(rho_death_ini);
+        vals.push_back(initial_vals);
 
         vector<double> mid_vals   = {0.02, 0.5, 0.1, 0.1};
         const double rho_death_mid  = 1.0 - (1.0 - RF_death_early)/((1.0 - mid_vals[0])*(1.0 - mid_vals[1])*(1.0 - mid_vals[2])*(1.0 - mid_vals[3]));
         mid_vals.push_back(rho_death_mid);
+        vals.push_back(mid_vals);
 
         const double RF_death_late = 1.0;//0.78; // overall probability of detecting death, at any point
         vector<double> final_vals   = {0.1, 0.9, 0.9, 0.0};
         const double rho_death_fin  = 1.0 - (1.0 - RF_death_late)/((1.0 - final_vals[0])*(1.0 - final_vals[1])*(1.0 - final_vals[2])*(1.0 - final_vals[3]));
         final_vals.push_back(rho_death_fin);
+        vals.push_back(final_vals);
 
         cerr << "death init, mid, fin: " << rho_death_ini << " " << rho_death_mid << " " << rho_death_fin << endl;
 
         const int isd1 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-06-01");
         const int isd2 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-10-01");
 
-        const vector<int> inflection1_sim_day = {isd1, isd1, isd1, isd1, isd1};
-        const vector<int> inflection2_sim_day = {isd2, isd2, isd2, isd2, isd2};
-        const vector<double> slopes = {0.1, 0.1, 0.1, 0.1, 0.1}; // sign is determined based on initial/final values
+        vector<vector<int>> inflection_sim_day = { vector<int>(NUM_OF_OUTCOME_TYPES, isd1),   // first transition
+                                                   vector<int>(NUM_OF_OUTCOME_TYPES, isd2) }; // second transition
 
-        par->createDetectionModel(initial_vals, mid_vals, final_vals, inflection1_sim_day, inflection2_sim_day, slopes, slopes);
+        vector<vector<double>> slopes = { vector<double>(NUM_OF_OUTCOME_TYPES, 0.1),
+                                          vector<double>(NUM_OF_OUTCOME_TYPES, 0.1) }; // sign is determined based on initial/final values
+
+        par->createDetectionModel(vals, inflection_sim_day, slopes);
 
         vector<double> reported_frac_init  = par->toReportedFraction(initial_vals);
         vector<double> reported_frac_mid   = par->toReportedFraction(mid_vals);

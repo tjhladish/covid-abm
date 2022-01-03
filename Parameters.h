@@ -527,10 +527,7 @@ public:
                                                             // used for interpreting empirical mortality data, *not within simulation*
 
                                                             // sign of float determined by sizes of initial and final values
-    void createDetectionModel(const vector<double>& initial_vals, const vector<double>& final_vals,
-                              const vector<int>& inflection_sim_day, const vector<double>& slopes);
-    void createDetectionModel(const vector<double>& initial_vals, const vector<double>& mid_vals, const vector<double>& final_vals,
-                              const vector<int>& inflection1_sim_day, const vector<int>& inflection2_sim_day,  const vector<double>& slopes1, const vector<double>& slopes2);
+    void createDetectionModel(const vector<vector<double>>& vals, const vector<vector<int>>& inflection_sim_day, const vector<vector<double>>& slopes);
     std::vector<std::vector<double>> probFirstDetection;    // Probability of being *first* detected while {asymp, mild, severe, crit, dead}
                                                             // indexed by day and outcome severity
 
