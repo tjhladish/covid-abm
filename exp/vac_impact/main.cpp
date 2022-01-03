@@ -125,16 +125,13 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
         const int isd1 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-06-01");
         const int isd2 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-10-01");
 
-        vector<vector<int>> inflection_sim_day = { {isd1, isd1, isd1, isd1, isd1},
-                                                   {isd2, isd2, isd2, isd2, isd2} };
-        //const vector<int> inflection1_sim_day = {isd1, isd1, isd1, isd1, isd1};
-        //const vector<int> inflection2_sim_day = {isd2, isd2, isd2, isd2, isd2};
+        vector<vector<int>> inflection_sim_day = { vector<int>(NUM_OF_OUTCOME_TYPES, isd1),   // first transition
+                                                   vector<int>(NUM_OF_OUTCOME_TYPES, isd2) }; // second transition
 
-        vector<vector<double>> slopesTmp = { {0.1, 0.1, 0.1, 0.1, 0.1},
-                                             {0.1, 0.1, 0.1, 0.1, 0.1} };
-        //const vector<double> slopes = {0.1, 0.1, 0.1, 0.1, 0.1}; // sign is determined based on initial/final values
+        vector<vector<double>> slopes = { vector<double>(NUM_OF_OUTCOME_TYPES, 0.1),
+                                          vector<double>(NUM_OF_OUTCOME_TYPES, 0.1) }; // sign is determined based on initial/final values
 
-        par->createDetectionModel(vals, inflection_sim_day, slopesTmp);
+        par->createDetectionModel(vals, inflection_sim_day, slopes);
 
         vector<double> reported_frac_init  = par->toReportedFraction(initial_vals);
         vector<double> reported_frac_mid   = par->toReportedFraction(mid_vals);

@@ -209,14 +209,10 @@ void Parameters::createDetectionModel(const vector<vector<double>>& vals, const 
     for (size_t sim_day = 0; sim_day < runLength; ++sim_day) {
         vector<double> probs(NUM_OF_OUTCOME_TYPES);
         for (size_t outcome = 0; outcome < NUM_OF_OUTCOME_TYPES; ++outcome) {
-            for (size_t i = 0; i < vals.size(); ++i) {
-                if (i == 0) {
-                    probs[outcome] = vals[i][outcome];
-                } else {
-                    probs[outcome] += (vals[i][outcome] - vals[i-1][outcome]) * logistic( slopes[i-1][outcome] * ((double) sim_day - inflection_sim_day[i-1][outcome]) );
-                }
+            probs[outcome] = vals[0][outcome];
+            for (size_t i = 1; i < vals.size(); ++i) {
+                probs[outcome] += (vals[i][outcome] - vals[i-1][outcome]) * logistic( slopes[i-1][outcome] * ((double) sim_day - inflection_sim_day[i-1][outcome]) );
             }
-
 //if (outcome == 0) cerr << "d, [i,m,f], val: " << (int) sim_day << " [" << vals[0][outcome] << ", " << vals[1][outcome] << ", " << vals[2][outcome] << "] " << probs[outcome] << endl;
         }
         probFirstDetection[sim_day] = probs;
