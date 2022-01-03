@@ -266,6 +266,7 @@ void define_strain_parameters(Parameters* par, const size_t omicron_scenario) {
   //par->strainPars[ALPHA].relMortality        = 1.0;
   //par->strainPars[ALPHA].relIcuMortality     = 1.0;
     par->strainPars[ALPHA].immuneEscapeProb    = 0.0;
+    par->strainPars[ALPHA].symptomatic_infectious_period = 7;
 
     par->strainPars[DELTA].relInfectiousness   = par->strainPars[ALPHA].relInfectiousness * 1.5;
     par->strainPars[DELTA].relPathogenicity    = par->strainPars[ALPHA].relPathogenicity * 2.83;
@@ -274,6 +275,7 @@ void define_strain_parameters(Parameters* par, const size_t omicron_scenario) {
   //par->strainPars[DELTA].relMortality        = 1.0;
     par->strainPars[DELTA].relIcuMortality     = 2.0; // TODO - this is due to icu crowding.  should be represented differently
     par->strainPars[DELTA].immuneEscapeProb    = 0.15;
+    par->strainPars[DELTA].symptomatic_infectious_period = 7;
 
 //    const size_t omicron_scenario = 0;
 
@@ -305,6 +307,7 @@ void define_strain_parameters(Parameters* par, const size_t omicron_scenario) {
     }
 
     par->strainPars[OMICRON].relIcuMortality   = 2.0;
+    par->strainPars[OMICRON].symptomatic_infectious_period = 7;
 //    par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.5;
 //    par->strainPars[OMICRON].relPathogenicity  = par->strainPars[ALPHA].relPathogenicity;
 //    par->strainPars[OMICRON].relSeverity       = 1.1; // only applies if not vaccine protected

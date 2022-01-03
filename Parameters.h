@@ -191,6 +191,7 @@ class StrainPars {
     double relMortality;
     double relIcuMortality;
     double immuneEscapeProb;
+    int    symptomatic_infectious_period;
 };
 
 class ReportingLagModel {

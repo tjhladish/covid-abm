@@ -105,7 +105,8 @@ Infection& Person::initializeNewInfection(int time, size_t incubation_period, Lo
     infection.infectedBy      = source;
     infection.strain          = source ? source->getStrain() : WILDTYPE;
     infection.infectiousBegin = time + _par->infectiousness_onset(incubation_period);
-    infection.infectiousEnd   = time + incubation_period + SYMPTOMATIC_INFECTIOUS_PERIOD; // person may not actually be symptomatic!
+    //infection.infectiousEnd   = time + incubation_period + SYMPTOMATIC_INFECTIOUS_PERIOD; // person may not actually be symptomatic!
+    infection.infectiousEnd   = time + incubation_period + _par->strainPars[infection.strain].symptomatic_infectious_period; // person may not actually be symptomatic!
     return infection;
 }
 
