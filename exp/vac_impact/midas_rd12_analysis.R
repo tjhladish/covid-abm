@@ -10,6 +10,17 @@ if (length(args) == 1) {
   stop("Pass data directory as command-line argument")
 }
 
+### CHANGE THESE PARAMETERS TO CONTROL THE PROGRAM
+scen2_min = 100
+scen3_min = 200
+scen4_min = 300
+percentiles = c(0.00, 0.01, 0.025, seq(0.05, 0.95, by=0.05), 0.975, 0.99, 1.00)
+scen_ids = c('A-2022-01-09', 'B-2022-01-09', 'C-2022-01-09', 'D-2022-01-09')
+scen_names = c('optSev_highIE', 'optSev_lowIE', 'pessSev_highIE', 'pessSev_lowIE')
+model_projection_date = '2021-12-21'
+location = 12
+fl_pop = 21538187
+
 # files named plot_log#.csv where # is the serial
 tmp = read.table(file=grep(paste0("^", data_dir, "/plot_log(\\d+).csv"), list.files(data_dir, full.names=T), value=T)[1],
                  sep=',', stringsAsFactors=F, header=T)
@@ -41,23 +52,20 @@ for (file in list.files(data_dir, full.names=T)) {
     }
     agg_tmp$epiweek_end_date = as.Date(agg_tmp$epiweek_end_date)
     
-    if (tmp_serial < 100) {
+    if (tmp_serial < scen2_min) {
       d1 = rbind(d1, agg_tmp)
-    } else if (tmp_serial >= 100 & tmp_serial < 200) {
+    } else if (tmp_serial >= scen2_min & tmp_serial < scen3_min) {
       d2 = rbind(d2, agg_tmp)
-    } else if (tmp_serial >= 200 & tmp_serial < 300) {
+    } else if (tmp_serial >= scen3_min & tmp_serial < scen4_min) {
       d3 = rbind(d3, agg_tmp)
-    } else if (tmp_serial >= 300) {
+    } else if (tmp_serial >= scen4_min) {
       d4 = rbind(d4, agg_tmp)
     }
   }
 }
 
-percentiles = c(0.00, 0.01, 0.025, seq(0.05, 0.95, by=0.05), 0.975, 0.99, 1.00)
 pctl_cols = paste0('', percentiles)
 scen_d = list(d1, d2, d3, d4)
-scen_ids = c('A-2021-12-21', 'B-2021-12-21', 'C-2021-12-21', 'D-2021-12-21')
-scen_names = c('optSev_highIE', 'optSev_lowIE', 'pessSev_highIE', 'pessSev_lowIE')
 
 final_df = data.frame(scenario_id = integer(1), met = character(1), epiweek = integer(1), epiweek_end_date = as.Date('2020-01-01'))
 final_df[pctl_cols] = NA
@@ -82,10 +90,10 @@ for (df in 1:length(scen_d)) {
 final_df = gather(final_df, quantile, value, '0':'1')
 final_df$scenario_name = scen_names[final_df$scenario_id]
 final_df$scenario_id = scen_ids[final_df$scenario_id]
-final_df$model_projection_date = as.Date('2021-12-21')
-final_df$location = 12
+final_df$model_projection_date = as.Date(model_projection_date)
+final_df$location = location
 final_df$type = 'quantile'
-final_df$value = final_df$value * (21538187/1e4)
+final_df$value = final_df$value * (fl_pop/1e4)
 
 sorted_end_dates = sort(as.Date(unique(final_df$epiweek_end_date)))
 final_df$target = paste0(match(as.Date(final_df$epiweek_end_date), sorted_end_dates), ' wk ahead ', final_df$met)
@@ -100,4 +108,5 @@ medians$type = 'point'
 medians$quantile = 'NA'
 final_df = rbind(final_df, medians)
 
-write.table(final_df, file='midas_rd11.csv', sep=',', quote=F, row.names=F)
+final_filename = paste0(model_projection_date, '-UF-ABM.csv')
+write.table(final_df, file=final_filename, sep=',', quote=F, row.names=F)
