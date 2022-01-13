@@ -202,15 +202,15 @@ double Parameters::icuMortality(ComorbidType comorbidity, size_t age, size_t sim
 }
 
 
-void Parameters::createDetectionModel(const vector<double>& initial_vals, const vector<double>& final_vals, const vector<int>& inflection_sim_day, const vector<double>& slopes) {
-    assert(NUM_OF_OUTCOME_TYPES == initial_vals.size()
-             and initial_vals.size() == final_vals.size()
-             and initial_vals.size() == inflection_sim_day.size()
-             and initial_vals.size() == slopes.size());
+void Parameters::createDetectionModel(const vector<vector<double>>& vals, const vector<vector<int>>& inflection_sim_day, const vector<vector<double>>& slopes) {
+    assert(inflection_sim_day.size() == (vals.size() - 1) and slopes.size() == (vals.size() - 1));
+    for (const vector<double>& v : vals)            { assert(v.size() == NUM_OF_OUTCOME_TYPES); }
+    for (const vector<int>& v : inflection_sim_day) { assert(v.size() == NUM_OF_OUTCOME_TYPES); }
+    for (const vector<double>& v : slopes)          { assert(v.size() == NUM_OF_OUTCOME_TYPES); }
 
     for (size_t outcome = 0; outcome < NUM_OF_OUTCOME_TYPES; ++outcome) {
-        if (initial_vals[outcome] < 0.0 or initial_vals[outcome] > 1.0 or final_vals[outcome] < 0.0 or final_vals[outcome] > 1.0) {
-            cerr << "WARNING: Detection probability out-of-bounds for outcome type: " << (OutcomeType) outcome << " [" << initial_vals[outcome] << ", " << final_vals[outcome] << "]" << endl;
+        for (const vector<double>& v : vals) {
+            if (v[outcome] < 0.0 or v[outcome] > 1.0) { cerr << "WARNING: Detection probability out-of-bounds for outcome type: " << (OutcomeType) outcome << " [" << v[outcome] << "]" << endl; }
         }
     }
 
@@ -218,53 +218,11 @@ void Parameters::createDetectionModel(const vector<double>& initial_vals, const 
     for (size_t sim_day = 0; sim_day < runLength; ++sim_day) {
         vector<double> probs(NUM_OF_OUTCOME_TYPES);
         for (size_t outcome = 0; outcome < NUM_OF_OUTCOME_TYPES; ++outcome) {
-            const double initial_v = initial_vals[outcome];
-            const double final_v   = final_vals[outcome];
-            const double slope     = slopes[outcome];
-            const double inflection = (double) sim_day - inflection_sim_day[outcome];
-            probs[outcome] = (final_v - initial_v) * logistic( slope*inflection ) + initial_v;
-//if (outcome == 2) cerr << "d, f, i, s, p: " << (int) sim_day - inflection_sim_day[outcome] << " " << final_v << " " << initial_v << " " << slope << " " << probs[outcome] << endl;
-        }
-        probFirstDetection[sim_day] = probs;
-    }
-}
-
-// TODO - refactor the two createDetectionModel functions so that they are generic
-void Parameters::createDetectionModel(const vector<double>& initial_vals, const vector<double>& mid_vals, const vector<double>& final_vals, const vector<int>& inflection1_sim_day, const vector<int>& inflection2_sim_day,  const vector<double>& slopes1, const vector<double>& slopes2) {
-    assert(NUM_OF_OUTCOME_TYPES == initial_vals.size()
-             and initial_vals.size() == mid_vals.size()
-             and initial_vals.size() == final_vals.size()
-             and initial_vals.size() == inflection1_sim_day.size()
-             and initial_vals.size() == inflection2_sim_day.size()
-             and initial_vals.size() == slopes1.size()
-             and initial_vals.size() == slopes2.size());
-
-    for (size_t outcome = 0; outcome < NUM_OF_OUTCOME_TYPES; ++outcome) {
-        //assert(initial_vals[outcome] >= 0.0 and initial_vals[outcome] <= 1.0);
-        //assert(final_vals[outcome] >= 0.0 and final_vals[outcome] <= 1.0);
-        if (initial_vals[outcome] < 0.0 or initial_vals[outcome] > 1.0
-            or mid_vals[outcome] < 0.0 or mid_vals[outcome] > 1.0
-            or final_vals[outcome] < 0.0 or final_vals[outcome] > 1.0) {
-            cerr << "WARNING: Detection probability out-of-bounds for outcome type: " << (OutcomeType) outcome << " [" << initial_vals[outcome] << ", " << mid_vals[outcome] << ", " << final_vals[outcome] << "]" << endl;
-        }
-    }
-
-    probFirstDetection = vector<vector<double>>(runLength, vector<double>(NUM_OF_OUTCOME_TYPES, 0.0));
-    for (size_t sim_day = 0; sim_day < runLength; ++sim_day) {
-        vector<double> probs(NUM_OF_OUTCOME_TYPES);
-        for (size_t outcome = 0; outcome < NUM_OF_OUTCOME_TYPES; ++outcome) {
-            const double initial_v = initial_vals[outcome];
-            const double mid_v     = mid_vals[outcome];
-            const double final_v   = final_vals[outcome];
-            const double slope1     = slopes1[outcome];
-            const double slope2     = slopes2[outcome];
-            const double inflection1 = (double) sim_day - inflection1_sim_day[outcome];
-            const double inflection2 = (double) sim_day - inflection2_sim_day[outcome];
-            probs[outcome] = (mid_v - initial_v) * logistic( slope1*inflection1 )
-                             + (final_v - mid_v) * logistic( slope2*inflection2 )
-                             + initial_v;
-
-//if (outcome == 0) cerr << "d, [i,m,f], val: " << (int) sim_day << " [" << initial_v << ", " << mid_v << ", " << final_v << "] " << probs[outcome] << endl;
+            probs[outcome] = vals[0][outcome];
+            for (size_t i = 1; i < vals.size(); ++i) {
+                probs[outcome] += (vals[i][outcome] - vals[i-1][outcome]) * logistic( slopes[i-1][outcome] * ((double) sim_day - inflection_sim_day[i-1][outcome]) );
+            }
+//if (outcome == 0) cerr << "d, [i,m,f], val: " << (int) sim_day << " [" << vals[0][outcome] << ", " << vals[1][outcome] << ", " << vals[2][outcome] << "] " << probs[outcome] << endl;
         }
         probFirstDetection[sim_day] = probs;
     }
