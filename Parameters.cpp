@@ -105,7 +105,7 @@ void Parameters::define_defaults() {
     seroTestFalsePos = 0.0;
     seroTestFalseNeg = 0.0;
 
-    mmodsScenario = NUM_OF_MMODS_SCENARIOS; // default to no MMODS scenario
+    csmhScenario = NUM_OF_CSMH_SCENARIOS; // default to no scenario
 
     behavioral_autotuning = false;
     tuning_window = INT_MAX;

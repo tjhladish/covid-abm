@@ -163,12 +163,12 @@ enum TimedIntervention {
     NUM_OF_TIMED_INTERVNETIONS
 };
 
-enum MmodsScenario {
-    MMODS_CLOSED,   //0
-    MMODS_2WEEKS,   //1
-    MMODS_5PERCENT, //2
-    MMODS_OPEN,     //3
-    NUM_OF_MMODS_SCENARIOS
+enum CsmhScenario {
+    CSMH_A,
+    CSMH_B,
+    CSMH_C,
+    CSMH_D,
+    NUM_OF_CSMH_SCENARIOS
 };
 
 struct GammaPars {
@@ -644,7 +644,7 @@ public:
     unsigned long int serial;
 
     VaccineSeroConstraint vaccineSeroConstraint;
-    MmodsScenario mmodsScenario;
+    CsmhScenario csmhScenario;
 
     bool behavioral_autotuning;
     size_t tuning_window;
