@@ -460,6 +460,12 @@ public:
 
     int vaccine_dose_to_protection_lag;                     // number of days between when vaccine dose is administered and when its protection begins
 
+    //double IES;                                             // represented using individual-based startingNaturalEfficacy and par->remainingEfficacy
+    double IEP;                                             // prior infection efficacy for pathogenicity
+    double IEH;                                             // prior infection efficacy against hospitalization, given infection
+    double IEF;                                             // prior infection efficacy against death, given infection
+    double IEI;                                             // prior infection efficacy to reduce infectiousness
+
     template<typename T>
     inline T stretchy_vector (const vector<T> &data, size_t idx) const {
         idx = idx < 0 ? 0 : min(idx, data.size() - 1);      // shift idx to be within valid range if outside

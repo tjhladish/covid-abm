@@ -15,7 +15,7 @@ num_replicates = 100
 percentiles = c(0.00, 0.01, 0.025, seq(0.05, 0.95, by=0.05), 0.975, 0.99, 1.00)
 scen_ids = c('A-2022-01-09', 'B-2022-01-09', 'C-2022-01-09', 'D-2022-01-09')
 scen_names = c('optSev_highIE', 'optSev_lowIE', 'pessSev_highIE', 'pessSev_lowIE')
-model_projection_date = '2021-12-21'
+model_projection_date = '2022-01-13'
 location = 12
 fl_pop = 21538187
 
