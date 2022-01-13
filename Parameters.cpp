@@ -30,6 +30,11 @@ void Parameters::define_defaults() {
     VEH = {{WILDTYPE, {0.0}}};
     VEF = {{WILDTYPE, {0.0}}};
     VEI = {{WILDTYPE, {0.0}}};
+    //IES = 0.0;
+    IEP = 0.75;
+    IEH = 0.0;
+    IEF = 0.0;
+    IEI = 0.0;
     vaccine_dose_to_protection_lag = 10;
     immunityLeaky = false;
     beginContactTracing = INT_MAX;
