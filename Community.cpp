@@ -1014,7 +1014,7 @@ void Community::tick() {
     within_household_transmission();
     between_household_transmission();
 
-    public_activity();
+    public_activity(); // must come before workplace transmission
     workplace_transmission();
     clear_public_activity();
 
