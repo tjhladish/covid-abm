@@ -297,27 +297,27 @@ void define_strain_parameters(Parameters* par, const size_t omicron_scenario) {
     switch (omicron_scenario) {
         case 0: // high immune escape, low transmissibility; low severity
             par->strainPars[OMICRON].immuneEscapeProb  = 0.8;
-            par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.0;
+            par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.0; // can adjust
             par->strainPars[OMICRON].relPathogenicity  = par->strainPars[DELTA].relPathogenicity;
-            par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.5;
+            par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.3;
             break;
        case 1: // moderate immune escape, high transmissibility; low severity
             par->strainPars[OMICRON].immuneEscapeProb  = 0.5;
-            par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.66;
+            par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.66; // can adjust
             par->strainPars[OMICRON].relPathogenicity  = par->strainPars[DELTA].relPathogenicity;
-            par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.5;
+            par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.3;
             break;
         case 2: // high immune escape, low transmissibility; delta severity
             par->strainPars[OMICRON].immuneEscapeProb  = 0.8;
-            par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.0;
+            par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.0; // can adjust
             par->strainPars[OMICRON].relPathogenicity  = par->strainPars[DELTA].relPathogenicity;
-            par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity;
+            par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.7;
             break;
         case 3: // moderate immune escape, high transmissibility; delta severity
             par->strainPars[OMICRON].immuneEscapeProb  = 0.5;
-            par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.66;
+            par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.66; // can adjust
             par->strainPars[OMICRON].relPathogenicity  = par->strainPars[DELTA].relPathogenicity;
-            par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity;
+            par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.7;
             break;
     }
 
