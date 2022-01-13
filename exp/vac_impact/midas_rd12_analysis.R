@@ -11,9 +11,7 @@ if (length(args) == 1) {
 }
 
 ### CHANGE THESE PARAMETERS TO CONTROL THE PROGRAM
-scen2_min = 100
-scen3_min = 200
-scen4_min = 300
+num_replicates = 100
 percentiles = c(0.00, 0.01, 0.025, seq(0.05, 0.95, by=0.05), 0.975, 0.99, 1.00)
 scen_ids = c('A-2022-01-09', 'B-2022-01-09', 'C-2022-01-09', 'D-2022-01-09')
 scen_names = c('optSev_highIE', 'optSev_lowIE', 'pessSev_highIE', 'pessSev_lowIE')
@@ -32,6 +30,10 @@ d3 = data.frame(epiweek = integer(), inc_rcase = double(), inc_rdeath = double()
                 cuml_rcase = double(), cuml_rdeath = double(), cuml_hosp = double(), epiweek_end_date = as.Date(character()))
 d4 = data.frame(epiweek = integer(), inc_rcase = double(), inc_rdeath = double(), inc_hosp = double(),
                 cuml_rcase = double(), cuml_rdeath = double(), cuml_hosp = double(), epiweek_end_date = as.Date(character()))
+
+scen2_min = num_replicates * 1
+scen3_min = num_replicates * 2
+scen4_min = num_replicates * 3
 
 for (file in list.files(data_dir, full.names=T)) {
   if (grepl(paste0("^", data_dir, "/plot_log(\\d+).csv"), file)) {
