@@ -181,7 +181,17 @@ struct GammaPars {
 
 class StrainPars {
   public:
-    StrainPars() : type(WILDTYPE), relInfectiousness(1.0), relPathogenicity(1.0), relSeverity(1.0), relCriticality(1.0), relMortality(1.0), relIcuMortality(1.0), immuneEscapeProb(0.0) {}
+    StrainPars() :
+        type(WILDTYPE),
+        relInfectiousness(1.0),
+        relPathogenicity(1.0),
+        relSeverity(1.0),
+        relCriticality(1.0),
+        relMortality(1.0),
+        relIcuMortality(1.0),
+        immuneEscapeProb(0.0),
+        symptomaticInfectiousPeriod(7),
+        relSymptomOnset(1.0) {}
     StrainPars(StrainType t) : StrainPars() { type = t; }
     StrainType type;
     double relInfectiousness;
@@ -191,6 +201,8 @@ class StrainPars {
     double relMortality;
     double relIcuMortality;
     double immuneEscapeProb;
+    int    symptomaticInfectiousPeriod;
+    double relSymptomOnset;
 };
 
 class ReportingLagModel {
@@ -466,10 +478,13 @@ public:
     vector<double> contactTracingEV;                        // indexed by LocationType; Expected number of recalled contacts; HOME is used for neighbor contacts
     size_t contactTracingDepth;                             // tracing contacts = 1; tracing contacts-of-contacts = 2; etc...
 
-    size_t symptom_onset() const { // aka incubation period
-        return 1 + floor(gsl_ran_gamma(RNG, SYMPTOM_ONSET_GAMMA_SHAPE, SYMPTOM_ONSET_GAMMA_SCALE));
+    size_t symptom_onset(StrainType strain = WILDTYPE) const { // aka incubation period
+        double deviate = gsl_ran_gamma(RNG, SYMPTOM_ONSET_GAMMA_SHAPE, strainPars[strain].relSymptomOnset * SYMPTOM_ONSET_GAMMA_SCALE);
+        assert(deviate >= 0);
+        return 1 + floor(deviate);
     }
     size_t infectiousness_onset(size_t incubation_pd) const {
+        assert(incubation_pd >= 1);
         return gsl_ran_binomial(RNG, INFECTIOUSNESS_ONSET_FRACTION, incubation_pd - 1) + 1;
     }
     size_t pre_severe_symptomatic() const {
@@ -512,10 +527,7 @@ public:
                                                             // used for interpreting empirical mortality data, *not within simulation*
 
                                                             // sign of float determined by sizes of initial and final values
-    void createDetectionModel(const vector<double>& initial_vals, const vector<double>& final_vals,
-                              const vector<int>& inflection_sim_day, const vector<double>& slopes);
-    void createDetectionModel(const vector<double>& initial_vals, const vector<double>& mid_vals, const vector<double>& final_vals,
-                              const vector<int>& inflection1_sim_day, const vector<int>& inflection2_sim_day,  const vector<double>& slopes1, const vector<double>& slopes2);
+    void createDetectionModel(const vector<vector<double>>& vals, const vector<vector<int>>& inflection_sim_day, const vector<vector<double>>& slopes);
     std::vector<std::vector<double>> probFirstDetection;    // Probability of being *first* detected while {asymp, mild, severe, crit, dead}
                                                             // indexed by day and outcome severity
 
@@ -549,7 +561,7 @@ public:
         // neutralization level relative to mean natural immunity following infection, after: https://www.nature.com/articles/s41591-021-01377-8/figures/1
         const double neut_lvl = pow(2.0, gsl_ran_gaussian(RNG, 1.0));
         const double AESP = covid::util::logistic(3.097703*(log10(neut_lvl/0.2010885)));
-        const double AEP = 0.7;
+        const double AEP = 0.75;
         //const double VEP = 1 - (1 - 0.93)/(1 - 0.52); // values from https://www.thelancet.com/journals/lancet/article/PIIS0140-6736(21)00675-9/fulltext
         return 1 - (1 - AESP)/(1 - AEP);
     }

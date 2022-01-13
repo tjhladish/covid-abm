@@ -28,8 +28,13 @@ ed = read.csv("rcasedeath-florida.csv"); per10k = 1e4/pop_florida
 ed$date = as.Date(ed$Date)
 
 cdcFull = read.csv("Rates_of_COVID-19_Cases_or_Deaths_by_Age_Group_and_Vaccination_Status.csv", stringsAsFactors=F)
-cdc = cdcFull[cdcFull$Age.group == "all_ages_adj" & cdcFull$Vaccine.product == "all_types" & cdcFull$outcome == "case",]
+cdc = cdcFull[cdcFull$Age.group == "all_ages_adj" & cdcFull$Vaccine.product == "all_types"  & cdcFull$outcome == "case",]
 cdc$date = as.Date("2020-12-27") + (cdc$MMWR.week*7)
+
+hhsHosp = read.csv("COVID-19_Reported_Patient_Impact_and_Hospital_Capacity_by_State_Timeseries.csv", stringsAsFactors=F, header=T)
+hhsHosp = hhsHosp[hhsHosp$state == 'FL',]
+hhsHosp$date = as.Date(hhsHosp$date)
+hhsHosp = hhsHosp[order(hhsHosp$date),]
 
 d$crcase   = cumsum(d$rcase)
 d$crdeath  = cumsum(d$rdeath)
@@ -44,6 +49,8 @@ ed$rdeath = ed$death_incd*per10k
 ed$crcase  = cumsum(ed$rcase)
 ed$crdeath = cumsum(ed$rdeath)
 cdc$brkthruRatio = cdc$Vaccinated.with.outcome/(cdc$Vaccinated.with.outcome + cdc$Unvaccinated.with.outcome)
+cdc$vaxOutcomeP10k = cdc$Vaccinated.with.outcome * (1e4/cdc$Fully.vaccinated.population)
+hhsHosp$hospInc = hhsHosp$previous_day_admission_adult_covid_confirmed*per10k
 
 ticks <- seq(as.Date('2020-02-01'), d$date[length(d$date)]+5, by = "months") # so much stupid
 
@@ -178,18 +185,20 @@ lines(cdc$date, cdc$brkthruRatio)
 annotate('Breakthrough ratio')
 
 # hosp by vax status
-ymax = max(d$vaxHosp, d$unvaxHosp, rm.na=T)
+ymax = max(d$vaxHosp + d$unvaxHosp, rm.na=T)
 plot(d$date, d$vaxHosp, type='n', xlab='', ylab='', xaxt='n', ylim=c(0,ymax), bty='n')
 shading()
+lines(hhsHosp$date, hhsHosp$hospInc)
 lines(d$date, d$vaxHosp, col='dodgerblue4')
-lines(d$date, d$unvaxHosp, col='coral')
-annotate('Hosp by vax status')
+lines(d$date, d$unvaxHosp + d$vaxHosp, col='coral')
+annotate('Hosp by vax status (stacked)')
 
 # hosp inc/prev
 ymax = max(d$hospInc, d$hospPrev, rm.na=T)
 plot(d$date, d$hospPrev, type='n', xlab='', ylab='', xaxt='n', ylim=c(0,ymax), bty='n')
 shading()
 lines(d$date, d$hospPrev, col='orange')
+lines(hhsHosp$date, hhsHosp$hospInc)
 lines(d$date, d$hospInc, col='orange', lty=3)
 annotate('Hosp prev (solid) and inc (dotted)')
 

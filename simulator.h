@@ -888,17 +888,19 @@ if (*date == "2021-12-01") { gsl_rng_set(RNG, par->randomseed); }
                     ledger->strains[DELTA]++;
                 }
             } else if (*date >= mutant_intro_dates[2]) {
-                if (ledger->strains[WILDTYPE] > 1) {
-                    ledger->strains[WILDTYPE]--;
-                    ledger->strains[OMICRON]++;
-                }
-                if (ledger->strains[ALPHA] > 1) {
-                    ledger->strains[ALPHA]--;
-                    ledger->strains[OMICRON]++;
-                }
-                if (ledger->strains[DELTA] > 1) {
-                    ledger->strains[DELTA]--;
-                    ledger->strains[OMICRON]++;
+                for (int i = 0; i < 5; ++i) { // faster take-over of omicron
+                    if (ledger->strains[WILDTYPE] > 1) {
+                        ledger->strains[WILDTYPE]--;
+                        ledger->strains[OMICRON]++;
+                    }
+                    if (ledger->strains[ALPHA] > 1) {
+                        ledger->strains[ALPHA]--;
+                        ledger->strains[OMICRON]++;
+                    }
+                    if (ledger->strains[DELTA] > 1) {
+                        ledger->strains[DELTA]--;
+                        ledger->strains[OMICRON]++;
+                    }
                 }
             }
         }
