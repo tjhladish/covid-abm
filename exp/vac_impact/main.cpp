@@ -120,7 +120,7 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
 
         const int isd3 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-11-01"); // inflection date 3
 
-        vector<double> winter2021_vals = {0.01, 0.5, 0.9, 0.0};
+        vector<double> winter2021_vals = {0.02, 0.9, 0.9, 0.0};
         winter2021_vals.push_back(calculate_conditional_death_reporting_probability(RF_death_late, winter2021_vals));
 
         vector<vector<double>> vals = {initial_vals, summer2020_vals, winter2020_vals, winter2021_vals};
@@ -272,7 +272,7 @@ void define_strain_parameters(Parameters* par, const size_t omicron_scenario) {
                                   {DELTA, {0.67*x_delta_1, 0.75*x_delta_2}},
                                   {OMICRON, {0.67*x_delta_1, 0.75*x_delta_2}}};
     //par->VEH                   = {{WILDTYPE, {0.9, 1.0}},   {ALPHA, {0.9, 1.0}}, {DELTA, {0.9, 0.93}}, {OMICRON, {0.35, 0.7}}};
-    par->VEH                   = {{WILDTYPE, {0.9, 1.0}},   {ALPHA, {0.9, 1.0}}, {DELTA, {0.9, 0.93}}, {OMICRON, {0.45, 0.9}}};
+    par->VEH                   = {{WILDTYPE, {0.9, 1.0}},   {ALPHA, {0.9, 1.0}}, {DELTA, {0.9, 0.93}}, {OMICRON, {0.48, 0.96}}};
     //par->VEI                   = {{WILDTYPE, {0.4, 0.8}},   {ALPHA, {0.4, 0.8}}, {DELTA, {0.4, 0.8}}, {OMICRON, {0.4, 0.8}}};
     par->VEI                   = {{WILDTYPE, {0.4, 0.8}},   {ALPHA, {0.4, 0.8}}, {DELTA, {0.4, 0.8}}, {OMICRON, {0.2, 0.4}}};
     par->VEF                   = {{WILDTYPE, {0.0, 0.0}},   {ALPHA, {0.0, 0.0}}, {DELTA, {0.0, 0.0}}, {OMICRON, {0.0, 0.0}}}; // effect likely captured by VEH
@@ -283,14 +283,14 @@ void define_strain_parameters(Parameters* par, const size_t omicron_scenario) {
 
     par->strainPars[DELTA].relInfectiousness   = par->strainPars[ALPHA].relInfectiousness * 1.5;
     par->strainPars[DELTA].relPathogenicity    = par->strainPars[ALPHA].relPathogenicity * 2.83;
-    par->strainPars[DELTA].relSeverity         = 2.5; // relSeverity only applies if not vaccine protected; CABP - may be more like 1.3 based on mortality increase
+    par->strainPars[DELTA].relSeverity         = 2.7; // relSeverity only applies if not vaccine protected; CABP - may be more like 1.3 based on mortality increase
     par->strainPars[DELTA].relIcuMortality     = 2.0; // TODO - this is due to icu crowding.  should be represented differently
     par->strainPars[DELTA].immuneEscapeProb    = 0.15;
 
 //    const size_t omicron_scenario = 0;
 
     const double appxNonOmicronInfPd     = 9.0;
-    const double appxOmicronInfPd        = 4.0;
+    const double appxOmicronInfPd        = 6.0;
     const double relInfectiousnessDenom  = (1.0 - pow(1.0 - par->household_transmissibility, appxOmicronInfPd/appxNonOmicronInfPd)) / par->household_transmissibility;
 
     switch (omicron_scenario) {
@@ -307,7 +307,7 @@ void define_strain_parameters(Parameters* par, const size_t omicron_scenario) {
             par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.5;
             break;
         case 2: // moderate immune escape, high transmissibility; low severity
-            par->strainPars[OMICRON].immuneEscapeProb  = 0.5;
+            par->strainPars[OMICRON].immuneEscapeProb  = 0.6;
             par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 2.0 / relInfectiousnessDenom;
             par->strainPars[OMICRON].relPathogenicity  = par->strainPars[ALPHA].relPathogenicity * 0.5;
             par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.25;
@@ -321,7 +321,7 @@ void define_strain_parameters(Parameters* par, const size_t omicron_scenario) {
     }
 
     par->strainPars[OMICRON].relIcuMortality   = 2.0;
-    par->strainPars[OMICRON].symptomaticInfectiousPeriod = 3;
+    par->strainPars[OMICRON].symptomaticInfectiousPeriod = appxNonOmicronInfPd - 1;
     par->strainPars[OMICRON].relSymptomOnset = 0.5;     // roughly based on MMWR Early Release Vol. 70 12/28/2021
 //    par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.5;
 //    par->strainPars[OMICRON].relPathogenicity  = par->strainPars[ALPHA].relPathogenicity;
@@ -624,7 +624,7 @@ vector<double> tally_counts(const Parameters* par, Community* community, int dis
     for (size_t w = 0; w < num_weeks; ++w) {
         metrics[2 * num_weeks + w] /= Rt_incidence_tally[w] > 0 ? Rt_incidence_tally[w] : 1.0;
     }
-
+metrics.resize(300);
     return metrics;
 }
 
@@ -707,7 +707,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     define_strain_parameters(par, omicron_scenario);
 
     vector<string> mutant_intro_dates = {};
-    if (mutation) { mutant_intro_dates = {"2021-02-01", "2021-05-27", "2021-11-22"}; }
+    if (mutation) { mutant_intro_dates = {"2021-02-01", "2021-05-27", "2021-11-26"}; }
 
     Community* community = build_community(par);
 

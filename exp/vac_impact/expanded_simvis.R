@@ -28,7 +28,7 @@ ed = read.csv("rcasedeath-florida.csv"); per10k = 1e4/pop_florida
 ed$date = as.Date(ed$Date)
 
 cdcFull = read.csv("Rates_of_COVID-19_Cases_or_Deaths_by_Age_Group_and_Vaccination_Status.csv", stringsAsFactors=F)
-cdc = cdcFull[cdcFull$Age.group == "all_ages_adj" & cdcFull$Vaccine.product == "all_types",]
+cdc = cdcFull[cdcFull$Age.group == "all_ages_adj" & cdcFull$Vaccine.product == "all_types"  & cdcFull$outcome == "case",]
 cdc$date = as.Date("2020-12-27") + (cdc$MMWR.week*7)
 
 hhsHosp = read.csv("COVID-19_Reported_Patient_Impact_and_Hospital_Capacity_by_State_Timeseries.csv", stringsAsFactors=F, header=T)
