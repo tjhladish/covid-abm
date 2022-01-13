@@ -105,7 +105,7 @@ Infection& Person::initializeNewInfection(int time, size_t incubation_period, Lo
     infection.infectedBy      = source;
     infection.strain          = source ? source->getStrain() : WILDTYPE;
     infection.infectiousBegin = time + _par->infectiousness_onset(incubation_period);
-    infection.infectiousEnd   = time + incubation_period + SYMPTOMATIC_INFECTIOUS_PERIOD; // person may not actually be symptomatic!
+    infection.infectiousEnd   = time + incubation_period + _par->strainPars[infection.strain].symptomaticInfectiousPeriod; // person may not actually be symptomatic!
     return infection;
 }
 
@@ -237,12 +237,12 @@ Infection* Person::infect(Community* community, Person* source, const Date* date
     //const double remaining_efficacy = remainingEfficacy(time);  // due to vaccination; needs to be called before initializing new infection (still true?)
 
     // Create a new infection record
-    const size_t incubation_period = _par->symptom_onset(); // may not be symptomatic, but this is used to determine infectiousness onset
+    const size_t incubation_period = _par->symptom_onset(strain); // may not be symptomatic, but this is used to determine infectiousness onset
     Infection& infection = initializeNewInfection(time, incubation_period, sourceloc, source);
     community->tallyOutcome(ASYMPTOMATIC);
     if (not source) { infection.strain = strain; }
 
-    // current assumption is that only VES wanes, other types of efficacy do not
+    // current assumption is that only VES/IES wanes, other types of efficacy do not
     const size_t dose = vaccineHistory.size() - 1;
     const double effective_VEP = isVaccinated() ? _par->VEP_at(dose, strain) : 0.0;        // reduced pathogenicity due to vaccine
     const double effective_VEH = isVaccinated() ? _par->VEH_at(dose, strain) : 0.0;        // reduced severity (hospitalization) due to vaccine
@@ -250,26 +250,25 @@ Infection* Person::infect(Community* community, Person* source, const Date* date
     const double effective_VEI = isVaccinated() ? _par->VEI_at(dose, strain) : 0.0;        // reduced infectiousness
 
     double symptomatic_probability     = _par->pathogenicityByAge[age] * _par->strainPars[strain].relPathogenicity;
-    if (_par->csmhScenario == CSMH_A or _par->csmhScenario == CSMH_B) {
-        symptomatic_probability           *= getNumNaturalInfections() > 1 ? (strain == OMICRON ? (1.0 - 0.85) : (1.0 - 0.70)) : 1.0; // need to adjust for alt scenario
-    } else {
-        symptomatic_probability           *= getNumNaturalInfections() > 1 ? (1.0 - 0.70) : 1.0; // need to adjust for alt scenario
-    }
-    symptomatic_probability           *= isVaccinated() ? (1.0 - effective_VEP) : 1.0;
+    symptomatic_probability           *= getNumNaturalInfections() > 1 ? (1.0 - _par->IEP) : 1.0;
+    symptomatic_probability           *= 1.0 - effective_VEP;
 
-    double severe_given_case           = _par->probSeriousOutcome.at(SEVERE)[comorbidity][age] * (1.0 - effective_VEH);
-    //severe_given_case                 *= getNumNaturalInfections() > 1 ? (1.0 - 0.7) : 1.0;
-    severe_given_case                 *= not isVaccinated() ? _par->strainPars[strain].relSeverity : 1.0;
+    double severe_given_case           = _par->probSeriousOutcome.at(SEVERE)[comorbidity][age] * _par->strainPars[strain].relSeverity;
+    severe_given_case                 *= getNumNaturalInfections() > 1 ? (1.0 - _par->IEH) : 1.0;
+    severe_given_case                 *= 1.0 - effective_VEH;
 
-    double critical_given_severe       = _par->probSeriousOutcome.at(CRITICAL)[comorbidity][age];
-    if (_par->csmhScenario == CSMH_A or _par->csmhScenario == CSMH_B) {
-        critical_given_severe             *= getNumNaturalInfections() > 1 ? (strain == OMICRON ? (1.0 - 0.8333333) : (1.0 - 0.5)) : 1.0; // need to solve for .5, based on desired protection against death
-    } else {
-        critical_given_severe             *= getNumNaturalInfections() > 1 ? (1.0 - 0.5) : 1.0; // need to solve for .5, based on desired protection against death
-    }
-    double icuMortality                = _par->icuMortality(comorbidity, age, infection.icuBegin) * (1.0 - effective_VEF);
-    icuMortality                      *= _par->strainPars[strain].relIcuMortality;
-    infection.relInfectiousness       *= _par->strainPars[strain].relInfectiousness * (1.0 - effective_VEI);
+    const double critical_given_severe = _par->probSeriousOutcome.at(CRITICAL)[comorbidity][age];
+
+    double mortalityCoef               = _par->strainPars[strain].relMortality;
+    mortalityCoef                     *= getNumNaturalInfections() > 1 ? (1.0 - _par->IEF) : 1.0;
+    mortalityCoef                     *= 1.0 - effective_VEF;
+
+    const double icuMortality          = _par->icuMortality(comorbidity, age, infection.icuBegin) * _par->strainPars[strain].relIcuMortality * mortalityCoef;
+    const double nonIcuMotality        = NON_ICU_CRITICAL_MORTALITY * mortalityCoef;
+
+    infection.relInfectiousness       *= _par->strainPars[strain].relInfectiousness;
+    infection.relInfectiousness       *= getNumNaturalInfections() > 1 ? (1.0 - _par->IEI) : 1.0;
+    infection.relInfectiousness       *= 1.0 - effective_VEI;
 
     const double highly_infectious_threshold = 8.04; // 80th %ile for overall SARS-CoV-2 from doi: 10.7554/eLife.65774, "Fig 4-Fig Sup 3"
 
@@ -328,7 +327,7 @@ Infection* Person::infect(Community* community, Person* source, const Date* date
                         processDeath(community, infection, infection.criticalBegin + _par->sampleIcuTimeToDeath());
                     }
                 } else {
-                    death = gsl_rng_uniform(RNG) < NON_ICU_CRITICAL_MORTALITY * (1.0 - effective_VEF);
+                    death = gsl_rng_uniform(RNG) < nonIcuMotality;
                     if (death) {
                         // non-icu death, happens when critical symptoms begin, as this person is not receiving care
                         processDeath(community, infection, infection.criticalBegin + _par->sampleCommunityTimeToDeath());
@@ -436,7 +435,7 @@ bool Person::isCrossProtected(int time, StrainType strain) const { // assumes bi
         if (not immune) {
             // maybe there's longer term, strain-specific immunity
             for (Infection* inf: infectionHistory) {
-                if (inf->getStrain() == strain and (gsl_rng_uniform(RNG) < 0.85)) { // CABP: https://www.sciencedirect.com/science/article/pii/S0140673621006759
+                if (inf->getStrain() == strain and (time_since_last_infection < 60 or gsl_rng_uniform(RNG) < 0.85)) { // CABP: https://www.sciencedirect.com/science/article/pii/S0140673621006759
                     immune = true;
                     break;
                 }

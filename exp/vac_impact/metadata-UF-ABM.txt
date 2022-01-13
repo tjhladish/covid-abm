@@ -58,7 +58,8 @@ vaccine_hesitancy: "We implicitly model vaccine hesitancy based on waning vaccin
 vaccine_immunity_duration: >
   "Vaccine protection is assumed to last indefinitely but is leaky and varies depending by strain."
 natural_immunity_duration: >
-  "Immunity from natural infections works the same way as vaccine immunity in our simulation, although baseline efficacy (before strain is taken into account) is highly variable between individuals."
+  "Immunity from natural infections works the same way as vaccine immunity in our simulation, although baseline efficacy
+  (before strain is taken into account) is highly variable between individuals."
 case_fatality_rate: >
   "0.0024"
 infection_fatality_rate: >
@@ -70,10 +71,14 @@ asymptomatics: >
 age_groups: >
   "Individuals in the model range between 0 and 95 years old, with the distribution determined from the most recent US Census data for Florida."
 importations: >
-  "At the beginning of the simulation (February 2020), individuals are exposed with probability 4.0e-4.  During each simulated day, individuals are exposed with probability 1.0e-4, wih viral strains changing over time."
+  "At the beginning of the simulation (February 2020), individuals are exposed with probability 4.0e-4.  During each simulated
+  day, individuals are exposed with probability 1.0e-4, wih viral strains changing over time."
 confidence_interval_method: >
-  "Confidence intervals show dynamic uncertainty during the projected period, by re-seeding the random number generator to produce variable future trajectories."
+  "Confidence intervals show dynamic uncertainty during the projected period, by re-seeding the random number generator to
+  produce variable future trajectories."
 calibration: >
-  "Parameter values are taken from the scientific literature and manually adjusted when necessary in order to reproduce weekly reported cases, hospitalizations, deaths, breakthrough infections, and prevalence of specific variants of concern."
+  "Parameter values are taken from the scientific literature and manually adjusted when necessary in order to reproduce weekly
+  reported cases, hospitalizations, deaths, breakthrough infections, and prevalence of specific variants of concern."
 spatial_structure: >
-  "Spatial structure in the model is based on Marion County, FL, with sampled locations for households (based on density data), and exact locations for workplaces, schools, hospitals, and long term care facilities."
+  "Spatial structure in the model is based on Marion County, FL, with sampled locations for households (based on density data),
+  and exact locations for workplaces, schools, hospitals, and long term care facilities."
