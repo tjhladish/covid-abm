@@ -14,6 +14,9 @@ Initial distribution of susceptibility is constant across all replicates up unti
 We explicitly model all previous waves of the pandemic, and a vaccine-roll out based on what has occurred in Florida (i.e., health care workers first, followed age-eligibility changes as they occurred in the state).
 
 ## Transmillibily
+The transmissibiliy advantage for Omicron is modeled as relative to the assumed transmissibility of delta.
+In our 'high transmission advantage' scenario, Omicron is assumed to have a relative infectiousness of XX times the infectiousness of Delta.
+In our 'low transmission advantage' scenario, Omicron is assumed to have a relative infectiousness of XX times the infectiousness of Delta.
 
 ## Generation time
 Our model assumes that the wildtype virus and non-Omicron mutants have average latent and incubation periods of XX and XX days (respectively).
@@ -47,9 +50,9 @@ Infections become detected with a probability dependent on the severity of sympt
 The chance of detection at each state (asymptomatic, mild, severe, critical, or dead) is represented as a probability of detection at that state if not detected at previous states.
 Below these probabilities are listed for given time points in the simulation (the model extrapolates between these points). 
 
-| Date       | Asymptomatic | Mild  | Severe | Critical | Dead     |
-| :---:      | :---:        | :---: | :---:  | :---:    | :---:    |
-| 2020-02-05 | 0.0          | 0.05  | 0.7    | 0.1      | 0.220273 |
-| 2020-06-01 | 0.02         | 0.5   | 0.1    | 0.1      | 0.496095 |
-| 2020-10-01 | 0.1          | 0.9   | 0.9    | 0.0      | 1.0      |
-| 2021-11-01 | 0.02         | 0.9   | 0.9    | 0.0      | 1.0      |
+| Date       | Asymptomatic | Mild  | Severe | Critical | Dead  |
+| :---:      | :---:        | :---: | :---:  | :---:    | :---: |
+| 2020-02-05 | 0.0          | 0.05  | 0.7    | 0.1      | 0.2   |
+| 2020-06-01 | 0.02         | 0.5   | 0.1    | 0.1      | 0.5   |
+| 2020-10-01 | 0.1          | 0.9   | 0.9    | 0.0      | 1.0   |
+| 2021-11-01 | 0.02         | 0.9   | 0.9    | 0.0      | 1.0   |
