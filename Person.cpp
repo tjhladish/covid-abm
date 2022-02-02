@@ -444,7 +444,10 @@ bool Person::isCrossProtected(int time, StrainType strain) const { // assumes bi
         if (not immune) {
             // maybe there's longer term, strain-specific immunity
             for (Infection* inf: infectionHistory) {
-                if (inf->getStrain() == strain and (time_since_last_infection < 60 or gsl_rng_uniform(RNG) < 0.85)) { // CABP: https://www.sciencedirect.com/science/article/pii/S0140673621006759
+                const int strain_sp_immune_duration     = 60;
+                const double strain_sp_immune_leakiness = 0.85;
+                if (inf->getStrain() == strain and
+                    (time_since_last_infection < strain_sp_immune_duration or gsl_rng_uniform(RNG) < strain_sp_immune_leakiness)) { // CABP: https://www.sciencedirect.com/science/article/pii/S0140673621006759
                     immune = true;
                     break;
                 }
