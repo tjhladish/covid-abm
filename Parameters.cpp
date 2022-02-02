@@ -18,12 +18,12 @@ void Parameters::define_defaults() {
     serial = 0;
     randomseed = 5489;
     runLength = 0;
-    household_transmissibility = 0.15;
-    social_transmissibility = 0.15;
-    workplace_transmissibility = 0.15;
-    school_transmissibility = 0.15;
-    hospital_transmissibility = 0.015;
-    nursinghome_transmissibility = 0.3;
+    household_transmission_haz_mult = 0.15;
+    social_transmission_haz_mult = 0.15;
+    workplace_transmission_haz_mult = 0.15;
+    school_transmission_haz_mult = 0.15;
+    hospital_transmission_haz_mult = 0.015;
+    nursinghome_transmission_haz_mult = 0.3;
     VES = {{WILDTYPE, {0.7}}};
     VES_NAIVE = {{WILDTYPE, {0.0}}};
     VEP = {{WILDTYPE, {0.0}}};
@@ -51,9 +51,9 @@ void Parameters::define_defaults() {
     peopleOutputFilename = "";
     yearlyPeopleOutputFilename = "";
     dailyOutputFilename = "";
-    annualIntroductionsFilename = "";                   // time series of some external factor determining introduction rate
-    annualIntroductionsCoef = 1;                        // multiplier to rescale external introductions to something sensible
-    annualIntroductions = {1.0};
+    //annualIntroductionsFilename = "";                   // time series of some external factor determining introduction rate
+    //annualIntroductionsCoef = 1;                        // multiplier to rescale external introductions to something sensible
+    //annualIntroductions = {1.0};
     //daysImmune = 365;
     //probFirstDetection = {0.0, 0.1, 0.6, 0.3, 0.1};     // prob of detection if not detected earlier {asymptomatic, mild, severe, critical, deaths}
     //numDailyExposed.push_back(0.0);                     // default: no introductions
@@ -279,28 +279,28 @@ double Parameters::timedInterventionEffect(TimedIntervention ti, size_t day) con
 }
 
 
-void Parameters::loadAnnualIntroductions(string annualIntrosFilename) {
-    ifstream iss(annualIntrosFilename.c_str());
-    if (!iss) {
-        cerr << "ERROR: " << annualIntrosFilename << " not found." << endl;
-        exit(114);
-    }
-    annualIntroductions.clear();
-
-    char buffer[500];
-    double intros;
-    istringstream line(buffer);
-
-    while (iss) {
-        iss.getline(buffer,500);
-        line.clear();
-        line.str(buffer);
-        if (line >> intros) {
-            annualIntroductions.push_back(intros);
-        }
-    }
-
-    iss.close();
-    return;
-}
+//void Parameters::loadAnnualIntroductions(string annualIntrosFilename) {
+//    ifstream iss(annualIntrosFilename.c_str());
+//    if (!iss) {
+//        cerr << "ERROR: " << annualIntrosFilename << " not found." << endl;
+//        exit(114);
+//    }
+//    annualIntroductions.clear();
+//
+//    char buffer[500];
+//    double intros;
+//    istringstream line(buffer);
+//
+//    while (iss) {
+//        iss.getline(buffer,500);
+//        line.clear();
+//        line.str(buffer);
+//        if (line >> intros) {
+//            annualIntroductions.push_back(intros);
+//        }
+//    }
+//
+//    iss.close();
+//    return;
+//}
 

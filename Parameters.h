@@ -179,32 +179,6 @@ struct GammaPars {
     double b; // scale
 };
 
-class StrainPars {
-  public:
-    StrainPars() :
-        type(WILDTYPE),
-        relInfectiousness(1.0),
-        relPathogenicity(1.0),
-        relSeverity(1.0),
-        relCriticality(1.0),
-        relMortality(1.0),
-        relIcuMortality(1.0),
-        immuneEscapeProb(0.0),
-        symptomaticInfectiousPeriod(7),
-        relSymptomOnset(1.0) {}
-    StrainPars(StrainType t) : StrainPars() { type = t; }
-    StrainType type;
-    double relInfectiousness;
-    double relPathogenicity;
-    double relSeverity;
-    double relCriticality;
-    double relMortality;
-    double relIcuMortality;
-    double immuneEscapeProb;
-    int    symptomaticInfectiousPeriod;
-    double relSymptomOnset;
-};
-
 class ReportingLagModel {
   public:
     ReportingLagModel() {};
@@ -293,20 +267,20 @@ static const float CRITICAL_TO_ICU_IF_HOSP = 1.0;             // probability alr
 static const float CRITICAL_TO_ICU_IF_NOT_HOSP = 0.5;         // probability non-hospitalized severe patients go to ICU when critical (if ICU available)
 
 // symptom onset gamma parameters: https://elifesciences.org/articles/57149
-static const float SYMPTOM_ONSET_MEAN = 4.91;
-static const float SYMPTOM_ONSET_GAMMA_SHAPE = 3.05;          // shape parameter for sampling incubation period
-                                                              // scale parameter for sampling incubation period
-static const float SYMPTOM_ONSET_GAMMA_SCALE = SYMPTOM_ONSET_MEAN/SYMPTOM_ONSET_GAMMA_SHAPE;
+static const float WILDTYPE_SYMPTOM_ONSET_MEAN = 4.91;
+static const float WILDTYPE_SYMPTOM_ONSET_GAMMA_SHAPE = 3.05;                                                               // shape parameter for sampling incubation period
+static const float WILDTYPE_SYMPTOM_ONSET_GAMMA_SCALE = WILDTYPE_SYMPTOM_ONSET_MEAN/WILDTYPE_SYMPTOM_ONSET_GAMMA_SHAPE;     // scale parameter for sampling incubation period
 
 // number of days symptoms remain for people who do not become severe
 // fit to data from https://doi.org/10.1111/joim.13089
-static const float SYMPTOM_DURATION_MILD_GAMMA_SHAPE = 4.070483;
-static const float SYMPTOM_DURATION_MILD_GAMMA_SCALE = 2.825217;
+static const float WILDTYPE_SYMPTOM_DURATION_MILD_GAMMA_SHAPE = 4.070483;
+static const float WILDTYPE_SYMPTOM_DURATION_MILD_GAMMA_SCALE = 2.825217;
 
 // expected fraction of incubation period spent non-infectious, used to sample from binomial
 // https://www.ams.edu.sg/view-pdf.aspx?file=media%5c5556_fi_331.pdf&ofile=Period+of+Infectivity+Position+Statement+(final)+23-5-20+(logos).pdf
 // (↑↑↑ ref for 2.3 day asymptomatic transmission mean)
-static const float INFECTIOUSNESS_ONSET_FRACTION = 1.0 - (2.3/SYMPTOM_ONSET_MEAN);
+static const float ASYMPTOMATIC_TRANSMISSION_MEAN = 2.3;
+static const float INFECTIOUSNESS_ONSET_FRACTION  = 1.0 - (ASYMPTOMATIC_TRANSMISSION_MEAN/WILDTYPE_SYMPTOM_ONSET_MEAN);
 
 // https://www.ams.edu.sg/view-pdf.aspx?file=media%5c5556_fi_331.pdf&ofile=Period+of+Infectivity+Position+Statement+(final)+23-5-20+(logos).pdf
 static const int SYMPTOMATIC_INFECTIOUS_PERIOD = 7;           // independent of disease outcome
@@ -380,6 +354,33 @@ struct DynamicParameter {
 };
 
 
+class StrainPars {
+  public:
+    StrainPars() :
+        type(WILDTYPE),
+        relInfectiousness(1.0),
+        relPathogenicity(1.0),
+        relSeverity(1.0),
+        relCriticality(1.0),
+        relMortality(1.0),
+        relIcuMortality(1.0),
+        immuneEscapeProb(0.0),
+        symptomaticInfectiousPeriod(7),
+        relSymptomOnset(1.0) {}
+    StrainPars(StrainType t) : StrainPars() { type = t; }
+    StrainType type;
+    double relInfectiousness;
+    double relPathogenicity;
+    double relSeverity;
+    double relCriticality;
+    double relMortality;
+    double relIcuMortality;
+    double immuneEscapeProb;
+    int    symptomaticInfectiousPeriod;
+    double relSymptomOnset;
+};
+
+
 /*struct CatchupVaccinationEvent {
     CatchupVaccinationEvent(){};
     CatchupVaccinationEvent(size_t cs, size_t cd, size_t a, double c): campaignStart(cs), campaignDuration(cd), age(a), coverage(c) {};
@@ -423,9 +424,9 @@ public:
     int sampleIcuTimeToDeath() const {
     // parameterization based on what you need to produce findings of median = 7, IQR = [3,11]
     // https://www.thelancet.com/journals/lanres/article/PIIS2213-2600(20)30079-5/fulltext
-        const double daily_prob_of_death = 0.2; // TODO -- should rename these so they aren't misleading
-        const size_t num_days_survive_until_death = 2;
-        return gsl_ran_negative_binomial(RNG, daily_prob_of_death, num_days_survive_until_death);
+        const double icu_time_to_death_p = 0.2;
+        const size_t icu_time_to_death_n = 2;
+        return gsl_ran_negative_binomial(RNG, icu_time_to_death_p, icu_time_to_death_n);
     }
 
     int sampleCommunityTimeToDeath() const {
@@ -437,12 +438,12 @@ public:
 
     unsigned long int randomseed;
     size_t runLength;
-    double household_transmissibility;                      // per-day probability of transmission between a co-habitating dyad
-    double social_transmissibility;                         // per-day probability of transmission, scaled by the fraction of infectious social contacts
-    double workplace_transmissibility;                      // per-day probability of transmission, scaled by the fraction of infectious co-workers
-    double school_transmissibility;                         // per-day probability of transmission, scaled by the fraction of infectious students/staff
-    double hospital_transmissibility;                       // per-day probability of transmission, scaled by the fraction of infectious staff/patients
-    double nursinghome_transmissibility;                    // per-day probability of transmission, scaled by the fraction of infectious staff/residents
+    double household_transmission_haz_mult;                      // per-day hazard multiplier of transmission between a co-habitating dyad
+    double social_transmission_haz_mult;                         // per-day hazard multiplier of transmission, scaled by the fraction of infectious social contacts
+    double workplace_transmission_haz_mult;                      // per-day hazard multiplier of transmission, scaled by the fraction of infectious co-workers
+    double school_transmission_haz_mult;                         // per-day hazard multiplier of transmission, scaled by the fraction of infectious students/staff
+    double hospital_transmission_haz_mult;                       // per-day hazard multiplier of transmission, scaled by the fraction of infectious staff/patients
+    double nursinghome_transmission_haz_mult;                    // per-day hazard multiplier of transmission, scaled by the fraction of infectious staff/residents
     std::vector<double> seasonality;                        // transmissibility multiplier, index by simulation day
     double seasonality_on (const Date *date) const;
 
@@ -485,7 +486,7 @@ public:
     size_t contactTracingDepth;                             // tracing contacts = 1; tracing contacts-of-contacts = 2; etc...
 
     size_t symptom_onset(StrainType strain = WILDTYPE) const { // aka incubation period
-        double deviate = gsl_ran_gamma(RNG, SYMPTOM_ONSET_GAMMA_SHAPE, strainPars[strain].relSymptomOnset * SYMPTOM_ONSET_GAMMA_SCALE);
+        double deviate = gsl_ran_gamma(RNG, WILDTYPE_SYMPTOM_ONSET_GAMMA_SHAPE, strainPars[strain].relSymptomOnset * WILDTYPE_SYMPTOM_ONSET_GAMMA_SCALE);
         assert(deviate >= 0);
         return 1 + floor(deviate);
     }
@@ -497,7 +498,7 @@ public:
         return 1 + floor(gsl_ran_gamma(RNG, PRE_SEVERE_SYMPTOMATIC_GAMMA_SHAPE, PRE_SEVERE_SYMPTOMATIC_GAMMA_SCALE));
     }
     size_t symptom_duration_mild() const {
-        return 1 + floor(gsl_ran_gamma(RNG, SYMPTOM_DURATION_MILD_GAMMA_SHAPE, SYMPTOM_DURATION_MILD_GAMMA_SCALE));
+        return 1 + floor(gsl_ran_gamma(RNG, WILDTYPE_SYMPTOM_DURATION_MILD_GAMMA_SHAPE, WILDTYPE_SYMPTOM_DURATION_MILD_GAMMA_SCALE));
     }
     size_t severe_only_duration() const { return sampler(SEVERE_ONLY_DURATION_CDF, gsl_rng_uniform(RNG)); }
     size_t critical_duration()    const { return sampler(CRITICAL_DURATION_CDF, gsl_rng_uniform(RNG)); }
@@ -559,9 +560,9 @@ public:
     std::string peopleOutputFilename;
     std::string yearlyPeopleOutputFilename;
     std::string dailyOutputFilename;
-    std::string annualIntroductionsFilename;                // time series of some external factor determining introduction rate
-    std::vector<double> annualIntroductions;
-    double annualIntroductionsCoef;                         // multiplier to rescale external introductions to something sensible
+    //std::string annualIntroductionsFilename;                // time series of some external factor determining introduction rate
+    //std::vector<double> annualIntroductions;
+    //double annualIntroductionsCoef;                         // multiplier to rescale external introductions to something sensible
 
     double sampleStartingNaturalEfficacy(const gsl_rng* RNG) const {
         // neutralization level relative to mean natural immunity following infection, after: https://www.nature.com/articles/s41591-021-01377-8/figures/1

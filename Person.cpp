@@ -273,14 +273,21 @@ Infection* Person::infect(Community* community, Person* source, const Date* date
     infection.relInfectiousness       *= 1.0 - effective_VEI;
 
     const double highly_infectious_threshold = 8.04; // 80th %ile for overall SARS-CoV-2 from doi: 10.7554/eLife.65774, "Fig 4-Fig Sup 3"
+    const double rel_infectiousness_high     = 4.0;
+    const double rel_infectiousness_norm     = 0.25;
+
+    const double asymp_weibull_scale = 6.72;
+    const double asymp_weibull_exp   = 3.33;
+    const double symp_weibull_scale  = 7.40;
+    const double symp_weibull_exp    = 3.81;
 
     // determine disease outcome and timings
     if ( gsl_rng_uniform(RNG) > symptomatic_probability ) {
        // asymptomatic; est mean relInfectiousness = 6.03
-        infection.relInfectiousness *= gsl_ran_weibull(RNG, 6.72, 3.33) > highly_infectious_threshold ? 4.0 : 0.25;
+        infection.relInfectiousness *= gsl_ran_weibull(RNG, asymp_weibull_scale, asymp_weibull_exp) > highly_infectious_threshold ? rel_infectiousness_high : rel_infectiousness_norm;
     } else {
         // symptomatic; est mean relInfectiousness = 6.69
-        infection.relInfectiousness *= gsl_ran_weibull(RNG, 7.40, 3.81) > highly_infectious_threshold ? 4.0 : 0.25;
+        infection.relInfectiousness *= gsl_ran_weibull(RNG, symp_weibull_scale, symp_weibull_exp) > highly_infectious_threshold ? rel_infectiousness_high : rel_infectiousness_norm;
         //const size_t symptom_onset = _par->symptom_onset();
         community->tallyOutcome(MILD);
         infection.symptomBegin = time + incubation_period;
