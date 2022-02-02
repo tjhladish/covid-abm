@@ -124,9 +124,10 @@ void Parameters::define_susceptibility_and_pathogenicity() {
     // https://www.nature.com/articles/s41591-020-0962-9#Sec12
     // now published in Nat Med
     vector<size_t> bin_upper = {9, 19, 29, 39, 49, 59, 69, NUM_AGE_CLASSES-1};
-    vector<float> susceptibilities = {0.33, 0.37, 0.69, 0.81, 0.74, 0.8, 0.89, 0.77};
 //    vector<float> susceptibilities(8, 1.0); // made up values
-    vector<float> pathogenicities = {0.4, 0.25, 0.37, 0.42, 0.51, 0.59, 0.72, 0.76};
+    //                                   9,   19,   29,   39,   49,  59,   69,   120
+    vector<float> susceptibilities = {0.40, 0.38, 0.79, 0.86, 0.80, 0.82, 0.88, 0.74};
+    vector<float> pathogenicities  = {0.29, 0.21, 0.27, 0.33, 0.40, 0.49, 0.63, 0.69};
 
     for (size_t i = 0; i < bin_upper.size(); ++i) {
         const size_t upper_age = bin_upper[i];
