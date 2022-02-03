@@ -330,6 +330,12 @@ void define_strain_parameters(Parameters* par, const size_t omicron_scenario) {
 //  //par->strainPars[OMICRON].relMortality      = 1.0;
 //    par->strainPars[OMICRON].relIcuMortality   = 2.0;
 //    par->strainPars[OMICRON].immuneEscapeProb  = 0.7;
+
+    //                          WILDTYPE, ALPHA, DELTA, OMICRON
+    par->crossProtectionMatrix = {{ true, false, false,   false},    // WILDTYPE
+                                  {false,  true, false,   false},    // ALPHA
+                                  {false, false,  true,   false},    // DELTA
+                                  {false, false, false,    true}};   // OMICRON
 }
 
 

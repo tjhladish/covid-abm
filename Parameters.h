@@ -625,7 +625,8 @@ public:
     double vaccineTargetCoverage;
     int vaccineTargetStartDate;
 
-    vector<StrainPars> strainPars;
+    std::vector<StrainPars> strainPars;
+    std::vector<std::vector<bool>> crossProtectionMatrix;
 
     size_t numSurveilledPeople;
 
