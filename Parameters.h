@@ -132,6 +132,7 @@ enum StrainType{
     ALPHA, //B_1_1_7,
     DELTA, //B_1_617_2,
     OMICRON,
+    OMICRON_BA2,
     NUM_OF_STRAIN_TYPES
 };
 
@@ -143,6 +144,7 @@ inline std::ostream& operator<<(std::ostream& out, const StrainType value){
         PROCESS_VAL(ALPHA);
         PROCESS_VAL(DELTA);
         PROCESS_VAL(OMICRON);
+        PROCESS_VAL(OMICRON_BA2);
         PROCESS_VAL(NUM_OF_STRAIN_TYPES);
     }
 #undef PROCESS_VAL
@@ -618,7 +620,8 @@ public:
     double vaccineTargetCoverage;
     int vaccineTargetStartDate;
 
-    vector<StrainPars> strainPars;
+    std::vector<StrainPars> strainPars;
+    std::vector<std::vector<bool>> crossProtectionMatrix;
 
     size_t numSurveilledPeople;
 

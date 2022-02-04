@@ -255,7 +255,7 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
 }
 
 
-void define_strain_parameters(Parameters* par, const size_t omicron_scenario) {
+void define_strain_parameters(Parameters* par, const size_t /*omicron_ba2_scenario*/) {
     const double x_alpha_1 = 1;//0.529; // calculated using quadratic formula: (VES*VEP)x^2 - (VES+VEP)x + VESP_alpha = 0, where VES and VEP are for wildtype
     const double x_alpha_2 = 1;//0.948;
 
@@ -287,49 +287,40 @@ void define_strain_parameters(Parameters* par, const size_t omicron_scenario) {
     par->strainPars[DELTA].relIcuMortality     = 2.0; // TODO - this is due to icu crowding.  should be represented differently
     par->strainPars[DELTA].immuneEscapeProb    = 0.15;
 
-//    const size_t omicron_scenario = 0;
+//    const size_t omicron_ba2_scenario = 0;
 
     const double appxNonOmicronInfPd     = 9.0;
     const double appxOmicronInfPd        = 6.0;
     const double relInfectiousnessDenom  = (1.0 - pow(1.0 - par->household_transmissibility, appxOmicronInfPd/appxNonOmicronInfPd)) / par->household_transmissibility;
 
-    switch (omicron_scenario) {
-        case 0: // high immune escape, low transmissibility; low severity
-            par->strainPars[OMICRON].immuneEscapeProb  = 0.7;
-            par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.5 / relInfectiousnessDenom;
-            par->strainPars[OMICRON].relPathogenicity  = par->strainPars[ALPHA].relPathogenicity * 0.5;
-            par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.25;
-            break;
-        case 1: // high immune escape, low transmissibility; delta severity
-            par->strainPars[OMICRON].immuneEscapeProb  = 0.7;
-            par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.5 / relInfectiousnessDenom;
-            par->strainPars[OMICRON].relPathogenicity  = par->strainPars[DELTA].relPathogenicity * 0.5;
-            par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.5;
-            break;
-        case 2: // moderate immune escape, high transmissibility; low severity
-            par->strainPars[OMICRON].immuneEscapeProb  = 0.6;
-            par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 2.0 / relInfectiousnessDenom;
-            par->strainPars[OMICRON].relPathogenicity  = par->strainPars[ALPHA].relPathogenicity * 0.5;
-            par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.25;
-            break;
-        case 3: // moderate immune escape, high transmissibility; delta severity
-            par->strainPars[OMICRON].immuneEscapeProb  = 0.5;
-            par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 2.0 / relInfectiousnessDenom;
-            par->strainPars[OMICRON].relPathogenicity  = par->strainPars[DELTA].relPathogenicity * 0.5;
-            par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.5;
-            break;
-    }
-
-    par->strainPars[OMICRON].relIcuMortality   = 2.0;
+    // Omicron BA1 scenario 3: moderate immune escape, high transmissibility; low severity
+    par->strainPars[OMICRON].immuneEscapeProb            = 0.6;
+    par->strainPars[OMICRON].relInfectiousness           = par->strainPars[DELTA].relInfectiousness * 2.0 / relInfectiousnessDenom;
+    par->strainPars[OMICRON].relPathogenicity            = par->strainPars[ALPHA].relPathogenicity * 0.5;
+    par->strainPars[OMICRON].relSeverity                 = par->strainPars[DELTA].relSeverity * 0.25;
+    par->strainPars[OMICRON].relIcuMortality             = 2.0;
     par->strainPars[OMICRON].symptomaticInfectiousPeriod = appxNonOmicronInfPd - 1;
-    par->strainPars[OMICRON].relSymptomOnset = 0.5;     // roughly based on MMWR Early Release Vol. 70 12/28/2021
-//    par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.5;
-//    par->strainPars[OMICRON].relPathogenicity  = par->strainPars[ALPHA].relPathogenicity;
-//    par->strainPars[OMICRON].relSeverity       = 1.1; // only applies if not vaccine protected
-//  //par->strainPars[OMICRON].relCriticality    = 1.0;
-//  //par->strainPars[OMICRON].relMortality      = 1.0;
-//    par->strainPars[OMICRON].relIcuMortality   = 2.0;
-//    par->strainPars[OMICRON].immuneEscapeProb  = 0.7;
+    par->strainPars[OMICRON].relSymptomOnset             = 0.5;     // roughly based on MMWR Early Release Vol. 70 12/28/2021
+    //par->strainPars[OMICRON].relCriticality              = 1.0;
+    //par->strainPars[OMICRON].relMortality                = 1.0;
+
+    // Omicron BA2
+    par->strainPars[OMICRON_BA2].immuneEscapeProb            = par->strainPars[OMICRON].immuneEscapeProb;
+    par->strainPars[OMICRON_BA2].relInfectiousness           = par->strainPars[OMICRON].relInfectiousness * 1.3;
+    par->strainPars[OMICRON_BA2].relPathogenicity            = par->strainPars[OMICRON].relPathogenicity;
+    par->strainPars[OMICRON_BA2].relSeverity                 = par->strainPars[OMICRON].relSeverity;
+    par->strainPars[OMICRON_BA2].relIcuMortality             = par->strainPars[OMICRON].relIcuMortality;
+    par->strainPars[OMICRON_BA2].symptomaticInfectiousPeriod = par->strainPars[OMICRON].symptomaticInfectiousPeriod;
+    par->strainPars[OMICRON_BA2].relSymptomOnset             = par->strainPars[OMICRON].relSymptomOnset;
+    //par->strainPars[OMICRON_BA2].relCriticality              = 1.0;
+    //par->strainPars[OMICRON_BA2].relMortality                = 1.0;
+
+    //                          WILDTYPE, ALPHA, DELTA, OMICRON, OMICRON_BA2
+    par->crossProtectionMatrix = {{ true, false, false,   false,       false},    // WILDTYPE
+                                  {false,  true, false,   false,       false},    // ALPHA
+                                  {false, false,  true,   false,       false},    // DELTA
+                                  {false, false, false,    true,        true},    // OMICRON
+                                  {false, false, false,    true,        true}};   // OMICRON_BA2
 }
 
 
@@ -701,10 +692,10 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     const bool vaccine             = (bool) args[0];
     // const size_t realization    = (size_t) args[1];
     const bool mutation          = (bool) args[2];
-    const size_t omicron_scenario = (size_t) args[3];
+    const size_t omicron_ba2_scenario = (size_t) args[3];
 
     Parameters* par = define_simulator_parameters(args, rng_seed, serial, process_id);
-    define_strain_parameters(par, omicron_scenario);
+    define_strain_parameters(par, omicron_ba2_scenario);
 
     vector<string> mutant_intro_dates = {};
     if (mutation) { mutant_intro_dates = {"2021-02-01", "2021-05-27", "2021-11-26"}; }
