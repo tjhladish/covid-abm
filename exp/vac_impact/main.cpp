@@ -224,8 +224,13 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     const size_t icu_mortality_inflection_sim_day = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-06-15");
     const double icu_mortality_reduction_slope = 0.5;       // 0.5 -> change takes ~2 weeks; 0.1 -> ~2 months
     par->createIcuMortalityReductionModel(max_icu_mortality_reduction, icu_mortality_inflection_sim_day, icu_mortality_reduction_slope);
-    par->icuMortalityFraction = 0.2;                        // to be fit; fraction of all deaths that occur in ICUs;
+    par->icuMortalityFraction = 0.43;                       // fraction of all deaths that occur in ICUs
                                                             // used for interpreting empirical mortality data, *not within simulation*
+                                                            // 0.7229464 = fraction of covid FL deaths that were inpatient (1/2020 through 1/2022)
+                                                            // --> https://www.cdc.gov/nchs/nvss/vsrr/covid_weekly/index.htm#PlaceDeath
+                                                            // ~0.6 = fraction of inpatient deaths in US that were ventilated (proxy for ICU)
+                                                            // --> https://www.cdc.gov/nchs/covid19/nhcs/hospital-mortality-by-week.htm
+
     par->pathogenicityReduction = 0.0;                      // to be fit; fraction of infections missed in pathogenicity studies
                                                             // used for interpreting input data, *not within simulation*
 //    par->susceptibilityCorrection = 1.0;
@@ -336,6 +341,11 @@ void define_strain_parameters(Parameters* par, const size_t omicron_scenario) {
                                   {false,  true, false,   false},    // ALPHA
                                   {false, false,  true,   false},    // DELTA
                                   {false, false, false,    true}};   // OMICRON
+
+    par->crossProtectionMatrix = {{1, 0, 0, 0},    // WILDTYPE
+                                  {0, 1, 0, 0},    // ALPHA
+                                  {0, 0, 1, 0},    // DELTA
+                                  {0, 0, 0, 1}};   // OMICRON
 }
 
 
