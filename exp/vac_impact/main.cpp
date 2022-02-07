@@ -103,7 +103,7 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
 
         const double RF_death_early = 0.8; //0.78; // overall probability of detecting death, at any point
         const double RF_death_late  = 1.0; //0.78; // overall probability of detecting death, at any point
-        
+
         // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
         vector<double> initial_vals    = {0.0, 0.05, 0.7, 0.1};    // Start of sim (Feb 2020) conditional probabilities
         initial_vals.push_back(calculate_conditional_death_reporting_probability(RF_death_early, initial_vals));
@@ -256,26 +256,15 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
 
 
 void define_strain_parameters(Parameters* par, const size_t /*omicron_ba2_scenario*/) {
-    const double x_alpha_1 = 1;//0.529; // calculated using quadratic formula: (VES*VEP)x^2 - (VES+VEP)x + VESP_alpha = 0, where VES and VEP are for wildtype
-    const double x_alpha_2 = 1;//0.948;
-
-    const double x_delta_1 = 1;//0.338;
-    const double x_delta_2 = 1;//0.843;
-
-    par->VES                   = {{WILDTYPE, {0.40, 0.80}},
-                                  {ALPHA, {0.40*x_alpha_1, 0.80*x_alpha_2}},
-                                  {DELTA, {0.40*x_delta_1, 0.80*x_delta_2}},    // efficacy currently is being reduced in Person.cpp
-                                  {OMICRON, {0.40*x_delta_1, 0.80*x_delta_2}}};
+    const vector<double> VES = {0.40, 0.8};    // efficacy for strains may be reduced via immune escape parameter
+    par->VES                   = {{WILDTYPE, VES}, {ALPHA, VES}, {DELTA, VES}, {OMICRON, VES}, {OMICRON_BA2, VES}};
     par->VES_NAIVE             = par->VES;
-    par->VEP                   = {{WILDTYPE, {0.67, 0.75}},
-                                  {ALPHA, {0.67*x_alpha_1, 0.75*x_alpha_2}},
-                                  {DELTA, {0.67*x_delta_1, 0.75*x_delta_2}},
-                                  {OMICRON, {0.67*x_delta_1, 0.75*x_delta_2}}};
-    //par->VEH                   = {{WILDTYPE, {0.9, 1.0}},   {ALPHA, {0.9, 1.0}}, {DELTA, {0.9, 0.93}}, {OMICRON, {0.35, 0.7}}};
-    par->VEH                   = {{WILDTYPE, {0.9, 1.0}},   {ALPHA, {0.9, 1.0}}, {DELTA, {0.9, 0.93}}, {OMICRON, {0.48, 0.96}}};
-    //par->VEI                   = {{WILDTYPE, {0.4, 0.8}},   {ALPHA, {0.4, 0.8}}, {DELTA, {0.4, 0.8}}, {OMICRON, {0.4, 0.8}}};
-    par->VEI                   = {{WILDTYPE, {0.4, 0.8}},   {ALPHA, {0.4, 0.8}}, {DELTA, {0.4, 0.8}}, {OMICRON, {0.2, 0.4}}};
-    par->VEF                   = {{WILDTYPE, {0.0, 0.0}},   {ALPHA, {0.0, 0.0}}, {DELTA, {0.0, 0.0}}, {OMICRON, {0.0, 0.0}}}; // effect likely captured by VEH
+    const vector<double> VEP = {0.67, 0.75};
+    par->VEP                   = {{WILDTYPE, VEP}, {ALPHA, VEP}, {DELTA, VEP}, {OMICRON, VEP}, {OMICRON_BA2, VEP}};
+    par->VEH                   = {{WILDTYPE, {0.9, 1.0}},   {ALPHA, {0.9, 1.0}}, {DELTA, {0.9, 0.93}}, {OMICRON, {0.48, 0.96}}, {OMICRON_BA2, {0.48, 0.96}}};
+    par->VEI                   = {{WILDTYPE, {0.4, 0.8}},   {ALPHA, {0.4, 0.8}}, {DELTA, {0.4, 0.8}}, {OMICRON, {0.2, 0.4}}, {OMICRON_BA2, {0.2, 0.4}}};
+    const vector<double> VEF = {0.0, 0.0};
+    par->VEF                   = {{WILDTYPE, VEF}, {ALPHA, VEF}, {DELTA, VEF}, {OMICRON, VEF}, {OMICRON_BA2, VEF}}; // effect likely captured by VEH
 
     par->strainPars[ALPHA].relInfectiousness   = 1.6;
     par->strainPars[ALPHA].relPathogenicity    = 1.1;
@@ -316,11 +305,11 @@ void define_strain_parameters(Parameters* par, const size_t /*omicron_ba2_scenar
     //par->strainPars[OMICRON_BA2].relMortality                = 1.0;
 
     //                          WILDTYPE, ALPHA, DELTA, OMICRON, OMICRON_BA2
-    par->crossProtectionMatrix = {{ true, false, false,   false,       false},    // WILDTYPE
-                                  {false,  true, false,   false,       false},    // ALPHA
-                                  {false, false,  true,   false,       false},    // DELTA
-                                  {false, false, false,    true,        true},    // OMICRON
-                                  {false, false, false,    true,        true}};   // OMICRON_BA2
+    par->crossProtectionMatrix = {{1, 0, 0, 0, 0},    // WILDTYPE
+                                  {0, 1, 0, 0, 0},    // ALPHA
+                                  {0, 0, 1, 0, 0},    // DELTA
+                                  {0, 0, 0, 1, 1},    // OMICRON
+                                  {0, 0, 0, 1, 1}};   // OMICRON_BA2
 }
 
 
@@ -698,7 +687,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     define_strain_parameters(par, omicron_ba2_scenario);
 
     vector<string> mutant_intro_dates = {};
-    if (mutation) { mutant_intro_dates = {"2021-02-01", "2021-05-27", "2021-11-26"}; }
+    if (mutation) { mutant_intro_dates = {"2021-02-01", "2021-05-27", "2021-11-26", "2022-01-01"}; }
 
     Community* community = build_community(par);
 

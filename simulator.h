@@ -848,8 +848,9 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
     //ledger->plot_log_buffer = {"date,sd,seasonality,vocprev1,vocprev2,cinf,closed,rcase,rdeath,inf,rhosp,Rt"};
 
     Date* date = community->get_date();
-    ledger->strains = {50.0, 0.0, 0.0, 0.0}; // initially all WILDTYPE
-    assert(ledger->strains.size() == NUM_OF_STRAIN_TYPES);
+    ledger->strains = vector<double>(NUM_OF_STRAIN_TYPES, 0.0);
+    assert(ledger->strains.size() > 0);
+    ledger->strains[0] = 50.0; // initially all WILDTYPE
 
     if (par->behavioral_autotuning) {
         // create tuner and initialize first simulation cache
@@ -871,36 +872,26 @@ if (*date == "2021-12-01") { gsl_rng_set(RNG, par->randomseed); }
         //community->tick();
         const size_t sim_day = date->day();
 
+        assert(mutant_intro_dates.size() == NUM_OF_STRAIN_TYPES - 1);
         if ( mutant_intro_dates.size() ) {
             if (*date >= mutant_intro_dates[0] and *date < mutant_intro_dates[1]) {
                 //const int time_since_intro = date->day() - Date::to_sim_day(par->julian_start_day, par->julian_start_year, mutant_intro_dates[0]);
-                if (ledger->strains[WILDTYPE] > 1) {
-                    ledger->strains[WILDTYPE]--;
-                    ledger->strains[ALPHA]++;
-                }
+                if (ledger->strains[WILDTYPE] > 1)  { ledger->strains[WILDTYPE]--;  ledger->strains[ALPHA]++; }
             } else if (*date >= mutant_intro_dates[1] and *date < mutant_intro_dates[2]) {
-                if (ledger->strains[WILDTYPE] > 1) {
-                    ledger->strains[WILDTYPE]--;
-                    ledger->strains[DELTA]++;
-                }
-                if (ledger->strains[ALPHA] > 1) {
-                    ledger->strains[ALPHA]--;
-                    ledger->strains[DELTA]++;
-                }
-            } else if (*date >= mutant_intro_dates[2]) {
+                if (ledger->strains[WILDTYPE] > 1)  { ledger->strains[WILDTYPE]--;  ledger->strains[DELTA]++; }
+                if (ledger->strains[ALPHA] > 1)     { ledger->strains[ALPHA]--;     ledger->strains[DELTA]++; }
+            } else if (*date >= mutant_intro_dates[2] and *date < mutant_intro_dates[3]) {
                 for (int i = 0; i < 5; ++i) { // faster take-over of omicron
-                    if (ledger->strains[WILDTYPE] > 1) {
-                        ledger->strains[WILDTYPE]--;
-                        ledger->strains[OMICRON]++;
-                    }
-                    if (ledger->strains[ALPHA] > 1) {
-                        ledger->strains[ALPHA]--;
-                        ledger->strains[OMICRON]++;
-                    }
-                    if (ledger->strains[DELTA] > 1) {
-                        ledger->strains[DELTA]--;
-                        ledger->strains[OMICRON]++;
-                    }
+                    if (ledger->strains[WILDTYPE] > 1)  { ledger->strains[WILDTYPE]--;  ledger->strains[OMICRON]++; }
+                    if (ledger->strains[ALPHA] > 1)     { ledger->strains[ALPHA]--;     ledger->strains[OMICRON]++; }
+                    if (ledger->strains[DELTA] > 1)     { ledger->strains[DELTA]--;     ledger->strains[OMICRON]++; }
+                }
+            } else if (*date >= mutant_intro_dates[3]) {
+                for (int i = 0; i < 5; ++i) { // omicron BA.2
+                    if (ledger->strains[WILDTYPE] > 1)  { ledger->strains[WILDTYPE]--;  ledger->strains[OMICRON_BA2]++; }
+                    if (ledger->strains[ALPHA] > 1)     { ledger->strains[ALPHA]--;     ledger->strains[OMICRON_BA2]++; }
+                    if (ledger->strains[DELTA] > 1)     { ledger->strains[DELTA]--;     ledger->strains[OMICRON_BA2]++; }
+                    if (ledger->strains[OMICRON] > 1)   { ledger->strains[OMICRON]--;   ledger->strains[OMICRON_BA2]++; }
                 }
             }
         }
