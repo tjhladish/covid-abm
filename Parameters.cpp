@@ -155,7 +155,7 @@ void Parameters::define_susceptibility_and_pathogenicity() {
     vector<float> severe_com_neg   = {0.03689, 0.02279, 0.02688, 0.04445, 0.06441, 0.09570, 0.15355, 0.27867, 0.30095};
     vector<float> severe_com_pos   = {0.22294, 0.14884, 0.17505, 0.24209, 0.29597, 0.36328, 0.49908, 0.64716, 0.62338};
 
-    // icu admissions (out of entire cohort, not just those hospitalized)
+    // icu admissions (out of entire cohort, not just those hospitalized) -- this comment seems contradictory with comment on 153
     vector<float> critical_com_neg = {0.00703, 0.00337, 0.00302, 0.00725, 0.01267, 0.02053, 0.03675, 0.07110, 0.05189};
     vector<float> critical_com_pos = {0.05008, 0.03468, 0.03369, 0.05298, 0.06374, 0.08276, 0.10870, 0.11933, 0.07465};
 
@@ -178,7 +178,7 @@ void Parameters::define_susceptibility_and_pathogenicity() {
     }
 
     // numbers for people over age 59 suggest a majority die outside of ICU
-    // the model separately handles deaths outside of ICU (with mortality = 1.0)
+    // the model separately handles deaths outside of ICU (with higher mortality)
     bin_upper = {9, 19, 29, 39, 49, NUM_AGE_CLASSES-1};
     for (size_t i = 0; i < bin_upper.size(); ++i) {
         const size_t upper_age = bin_upper[i];
