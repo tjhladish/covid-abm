@@ -39,7 +39,7 @@ for (file in list.files(data_dir, full.names=T)) {
   if (grepl(paste0("^", data_dir, "/plot_log(\\d+).csv"), file)) {
     tmp = read.table(file=file, sep=',', stringsAsFactors=F, header=T)
     tmp_serial = as.integer(sub(paste0("^", data_dir, "/plot_log(\\d+).csv"), '\\1', file))
-    tmp = tmp[(tmp$date >= "2021-12-19" & tmp$date <= "2022-05-12"),]
+    tmp = tmp[(tmp$date >= "2021-12-19" & tmp$date <= "2022-04-02"),]
     
     cut_tmp = data.frame(inc_rcase = tmp$rcase, inc_rdeath = tmp$rdeath, inc_hosp = tmp$hospInc)
     cut_tmp$epiweek_end_date = ceiling_date(ymd(tmp$date), 'week') - 1
