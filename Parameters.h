@@ -365,7 +365,7 @@ class StrainPars {
         relMortality(1.0),
         relIcuMortality(1.0),
         immuneEscapeProb(0.0),
-        symptomaticInfectiousPeriod(7),
+        symptomaticInfectiousPeriod(SYMPTOMATIC_INFECTIOUS_PERIOD),
         relSymptomOnset(1.0) {}
     StrainPars(StrainType t) : StrainPars() { type = t; }
     StrainType type;
