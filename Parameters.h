@@ -16,7 +16,34 @@
 #include <climits>
 #include "Utility.h"
 
+namespace covid {
+    namespace standard {
+        using std::cout;
+        using std::cerr;
+        using std::endl;
+        using std::string;
+        using std::vector;
+        using std::set;
+        using std::map;
+        using std::pair;
+        using std::make_pair;
+        using std::ifstream;
+        using std::istringstream;
+        using std::ofstream;
+        using std::ostringstream;
+        using std::strcmp;
+        using std::strtol;
+        using std::strtod;
+        using std::bitset;
+    }
+}
+
 class Date;
+
+extern gsl_rng* RNG;// = gsl_rng_alloc (gsl_rng_taus2);
+// use a second RNG for stochastic reporting; this allows for more powerful analysis of
+// the effects of different reporting models
+extern gsl_rng* REPORTING_RNG; // = gsl_rng_alloc (gsl_rng_mt19937);
 
 enum TimePeriod {
     HOME,
@@ -171,66 +198,6 @@ enum CsmhScenario {
     NUM_OF_CSMH_SCENARIOS
 };
 
-struct GammaPars {
-    GammaPars() {};
-    GammaPars(double _a, double _b) : a(_a), b(_b) {};
-    // gamma distribution parameterization used by GSL
-    double a; // shape
-    double b; // scale
-};
-
-class ReportingLagModel {
-  public:
-    ReportingLagModel() {};
-    ReportingLagModel(std::string filename) { read_csv(filename); };
-    void insert_lag (std::string ymd, double a_shape, double b_scale) {
-        dated_lags[ymd] = GammaPars(a_shape, b_scale);
-    }
-    std::string earliest_date() const { return dated_lags.begin()->first; }
-    std::string latest_date()   const { return dated_lags.rbegin()->first; }
-
-    void read_csv(std::string filename) {
-        std::vector<std::vector<std::string>> reporting_lag_data = covid::util::read_2D_vector_file(filename, ',');
-        bool header = true;
-        for (size_t i = header; i < reporting_lag_data.size(); ++i) {
-            vector<string> row = reporting_lag_data[i];
-            assert(row.size() == 5);
-            string date    = row[0];
-            double a_shape = stod(row[3]);
-            double b_scale = stod(row[4]);
-            insert_lag(date, a_shape, b_scale);
-        }
-
-    }
-
-    size_t sample(const gsl_rng* REPORTING_RNG, std::string ymd) const {
-        if (ymd < earliest_date()) {
-            return INT_MAX;
-        } else if (ymd > latest_date()) {
-            GammaPars gp = dated_lags.rbegin()->second;
-            return (size_t) round(gsl_ran_gamma(REPORTING_RNG, gp.a, gp.b));
-        } else if (dated_lags.count(ymd) > 0) {
-            GammaPars gp = dated_lags.at(ymd);
-            return (size_t) round(gsl_ran_gamma(REPORTING_RNG, gp.a, gp.b));
-        } else {
-            cerr << "ERROR: The date provided to ReportingLagModel::sample() (" << ymd
-                 << ") is in the range of known dates, but lag parameters are not known for that date.\n";
-            exit(-1);
-        }
-    }
-
-    size_t sample(const gsl_rng* REPORTING_RNG, const Date* date) const;
-
-  private:
-    std::map<std::string, GammaPars> dated_lags;
-};
-
-
-extern gsl_rng* RNG;// = gsl_rng_alloc (gsl_rng_taus2);
-// use a second RNG for stochastic reporting; this allows for more powerful analysis of
-// the effects of different reporting models
-extern gsl_rng* REPORTING_RNG; // = gsl_rng_alloc (gsl_rng_mt19937);
-
 /*
 // transmission-related probabilities
 susceptibility -- use fuction wrapper for generality so we can potentially use age in the future, but just a single value in par for now
@@ -322,29 +289,6 @@ static const float NON_ICU_CRITICAL_MORTALITY = 0.9;          // probability of 
 static const int NUM_AGE_CLASSES = 121;                       // maximum age+1 for a person
 
 
-namespace covid {
-    namespace standard {
-        using std::cout;
-        using std::cerr;
-        using std::endl;
-        using std::string;
-        using std::vector;
-        using std::set;
-        using std::map;
-        using std::pair;
-        using std::make_pair;
-        using std::ifstream;
-        using std::istringstream;
-        using std::ofstream;
-        using std::ostringstream;
-        using std::strcmp;
-        using std::strtol;
-        using std::strtod;
-        using std::bitset;
-    }
-}
-
-
 struct DynamicParameter {
     DynamicParameter(){};
     DynamicParameter(int s, int d, double v) : start(s), duration(d), value(v) {};
@@ -378,6 +322,62 @@ class StrainPars {
     double immuneEscapeProb;
     int    symptomaticInfectiousPeriod;
     double relSymptomOnset;
+};
+
+
+struct GammaPars {
+    GammaPars() {};
+    GammaPars(double _a, double _b) : a(_a), b(_b) {};
+    // gamma distribution parameterization used by GSL
+    double a; // shape
+    double b; // scale
+};
+
+
+class ReportingLagModel {
+  public:
+    ReportingLagModel() {};
+    ReportingLagModel(std::string filename) { read_csv(filename); };
+    void insert_lag (std::string ymd, double a_shape, double b_scale) {
+        dated_lags[ymd] = GammaPars(a_shape, b_scale);
+    }
+    std::string earliest_date() const { return dated_lags.begin()->first; }
+    std::string latest_date()   const { return dated_lags.rbegin()->first; }
+
+    void read_csv(std::string filename) {
+        std::vector<std::vector<std::string>> reporting_lag_data = covid::util::read_2D_vector_file(filename, ',');
+        bool header = true;
+        for (size_t i = header; i < reporting_lag_data.size(); ++i) {
+            vector<string> row = reporting_lag_data[i];
+            assert(row.size() == 5);
+            string date    = row[0];
+            double a_shape = stod(row[3]);
+            double b_scale = stod(row[4]);
+            insert_lag(date, a_shape, b_scale);
+        }
+
+    }
+
+    size_t sample(const gsl_rng* REPORTING_RNG, std::string ymd) const {
+        if (ymd < earliest_date()) {
+            return INT_MAX;
+        } else if (ymd > latest_date()) {
+            GammaPars gp = dated_lags.rbegin()->second;
+            return (size_t) round(gsl_ran_gamma(REPORTING_RNG, gp.a, gp.b));
+        } else if (dated_lags.count(ymd) > 0) {
+            GammaPars gp = dated_lags.at(ymd);
+            return (size_t) round(gsl_ran_gamma(REPORTING_RNG, gp.a, gp.b));
+        } else {
+            cerr << "ERROR: The date provided to ReportingLagModel::sample() (" << ymd
+                 << ") is in the range of known dates, but lag parameters are not known for that date.\n";
+            exit(-1);
+        }
+    }
+
+    size_t sample(const gsl_rng* REPORTING_RNG, const Date* date) const;
+
+  private:
+    std::map<std::string, GammaPars> dated_lags;
 };
 
 
