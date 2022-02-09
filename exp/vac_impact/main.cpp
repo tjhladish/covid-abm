@@ -170,8 +170,17 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
 
     const size_t aug09_2021 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-08-09");
     const size_t end_summer_2021 = min(aug09_2021, par->runLength);
-    par->timedInterventions[SCHOOL_CLOSURE].resize(end_summer_2021, 1.0); //
-    par->timedInterventions[SCHOOL_CLOSURE].resize(par->runLength, 0.2); // reopen after beinning of 2021-2022 school year
+    par->timedInterventions[SCHOOL_CLOSURE].resize(end_summer_2021, 1.0);
+
+    const size_t end_fall_2021 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-12-17");
+    par->timedInterventions[SCHOOL_CLOSURE].resize(end_fall_2021, 0.2);
+
+    const size_t start_spring_2022 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2022-01-04");
+    par->timedInterventions[SCHOOL_CLOSURE].resize(start_spring_2022, 1.0);
+
+    const size_t end_spring_2022 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2022-05-27");
+    par->timedInterventions[SCHOOL_CLOSURE].resize(end_spring_2022, 0.0);
+    par->timedInterventions[SCHOOL_CLOSURE].resize(par->runLength, 1.0); // reopen after beinning of 2021-2022 school year
 
     par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].clear();
     par->timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE].resize(Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-04-03"), 0.0);
