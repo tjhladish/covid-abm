@@ -1080,6 +1080,41 @@ size_t Community::getNumNaive() {
     return count;
 }
 
+double Community::doSerosurvey(const ImmuneStateType ist, const vector<Person*> &pop = _people) {
+    //if (pop.size() == 0) { pop = _people; }
+    double seropos = 0;
+    double seroneg = 0;
+
+    for (const Person* p: pop) {
+        switch ist {
+            case NATURAL:
+                if (p->hasBeenInfected()) {                      // N IgG assay
+
+                } else {
+
+                }
+                break;
+            case VACCINATED:
+                if (p->isVaccinated()) {                         // S IgG & N IgG assays, (positive and negative, respectively)
+
+                } else {
+
+                }
+                break;
+            case NATURAL_AND_VACCINATED:
+                if (p->hasBeenInfected() or p->isVaccinated()) { // S IgG assay
+
+                } else {
+
+                }
+                break;
+            default:
+        }
+    }
+
+    return seropos / (seropos + seroneg);
+}
+
 map<string, double> Community::calculate_daily_direct_VE() {
     map<string, double> VE_map;
     if (vac_campaign) {

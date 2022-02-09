@@ -205,6 +205,8 @@ class Community {
         std::vector<size_t> getCumulIncidenceByOutcome() { return _cumulIncByOutcome; }
         size_t getCumulIncidenceByOutcome( OutcomeType ot ) { return _cumulIncByOutcome[ot]; }
 
+        double doSerosurvey(const ImmuneStateType ist, const std::vector<Person*> &pop);
+
         void flagInfectedLocation(Person* person, double relInfectiousness, LocationType locType, Location* _pLoc, int day);
         Infection* trace_contact(Person* &infecter, Location* source_loc, const map<double, vector<Person*>> &infectious_groups); //TODO: rename to findInfector()
 
