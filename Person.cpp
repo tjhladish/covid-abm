@@ -100,6 +100,7 @@ Infection& Person::initializeNewInfection() {
 
 Infection& Person::initializeNewInfection(int time, size_t incubation_period, Location* sourceloc, Person* source) {
     Infection& infection      = initializeNewInfection();
+    infection.infectionOwner  = this;
     infection.infectedBegin   = time;
     infection.infectedPlace   = sourceloc;
     infection.infectedBy      = source;

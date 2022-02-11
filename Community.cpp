@@ -1080,39 +1080,100 @@ size_t Community::getNumNaive() {
     return count;
 }
 
-double Community::doSerosurvey(const ImmuneStateType ist, const vector<Person*> &pop = _people) {
-    //if (pop.size() == 0) { pop = _people; }
+double Community::doSerosurvey(const ImmuneStateType ist, vector<Person*> &pop, int time) {
+    if (pop.size() == 0) { pop = _people; }
     double seropos = 0;
     double seroneg = 0;
 
-    for (const Person* p: pop) {
-        switch ist {
-            case NATURAL:
-                if (p->hasBeenInfected()) {                      // N IgG assay
+    for (Person* p : pop) {
+        switch (ist) {
+            case NATURAL: // similar(ish) to an N IgG assay
+                if (p->hasBeenInfected()) {
+                    const Infection* last_inf = p->getInfectionHistory().back();
+                    vector<int> possible_last_infection_end_dates = {last_inf->getInfectiousEndTime(), last_inf->getSymptomEndTime()};
+                    const int last_infection_end_date = covid::util::max_element(possible_last_infection_end_dates);
+                    const int time_since_last_infection = time - last_infection_end_date;
+                    double remaining_natural_efficacy = _par->remainingEfficacy(p->getStartingNaturalEfficacy(), time_since_last_infection);
+
+                    if (remaining_natural_efficacy > _par->seroPositivityThreshold) { ++seropos; }
+                    else { ++seroneg; }
+                } else {
+                    ++seroneg;
+                }
+                break;
+            case VACCINATED: // similar(ish) to an S IgG & N IgG assays, (positive and negative, respectively)
+                if (p->isVaccinated()) {
 
                 } else {
 
                 }
                 break;
-            case VACCINATED:
-                if (p->isVaccinated()) {                         // S IgG & N IgG assays, (positive and negative, respectively)
-
-                } else {
-
-                }
-                break;
-            case NATURAL_AND_VACCINATED:
-                if (p->hasBeenInfected() or p->isVaccinated()) { // S IgG assay
+            case NATURAL_AND_VACCINATED: // similar(ish) to an S IgG assay
+                if (p->hasBeenInfected() or p->isVaccinated()) {
 
                 } else {
 
                 }
                 break;
             default:
+                break;
         }
     }
 
     return seropos / (seropos + seroneg);
+}
+
+/*
+Each month, this function will be called to conduct a hSAR survey for 2 months prior (to increase the chance that we capture all infections an index causes in their household at a point in time)
+    Each person infected during the survey month + if no one else in the house was infected within 10 days prior, will be included as an index
+    Each index will be queried to see how many secondary infections they caused over the next 2 months within their household
+*/
+double Community::getHouseholdSecondaryAttackRate(std::vector<Person*> &pop) {
+    if (pop.size() == 0) { pop = _people; }     // if no specific population is provided, by default, use the entire population
+    if (not (_date->month() >= 3)) { return 0.0; }     // can only begin to survey starting on the 3rd month of the simulation
+
+    int current_sim_day = _day;                         // will be the first day of the month (ensured by calling scope)
+
+    size_t current_julian_month = _date->julianMonth();
+    size_t survey_julain_month    = (((int) current_julian_month - 2) >= 1) ? current_julian_month - 2 : ((int) current_julian_month - 2) + 12;
+    size_t inbetween_julian_month = (((int) current_julian_month - 1) >= 1) ? current_julian_month - 1 : ((int) current_julian_month - 1) + 12;
+
+    size_t days_in_survey_month    = (_date->isLeap()) ? LEAP_DAYS_IN_MONTH.at(survey_julain_month - 1) : COMMON_DAYS_IN_MONTH.at(survey_julain_month - 1);
+    size_t days_in_inbetween_month = (_date->isLeap()) ? LEAP_DAYS_IN_MONTH.at(inbetween_julian_month - 1) : COMMON_DAYS_IN_MONTH.at(inbetween_julian_month - 1);
+
+    assert(current_sim_day - (int) days_in_inbetween_month - (int) days_in_survey_month >= 0);
+    int start_simday_survey_month = current_sim_day - (int) days_in_inbetween_month - (int) days_in_survey_month;
+    int end_simday_survey_month   = current_sim_day + days_in_survey_month;
+
+    vector<double> individual_SAR_measurements;
+
+    for (Person* p : pop) {
+        int secondary_household_infections = 0;
+        bool include_in_survey = false;
+
+        if (p->hasBeenInfected() and (p->getInfectedTime() >= start_simday_survey_month and p->getInfectedTime() <= end_simday_survey_month)) {
+            for (Person* fam : p->getHomeLoc()->getPeople()) {
+                if (fam == p) { continue; }
+                if (fam->hasBeenInfected() and (fam->getInfectedTime() >= p->getInfectedTime() - 10 and fam->getInfectedTime() <= p->getInfectedTime())) {
+                    include_in_survey = false;
+                } else {
+                    include_in_survey = true;
+                }
+            }
+
+            if (not include_in_survey) { continue; }
+
+            Infection* inf = p->getInfection();     // most recent infection
+            for (Infection* secondary_inf : inf->get_infections_caused()) {
+                if (secondary_inf->getInfectionOwner()->getHomeLoc() == p->getHomeLoc()) { ++secondary_household_infections; }
+            }
+        }
+        if (secondary_household_infections > 0) {
+            double SAR = (double) secondary_household_infections / p->getHomeLoc()->getNumPeople();
+            individual_SAR_measurements.push_back(SAR);
+        }
+    }
+    return covid::util::mean(individual_SAR_measurements);
 }
 
 map<string, double> Community::calculate_daily_direct_VE() {

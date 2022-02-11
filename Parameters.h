@@ -614,7 +614,8 @@ public:
 //        const double time_to_susceptible = -t_half * log(threshold / pow(10, gsl_ran_gaussian(RNG, antibody_init_sd) + antibody_init_mean)) / log(2);
 //        return time_to_susceptible < 0 ? 0 : (size_t) round(time_to_susceptible);
 //    }
-    bool immunityWanes;                                      // innate waning of both natural and vaccine immunity
+    bool immunityWanes;                                     // innate waning of both natural and vaccine immunity
+    double seroPositivityThreshold;                         // threshold at which an individual would be considered seropositive
     int vaccineImmunityDuration;
     bool vaccineBoosting;                                   // Are we re-vaccinated, either because of waning or because of multi-dose vaccine
     int numVaccineDoses;                                    // Number of times to boost; default is INT_MAX

@@ -46,6 +46,7 @@ class Infection {
 
         infectedPlace     = nullptr;
         infectedBy        = nullptr;
+        infectionOwner    = nullptr;
         infectiousEnd     = INT_MIN;
         symptomEnd        = INT_MIN;
         severeEnd         = INT_MIN;
@@ -60,6 +61,7 @@ class Infection {
         infectedBegin     = o.infectedBegin;
         infectedPlace     = o.infectedPlace;
         infectedBy        = o.infectedBy;
+        //infectionOwner    = o.infectionOwner; TODO: need to test to make sure that infections are copied and cached properly
         infectiousBegin   = o.infectiousBegin;
         infectiousEnd     = o.infectiousEnd;
         symptomBegin      = o.symptomBegin;
@@ -84,6 +86,7 @@ class Infection {
     int infectedBegin;                      // when infected?
     Location* infectedPlace;                // where infected?
     Person* infectedBy;                     // who infected this person
+    Person* infectionOwner;                 // who this infection belongs to
     int infectiousBegin;                    // when infectious period starts
     int infectiousEnd;
 
@@ -109,8 +112,12 @@ class Infection {
   public:
     bool isLocallyAcquired()      const { return infectedBy != nullptr; }
 
+    Location* getInfectedPlace()  const { return infectedPlace; }
+    Person* getInfectedBy()       const { return infectedBy; }
+    Person* getInfectionOwner()   const { return infectionOwner; }
     int getInfectedTime()         const { return infectedBegin; }
     int getInfectiousTime()       const { return infectiousBegin; }
+    int getInfectiousEndTime()    const { return infectiousEnd; }
     int getSymptomTime()          const { return symptomBegin; }
     int getSymptomEndTime()       const { return symptomEnd; }
     int getSevereTime()           const { return severeBegin; }

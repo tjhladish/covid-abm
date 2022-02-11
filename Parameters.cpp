@@ -79,6 +79,7 @@ void Parameters::define_defaults() {
     vaccineDoseInterval = 182;
 
     immunityWanes = false;
+    seroPositivityThreshold = 0.0;
     vaccineImmunityDuration = INT_MAX;
     vaccineBoosting = false;
     vaccineBoostingInterval = 730;
