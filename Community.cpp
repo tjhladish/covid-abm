@@ -55,6 +55,12 @@ Community::Community(const Parameters* parameters, Date* date) :
     for (int strain = 0; strain < (int) NUM_OF_STRAIN_TYPES; ++strain) {
         _numNewInfectionsByStrain[(StrainType) strain] = vector<size_t>(_par->runLength);
     }
+
+    vector<string> inf_by_loc_keys = {"home", "neighbor", "work_staff", "patron", "school_staff", "student", "hcw", "patient", "ltcf_staff", "ltcf_resident"};
+    for (string key : inf_by_loc_keys) {
+        _numNewlyInfectedByLoc[key] = vector<size_t>(_par->runLength, 0);
+    }
+
     for (auto &e: _isHot) {
         for (size_t locType = 0; locType < NUM_OF_LOCATION_TYPES; ++locType) {
             e[(LocationType) locType] = {};
@@ -99,6 +105,12 @@ void Community::reset() { // used for r-zero calculations, to reset pop after a 
     for (int strain = 0; strain < (int) NUM_OF_STRAIN_TYPES; ++strain) {
         _numNewInfectionsByStrain[(StrainType) strain] = vector<size_t>(_par->runLength);
     }
+
+    vector<string> inf_by_loc_keys = {"home", "neighbor", "work_staff", "patron", "school_staff", "student", "hcw", "patient", "ltcf_staff", "ltcf_resident"};
+    for (string key : inf_by_loc_keys) {
+        _numNewlyInfectedByLoc[key] = vector<size_t>(_par->runLength, 0);
+    }
+
     _numNewlySymptomatic.resize(_par->runLength);
     _numNewlyDead.resize(_par->runLength);
     _numVaccinatedCases.resize(_par->runLength);
@@ -126,6 +138,7 @@ Community::~Community() {
     _personAgeCohort.clear();
     _numNewlyInfected.clear();
     _numNewInfectionsByStrain.clear();
+    _numNewlyInfectedByLoc.clear();
     _numNewlySymptomatic.clear();
     _numNewlyDead.clear();
     _numVaccinatedCases.clear();
@@ -601,6 +614,36 @@ void Community::updatePersonStatus() {
                 if (inf->getInfectedTime()==_day) {
                     _numNewlyInfected[_day]++;
                     _numNewInfectionsByStrain.at(inf->getStrain())[_day]++;
+
+                    if (inf->getInfectedPlace()) {
+                        Location* inf_loc   = inf->getInfectedPlace();
+                        LocationType inf_lt = inf->getInfectedPlace()->getType();
+
+                        switch (inf_lt) {
+                            case HOUSE:
+                                if (inf_loc == p->getHomeLoc()) { _numNewlyInfectedByLoc["home"][_day]++; }
+                                else                            { _numNewlyInfectedByLoc["neighbor"][_day]++; }
+                                break;
+                            case WORK:
+                                if (inf_loc == p->getDayLoc()) { _numNewlyInfectedByLoc["work_staff"][_day]++; }
+                                else                           { _numNewlyInfectedByLoc["patron"][_day]++; }
+                                break;
+                            case SCHOOL:
+                                if (p->getAge() > 18) { _numNewlyInfectedByLoc["school_staff"][_day]++; }
+                                else                  { _numNewlyInfectedByLoc["student"][_day]++; }
+                                break;
+                            case HOSPITAL:
+                                if (inf_loc == p->getDayLoc()) { _numNewlyInfectedByLoc["hcw"][_day]++; }
+                                else                           { _numNewlyInfectedByLoc["patient"][_day]++; }
+                                break;
+                            case NURSINGHOME:
+                                if (inf_loc == p->getDayLoc()) { _numNewlyInfectedByLoc["ltcf_staff"][_day]++; }
+                                else                           { _numNewlyInfectedByLoc["ltcf_resident"][_day]++; }
+                                break;
+                            default:
+                                break;
+                        }
+                    }
                 }
 
                 if (inf->getSymptomTime()==_day) {                              // started showing symptoms today

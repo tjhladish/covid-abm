@@ -184,6 +184,7 @@ class Community {
         void setVac_Campaign(Vac_Campaign* vc) { vac_campaign = vc; }
         std::vector<size_t> getNumNewlyInfected() { return _numNewlyInfected; }
         std::vector<size_t> getNumNewInfections(StrainType strain) { return _numNewInfectionsByStrain.at(strain); }
+        std::vector<size_t> getNumNewInfectionsByLoc(string key) { return _numNewlyInfectedByLoc[key]; }
         std::vector<size_t> getNumNewlySymptomatic() { return _numNewlySymptomatic; }
         std::vector<size_t> getNumNewlySevere() { return _numNewlySevere; }
         std::vector<size_t> getNumNewlyCritical() { return _numNewlyCritical; }
@@ -274,6 +275,7 @@ class Community {
         int _day;                                                              // current day
         std::vector<size_t> _numNewlyInfected;
         std::map<StrainType, std::vector<size_t>> _numNewInfectionsByStrain;
+        std::map<std::string, std::vector<size_t>> _numNewlyInfectedByLoc;
         std::vector<size_t> _numNewlySymptomatic;                              // true cases, no lag due to detection
         std::vector<size_t> _numNewlySevere;                                   // true cases, no lag due to detection
         std::vector<size_t> _numNewlyCritical;                                 // true cases, no lag due to detection

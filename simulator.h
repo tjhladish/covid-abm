@@ -921,6 +921,10 @@ if (*date == "2021-12-01") { gsl_rng_set(RNG, par->randomseed); }
 
         const size_t rc_ct = accumulate(all_reported_cases.begin(), all_reported_cases.begin()+sim_day+1, 0);
         map<string, double> VE_data = community->calculate_daily_direct_VE();
+        //vector<string> inf_by_loc_keys = {"home", "neighbor", "work_staff", "patron", "school_staff", "student", "hcw", "patient", "ltcf_staff", "ltcf_resident"};
+        //for (string key : inf_by_loc_keys) {
+        //    cerr << "infLoc " << date->to_ymd() << ' ' << key << ' ' << community->getNumNewInfectionsByLoc(key)[sim_day] << endl;
+        //}
         if (not par->behavioral_autotuning) {
             if (date->dayOfMonth()==1) cerr << "        rep sday        date  infinc  cAR     rcases  rcta7  crcases  rdeath  crdeath  sevprev   crhosp  closed  socdist  coverage\n";
             cerr << right
