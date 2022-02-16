@@ -70,7 +70,7 @@ cerr << "Reading locations ... ";
     }
 cerr << "done.\n";
 cerr << "Reading population ... ";
-    if (!community->loadPopulation(par->populationFilename, par->comorbidityFilename)) {
+    if (!community->loadPopulation(par->populationFilename, par->comorbidityFilename, par->publicActivityFilename)) {
         cerr << "ERROR: Could not load population" << endl;
         exit(-1);
     }

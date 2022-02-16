@@ -35,6 +35,7 @@ class Community {
             _day                         = o._day;
             _numNewlyInfected            = o._numNewlyInfected;
             _numNewInfectionsByStrain    = o._numNewInfectionsByStrain;
+            _numNewlyInfectedByLoc       = o._numNewlyInfectedByLoc;
             _numNewlySymptomatic         = o._numNewlySymptomatic;
             _numNewlySevere              = o._numNewlySevere;
             _numNewlyCritical            = o._numNewlyCritical;
@@ -163,6 +164,7 @@ class Community {
         int getDay() { return _day; }                                // what day is it?
         //void swapImmuneStates();
         void updatePersonStatus();
+        void tallyInfectionsByLoc();
         void updateHotLocations();
         void tick();                                                   // simulate one day
 
