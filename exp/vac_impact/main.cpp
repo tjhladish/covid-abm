@@ -66,7 +66,7 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->define_defaults();
     par->serial = serial;
 
-    const float T = 0.034;//0.022; // 0.0215 for the fl pop, 0.022 for the pseudo 1000k pop
+    const float T = 0.032;//0.022; // 0.0215 for the fl pop, 0.022 for the pseudo 1000k pop
 
     par->household_transmission_haz_mult   = T;
     par->social_transmission_haz_mult      = T; // assumes complete graphs between households
@@ -102,7 +102,7 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
         //par->probFirstDetection = {0.0, 0.12, 0.55, 0.1, 0.01};      // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
 
         const double RF_death_early = 0.8; //0.78; // overall probability of detecting death, at any point
-        const double RF_death_late  = 1.0; //0.78; // overall probability of detecting death, at any point
+        const double RF_death_late  = 0.9; //0.78; // overall probability of detecting death, at any point
         
         // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
         vector<double> initial_vals    = {0.0, 0.05, 0.7, 0.1};    // Start of sim (Feb 2020) conditional probabilities
@@ -110,17 +110,17 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
 
         const int isd1 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-06-01"); // inflection date 1
 
-        vector<double> summer2020_vals = {0.02, 0.5, 0.1, 0.1};
-        summer2020_vals.push_back(calculate_conditional_death_reporting_probability(RF_death_early, summer2020_vals));
+        vector<double> summer2020_vals = {0.0, 0.7, 0.5, 0.1};
+        summer2020_vals.push_back(calculate_conditional_death_reporting_probability(RF_death_late, summer2020_vals));
 
         const int isd2 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-10-01"); // inflection date 2
 
-        vector<double> winter2020_vals = {0.1, 0.9, 0.9, 0.0};
+        vector<double> winter2020_vals = {0.2, 0.7, 0.5, 0.1};
         winter2020_vals.push_back(calculate_conditional_death_reporting_probability(RF_death_late, winter2020_vals));
 
-        const int isd3 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-11-01"); // inflection date 3
+        const int isd3 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-12-01"); // inflection date 3
 
-        vector<double> winter2021_vals = {0.02, 0.9, 0.9, 0.0};
+        vector<double> winter2021_vals = {0.05, 0.7, 0.5, 0.1};
         winter2021_vals.push_back(calculate_conditional_death_reporting_probability(RF_death_late, winter2021_vals));
 
         vector<vector<double>> vals = {initial_vals, summer2020_vals, winter2020_vals, winter2021_vals};
@@ -288,8 +288,8 @@ void define_strain_parameters(Parameters* par, const size_t omicron_scenario) {
 
     par->strainPars[DELTA].relInfectiousness   = par->strainPars[ALPHA].relInfectiousness * 1.5;
     par->strainPars[DELTA].relPathogenicity    = par->strainPars[ALPHA].relPathogenicity * 2.83;
-    par->strainPars[DELTA].relSeverity         = 2.7; // relSeverity only applies if not vaccine protected; CABP - may be more like 1.3 based on mortality increase
-    par->strainPars[DELTA].relIcuMortality     = 2.0; // TODO - this is due to icu crowding.  should be represented differently
+    par->strainPars[DELTA].relSeverity         = 1.3; // relSeverity only applies if not vaccine protected; CABP - may be more like 1.3 based on mortality increase
+    par->strainPars[DELTA].relIcuMortality     = 3.0; // TODO - this is due to icu crowding.  should be represented differently
     par->strainPars[DELTA].immuneEscapeProb    = 0.15;
 
 //    const size_t omicron_scenario = 0;
@@ -298,33 +298,33 @@ void define_strain_parameters(Parameters* par, const size_t omicron_scenario) {
     const double appxOmicronInfPd        = 6.0;
     const double relInfectiousnessDenom  = (1.0 - pow(1.0 - par->household_transmission_haz_mult, appxOmicronInfPd/appxNonOmicronInfPd)) / par->household_transmission_haz_mult;
 
-    switch (omicron_scenario) {
-        case 0: // high immune escape, low transmissibility; low severity
-            par->strainPars[OMICRON].immuneEscapeProb  = 0.7;
-            par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.5 / relInfectiousnessDenom;
-            par->strainPars[OMICRON].relPathogenicity  = par->strainPars[ALPHA].relPathogenicity * 0.5;
-            par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.25;
-            break;
-        case 1: // high immune escape, low transmissibility; delta severity
-            par->strainPars[OMICRON].immuneEscapeProb  = 0.7;
-            par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.5 / relInfectiousnessDenom;
-            par->strainPars[OMICRON].relPathogenicity  = par->strainPars[DELTA].relPathogenicity * 0.5;
-            par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.5;
-            break;
-        case 2: // moderate immune escape, high transmissibility; low severity
-            par->strainPars[OMICRON].immuneEscapeProb  = 0.6;
-            par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 2.0 / relInfectiousnessDenom;
-            par->strainPars[OMICRON].relPathogenicity  = par->strainPars[ALPHA].relPathogenicity * 0.5;
-            par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.25;
-            break;
-        case 3: // moderate immune escape, high transmissibility; delta severity
-            par->strainPars[OMICRON].immuneEscapeProb  = 0.5;
-            par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 2.0 / relInfectiousnessDenom;
-            par->strainPars[OMICRON].relPathogenicity  = par->strainPars[DELTA].relPathogenicity * 0.5;
-            par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.5;
-            break;
-    }
+//    switch (omicron_scenario) {
+//        case 0: // high immune escape, low transmissibility; low severity
+//            par->strainPars[OMICRON].immuneEscapeProb  = 0.7;
+//            par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.5 / relInfectiousnessDenom;
+//            par->strainPars[OMICRON].relPathogenicity  = par->strainPars[ALPHA].relPathogenicity * 0.5;
+//            par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.25;
+//            break;
+//        case 1: // high immune escape, low transmissibility; delta severity
+//            par->strainPars[OMICRON].immuneEscapeProb  = 0.7;
+//            par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.5 / relInfectiousnessDenom;
+//            par->strainPars[OMICRON].relPathogenicity  = par->strainPars[DELTA].relPathogenicity * 0.5;
+//            par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.5;
+//            break;
+//        case 2: // moderate immune escape, high transmissibility; low severity
+//            break;
+//        case 3: // moderate immune escape, high transmissibility; delta severity
+//            par->strainPars[OMICRON].immuneEscapeProb  = 0.5;
+//            par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 2.0 / relInfectiousnessDenom;
+//            par->strainPars[OMICRON].relPathogenicity  = par->strainPars[DELTA].relPathogenicity * 0.5;
+//            par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.5;
+//            break;
+//    }
 
+    par->strainPars[OMICRON].immuneEscapeProb  = 0.6;
+    par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 2.0 / relInfectiousnessDenom;
+    par->strainPars[OMICRON].relPathogenicity  = par->strainPars[ALPHA].relPathogenicity * 0.5;
+    par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.25;
     par->strainPars[OMICRON].relIcuMortality   = 2.0;
     par->strainPars[OMICRON].symptomaticInfectiousPeriod = appxNonOmicronInfPd - 1;
     par->strainPars[OMICRON].relSymptomOnset = 0.5;     // roughly based on MMWR Early Release Vol. 70 12/28/2021
