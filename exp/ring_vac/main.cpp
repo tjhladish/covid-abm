@@ -67,12 +67,12 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
 
     const float T = 0.0355;//0.022; // 0.0215 for the fl pop, 0.022 for the pseudo 1000k pop
 
-    par->household_transmissibility   = T;
-    par->social_transmissibility      = T; // assumes complete graphs between households
-    par->workplace_transmissibility   = T / 2.0;
-    par->school_transmissibility      = T / 2.0;
-    par->hospital_transmissibility    = T / 10.0;
-    par->nursinghome_transmissibility = T * 3.0 / 2.0;
+    par->household_transmission_haz_mult   = T;
+    par->social_transmission_haz_mult      = T; // assumes complete graphs between households
+    par->workplace_transmission_haz_mult   = T / 2.0;
+    par->school_transmission_haz_mult      = T / 2.0;
+    par->hospital_transmission_haz_mult    = T / 10.0;
+    par->nursinghome_transmission_haz_mult = T * 3.0 / 2.0;
     par->randomseed              = rng_seed;
     par->dailyOutput             = false; // turn on for daily prevalence figure, probably uncomment filter in simulator.h for daily output to get only rel. days
     par->periodicOutput          = false;
@@ -84,7 +84,7 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->startJulianYear         = JULIAN_START_YEAR;
     par->startDayOfYear          = Date::to_julian_day("2020-02-05");
     par->runLength               = TOTAL_DURATION;
-    par->annualIntroductionsCoef = 1;
+    //par->annualIntroductionsCoef = 1;
 
     par->beginContactTracing           = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-06-01");
     par->contactTracingCoverage        = 0.7;

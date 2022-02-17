@@ -55,6 +55,12 @@ Community::Community(const Parameters* parameters, Date* date) :
     for (int strain = 0; strain < (int) NUM_OF_STRAIN_TYPES; ++strain) {
         _numNewInfectionsByStrain[(StrainType) strain] = vector<size_t>(_par->runLength);
     }
+
+    vector<string> inf_by_loc_keys = {"home", "neighbor", "work_staff", "patron", "school_staff", "student", "hcw", "patient", "ltcf_staff", "ltcf_resident"};
+    for (string key : inf_by_loc_keys) {
+        _numNewlyInfectedByLoc[key] = vector<size_t>(_par->runLength, 0);
+    }
+
     for (auto &e: _isHot) {
         for (size_t locType = 0; locType < NUM_OF_LOCATION_TYPES; ++locType) {
             e[(LocationType) locType] = {};
@@ -99,6 +105,12 @@ void Community::reset() { // used for r-zero calculations, to reset pop after a 
     for (int strain = 0; strain < (int) NUM_OF_STRAIN_TYPES; ++strain) {
         _numNewInfectionsByStrain[(StrainType) strain] = vector<size_t>(_par->runLength);
     }
+
+    vector<string> inf_by_loc_keys = {"home", "neighbor", "work_staff", "patron", "school_staff", "student", "hcw", "patient", "ltcf_staff", "ltcf_resident"};
+    for (string key : inf_by_loc_keys) {
+        _numNewlyInfectedByLoc[key] = vector<size_t>(_par->runLength, 0);
+    }
+
     _numNewlySymptomatic.resize(_par->runLength);
     _numNewlyDead.resize(_par->runLength);
     _numVaccinatedCases.resize(_par->runLength);
@@ -126,6 +138,7 @@ Community::~Community() {
     _personAgeCohort.clear();
     _numNewlyInfected.clear();
     _numNewInfectionsByStrain.clear();
+    _numNewlyInfectedByLoc.clear();
     _numNewlySymptomatic.clear();
     _numNewlyDead.clear();
     _numVaccinatedCases.clear();
@@ -218,6 +231,7 @@ bool Community::loadPopulation(string populationFilename, string comorbidityFile
             }
         }
     }
+    iss.close();
 
     if (publicActivityFilename.length() > 0) {
         iss.open(publicActivityFilename);
@@ -255,6 +269,7 @@ bool Community::loadPopulation(string populationFilename, string comorbidityFile
             }
         }
     }
+    iss.close();
 
     if (immunityFilename.length()>0) {
         cerr << "ERROR: Reading in immunity file not currently supported." << endl;
@@ -643,6 +658,50 @@ void Community::updatePersonStatus() {
     return;
 }
 
+void Community::tallyInfectionsByLoc() {
+    for (Person* p: _people) {
+        if (p->isSurveilledPerson()) {
+            if (p->getNumNaturalInfections() == 0) {
+                continue;              // no infection/outcomes to tally
+            } else {
+                // the methods used with Infection below generally are available for Person, but this should be faster
+                const Infection* inf = p->getInfection();
+                if (inf->getInfectedTime()==_day) {
+                    if (inf->getInfectedPlace()) {
+                        Location* inf_loc   = inf->getInfectedPlace();
+                        LocationType inf_lt = inf->getInfectedPlace()->getType();
+
+                        switch (inf_lt) {
+                            case HOUSE:
+                                if (inf_loc == p->getHomeLoc()) { _numNewlyInfectedByLoc["home"][_day]++; }
+                                else                            { _numNewlyInfectedByLoc["neighbor"][_day]++; }
+                                break;
+                            case WORK:
+                                if (inf_loc == p->getDayLoc()) { _numNewlyInfectedByLoc["work_staff"][_day]++; }
+                                else                           { _numNewlyInfectedByLoc["patron"][_day]++; }
+                                break;
+                            case SCHOOL:
+                                if (p->getAge() > 18) { _numNewlyInfectedByLoc["school_staff"][_day]++; }
+                                else                  { _numNewlyInfectedByLoc["student"][_day]++; }
+                                break;
+                            case HOSPITAL:
+                                if (inf_loc == p->getDayLoc()) { _numNewlyInfectedByLoc["hcw"][_day]++; }
+                                else                           { _numNewlyInfectedByLoc["patient"][_day]++; }
+                                break;
+                            case NURSINGHOME:
+                                if (inf_loc == p->getDayLoc()) { _numNewlyInfectedByLoc["ltcf_staff"][_day]++; }
+                                else                           { _numNewlyInfectedByLoc["ltcf_resident"][_day]++; }
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 
 void Community::flagInfectedLocation(Person* person, double relInfectiousness, LocationType locType, Location* _pLoc, int day) {
     assert(day >= 0);
@@ -670,10 +729,15 @@ Infection* Community::trace_contact(Person* &infecter, Location* source_loc, con
 
     // sanity check to make sure we've found a legit candidate
     const vector<Person*> people = source_loc->getPeople();
-    assert(infecter->isInfectious(_day)
-            and (not infecter->inHospital(_day) or (source_loc->getType() == HOSPITAL and source_loc == infecter->getHospital()))
-            and not infecter->isDead(_day)
-            and find(people.begin(), people.end(), infecter) != people.end());
+    //assert(infecter->isInfectious(_day)
+    //        and (not infecter->inHospital(_day) or (source_loc->getType() == HOSPITAL and source_loc == infecter->getHospital()))
+    //        and not infecter->isDead(_day)
+    //        and find(people.begin(), people.end(), infecter) != people.end());
+    assert(infecter->isInfectious(_day));
+    assert((not infecter->inHospital(_day) or (source_loc->getType() == HOSPITAL and source_loc == infecter->getHospital())));
+    assert(not infecter->isDead(_day));
+    assert((find(people.begin(), people.end(), infecter) != people.end()) or
+           (find(infecter->getPatronizedLocations().begin(), infecter->getPatronizedLocations().end(), source_loc) != infecter->getPatronizedLocations().end()));
 
     return infecter->getInfection();
 }
@@ -696,7 +760,7 @@ double _tally_infectiousness (const map<double, vector<Person*>> infectious_grou
 void Community::within_household_transmission() {
     for (const auto& [loc, infectious_groups]: _isHot[_day][HOUSE]) {
         const double infectious_weight = _tally_infectiousness(infectious_groups);
-        const double hazard =  _par->household_transmissibility * _par->seasonality_on(_date) * infectious_weight;
+        const double hazard =  _par->household_transmission_haz_mult * _par->seasonality_on(_date) * infectious_weight;
         const double T = 1.0 - exp(-hazard);
         _transmission(loc, loc->getPeople(), infectious_groups, T);
     }
@@ -718,7 +782,7 @@ void Community::between_household_transmission() {
             for (Location* neighbor: loc->getNeighbors()) {
                 // ↓↓↓ this line needs to match the model above, with neighbor in for loc
                 if (neighbor->getRiskiness() > social_distancing(_day)) {
-                    const double hazard = _par->social_transmissibility * _par->seasonality_on(_date) * infectious_weight / hh_size;
+                    const double hazard = _par->social_transmission_haz_mult * _par->seasonality_on(_date) * infectious_weight / hh_size;
                     const double T = 1.0 - exp(-hazard);
                     _transmission(loc, neighbor->getPeople(), infectious_groups, T);
                 }
@@ -742,12 +806,15 @@ void Community::workplace_transmission() {
         const double infectious_weight = _tally_infectiousness(infectious_groups);
         const PublicTransmissionType pt_risk = loc->getPublicTransmissionRisk();
 
+        const double high_pt_risk_haz_mult = 4.0;
+        const double norm_pt_risk_haz_mult = 0.25;
+
         if (infectious_weight > 0) {
-            const double hazard = _par->workplace_transmissibility
+            const double hazard = _par->workplace_transmission_haz_mult
                                   // TODO -- see if we can find a way to motivate how much more risky high risk places are
                                   // TODO -- check to see if high risk places actually are causing 4x as much transmission as other workplaces
                                   //* (pt_risk == HIGH_PUBLIC_TRANSMISSION ? 4.0 : (1.0 - social_distancing(_day))*0.25) // 4.0 and 0.25 b/c/ of 80/20 rule
-                                  * (pt_risk == HIGH_PUBLIC_TRANSMISSION ? 4.0 : 0.25) // 4.0 and 0.25 b/c/ of 80/20 rule
+                                  * (pt_risk == HIGH_PUBLIC_TRANSMISSION ? high_pt_risk_haz_mult : norm_pt_risk_haz_mult) // 4.0 and 0.25 b/c/ of 80/20 rule
                                   * _par->seasonality_on(_date)
                                   * infectious_weight/(workplace_size - 1.0);
 
@@ -764,7 +831,7 @@ void Community::workplace_transmission() {
 
 void Community::school_transmission() {
     // Transmission for school employees is considered school transmission, not workplace transmission
-    const double hazard_coef = (1.0 - timedInterventions[SCHOOL_CLOSURE][_day]) * _par->school_transmissibility * _par->seasonality_on(_date);
+    const double hazard_coef = (1.0 - timedInterventions[SCHOOL_CLOSURE][_day]) * _par->school_transmission_haz_mult * _par->seasonality_on(_date);
     if (hazard_coef != 0.0) {
         for (const auto& [loc, infectious_groups]: _isHot[_day][SCHOOL]) {
             const int school_size = loc->getNumPeople();
@@ -784,7 +851,7 @@ void Community::hospital_transmission() {
         const int hospital_census = loc->getNumPeople(); // workers + patients
         if (hospital_census < 2) { continue; }
         const double infectious_weight = _tally_infectiousness(infectious_groups);
-        const double hazard = _par->hospital_transmissibility * _par->seasonality_on(_date) * infectious_weight/(hospital_census - 1.0);
+        const double hazard = _par->hospital_transmission_haz_mult * _par->seasonality_on(_date) * infectious_weight/(hospital_census - 1.0);
         const double T = 1.0 - exp(-hazard);
         _transmission(loc, loc->getPeople(), infectious_groups, T);
     }
@@ -812,7 +879,7 @@ void Community::nursinghome_transmission() {
         const int nursinghome_census = loc->getNumPeople(); // workers + residents
         if (nursinghome_census < 2) { continue; }
         const double infectious_weight = _tally_infectiousness(infectious_groups);
-        const double hazard = _par->nursinghome_transmissibility * _par->seasonality_on(_date) * infectious_weight/(nursinghome_census - 1.0);
+        const double hazard = _par->nursinghome_transmission_haz_mult * _par->seasonality_on(_date) * infectious_weight/(nursinghome_census - 1.0);
         const double T = 1.0 - exp(-hazard);
         _transmission(loc, loc->getPeople(), infectious_groups, T);
     }
@@ -1033,6 +1100,7 @@ void Community::tick() {
     // on this day.
     hospital_transmission();
     updateHotLocations();
+    tallyInfectionsByLoc();
 
     // do contact tracing to a given depth using reported cases from today if _day is at or after the start of contact tracing
     vector< set<Person*> > tracedContactsByDepth = traceForwardContacts();
@@ -1075,6 +1143,102 @@ size_t Community::getNumNaive() {
     size_t count = 0;
     for (Person* p: _people) { if (p->isImmuneState(NAIVE)) count++; }
     return count;
+}
+
+double Community::doSerosurvey(const ImmuneStateType ist, vector<Person*> &pop, int time) {
+    if (pop.size() == 0) { pop = _people; }
+    double seropos = 0;
+    double seroneg = 0;
+
+    for (Person* p : pop) {
+        switch (ist) {
+            case NATURAL: // similar(ish) to an N IgG assay
+                if (p->hasBeenInfected()) {
+                    const Infection* last_inf = p->getInfectionHistory().back();
+                    vector<int> possible_last_infection_end_dates = {last_inf->getInfectiousEndTime(), last_inf->getSymptomEndTime()};
+                    const int last_infection_end_date = covid::util::max_element(possible_last_infection_end_dates);
+                    const int time_since_last_infection = time - last_infection_end_date;
+                    double remaining_natural_efficacy = _par->remainingEfficacy(p->getStartingNaturalEfficacy(), time_since_last_infection);
+
+                    if (remaining_natural_efficacy > _par->seroPositivityThreshold) { ++seropos; }
+                    else { ++seroneg; }
+                } else {
+                    ++seroneg;
+                }
+                break;
+            case VACCINATED: // similar(ish) to an S IgG & N IgG assays, (positive and negative, respectively)
+                if (p->isVaccinated()) {
+
+                } else {
+
+                }
+                break;
+            case NATURAL_AND_VACCINATED: // similar(ish) to an S IgG assay
+                if (p->hasBeenInfected() or p->isVaccinated()) {
+
+                } else {
+
+                }
+                break;
+            default:
+                break;
+        }
+    }
+
+    return seropos / (seropos + seroneg);
+}
+
+/*
+Each month, this function will be called to conduct a hSAR survey for 2 months prior (to increase the chance that we capture all infections an index causes in their household at a point in time)
+    Each person infected during the survey month + if no one else in the house was infected within 10 days prior, will be included as an index
+    Each index will be queried to see how many secondary infections they caused over the next 2 months within their household
+*/
+double Community::getHouseholdSecondaryAttackRate(std::vector<Person*> &pop) {
+    if (pop.size() == 0) { pop = _people; }     // if no specific population is provided, by default, use the entire population
+    if (not (_date->month() >= 3)) { return 0.0; }     // can only begin to survey starting on the 3rd month of the simulation
+
+    int current_sim_day = _day;                         // will be the first day of the month (ensured by calling scope)
+
+    size_t current_julian_month = _date->julianMonth();
+    size_t survey_julain_month    = (((int) current_julian_month - 2) >= 1) ? current_julian_month - 2 : ((int) current_julian_month - 2) + 12;
+    size_t inbetween_julian_month = (((int) current_julian_month - 1) >= 1) ? current_julian_month - 1 : ((int) current_julian_month - 1) + 12;
+
+    size_t days_in_survey_month    = (_date->isLeap()) ? LEAP_DAYS_IN_MONTH.at(survey_julain_month - 1) : COMMON_DAYS_IN_MONTH.at(survey_julain_month - 1);
+    size_t days_in_inbetween_month = (_date->isLeap()) ? LEAP_DAYS_IN_MONTH.at(inbetween_julian_month - 1) : COMMON_DAYS_IN_MONTH.at(inbetween_julian_month - 1);
+
+    assert(current_sim_day - (int) days_in_inbetween_month - (int) days_in_survey_month >= 0);
+    int start_simday_survey_month = current_sim_day - (int) days_in_inbetween_month - (int) days_in_survey_month;
+    int end_simday_survey_month   = current_sim_day + days_in_survey_month;
+
+    vector<double> individual_SAR_measurements;
+
+    for (Person* p : pop) {
+        int secondary_household_infections = 0;
+        bool include_in_survey = false;
+
+        if (p->hasBeenInfected() and (p->getInfectedTime() >= start_simday_survey_month and p->getInfectedTime() <= end_simday_survey_month)) {
+            for (Person* fam : p->getHomeLoc()->getPeople()) {
+                if (fam == p) { continue; }
+                if (fam->hasBeenInfected() and (fam->getInfectedTime() >= p->getInfectedTime() - 10 and fam->getInfectedTime() <= p->getInfectedTime())) {
+                    include_in_survey = false;
+                } else {
+                    include_in_survey = true;
+                }
+            }
+
+            if (not include_in_survey) { continue; }
+
+            Infection* inf = p->getInfection();     // most recent infection
+            for (Infection* secondary_inf : inf->get_infections_caused()) {
+                if (secondary_inf->getInfectionOwner()->getHomeLoc() == p->getHomeLoc()) { ++secondary_household_infections; }
+            }
+        }
+        if (secondary_household_infections > 0) {
+            double SAR = (double) secondary_household_infections / p->getHomeLoc()->getNumPeople();
+            individual_SAR_measurements.push_back(SAR);
+        }
+    }
+    return covid::util::mean(individual_SAR_measurements);
 }
 
 map<string, double> Community::calculate_daily_direct_VE() {

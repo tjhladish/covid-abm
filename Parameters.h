@@ -16,7 +16,34 @@
 #include <climits>
 #include "Utility.h"
 
+namespace covid {
+    namespace standard {
+        using std::cout;
+        using std::cerr;
+        using std::endl;
+        using std::string;
+        using std::vector;
+        using std::set;
+        using std::map;
+        using std::pair;
+        using std::make_pair;
+        using std::ifstream;
+        using std::istringstream;
+        using std::ofstream;
+        using std::ostringstream;
+        using std::strcmp;
+        using std::strtol;
+        using std::strtod;
+        using std::bitset;
+    }
+}
+
 class Date;
+
+extern gsl_rng* RNG;// = gsl_rng_alloc (gsl_rng_taus2);
+// use a second RNG for stochastic reporting; this allows for more powerful analysis of
+// the effects of different reporting models
+extern gsl_rng* REPORTING_RNG; // = gsl_rng_alloc (gsl_rng_mt19937);
 
 enum TimePeriod {
     HOME,
@@ -171,13 +198,105 @@ enum CsmhScenario {
     NUM_OF_CSMH_SCENARIOS
 };
 
-struct GammaPars {
-    GammaPars() {};
-    GammaPars(double _a, double _b) : a(_a), b(_b) {};
-    // gamma distribution parameterization used by GSL
-    double a; // shape
-    double b; // scale
+/*
+// transmission-related probabilities
+susceptibility -- use fuction wrapper for generality so we can potentially use age in the future, but just a single value in par for now
+can be 1.0 for right now
+
+transmission -- wrapper function for setting and age, with covariates of 1 for now
+trans per hour probability to be fit
+hh secondary infection probability between 15-30%
+transmission from asymp is 0.5*trans from symp
+
+// disease-related probabilities
+/// probability of outcomes
+-- infection -- to be fit/prior informed by hh secondary attack rate
+-- symptomatic -- roughly 0.5, but should be age-structured (and we have some estimates)
+-- severe (hosp is a subset) -- roughly 0.1 (severe given symptoms), also should be age-structured
+    - fraction of severe that are hospitalized = 0.8 general pop, 0.5 of nursinghome pop
+-- critical (icu is a subset) -- 0.5 (critical given severe)
+    - critical-->icu if hospitalized, 1.0; 0.5 otherwise
+-- death -- IFR ~ 0.005, 0.2 of critical infections in icu result in death, 1.0 of non-icu critical
+
+/// times
+.time to infectiousness ~3 days
+.duration of infectiousness 7 days
+.time to symptoms ~5 days from infection
+.time to severe ~7 days from symptoms
+.time to critical 4 days from severe
+--the previous numbers regarding severe disease surrounding critical disease contradict the following
+.duration of symptoms 14 days for mild, (1 week mild, 2w severe, 1w mild) for severe, 10 more days critical, in the middle of severe period
+*/
+
+static const float SEVERE_TO_HOSPITAL = 0.52; // tried 0.1     // general population, probability of going to hospital if severe
+static const float LTC_SEVERE_TO_HOSPITAL = 0.2; // 0.1       // probability long-term-care residents who are severe go to hospital (if hosp available)
+static const float CRITICAL_TO_ICU_IF_HOSP = 1.0;             // probability already-hospitalized patients go to ICU when critical (if ICU available)
+static const float CRITICAL_TO_ICU_IF_NOT_HOSP = 0.5;         // probability non-hospitalized severe patients go to ICU when critical (if ICU available)
+
+// symptom onset gamma parameters: https://elifesciences.org/articles/57149
+static const float WILDTYPE_SYMPTOM_ONSET_MEAN = 4.91;
+static const float WILDTYPE_SYMPTOM_ONSET_GAMMA_SHAPE = 3.05;                                                               // shape parameter for sampling incubation period
+static const float WILDTYPE_SYMPTOM_ONSET_GAMMA_SCALE = WILDTYPE_SYMPTOM_ONSET_MEAN/WILDTYPE_SYMPTOM_ONSET_GAMMA_SHAPE;     // scale parameter for sampling incubation period
+
+// number of days symptoms remain for people who do not become severe
+// fit to data from https://doi.org/10.1111/joim.13089
+static const float WILDTYPE_SYMPTOM_DURATION_MILD_GAMMA_SHAPE = 4.070483;
+static const float WILDTYPE_SYMPTOM_DURATION_MILD_GAMMA_SCALE = 2.825217;
+
+// expected fraction of incubation period spent non-infectious, used to sample from binomial
+// https://www.ams.edu.sg/view-pdf.aspx?file=media%5c5556_fi_331.pdf&ofile=Period+of+Infectivity+Position+Statement+(final)+23-5-20+(logos).pdf
+// (↑↑↑ ref for 2.3 day asymptomatic transmission mean)
+static const float ASYMPTOMATIC_TRANSMISSION_MEAN = 2.3;
+static const float INFECTIOUSNESS_ONSET_FRACTION  = 1.0 - (ASYMPTOMATIC_TRANSMISSION_MEAN/WILDTYPE_SYMPTOM_ONSET_MEAN);
+
+// https://www.ams.edu.sg/view-pdf.aspx?file=media%5c5556_fi_331.pdf&ofile=Period+of+Infectivity+Position+Statement+(final)+23-5-20+(logos).pdf
+static const int SYMPTOMATIC_INFECTIOUS_PERIOD = 7;           // independent of disease outcome
+
+// severe symptoms warrant hospitalization (which may or may not occur)
+// when severe disease occurs, delay from symptom onset
+// fit to data from https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7171478/
+static const float PRE_SEVERE_SYMPTOMATIC_GAMMA_SHAPE = 0.812130;
+static const float PRE_SEVERE_SYMPTOMATIC_GAMMA_SCALE = 7.199686;
+
+// Empirical hospital lenght-of-stay calculated based on github data (distribution_general_world.csv, distribution_icu_world.csv) provided by
+// https://bmcmedicine.biomedcentral.com/articles/10.1186/s12916-020-01726-3#Sec13
+// As that data was for total hospital stay, we subtracted off the density for ICU stays, assuming that 1/3 of hospital stays result in ICU
+// stays (https://www.cdc.gov/mmwr/volumes/69/wr/mm6932e3.htm?s).
+static const vector<double> SEVERE_ONLY_DURATION_CDF =
+    {0.037435, 0.139665, 0.256730, 0.374955, 0.491195, 0.594245, 0.683795, 0.757310, 0.812225, 0.855110,
+     0.886960, 0.909490, 0.925635, 0.935870, 0.943265, 0.949685, 0.954360, 0.958955, 0.963360, 0.967855,
+     0.971540, 0.975125, 0.978495, 0.981425, 0.984275, 0.986235, 0.988115, 0.989515, 0.991115, 0.992335,
+     0.993585, 0.994790, 0.995595, 0.996245, 0.996965, 0.997490, 0.997980, 0.998385, 0.998670, 0.998810,
+     0.999055, 0.999170, 0.999255, 0.999305, 0.999335, 0.999420, 0.999545, 0.999585, 0.999585, 0.999645,
+     0.999660, 0.999740, 0.999830, 0.999905, 0.999920, 0.999935, 0.999960, 0.999970, 0.999980, 0.999985,
+     0.999985, 0.999985, 0.999985, 0.999985, 0.999985, 0.999985, 0.999985, 0.999985, 0.999985, 0.999985,
+     1.000000};
+
+// As above, empirical ICU lenght-of-stay calculated based on github data (distribution_icu_world.csv) provided by
+// https://bmcmedicine.biomedcentral.com/articles/10.1186/s12916-020-01726-3#Sec13
+static const vector<double> CRITICAL_DURATION_CDF =
+    {0.02395, 0.08514, 0.15554, 0.23370, 0.31259, 0.39308, 0.46988, 0.54266, 0.60962, 0.67088,
+     0.72574, 0.77359, 0.81612, 0.85151, 0.88142, 0.90602, 0.92574, 0.94139, 0.95484, 0.96481,
+     0.97280, 0.97898, 0.98391, 0.98735, 0.99029, 0.99231, 0.99374, 0.99496, 0.99584, 0.99670,
+     0.99723, 0.99767, 0.99810, 0.99848, 0.99869, 0.99893, 0.99915, 0.99924, 0.99939, 0.99947,
+     0.99955, 0.99962, 0.99969, 0.99977, 0.99980, 0.99984, 0.99986, 0.99987, 0.99990, 0.99990,
+     0.99993, 0.99995, 0.99995, 0.99995, 0.99995, 0.99995, 0.99996, 0.99997, 0.99998, 1.00000};
+
+
+static const float NON_ICU_CRITICAL_MORTALITY = 0.9;          // probability of dying when becoming critical if intensive care is not received
+
+// from Person.h
+static const int NUM_AGE_CLASSES = 121;                       // maximum age+1 for a person
+
+
+struct DynamicParameter {
+    DynamicParameter(){};
+    DynamicParameter(int s, int d, double v) : start(s), duration(d), value(v) {};
+    int start;
+    int duration;
+    double value;
 };
+
 
 class StrainPars {
   public:
@@ -190,7 +309,7 @@ class StrainPars {
         relMortality(1.0),
         relIcuMortality(1.0),
         immuneEscapeProb(0.0),
-        symptomaticInfectiousPeriod(7),
+        symptomaticInfectiousPeriod(SYMPTOMATIC_INFECTIOUS_PERIOD),
         relSymptomOnset(1.0) {}
     StrainPars(StrainType t) : StrainPars() { type = t; }
     StrainType type;
@@ -204,6 +323,16 @@ class StrainPars {
     int    symptomaticInfectiousPeriod;
     double relSymptomOnset;
 };
+
+
+struct GammaPars {
+    GammaPars() {};
+    GammaPars(double _a, double _b) : a(_a), b(_b) {};
+    // gamma distribution parameterization used by GSL
+    double a; // shape
+    double b; // scale
+};
+
 
 class ReportingLagModel {
   public:
@@ -252,134 +381,6 @@ class ReportingLagModel {
 };
 
 
-extern gsl_rng* RNG;// = gsl_rng_alloc (gsl_rng_taus2);
-// use a second RNG for stochastic reporting; this allows for more powerful analysis of
-// the effects of different reporting models
-extern gsl_rng* REPORTING_RNG; // = gsl_rng_alloc (gsl_rng_mt19937);
-
-/*
-// transmission-related probabilities
-susceptibility -- use fuction wrapper for generality so we can potentially use age in the future, but just a single value in par for now
-can be 1.0 for right now
-
-transmission -- wrapper function for setting and age, with covariates of 1 for now
-trans per hour probability to be fit
-hh secondary infection probability between 15-30%
-transmission from asymp is 0.5*trans from symp
-
-// disease-related probabilities
-/// probability of outcomes
--- infection -- to be fit/prior informed by hh secondary attack rate
--- symptomatic -- roughly 0.5, but should be age-structured (and we have some estimates)
--- severe (hosp is a subset) -- roughly 0.1 (severe given symptoms), also should be age-structured
-    - fraction of severe that are hospitalized = 0.8 general pop, 0.5 of nursinghome pop
--- critical (icu is a subset) -- 0.5 (critical given severe)
-    - critical-->icu if hospitalized, 1.0; 0.5 otherwise
--- death -- IFR ~ 0.005, 0.2 of critical infections in icu result in death, 1.0 of non-icu critical
-
-/// times
-.time to infectiousness ~3 days
-.duration of infectiousness 7 days
-.time to symptoms ~5 days from infection
-.time to severe ~7 days from symptoms
-.time to critical 4 days from severe
---the previous numbers regarding severe disease surrounding critical disease contradict the following
-.duration of symptoms 14 days for mild, (1 week mild, 2w severe, 1w mild) for severe, 10 more days critical, in the middle of severe period
-*/
-
-static const float SEVERE_TO_HOSPITAL = 0.52; // tried 0.1     // general population, probability of going to hospital if severe
-static const float LTC_SEVERE_TO_HOSPITAL = 0.2; // 0.1       // probability long-term-care residents who are severe go to hospital (if hosp available)
-static const float CRITICAL_TO_ICU_IF_HOSP = 1.0;             // probability already-hospitalized patients go to ICU when critical (if ICU available)
-static const float CRITICAL_TO_ICU_IF_NOT_HOSP = 0.5;         // probability non-hospitalized severe patients go to ICU when critical (if ICU available)
-
-// symptom onset gamma parameters: https://elifesciences.org/articles/57149
-static const float SYMPTOM_ONSET_MEAN = 4.91;
-static const float SYMPTOM_ONSET_GAMMA_SHAPE = 3.05;          // shape parameter for sampling incubation period
-                                                              // scale parameter for sampling incubation period
-static const float SYMPTOM_ONSET_GAMMA_SCALE = SYMPTOM_ONSET_MEAN/SYMPTOM_ONSET_GAMMA_SHAPE;
-
-// number of days symptoms remain for people who do not become severe
-// fit to data from https://doi.org/10.1111/joim.13089
-static const float SYMPTOM_DURATION_MILD_GAMMA_SHAPE = 4.070483;
-static const float SYMPTOM_DURATION_MILD_GAMMA_SCALE = 2.825217;
-
-// expected fraction of incubation period spent non-infectious, used to sample from binomial
-// https://www.ams.edu.sg/view-pdf.aspx?file=media%5c5556_fi_331.pdf&ofile=Period+of+Infectivity+Position+Statement+(final)+23-5-20+(logos).pdf
-// (↑↑↑ ref for 2.3 day asymptomatic transmission mean)
-static const float INFECTIOUSNESS_ONSET_FRACTION = 1.0 - (2.3/SYMPTOM_ONSET_MEAN);
-
-// https://www.ams.edu.sg/view-pdf.aspx?file=media%5c5556_fi_331.pdf&ofile=Period+of+Infectivity+Position+Statement+(final)+23-5-20+(logos).pdf
-static const int SYMPTOMATIC_INFECTIOUS_PERIOD = 7;           // independent of disease outcome
-
-// severe symptoms warrant hospitalization (which may or may not occur)
-// when severe disease occurs, delay from symptom onset
-// fit to data from https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7171478/
-static const float PRE_SEVERE_SYMPTOMATIC_GAMMA_SHAPE = 0.812130;
-static const float PRE_SEVERE_SYMPTOMATIC_GAMMA_SCALE = 7.199686;
-
-// Empirical hospital lenght-of-stay calculated based on github data (distribution_general_world.csv, distribution_icu_world.csv) provided by
-// https://bmcmedicine.biomedcentral.com/articles/10.1186/s12916-020-01726-3#Sec13
-// As that data was for total hospital stay, we subtracted off the density for ICU stays, assuming that 1/3 of hospital stays result in ICU
-// stays (https://www.cdc.gov/mmwr/volumes/69/wr/mm6932e3.htm?s).
-static const vector<double> SEVERE_ONLY_DURATION_CDF =
-    {0.037435, 0.139665, 0.256730, 0.374955, 0.491195, 0.594245, 0.683795, 0.757310, 0.812225, 0.855110,
-     0.886960, 0.909490, 0.925635, 0.935870, 0.943265, 0.949685, 0.954360, 0.958955, 0.963360, 0.967855,
-     0.971540, 0.975125, 0.978495, 0.981425, 0.984275, 0.986235, 0.988115, 0.989515, 0.991115, 0.992335,
-     0.993585, 0.994790, 0.995595, 0.996245, 0.996965, 0.997490, 0.997980, 0.998385, 0.998670, 0.998810,
-     0.999055, 0.999170, 0.999255, 0.999305, 0.999335, 0.999420, 0.999545, 0.999585, 0.999585, 0.999645,
-     0.999660, 0.999740, 0.999830, 0.999905, 0.999920, 0.999935, 0.999960, 0.999970, 0.999980, 0.999985,
-     0.999985, 0.999985, 0.999985, 0.999985, 0.999985, 0.999985, 0.999985, 0.999985, 0.999985, 0.999985,
-     1.000000};
-
-// As above, empirical ICU lenght-of-stay calculated based on github data (distribution_icu_world.csv) provided by
-// https://bmcmedicine.biomedcentral.com/articles/10.1186/s12916-020-01726-3#Sec13
-static const vector<double> CRITICAL_DURATION_CDF =
-    {0.02395, 0.08514, 0.15554, 0.23370, 0.31259, 0.39308, 0.46988, 0.54266, 0.60962, 0.67088,
-     0.72574, 0.77359, 0.81612, 0.85151, 0.88142, 0.90602, 0.92574, 0.94139, 0.95484, 0.96481,
-     0.97280, 0.97898, 0.98391, 0.98735, 0.99029, 0.99231, 0.99374, 0.99496, 0.99584, 0.99670,
-     0.99723, 0.99767, 0.99810, 0.99848, 0.99869, 0.99893, 0.99915, 0.99924, 0.99939, 0.99947,
-     0.99955, 0.99962, 0.99969, 0.99977, 0.99980, 0.99984, 0.99986, 0.99987, 0.99990, 0.99990,
-     0.99993, 0.99995, 0.99995, 0.99995, 0.99995, 0.99995, 0.99996, 0.99997, 0.99998, 1.00000};
-
-
-static const float NON_ICU_CRITICAL_MORTALITY = 0.9;          // probability of dying when becoming critical if intensive care is not received
-
-// from Person.h
-static const int NUM_AGE_CLASSES = 121;                       // maximum age+1 for a person
-
-
-namespace covid {
-    namespace standard {
-        using std::cout;
-        using std::cerr;
-        using std::endl;
-        using std::string;
-        using std::vector;
-        using std::set;
-        using std::map;
-        using std::pair;
-        using std::make_pair;
-        using std::ifstream;
-        using std::istringstream;
-        using std::ofstream;
-        using std::ostringstream;
-        using std::strcmp;
-        using std::strtol;
-        using std::strtod;
-        using std::bitset;
-    }
-}
-
-
-struct DynamicParameter {
-    DynamicParameter(){};
-    DynamicParameter(int s, int d, double v) : start(s), duration(d), value(v) {};
-    int start;
-    int duration;
-    double value;
-};
-
-
 /*struct CatchupVaccinationEvent {
     CatchupVaccinationEvent(){};
     CatchupVaccinationEvent(size_t cs, size_t cd, size_t a, double c): campaignStart(cs), campaignDuration(cd), age(a), coverage(c) {};
@@ -423,9 +424,9 @@ public:
     int sampleIcuTimeToDeath() const {
     // parameterization based on what you need to produce findings of median = 7, IQR = [3,11]
     // https://www.thelancet.com/journals/lanres/article/PIIS2213-2600(20)30079-5/fulltext
-        const double daily_prob_of_death = 0.2; // TODO -- should rename these so they aren't misleading
-        const size_t num_days_survive_until_death = 2;
-        return gsl_ran_negative_binomial(RNG, daily_prob_of_death, num_days_survive_until_death);
+        const double icu_time_to_death_p = 0.2;
+        const size_t icu_time_to_death_n = 2;
+        return gsl_ran_negative_binomial(RNG, icu_time_to_death_p, icu_time_to_death_n);
     }
 
     int sampleCommunityTimeToDeath() const {
@@ -437,12 +438,12 @@ public:
 
     unsigned long int randomseed;
     size_t runLength;
-    double household_transmissibility;                      // per-day probability of transmission between a co-habitating dyad
-    double social_transmissibility;                         // per-day probability of transmission, scaled by the fraction of infectious social contacts
-    double workplace_transmissibility;                      // per-day probability of transmission, scaled by the fraction of infectious co-workers
-    double school_transmissibility;                         // per-day probability of transmission, scaled by the fraction of infectious students/staff
-    double hospital_transmissibility;                       // per-day probability of transmission, scaled by the fraction of infectious staff/patients
-    double nursinghome_transmissibility;                    // per-day probability of transmission, scaled by the fraction of infectious staff/residents
+    double household_transmission_haz_mult;                      // per-day hazard multiplier of transmission between a co-habitating dyad
+    double social_transmission_haz_mult;                         // per-day hazard multiplier of transmission, scaled by the fraction of infectious social contacts
+    double workplace_transmission_haz_mult;                      // per-day hazard multiplier of transmission, scaled by the fraction of infectious co-workers
+    double school_transmission_haz_mult;                         // per-day hazard multiplier of transmission, scaled by the fraction of infectious students/staff
+    double hospital_transmission_haz_mult;                       // per-day hazard multiplier of transmission, scaled by the fraction of infectious staff/patients
+    double nursinghome_transmission_haz_mult;                    // per-day hazard multiplier of transmission, scaled by the fraction of infectious staff/residents
     std::vector<double> seasonality;                        // transmissibility multiplier, index by simulation day
     double seasonality_on (const Date *date) const;
 
@@ -485,7 +486,7 @@ public:
     size_t contactTracingDepth;                             // tracing contacts = 1; tracing contacts-of-contacts = 2; etc...
 
     size_t symptom_onset(StrainType strain = WILDTYPE) const { // aka incubation period
-        double deviate = gsl_ran_gamma(RNG, SYMPTOM_ONSET_GAMMA_SHAPE, strainPars[strain].relSymptomOnset * SYMPTOM_ONSET_GAMMA_SCALE);
+        double deviate = gsl_ran_gamma(RNG, WILDTYPE_SYMPTOM_ONSET_GAMMA_SHAPE, strainPars[strain].relSymptomOnset * WILDTYPE_SYMPTOM_ONSET_GAMMA_SCALE);
         assert(deviate >= 0);
         return 1 + floor(deviate);
     }
@@ -497,7 +498,7 @@ public:
         return 1 + floor(gsl_ran_gamma(RNG, PRE_SEVERE_SYMPTOMATIC_GAMMA_SHAPE, PRE_SEVERE_SYMPTOMATIC_GAMMA_SCALE));
     }
     size_t symptom_duration_mild() const {
-        return 1 + floor(gsl_ran_gamma(RNG, SYMPTOM_DURATION_MILD_GAMMA_SHAPE, SYMPTOM_DURATION_MILD_GAMMA_SCALE));
+        return 1 + floor(gsl_ran_gamma(RNG, WILDTYPE_SYMPTOM_DURATION_MILD_GAMMA_SHAPE, WILDTYPE_SYMPTOM_DURATION_MILD_GAMMA_SCALE));
     }
     size_t severe_only_duration() const { return sampler(SEVERE_ONLY_DURATION_CDF, gsl_rng_uniform(RNG)); }
     size_t critical_duration()    const { return sampler(CRITICAL_DURATION_CDF, gsl_rng_uniform(RNG)); }
@@ -559,9 +560,9 @@ public:
     std::string peopleOutputFilename;
     std::string yearlyPeopleOutputFilename;
     std::string dailyOutputFilename;
-    std::string annualIntroductionsFilename;                // time series of some external factor determining introduction rate
-    std::vector<double> annualIntroductions;
-    double annualIntroductionsCoef;                         // multiplier to rescale external introductions to something sensible
+    //std::string annualIntroductionsFilename;                // time series of some external factor determining introduction rate
+    //std::vector<double> annualIntroductions;
+    //double annualIntroductionsCoef;                         // multiplier to rescale external introductions to something sensible
 
     double sampleStartingNaturalEfficacy(const gsl_rng* RNG) const {
         // neutralization level relative to mean natural immunity following infection, after: https://www.nature.com/articles/s41591-021-01377-8/figures/1
@@ -613,7 +614,8 @@ public:
 //        const double time_to_susceptible = -t_half * log(threshold / pow(10, gsl_ran_gaussian(RNG, antibody_init_sd) + antibody_init_mean)) / log(2);
 //        return time_to_susceptible < 0 ? 0 : (size_t) round(time_to_susceptible);
 //    }
-    bool immunityWanes;                                      // innate waning of both natural and vaccine immunity
+    bool immunityWanes;                                     // innate waning of both natural and vaccine immunity
+    double seroPositivityThreshold;                         // threshold at which an individual would be considered seropositive
     int vaccineImmunityDuration;
     bool vaccineBoosting;                                   // Are we re-vaccinated, either because of waning or because of multi-dose vaccine
     int numVaccineDoses;                                    // Number of times to boost; default is INT_MAX
@@ -624,7 +626,8 @@ public:
     double vaccineTargetCoverage;
     int vaccineTargetStartDate;
 
-    vector<StrainPars> strainPars;
+    std::vector<StrainPars> strainPars;
+    std::vector<std::vector<bool>> crossProtectionMatrix;
 
     size_t numSurveilledPeople;
 
