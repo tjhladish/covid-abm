@@ -56,7 +56,7 @@ Community::Community(const Parameters* parameters, Date* date) :
         _numNewInfectionsByStrain[(StrainType) strain] = vector<size_t>(_par->runLength);
     }
 
-    vector<string> inf_by_loc_keys = {"home", "neighbor", "work_staff", "patron", "school_staff", "student", "hcw", "patient", "ltcf_staff", "ltcf_resident"};
+    vector<string> inf_by_loc_keys = {"home", "social", "work_staff", "patron", "school_staff", "student", "hcw", "patient", "ltcf_staff", "ltcf_resident"};
     for (string key : inf_by_loc_keys) {
         _numNewlyInfectedByLoc[key] = vector<size_t>(_par->runLength, 0);
     }
@@ -106,7 +106,7 @@ void Community::reset() { // used for r-zero calculations, to reset pop after a 
         _numNewInfectionsByStrain[(StrainType) strain] = vector<size_t>(_par->runLength);
     }
 
-    vector<string> inf_by_loc_keys = {"home", "neighbor", "work_staff", "patron", "school_staff", "student", "hcw", "patient", "ltcf_staff", "ltcf_resident"};
+    vector<string> inf_by_loc_keys = {"home", "social", "work_staff", "patron", "school_staff", "student", "hcw", "patient", "ltcf_staff", "ltcf_resident"};
     for (string key : inf_by_loc_keys) {
         _numNewlyInfectedByLoc[key] = vector<size_t>(_par->runLength, 0);
     }
@@ -674,7 +674,7 @@ void Community::tallyInfectionsByLoc() {
                         switch (inf_lt) {
                             case HOUSE:
                                 if (inf_loc == p->getHomeLoc()) { _numNewlyInfectedByLoc["home"][_day]++; }
-                                else                            { _numNewlyInfectedByLoc["neighbor"][_day]++; }
+                                else                            { _numNewlyInfectedByLoc["social"][_day]++; }
                                 break;
                             case WORK:
                                 if (inf_loc == p->getDayLoc()) { _numNewlyInfectedByLoc["work_staff"][_day]++; }
