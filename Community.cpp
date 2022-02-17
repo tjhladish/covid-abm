@@ -658,46 +658,38 @@ void Community::updatePersonStatus() {
     return;
 }
 
-void Community::tallyInfectionsByLoc() {
-    for (Person* p: _people) {
-        if (p->isSurveilledPerson()) {
-            if (p->getNumNaturalInfections() == 0) {
-                continue;              // no infection/outcomes to tally
-            } else {
-                // the methods used with Infection below generally are available for Person, but this should be faster
-                const Infection* inf = p->getInfection();
-                if (inf->getInfectedTime()==_day) {
-                    if (inf->getInfectedPlace()) {
-                        Location* inf_loc   = inf->getInfectedPlace();
-                        LocationType inf_lt = inf->getInfectedPlace()->getType();
 
-                        switch (inf_lt) {
-                            case HOUSE:
-                                if (inf_loc == p->getHomeLoc()) { _numNewlyInfectedByLoc["home"][_day]++; }
-                                else                            { _numNewlyInfectedByLoc["neighbor"][_day]++; }
-                                break;
-                            case WORK:
-                                if (inf_loc == p->getDayLoc()) { _numNewlyInfectedByLoc["work_staff"][_day]++; }
-                                else                           { _numNewlyInfectedByLoc["patron"][_day]++; }
-                                break;
-                            case SCHOOL:
-                                if (p->getAge() > 18) { _numNewlyInfectedByLoc["school_staff"][_day]++; }
-                                else                  { _numNewlyInfectedByLoc["student"][_day]++; }
-                                break;
-                            case HOSPITAL:
-                                if (inf_loc == p->getDayLoc()) { _numNewlyInfectedByLoc["hcw"][_day]++; }
-                                else                           { _numNewlyInfectedByLoc["patient"][_day]++; }
-                                break;
-                            case NURSINGHOME:
-                                if (inf_loc == p->getDayLoc()) { _numNewlyInfectedByLoc["ltcf_staff"][_day]++; }
-                                else                           { _numNewlyInfectedByLoc["ltcf_resident"][_day]++; }
-                                break;
-                            default:
-                                break;
-                        }
-                    }
-                }
-            }
+void Community::tallyInfectionByLoc(Infection* inf) {
+    // the methods used with Infection below generally are available for Person, but this should be faster
+    if (inf->getInfectedPlace()) {
+        Person* p           = inf->getInfectionOwner();
+        Location* inf_loc   = inf->getInfectedPlace();
+        LocationType inf_lt = inf->getInfectedPlace()->getType();
+        int day             = inf->getInfectedTime();
+
+        switch (inf_lt) {
+            case HOUSE:
+                if (inf_loc == p->getHomeLoc()) { _numNewlyInfectedByLoc["home"][day]++; }
+                else                            { _numNewlyInfectedByLoc["neighbor"][day]++; }
+                break;
+            case WORK:
+                if (inf_loc == p->getDayLoc())  { _numNewlyInfectedByLoc["work_staff"][day]++; }
+                else                            { _numNewlyInfectedByLoc["patron"][day]++; }
+                break;
+            case SCHOOL:
+                if (p->getAge() > 18)           { _numNewlyInfectedByLoc["school_staff"][day]++; }
+                else                            { _numNewlyInfectedByLoc["student"][day]++; }
+                break;
+            case HOSPITAL:
+                if (inf_loc == p->getDayLoc())  { _numNewlyInfectedByLoc["hcw"][day]++; }     // TODO -- this is not quite right logically, although it currently has no effect
+                else                            { _numNewlyInfectedByLoc["patient"][day]++; } // because all patients have covid and thus cannot become infected in hosp
+                break;
+            case NURSINGHOME:
+                if (inf_loc == p->getDayLoc())  { _numNewlyInfectedByLoc["ltcf_staff"][day]++; }
+                else                            { _numNewlyInfectedByLoc["ltcf_resident"][day]++; }
+                break;
+            default:
+                break;
         }
     }
 }
@@ -1100,7 +1092,6 @@ void Community::tick() {
     // on this day.
     hospital_transmission();
     updateHotLocations();
-    tallyInfectionsByLoc();
 
     // do contact tracing to a given depth using reported cases from today if _day is at or after the start of contact tracing
     vector< set<Person*> > tracedContactsByDepth = traceForwardContacts();
