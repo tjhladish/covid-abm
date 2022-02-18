@@ -1311,3 +1311,22 @@ map<string, double> Community::calculate_daily_direct_VE() {
     }
     return VE_map;
 }
+
+vector<size_t> Community::generateOffspringDistribution() {
+    map<size_t, size_t> offspringMap;
+
+    for (Person* p : _people) {
+        for (Infection* inf : p->getInfectionHistory()) {
+            size_t num_secondary_infs = inf->secondary_infection_tally();
+            offspringMap[num_secondary_infs]++;
+        }
+    }
+
+    vector<size_t> offspringDistribution(offspringMap.size(), 0);
+    for (auto const& [key, val] : offspringMap) {
+        if (key >= offspringDistribution.size()) { offspringDistribution.resize(key + 1, 0); }
+        offspringDistribution.at(key) = val;
+    }
+
+    return offspringDistribution;
+}

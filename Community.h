@@ -262,6 +262,7 @@ class Community {
         vector<Location*> locsAtPixel(double xP, double yP) { return _pixelMap[{xP, yP}]; }
 
         map<std::string, double> calculate_daily_direct_VE();
+        vector<size_t> generateOffspringDistribution();
 
     protected:
         static const Parameters* _par;
