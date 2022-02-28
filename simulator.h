@@ -1020,6 +1020,11 @@ if (*date == "2021-12-01") { gsl_rng_set(RNG, par->randomseed); }
 
 cerr_vector(community->getTimedIntervention(SOCIAL_DISTANCING));
 
+vector<size_t> offspringDistribution = community->generateOffspringDistribution();
+cerr << endl << "OFFSPRING DISTR" << endl;
+cerr_vector(offspringDistribution);
+cerr << endl;
+
     if (RNG) { gsl_rng_free(RNG); }
     if (REPORTING_RNG) { gsl_rng_free(REPORTING_RNG); }
 

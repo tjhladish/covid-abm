@@ -527,7 +527,7 @@ void Community::vaccinate() {
 
             // multi-dose vaccines
             if (v->getNumVaccinations() < _par->numVaccineDoses) {
-                vac_campaign->schedule_revaccination(_day + _par->vaccineDoseInterval, v);
+                vac_campaign->schedule_revaccination(_day + _par->vaccineDoseInterval.at(v->getNumVaccinations() - 1), v);
             }
 
             // vaccines that require regular boosting

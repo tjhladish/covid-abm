@@ -560,6 +560,8 @@ public:
     std::string peopleOutputFilename;
     std::string yearlyPeopleOutputFilename;
     std::string dailyOutputFilename;
+    std::string vaccination_file;
+    std::string dose_file;
     //std::string annualIntroductionsFilename;                // time series of some external factor determining introduction rate
     //std::vector<double> annualIntroductions;
     //double annualIntroductionsCoef;                         // multiplier to rescale external introductions to something sensible
@@ -619,7 +621,7 @@ public:
     int vaccineImmunityDuration;
     bool vaccineBoosting;                                   // Are we re-vaccinated, either because of waning or because of multi-dose vaccine
     int numVaccineDoses;                                    // Number of times to boost; default is INT_MAX
-    int vaccineDoseInterval;                                // How often to we re-vaccinate for initial vaccine course, in days
+    std::vector<int> vaccineDoseInterval;                   // How often to we re-vaccinate for initial vaccine course, in days
     int vaccineBoostingInterval;                            // How often to we re-vaccinate for boosting, in days
 //    std::vector<CatchupVaccinationEvent> catchupVaccinationEvents;
     int vaccineTargetAge;
