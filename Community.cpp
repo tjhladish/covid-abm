@@ -1248,11 +1248,10 @@ map<string, double> Community::calculate_daily_direct_VE() {
         size_t num_dose_1 = 0, num_dose_2 = 0, num_dose_3 = 0;
         size_t num_breakthru_infs = 0, num_breakthru_dis = 0, num_breakthru_hosp = 0, num_breakthru_dths = 0, num_breakthru_reported = 0;
         size_t num_unvaxd_infs = 0, num_unvaxd_dis  = 0, num_unvaxd_hosp = 0, num_unvaxd_dths = 0, num_unvaxd_reported = 0;
-
         for (Person* p : _people) {
             switch (p->getNumVaccinations()) {
-                case 3: ++num_dose_3;
-                case 2: ++num_dose_2;
+                case 3: ++num_dose_3; [[fallthrough]];
+                case 2: ++num_dose_2; [[fallthrough]];
                 case 1: ++num_dose_1; break;
                 default: break;
             }
