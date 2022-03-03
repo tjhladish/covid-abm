@@ -1245,10 +1245,18 @@ map<string, double> Community::calculate_daily_direct_VE() {
     map<string, double> VE_map;
     if (vac_campaign) {
         size_t num_ppl_fully_vaxd = 0;
+        size_t num_dose_1 = 0, num_dose_2 = 0, num_dose_3 = 0;
         size_t num_breakthru_infs = 0, num_breakthru_dis = 0, num_breakthru_hosp = 0, num_breakthru_dths = 0, num_breakthru_reported = 0;
         size_t num_unvaxd_infs = 0, num_unvaxd_dis  = 0, num_unvaxd_hosp = 0, num_unvaxd_dths = 0, num_unvaxd_reported = 0;
 
         for (Person* p : _people) {
+            switch (p->getNumVaccinations()) {
+                case 3: ++num_dose_3;
+                case 2: ++num_dose_2;
+                case 1: ++num_dose_1; break;
+                default: break;
+            }
+
             bool fully_vaxd_w_protection = p->isVaccinated() and p->getNumVaccinations() > 1 and p->daysSinceVaccination(_day) >= _par->vaccine_dose_to_protection_lag;
             if (fully_vaxd_w_protection) { ++num_ppl_fully_vaxd; }
             if (p->hasBeenInfected()) {
@@ -1281,6 +1289,9 @@ map<string, double> Community::calculate_daily_direct_VE() {
 
         size_t num_ppl_unvaxd = getNumPeople() - num_ppl_fully_vaxd;
         VE_map["coverage"]    = (double) num_ppl_fully_vaxd / getNumPeople();
+        VE_map["dose_1"]      = (double) num_dose_1 / getNumPeople();
+        VE_map["dose_2"]      = (double) num_dose_2 / getNumPeople();
+        VE_map["dose_3"]      = (double) num_dose_3 / getNumPeople();
 
         double unvax_inf_risk = (double) num_unvaxd_infs/num_ppl_unvaxd;
         double vax_inf_risk   = (double) num_breakthru_infs/num_ppl_fully_vaxd;
