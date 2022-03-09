@@ -121,8 +121,10 @@ class Infection {
     int getSymptomTime()          const { return symptomBegin; }
     int getSymptomEndTime()       const { return symptomEnd; }
     int getSevereTime()           const { return severeBegin; }
+    int getSevereEndTime()        const { return severeEnd; }
     int getHospitalizedTime()     const { return hospitalizedBegin; }
     int getCriticalTime()         const { return criticalBegin; }
+    int getCriticalEndTime()      const { return criticalEnd; }
     int getIcuTime()              const { return icuBegin; }
     int getDeathTime()            const { return deathTime; }
     StrainType getStrain()        const { return strain; }
