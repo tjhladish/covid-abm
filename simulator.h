@@ -943,6 +943,9 @@ if (*date == "2021-12-01") { gsl_rng_set(RNG, par->randomseed); }
                 << setw(8)  << community->getTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, sim_day)
                 << "  "     << setprecision(2) << community->getTimedIntervention(SOCIAL_DISTANCING, sim_day)
                 << "  "     << setprecision(2) << VE_data["coverage"]
+                << "  "     << setprecision(2) << VE_data["dose_1"]
+                << "  "     << setprecision(2) << VE_data["dose_2"]
+                << "  "     << setprecision(2) << VE_data["dose_3"]
                 //             << "  "     << setprecision(2) << (double) severe[sim_day] / reported_cases
                 << endl;
         }
@@ -1131,4 +1134,81 @@ void daily_detailed_output(Community* community, int t) {
                  << (p->isNewlyInfected(t)?1:0) << endl;
         }
     }
+}
+
+
+void generate_infection_db(const Community* community, const unsigned long int serial) {
+    stringstream infection_filename;
+    infection_filename << "./infection_history_" << serial << ".csv";
+
+    stringstream offspring_filename;
+    offspring_filename << "./offspring_infections_" << serial << ".csv";
+
+    stringstream detection_filename;
+    detection_filename << "./infection_detection_" << serial << ".csv";
+
+    ofstream infection_file(infection_filename.str(), std::ios::trunc); // for the infection table
+    ofstream offspring_file(offspring_filename.str(), std::ios::trunc); // for the offspring table
+    ofstream detection_file(detection_filename.str(), std::ios::trunc); // for the detection table
+
+    if (infection_file and offspring_file and detection_file) { cerr << "ALL FILES OPEN" << endl; }
+    else { cerr << "FILES FAILED TO OPEN" << endl; }
+
+    for (Person* p : community->getPeople()) {
+        for (Infection* inf : p->getInfectionHistory()) {
+            if (not inf) { continue; }
+            int inf_place_id = inf->getInfectedPlace() ? inf->getInfectedPlace()->getID() : -1;
+            int inf_by_id    = inf->getInfectedBy() ? inf->getInfectedBy()->getID() : -1;
+            int inf_owner_id = inf->getInfectionOwner() ? inf->getInfectionOwner()->getID() : -1;
+
+            infection_file << inf << ','
+                           << inf_place_id << ','
+                           << inf_by_id << ','
+                           << inf_owner_id << ','
+                           << inf->getInfectedTime() << ','
+                           << inf->getInfectiousTime() << ','
+                           << inf->getInfectiousEndTime() << ','
+                           << inf->getSymptomTime() << ','
+                           << inf->getSymptomEndTime() << ','
+                           << inf->getSevereTime() << ','
+                           << inf->getSevereEndTime() << ','
+                           << inf->getHospitalizedTime() << ','
+                           << inf->getCriticalTime() << ','
+                           << inf->getCriticalEndTime() << ','
+                           << inf->getIcuTime() << ','
+                           << inf->getDeathTime() << ','
+                           << inf->getStrain() << ','
+                           << inf->getRelInfectiousness() << ','
+                           << inf->getDetection() << ','
+                           << inf->secondary_infection_tally() << endl;
+
+            for (Infection* sec_inf : inf->get_infections_caused()) {
+                offspring_file << inf << ',' << sec_inf << endl;
+            }
+
+            if (inf->getDetection()) {
+                Detection* inf_det = inf->getDetection();
+                detection_file << inf_det << ','
+                               << inf << ','
+                               << inf_det->detected_state << ','
+                               << inf_det->reported_time << endl;
+            }
+        }
+    }
+
+    infection_file.close();
+    offspring_file.close();
+    detection_file.close();
+
+    stringstream ss;
+    ss << "sqlite3 infection_data_" << serial << ".sqlite '.read gen_infection_db.sql'";
+    string cmd_str = ss.str();
+    int retval = system(cmd_str.c_str());
+    if (retval == -1) { cerr << "System call to `sqlite3 infection_data_0.db '.read gen_infection_db.sql'` failed\n"; }
+
+    ss.str(string());
+    ss << "rm " << infection_filename.str() << ' ' << offspring_filename.str() << ' ' << detection_filename.str();
+    cmd_str = ss.str();
+    retval = system(cmd_str.c_str());
+    if (retval == -1) { cerr << "System call to delete infection csv files failed\n"; }
 }
