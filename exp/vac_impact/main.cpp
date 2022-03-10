@@ -258,6 +258,8 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->num_preview_windows = 3;
     par->autotuning_dataset = "autotuning_dataset_220217.csv";
 
+    par->generate_infection_db = false;
+
     return par;
 }
 
@@ -840,7 +842,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     string output = ss.str();
     fputs(output.c_str(), stderr);
 
-    generate_infection_db(community, serial);
+    if (par->generate_infection_db) { generate_infection_db(community, serial); }
 
     // if (vc)      { delete vc; }           // should this be here? MOVED INTO COMMUNITY DESTRUCTOR
     if (VAX_RNG) { gsl_rng_free(VAX_RNG); }

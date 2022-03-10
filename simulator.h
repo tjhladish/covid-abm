@@ -1151,8 +1151,7 @@ void generate_infection_db(const Community* community, const unsigned long int s
     ofstream offspring_file(offspring_filename.str(), std::ios::trunc); // for the offspring table
     ofstream detection_file(detection_filename.str(), std::ios::trunc); // for the detection table
 
-    if (infection_file and offspring_file and detection_file) { cerr << "ALL FILES OPEN" << endl; }
-    else { cerr << "FILES FAILED TO OPEN" << endl; }
+    if (not (infection_file and offspring_file and detection_file)) { cerr << "FILES FAILED TO OPEN" << endl; exit(-1); }
 
     for (Person* p : community->getPeople()) {
         for (Infection* inf : p->getInfectionHistory()) {

@@ -119,6 +119,8 @@ void Parameters::define_defaults() {
     tuning_window = INT_MAX;
     num_preview_windows = INT_MAX;
     autotuning_dataset = "";
+
+    gen_immunity_db = false;
 }
 
 
