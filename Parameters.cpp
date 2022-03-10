@@ -120,7 +120,7 @@ void Parameters::define_defaults() {
     num_preview_windows = INT_MAX;
     autotuning_dataset = "";
 
-    gen_immunity_db = false;
+    dump_infection_data = false;
 }
 
 
