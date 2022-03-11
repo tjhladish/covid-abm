@@ -38,10 +38,10 @@ const std::string HOME_DIR = std::getenv("HOME");
 const string pop_dir = HOME_DIR + "/work/covid-abm/pop/" + SIM_POP;
 const string output_dir("/ufrc/longini/tjhladish/");
 //const string imm_dir(output_dir + "");
-//const string vaccination_file = pop_dir + "/../fl_vac/fl_vac_v4.txt";
+const string vaccination_file = pop_dir + "/../fl_vac/fl_vac_v4.txt";
 
 const int RESTART_BURNIN          = 0;
-const int FORECAST_DURATION       = 770;//863;
+const int FORECAST_DURATION       = 770;
 //const int FORECAST_DURATION       = 456;
 const int OVERRUN                 = 14; // to get accurate Rt estimates near the end of the forecast duration
 const bool RUN_FORECAST           = true;
@@ -66,10 +66,10 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->define_defaults();
     par->serial = serial;
 
-    const float T = 0.032 * 5.0;//0.022; // 0.0215 for the fl pop, 0.022 for the pseudo 1000k pop
+    const float T = 0.032;//0.022; // 0.0215 for the fl pop, 0.022 for the pseudo 1000k pop
 
     par->household_transmission_haz_mult   = T;
-    par->social_transmission_haz_mult      = T / 10.0; // assumes complete graphs between households
+    par->social_transmission_haz_mult      = T; // assumes complete graphs between households
     par->workplace_transmission_haz_mult   = T / 2.0;
     par->school_transmission_haz_mult      = T / 2.0;
     par->hospital_transmission_haz_mult    = T / 10.0;
@@ -250,21 +250,17 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->locationFilename         = pop_dir    + "/locations-"          + SIM_POP + ".txt";
     par->networkFilename          = pop_dir    + "/network-"            + SIM_POP + ".txt";
     par->publicActivityFilename   = pop_dir    + "/public-activity-"    + SIM_POP + ".txt";
-    par->vaccination_file         = pop_dir    + "/../fl_vac/fl_vac_v4.txt";
-    par->dose_file                = pop_dir    + "/../fl_vac/doses.txt";
 
     par->behavioral_autotuning = false;
     par->tuning_window = 14;
     par->num_preview_windows = 3;
-    par->autotuning_dataset = "autotuning_dataset_220217.csv";
-
-    par->dump_infection_data = false;
+    par->autotuning_dataset = "autotuning_dataset_220216.csv";
 
     return par;
 }
 
 
-void define_strain_parameters(Parameters* par, const size_t omicron_scenario) {
+void define_strain_parameters(Parameters* par) {
     const double x_alpha_1 = 1;//0.529; // calculated using quadratic formula: (VES*VEP)x^2 - (VES+VEP)x + VESP_alpha = 0, where VES and VEP are for wildtype
     const double x_alpha_2 = 1;//0.948;
 
@@ -340,7 +336,12 @@ void define_strain_parameters(Parameters* par, const size_t omicron_scenario) {
 //    par->strainPars[OMICRON].relIcuMortality   = 2.0;
 //    par->strainPars[OMICRON].immuneEscapeProb  = 0.7;
 
-    //                             W, A, D, O
+    //                          WILDTYPE, ALPHA, DELTA, OMICRON
+    par->crossProtectionMatrix = {{ true, false, false,   false},    // WILDTYPE
+                                  {false,  true, false,   false},    // ALPHA
+                                  {false, false,  true,   false},    // DELTA
+                                  {false, false, false,    true}};   // OMICRON
+
     par->crossProtectionMatrix = {{1, 0, 0, 0},    // WILDTYPE
                                   {0, 1, 0, 0},    // ALPHA
                                   {0, 0, 1, 0},    // DELTA
@@ -348,11 +349,9 @@ void define_strain_parameters(Parameters* par, const size_t omicron_scenario) {
 }
 
 
-void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign* vc, set<Person*, Person::PerPtrComp>& scheduled_people, vector<int>& sch_hcw_by_age) {
+void parseVaccineFile(string vaccinationFilename, const Parameters* par, Community* community, Vac_Campaign* vc, set<Person*, Person::PerPtrComp>& scheduled_people, vector<int>& sch_hcw_by_age) {
     // ratio of synthpop to FL pop
     const double pop_ratio = (double)community->getNumPeople()/FL_POP;
-    const string vaccinationFilename = par->vaccination_file;
-    const string doseFilename        = par->dose_file;
 
     // temporary data structure to hold calculated doses used before setting up the vac_campaign
     vector< vector<int> > doses_available;
@@ -425,7 +424,7 @@ void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign*
             // use date (which is the final day of an week of reported data) from file to cycle through the days in the matching simulation week
             const size_t end_of_week = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, end_of_week_date);
             for(size_t day = end_of_week-6; day <= end_of_week; ++day) {
-                const size_t revacDay = day + par->vaccineDoseInterval[0];          // revac in this scope refers to the second dose timing
+                const size_t revacDay = day + par->vaccineDoseInterval;
                 last_day_of_data = max(day, last_day_of_data);
                 if(day >= par->runLength) { continue; }
 
@@ -475,21 +474,6 @@ void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign*
     }
     iss.close();
 
-    iss.open(doseFilename);
-    int first_dose, second_dose, third_dose;
-    string date;
-
-    while (getline(iss, buffer)) {
-        line.clear();
-        line.str(buffer);
-
-        if (line >> date >> first_dose >> second_dose >> third_dose) {
-            size_t sim_day = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, date);
-            doses_available.at(sim_day)[STANDARD_ALLOCATION]  += (size_t) round(third_dose * pop_ratio);
-        }
-    }
-    iss.close();
-
     // PROJECTED VACCINATION TO 2021-08-31
     // at same rate as 2021-05-29, vaccinate people until 2021-08-31
     if (par->runLength > last_day_of_data + 1) {
@@ -500,7 +484,7 @@ void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign*
         for(auto const& unsch_grp : unscheduled_people) { num_current_unsch += unsch_grp.size(); }
 
         for(size_t day = last_day_of_data+1; day < par->runLength; ++day) {
-            const size_t revacDay = day+par->vaccineDoseInterval[0];        // revac in this scope refers to second dose timing
+            const size_t revacDay = day+par->vaccineDoseInterval;
             // const size_t proj_daily_urgent_doses =  * ;
             // const size_t proj_daily_standard_doses = doses_available.at(may29)[STANDARD_ALLOCATION];
             // adjust available doses by the ratio of unscheduled people on day to unscheduled people on 2021-05-29
@@ -537,13 +521,12 @@ void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign*
     vc->set_doses_available(doses_available);
 }
 
-Vac_Campaign* generateVac_Campaign(const Parameters* par, Community* community) {
+Vac_Campaign* generateVac_Campaign(string vaccinationFilename, const Parameters* par, Community* community) {
     // keeps track of who has been scheduled to prevent scheduling the same person twice
     set<Person*, Person::PerPtrComp> scheduled_people;
 
     // create a new Vac_Campaign
     Vac_Campaign* vc = new Vac_Campaign();
-    vc->set_par(par);
 
     vector<int> sch_hcw_by_age(NUM_AGE_CLASSES);
     // add all healthcare workers (hospital + nursing home workers) to standard queue BEFORE all other people are scheduled
@@ -560,7 +543,7 @@ Vac_Campaign* generateVac_Campaign(const Parameters* par, Community* community) 
         }
     }
 
-    parseVaccineFile(par, community, vc, scheduled_people, sch_hcw_by_age);
+    parseVaccineFile(vaccinationFilename, par, community, vc, scheduled_people, sch_hcw_by_age);
     community->setVac_Campaign(vc);
 
     return vc;
@@ -734,10 +717,9 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     const bool vaccine             = (bool) args[0];
     // const size_t realization    = (size_t) args[1];
     const bool mutation          = (bool) args[2];
-    const size_t omicron_scenario = (size_t) args[3];
 
     Parameters* par = define_simulator_parameters(args, rng_seed, serial, process_id);
-    define_strain_parameters(par, omicron_scenario);
+    define_strain_parameters(par);
 
     vector<string> mutant_intro_dates = {};
     if (mutation) { mutant_intro_dates = {"2021-02-01", "2021-05-27", "2021-11-26"}; }
@@ -750,12 +732,12 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     if (vaccine) {
         par->immunityLeaky         = true;
         par->immunityWanes         = false;
-        par->numVaccineDoses       = 3;
-        par->vaccineDoseInterval   = {21, 240};
+        par->numVaccineDoses       = 2;
+        par->vaccineDoseInterval   = 21;
         par->vaccineTargetCoverage = 0.60;  // for healthcare workers only
         par->vaccine_dose_to_protection_lag = 10;
 
-        vc = generateVac_Campaign(par, community);
+        vc = generateVac_Campaign(vaccination_file, par, community);
 
         // parameter handling --- how do we want to handle setting these? I just set them here rather than use par
         vc->set_prioritize_first_doses(false);
@@ -797,24 +779,24 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 //    }
 
 // comment out this block if simvis.R is not needed
-{
-    vector<pair<size_t, double>> Rt = community->getMeanNumSecondaryInfections();
-    vector<double> Rt_ma = calc_Rt_moving_average(Rt, 7);
-
-    assert(Rt.size()+1 == plot_log_buffer.size()); // there's a header line
-    for (size_t i = 1; i < plot_log_buffer.size(); ++i) {
-        //plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt[i-1].second);
-        plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt_ma[i-1]);
-    }
-    bool overwrite = true;
-    string filename = "plot_log" + to_string(serial) + ".csv";
-    write_daily_buffer(plot_log_buffer, process_id, filename, overwrite);
-    stringstream ss;
-    ss << "Rscript expanded_simvis.R " << serial;
-    string cmd_str = ss.str();
-    int retval = system(cmd_str.c_str());
-    if (retval == -1) { cerr << "System call to `Rscript expanded_simvis.R` failed\n"; }
-}
+//{
+//    vector<pair<size_t, double>> Rt = community->getMeanNumSecondaryInfections();
+//    vector<double> Rt_ma = calc_Rt_moving_average(Rt, 7);
+//
+//    assert(Rt.size()+1 == plot_log_buffer.size()); // there's a header line
+//    for (size_t i = 1; i < plot_log_buffer.size(); ++i) {
+//        //plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt[i-1].second);
+//        plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt_ma[i-1]);
+//    }
+//    bool overwrite = true;
+//    string filename = "plot_log" + to_string(serial) + ".csv";
+//    write_daily_buffer(plot_log_buffer, process_id, filename, overwrite);
+//    stringstream ss;
+//    ss << "Rscript expanded_simvis.R " << serial;
+//    string cmd_str = ss.str();
+//    int retval = system(cmd_str.c_str());
+//    if (retval == -1) { cerr << "System call to `Rscript expanded_simvis.R` failed\n"; }
+//}
 
     time (&end);
     double dif = difftime (end,start);
@@ -824,7 +806,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     ages_by_outcome["hosp"].resize(2*par->runLength/7);
     ages_by_outcome["deaths"].resize(2*par->runLength/7);
 
-    vector<double> metrics = tally_counts(par, community, 0);
+    //vector<double> metrics = tally_counts(par, community, 0);
+    vector<double> metrics = community->getTimedIntervention(SOCIAL_DISTANCING);
     //calculate_reporting_ratios(community);
 
     stringstream ss;
@@ -836,8 +819,6 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
     string output = ss.str();
     fputs(output.c_str(), stderr);
-
-    if (par->dump_infection_data) { generate_infection_db(community, serial); }
 
     // if (vc)      { delete vc; }           // should this be here? MOVED INTO COMMUNITY DESTRUCTOR
     if (VAX_RNG) { gsl_rng_free(VAX_RNG); }

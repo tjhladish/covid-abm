@@ -1100,7 +1100,6 @@ void Community::tick() {
     // on this day.
     hospital_transmission();
     updateHotLocations();
-    tallyInfectionsByLoc();
 
     // do contact tracing to a given depth using reported cases from today if _day is at or after the start of contact tracing
     vector< set<Person*> > tracedContactsByDepth = traceForwardContacts();
