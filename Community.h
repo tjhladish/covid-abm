@@ -170,7 +170,7 @@ class Community {
         int getDay() { return _day; }                                // what day is it?
         //void swapImmuneStates();
         void updatePersonStatus();
-        void tallyInfectionByLoc(Infection* inf);
+        // void tallyInfectionByLoc(Infection* inf);
         void updateHotLocations();
         void tick();                                                   // simulate one day
 
