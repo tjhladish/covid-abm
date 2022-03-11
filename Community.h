@@ -102,6 +102,12 @@ class Community {
                 vector<Location*> patronizedLocations = p->getPatronizedLocations();
                 for(Location* &loc : patronizedLocations) { loc = location_ptr_map[loc]; }
                 p->setPatronizedLocations(patronizedLocations);
+
+                for (Infection* inf : p->getInfectionHistory()) {
+                    inf->setInfectedPlace(location_ptr_map[inf->getInfectedPlace()]);
+                    inf->setInfectionOwner(person_ptr_map[inf->getInfectionOwner()]);
+                    inf->setInfectedBy(person_ptr_map[inf->getInfectedBy()]);
+                }
             }
 
             for(auto& v : _personAgeCohort) {
