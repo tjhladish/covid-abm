@@ -756,9 +756,6 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     seed_epidemic(par, community, WILDTYPE);
     vector<string> plot_log_buffer = simulate_epidemic(par, community, process_id, mutant_intro_dates);//, social_contact_map);
 
-    string cmd = "cksum plot_log_*";
-    system(cmd.c_str());
-
     vector<double> cases(par->runLength, 0.0);
     vector<double> deaths(par->runLength, 0.0);
 

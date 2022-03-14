@@ -1027,6 +1027,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
         write_daily_buffer(ledger->plot_log_buffer, process_id, filename, overwrite);
         // restore cache
         restore_from_cache(community, date, sim_cache, ledger, social_distancing_anchors);
+        init_behavioral_vals_from_file(par, community);
         // increment SIM_ID
         ++SIM_ID;
     }
