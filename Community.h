@@ -190,6 +190,7 @@ class Community {
         void setVES(double f);
         void setVESs(std::vector<double> f);
         void setVac_Campaign(Vac_Campaign* vc) { vac_campaign = vc; }
+        Vac_Campaign* getVac_Campaign() const { return vac_campaign; }
         std::vector<size_t> getNumNewlyInfected() { return _numNewlyInfected; }
         std::vector<size_t> getNumNewInfections(StrainType strain) { return _numNewInfectionsByStrain.at(strain); }
         std::vector<size_t> getNumNewInfectionsByLoc(string key) { return _numNewlyInfectedByLoc[key]; }
