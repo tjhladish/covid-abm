@@ -697,7 +697,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     cerr << "rng seed: " << rng_seed << endl;
     //gsl_rng_set(RNG, rng_seed);
     //gsl_rng_set(VAX_RNG, rng_seed);
-    gsl_rng_set(RNG, 1);
+    gsl_rng_set(RNG, rng_seed);
     gsl_rng_set(VAX_RNG, 1);
     // initialize bookkeeping for run
     time_t start, end;
@@ -751,26 +751,26 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
     seed_epidemic(par, community, WILDTYPE);
     vector<string> plot_log_buffer = simulate_epidemic(par, community, process_id, mutant_intro_dates);//, social_contact_map);
-
-    vector<double> cases(par->runLength, 0.0);
-    vector<double> deaths(par->runLength, 0.0);
-
-    for (auto person: community->getPeople()) {
-        if (person->getNumNaturalInfections()) {
-            vector<Infection*> infections = person->getInfectionHistory();
-            for (Infection* inf: infections) {
-                if (inf->getDetection()) {
-                    const int inf_date = inf->getDetection()->reported_time;
-                    if (inf_date < (int) cases.size()) {
-                        cases[inf_date]++;
-                        if (inf->fatal()) {
-                            deaths[inf_date]++;
-                        }
-                    }
-                }
-            }
-        }
-    }
+//
+//    vector<double> cases(par->runLength, 0.0);
+//    vector<double> deaths(par->runLength, 0.0);
+//
+//    for (auto person: community->getPeople()) {
+//        if (person->getNumNaturalInfections()) {
+//            vector<Infection*> infections = person->getInfectionHistory();
+//            for (Infection* inf: infections) {
+//                if (inf->getDetection()) {
+//                    const int inf_date = inf->getDetection()->reported_time;
+//                    if (inf_date < (int) cases.size()) {
+//                        cases[inf_date]++;
+//                        if (inf->fatal()) {
+//                            deaths[inf_date]++;
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//    }
 
 //    Date dummy_date(par);
 //    for (unsigned int i = 0; i < cases.size(); ++i ) {
@@ -801,13 +801,13 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     time (&end);
     double dif = difftime (end,start);
 
-    map<string, vector<vector<size_t>>> ages_by_outcome;
-    ages_by_outcome["cases"].resize(2*par->runLength/7);
-    ages_by_outcome["hosp"].resize(2*par->runLength/7);
-    ages_by_outcome["deaths"].resize(2*par->runLength/7);
-
     //vector<double> metrics = tally_counts(par, community, 0);
     vector<double> metrics = community->getTimedIntervention(SOCIAL_DISTANCING);
+    for (auto& e: metrics) {
+        e += gsl_ran_gaussian(RNG, 0.1);
+        e = min(e, 1.0);
+        e = max(e, 0.0);
+    }
     //calculate_reporting_ratios(community);
 
     stringstream ss;

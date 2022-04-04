@@ -30,6 +30,9 @@ abc_sql: libabc covid main_abc.cpp
 sim_test: libabc covid main.cpp
 	$(CPP) $(CFLAGS) $(INCLUDE) -I$(SQLDIR) main.cpp -o sim_test $(COVOBJ) $(ABC_LIB) $(GSL_LIB)
 
+ppb_pls: libabc covid ppb_pls.cpp
+	$(CPP) $(CFLAGS) $(INCLUDE) -I$(SQLDIR) ppb_pls.cpp -o run_pls $(ABC_LIB) $(GSL_LIB)
+
 clean:
 	$(MAKE) -C $(ABCDIR) -f Makefile clean
 	$(MAKE) -C $(COVDIR) -f Makefile clean
