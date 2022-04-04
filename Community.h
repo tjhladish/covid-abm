@@ -102,6 +102,12 @@ class Community {
                 vector<Location*> patronizedLocations = p->getPatronizedLocations();
                 for(Location* &loc : patronizedLocations) { loc = location_ptr_map[loc]; }
                 p->setPatronizedLocations(patronizedLocations);
+
+                for (Infection* inf : p->getInfectionHistory()) {
+                    inf->setInfectedPlace(location_ptr_map[inf->getInfectedPlace()]);
+                    inf->setInfectionOwner(person_ptr_map[inf->getInfectionOwner()]);
+                    inf->setInfectedBy(person_ptr_map[inf->getInfectedBy()]);
+                }
             }
 
             for(auto& v : _personAgeCohort) {
@@ -164,7 +170,7 @@ class Community {
         int getDay() { return _day; }                                // what day is it?
         //void swapImmuneStates();
         void updatePersonStatus();
-        void tallyInfectionByLoc(Infection* inf);
+        // void tallyInfectionByLoc(Infection* inf);
         void updateHotLocations();
         void tick();                                                   // simulate one day
 
@@ -262,6 +268,7 @@ class Community {
         vector<Location*> locsAtPixel(double xP, double yP) { return _pixelMap[{xP, yP}]; }
 
         map<std::string, double> calculate_daily_direct_VE();
+        vector<size_t> generateOffspringDistribution();
 
     protected:
         static const Parameters* _par;

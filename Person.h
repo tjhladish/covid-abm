@@ -61,7 +61,7 @@ class Infection {
         infectedBegin     = o.infectedBegin;
         infectedPlace     = o.infectedPlace;
         infectedBy        = o.infectedBy;
-        //infectionOwner    = o.infectionOwner; TODO: need to test to make sure that infections are copied and cached properly
+        infectionOwner    = o.infectionOwner; // TODO: need to test to make sure that infections are copied and cached properly
         infectiousBegin   = o.infectiousBegin;
         infectiousEnd     = o.infectiousEnd;
         symptomBegin      = o.symptomBegin;
@@ -112,17 +112,25 @@ class Infection {
   public:
     bool isLocallyAcquired()      const { return infectedBy != nullptr; }
 
-    Location* getInfectedPlace()  const { return infectedPlace; }
+    Location* getInfectedPlace()  const  { return infectedPlace; }
+    void setInfectedPlace(Location* loc) { infectedPlace = loc; }
+
     Person* getInfectedBy()       const { return infectedBy; }
+    void setInfectedBy(Person* p)       { infectedBy = p; }
+
     Person* getInfectionOwner()   const { return infectionOwner; }
+    void setInfectionOwner(Person* p)   { infectionOwner = p; }
+
     int getInfectedTime()         const { return infectedBegin; }
     int getInfectiousTime()       const { return infectiousBegin; }
     int getInfectiousEndTime()    const { return infectiousEnd; }
     int getSymptomTime()          const { return symptomBegin; }
     int getSymptomEndTime()       const { return symptomEnd; }
     int getSevereTime()           const { return severeBegin; }
+    int getSevereEndTime()        const { return severeEnd; }
     int getHospitalizedTime()     const { return hospitalizedBegin; }
     int getCriticalTime()         const { return criticalBegin; }
+    int getCriticalEndTime()      const { return criticalEnd; }
     int getIcuTime()              const { return icuBegin; }
     int getDeathTime()            const { return deathTime; }
     StrainType getStrain()        const { return strain; }

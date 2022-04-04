@@ -98,6 +98,8 @@ class Vac_Campaign {
         }
         virtual ~Vac_Campaign() {} //is this correct to address a vtable error?
 
+        void set_par(const Parameters* par) { _par = par; }
+
         int get_start_of_campaign(int campaignType) { return start_of_campaign[campaignType]; }
         void set_start_of_campaign(int campaignType, int day) { start_of_campaign[campaignType] = day; }
 
@@ -133,7 +135,7 @@ class Vac_Campaign {
         void setRevaccinateQueue(std::vector< std::set<Person*, Person::PerPtrComp> > rq) { revaccinate_queue = rq; }
 
         int get_doses_available(int day, VaccineAllocationType alloc) { return doses_available[day][alloc]; }
-        void set_doses_available( std::vector< std::vector<int> > da ) {
+        void set_doses_available(std::vector< std::vector<int> > da) {
             doses_available = da;
             //doses_used.resize(da.size(), std::vector<int>(NUM_OF_VACCINATION_QUEUE_TYPES));
             revaccinate_queue.resize(da.size());
@@ -263,6 +265,8 @@ class Vac_Campaign {
         */
 
     private:
+        const Parameters* _par;
+
         std::deque<Person*> urgent_queue;                      // people who need to be vaccinated, determined during simulation
         std::deque<Person*> standard_queue;                    // people who will be vaccinated, known before transmission sim begins
         std::vector< std::set<Person*, Person::PerPtrComp> > revaccinate_queue;    // indexed by sim day

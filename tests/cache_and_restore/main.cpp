@@ -1,7 +1,7 @@
 #include <chrono>
 #include <unistd.h>
 #include "AbcSmc.h"
-#include "simulator.h"
+#include "cache_and_restore_simulator.h"
 #include <cstdlib>
 #include "CCRC32.h"
 #include "Utility.h"
@@ -41,8 +41,7 @@ const string output_dir("/ufrc/longini/tjhladish/");
 //const string vaccination_file = pop_dir + "/../fl_vac/fl_vac_v4.txt";
 
 const int RESTART_BURNIN          = 0;
-const int FORECAST_DURATION       = 770;//863;
-//const int FORECAST_DURATION       = 456;
+const int FORECAST_DURATION       = 200;
 const int OVERRUN                 = 14; // to get accurate Rt estimates near the end of the forecast duration
 const bool RUN_FORECAST           = true;
 const int TOTAL_DURATION          = RUN_FORECAST ? RESTART_BURNIN + FORECAST_DURATION + OVERRUN : RESTART_BURNIN;
@@ -264,7 +263,7 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
 }
 
 
-void define_strain_parameters(Parameters* par, const size_t omicron_scenario) {
+void define_strain_parameters(Parameters* par) {
     const double x_alpha_1 = 1;//0.529; // calculated using quadratic formula: (VES*VEP)x^2 - (VES+VEP)x + VESP_alpha = 0, where VES and VEP are for wildtype
     const double x_alpha_2 = 1;//0.948;
 
@@ -296,34 +295,10 @@ void define_strain_parameters(Parameters* par, const size_t omicron_scenario) {
     par->strainPars[DELTA].relIcuMortality     = 3.0; // TODO - this is due to icu crowding.  should be represented differently
     par->strainPars[DELTA].immuneEscapeProb    = 0.15;
 
-//    const size_t omicron_scenario = 0;
 
     const double appxNonOmicronInfPd     = 9.0;
     const double appxOmicronInfPd        = 6.0;
     const double relInfectiousnessDenom  = (1.0 - pow(1.0 - par->household_transmission_haz_mult, appxOmicronInfPd/appxNonOmicronInfPd)) / par->household_transmission_haz_mult;
-
-//    switch (omicron_scenario) {
-//        case 0: // high immune escape, low transmissibility; low severity
-//            par->strainPars[OMICRON].immuneEscapeProb  = 0.7;
-//            par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.5 / relInfectiousnessDenom;
-//            par->strainPars[OMICRON].relPathogenicity  = par->strainPars[ALPHA].relPathogenicity * 0.5;
-//            par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.25;
-//            break;
-//        case 1: // high immune escape, low transmissibility; delta severity
-//            par->strainPars[OMICRON].immuneEscapeProb  = 0.7;
-//            par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.5 / relInfectiousnessDenom;
-//            par->strainPars[OMICRON].relPathogenicity  = par->strainPars[DELTA].relPathogenicity * 0.5;
-//            par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.5;
-//            break;
-//        case 2: // moderate immune escape, high transmissibility; low severity
-//            break;
-//        case 3: // moderate immune escape, high transmissibility; delta severity
-//            par->strainPars[OMICRON].immuneEscapeProb  = 0.5;
-//            par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 2.0 / relInfectiousnessDenom;
-//            par->strainPars[OMICRON].relPathogenicity  = par->strainPars[DELTA].relPathogenicity * 0.5;
-//            par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.5;
-//            break;
-//    }
 
     par->strainPars[OMICRON].immuneEscapeProb  = 0.6;
     par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 2.0 / relInfectiousnessDenom;
@@ -335,8 +310,8 @@ void define_strain_parameters(Parameters* par, const size_t omicron_scenario) {
 //    par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.5;
 //    par->strainPars[OMICRON].relPathogenicity  = par->strainPars[ALPHA].relPathogenicity;
 //    par->strainPars[OMICRON].relSeverity       = 1.1; // only applies if not vaccine protected
-//  //par->strainPars[OMICRON].relCriticality    = 1.0;
-//  //par->strainPars[OMICRON].relMortality      = 1.0;
+//    par->strainPars[OMICRON].relCriticality    = 1.0;
+//    par->strainPars[OMICRON].relMortality      = 1.0;
 //    par->strainPars[OMICRON].relIcuMortality   = 2.0;
 //    par->strainPars[OMICRON].immuneEscapeProb  = 0.7;
 
@@ -485,6 +460,7 @@ void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign*
 
         if (line >> date >> first_dose >> second_dose >> third_dose) {
             size_t sim_day = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, date);
+            if(sim_day >= par->runLength) { continue; }
             doses_available.at(sim_day)[STANDARD_ALLOCATION]  += (size_t) round(third_dose * pop_ratio);
         }
     }
@@ -545,22 +521,33 @@ Vac_Campaign* generateVac_Campaign(const Parameters* par, Community* community) 
     Vac_Campaign* vc = new Vac_Campaign();
     vc->set_par(par);
 
-    vector<int> sch_hcw_by_age(NUM_AGE_CLASSES);
-    // add all healthcare workers (hospital + nursing home workers) to standard queue BEFORE all other people are scheduled
-    for(Person* p : community->getPeople()) {
-        // get work location ID + check if workplace is a hospital or nursing home
-        // if so, schedule vaccination and add to scheduled_people
-        if(p->isHCW()) {
-            // set.insert.second returns bool (true if inserted, false if not) --- this keeps track of who has been scheduled and prevents double-scheduling
-            if((gsl_rng_uniform(VAX_RNG) < par->vaccineTargetCoverage) and (scheduled_people.insert(p).second)){
-                assert(p->getAge() >= 12);
-                vc->schedule_vaccination(p);
-                sch_hcw_by_age[p->getAge()]++;
-            }
-        }
-    }
+    vector<Person*> ppl_to_sch = community->getPeople();
+    gsl_ran_shuffle(VAX_RNG, ppl_to_sch.data(), ppl_to_sch.size(), sizeof(Person*));
+    for (Person* p : ppl_to_sch) { vc->schedule_vaccination(p); }
 
-    parseVaccineFile(par, community, vc, scheduled_people, sch_hcw_by_age);
+    vector< vector<int> > doses_available;
+    doses_available.resize(par->runLength, vector<int>(NUM_OF_VACCINE_ALLOCATION_TYPES));
+    for (size_t day = 60; day < par->runLength; ++day) {
+        doses_available.at(day)[STANDARD_ALLOCATION] = 100;
+    }
+    vc->set_doses_available(doses_available);
+
+//    vector<int> sch_hcw_by_age(NUM_AGE_CLASSES);
+//    // add all healthcare workers (hospital + nursing home workers) to standard queue BEFORE all other people are scheduled
+//    for(Person* p : community->getPeople()) {
+//        // get work location ID + check if workplace is a hospital or nursing home
+//        // if so, schedule vaccination and add to scheduled_people
+//        if(p->isHCW()) {
+//            // set.insert.second returns bool (true if inserted, false if not) --- this keeps track of who has been scheduled and prevents double-scheduling
+//            if((gsl_rng_uniform(VAX_RNG) < par->vaccineTargetCoverage) and (scheduled_people.insert(p).second)){
+//                assert(p->getAge() >= 12);
+//                vc->schedule_vaccination(p);
+//                sch_hcw_by_age[p->getAge()]++;
+//            }
+//        }
+//    }
+//
+//    parseVaccineFile(par, community, vc, scheduled_people, sch_hcw_by_age);
     community->setVac_Campaign(vc);
 
     return vc;
@@ -734,10 +721,9 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     const bool vaccine             = (bool) args[0];
     // const size_t realization    = (size_t) args[1];
     const bool mutation          = (bool) args[2];
-    const size_t omicron_scenario = (size_t) args[3];
 
     Parameters* par = define_simulator_parameters(args, rng_seed, serial, process_id);
-    define_strain_parameters(par, omicron_scenario);
+    define_strain_parameters(par);
 
     vector<string> mutant_intro_dates = {};
     if (mutation) { mutant_intro_dates = {"2021-02-01", "2021-05-27", "2021-11-26"}; }
@@ -747,9 +733,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     Vac_Campaign* vc = nullptr;
     community->setVac_Campaign(vc);
 
-    par->immunityLeaky             = true; // this is now used for both infection-derived and vaccine immunity
-
     if (vaccine) {
+        par->immunityLeaky         = true;
         par->immunityWanes         = false;
         par->numVaccineDoses       = 3;
         par->vaccineDoseInterval   = {21, 240};
@@ -798,24 +783,24 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 //    }
 
 // comment out this block if simvis.R is not needed
-{
-    vector<pair<size_t, double>> Rt = community->getMeanNumSecondaryInfections();
-    vector<double> Rt_ma = calc_Rt_moving_average(Rt, 7);
-
-    assert(Rt.size()+1 == plot_log_buffer.size()); // there's a header line
-    for (size_t i = 1; i < plot_log_buffer.size(); ++i) {
-        //plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt[i-1].second);
-        plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt_ma[i-1]);
-    }
-    bool overwrite = true;
-    string filename = "plot_log" + to_string(serial) + ".csv";
-    write_daily_buffer(plot_log_buffer, process_id, filename, overwrite);
-    stringstream ss;
-    ss << "Rscript expanded_simvis.R " << serial;
-    string cmd_str = ss.str();
-    int retval = system(cmd_str.c_str());
-    if (retval == -1) { cerr << "System call to `Rscript expanded_simvis.R` failed\n"; }
-}
+// {
+//     vector<pair<size_t, double>> Rt = community->getMeanNumSecondaryInfections();
+//     vector<double> Rt_ma = calc_Rt_moving_average(Rt, 7);
+// 
+//     assert(Rt.size()+1 == plot_log_buffer.size()); // there's a header line
+//     for (size_t i = 1; i < plot_log_buffer.size(); ++i) {
+//         //plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt[i-1].second);
+//         plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt_ma[i-1]);
+//     }
+//     bool overwrite = true;
+//     string filename = "plot_log" + to_string(serial) + ".csv";
+//     write_daily_buffer(plot_log_buffer, process_id, filename, overwrite);
+//     stringstream ss;
+//     ss << "Rscript expanded_simvis.R " << serial;
+//     string cmd_str = ss.str();
+//     int retval = system(cmd_str.c_str());
+//     if (retval == -1) { cerr << "System call to `Rscript expanded_simvis.R` failed\n"; }
+// }
 
     time (&end);
     double dif = difftime (end,start);

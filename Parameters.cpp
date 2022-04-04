@@ -51,6 +51,8 @@ void Parameters::define_defaults() {
     peopleOutputFilename = "";
     yearlyPeopleOutputFilename = "";
     dailyOutputFilename = "";
+    vaccination_file = "";
+    dose_file = "";
     //annualIntroductionsFilename = "";                   // time series of some external factor determining introduction rate
     //annualIntroductionsCoef = 1;                        // multiplier to rescale external introductions to something sensible
     //annualIntroductions = {1.0};
@@ -76,7 +78,7 @@ void Parameters::define_defaults() {
     vaccineTargetCoverage = 0.0;
     vaccineTargetStartDate = INT_MAX;
     numVaccineDoses = 3;
-    vaccineDoseInterval = 182;
+    vaccineDoseInterval = vector<int>(numVaccineDoses);
 
     immunityWanes = false;
     seroPositivityThreshold = 0.0;
@@ -117,6 +119,8 @@ void Parameters::define_defaults() {
     tuning_window = INT_MAX;
     num_preview_windows = INT_MAX;
     autotuning_dataset = "";
+
+    dump_infection_data = false;
 }
 
 

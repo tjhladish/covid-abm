@@ -418,7 +418,7 @@ Infection* Person::infect(Community* community, Person* source, const Date* date
         }
     }
 
-    community->tallyInfectionByLoc(&infection);
+    // community->tallyInfectionByLoc(&infection);
 
     // if the antibody-primed vaccine-induced immunity can be acquired retroactively, upgrade this person from naive to mature
     if (_par->retroactiveMatureVaccine) naiveVaccineProtection = false;

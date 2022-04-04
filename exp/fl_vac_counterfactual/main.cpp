@@ -51,6 +51,20 @@ const size_t JULIAN_START_YEAR    = 2020;
 //const double DEATH_UNDERREPORTING = 11807.0/20100.0; // FL Mar15-Sep5, https://www.nytimes.com/interactive/2020/05/05/us/coronavirus-death-toll-us.html
 
 const int FL_POP                  = 21538187;   // as of 2020 census
+const int VT_POP                  = 643077;     // as of 2020 census
+const int AL_POP                  = 5024279;    // as of 2020 census
+const int MS_POP                  = 2961279;    // as of 2020 census
+const int PT_POP                  = 10347892;   // as of 2021 census (https://www.ine.pt/xportal/xmain?xpid=INE&xpgid=ine_destaques&DESTAQUESdest_boui=473161655&DESTAQUESmodo=2)
+
+enum Counterfactual_Locations {
+    FL,
+    AL,
+    MS,
+    VT,
+    PT,
+    NUM_OF_COUNTERFACTUAL_LOCS
+};
+Counterfactual_Locations COUNTERFACTUAL_EXP_LOC = NUM_OF_COUNTERFACTUAL_LOCS;
 
 vector<vector<double>> REPORTED_FRACTIONS;
 
@@ -250,8 +264,22 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->locationFilename         = pop_dir    + "/locations-"          + SIM_POP + ".txt";
     par->networkFilename          = pop_dir    + "/network-"            + SIM_POP + ".txt";
     par->publicActivityFilename   = pop_dir    + "/public-activity-"    + SIM_POP + ".txt";
-    par->vaccination_file         = pop_dir    + "/../fl_vac/fl_vac_v4.txt";
-    par->dose_file                = pop_dir    + "/../fl_vac/doses.txt";
+    par->vaccination_file         = "./dose_data/fl_vac_v4.txt"; //pop_dir    + "/../fl_vac/fl_vac_v4.txt";
+    // par->dose_file                = "./dose_data/FL_doses.txt"; //pop_dir    + "/../fl_vac/doses.txt";
+
+    COUNTERFACTUAL_EXP_LOC = FL;
+    switch(COUNTERFACTUAL_EXP_LOC) {
+        case FL: par->dose_file = "./dose_data/FL_doses.txt"; break;
+        case VT: par->dose_file = "./dose_data/VT_doses.txt"; break;
+        case AL: par->dose_file = "./dose_data/AL_doses.txt"; break;
+        case MS: par->dose_file = "./dose_data/MS_doses.txt"; break;
+        case PT: {
+            par->dose_file        = "./dose_data/portugal_doses.txt";
+            par->vaccination_file = "./dose_data/portugal_age_vac.txt";
+            break;
+        }
+        default: par->dose_file = "./dose_data/FL_doses.txt"; break;
+    }
 
     par->behavioral_autotuning = false;
     par->tuning_window = 14;
@@ -340,7 +368,12 @@ void define_strain_parameters(Parameters* par, const size_t omicron_scenario) {
 //    par->strainPars[OMICRON].relIcuMortality   = 2.0;
 //    par->strainPars[OMICRON].immuneEscapeProb  = 0.7;
 
-    //                             W, A, D, O
+    //                          WILDTYPE, ALPHA, DELTA, OMICRON
+    par->crossProtectionMatrix = {{ true, false, false,   false},    // WILDTYPE
+                                  {false,  true, false,   false},    // ALPHA
+                                  {false, false,  true,   false},    // DELTA
+                                  {false, false, false,    true}};   // OMICRON
+
     par->crossProtectionMatrix = {{1, 0, 0, 0},    // WILDTYPE
                                   {0, 1, 0, 0},    // ALPHA
                                   {0, 0, 1, 0},    // DELTA
@@ -350,7 +383,12 @@ void define_strain_parameters(Parameters* par, const size_t omicron_scenario) {
 
 void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign* vc, set<Person*, Person::PerPtrComp>& scheduled_people, vector<int>& sch_hcw_by_age) {
     // ratio of synthpop to FL pop
-    const double pop_ratio = (double)community->getNumPeople()/FL_POP;
+    // const double pop_ratio = (double)community->getNumPeople()/FL_POP;
+    double pop_ratio;
+    switch (COUNTERFACTUAL_EXP_LOC) {
+        case PT: pop_ratio = (double)community->getNumPeople()/PT_POP; break;
+        default: pop_ratio = (double)community->getNumPeople()/FL_POP; break;
+    }
     const string vaccinationFilename = par->vaccination_file;
     const string doseFilename        = par->dose_file;
 
@@ -401,7 +439,9 @@ void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign*
             }
 
             const double rate_denom = bin_pop_size * 7.0;
-            assert(rate_denom > 0);
+            //assert(rate_denom > 0);
+            if (rate_denom <= 0) { continue; }
+
             for (size_t age = bin_min; age <= bin_max; ++age) {
                 last_known_vac_rate[age] = {mrna_dose_1/rate_denom, mrna_dose_2/rate_denom, jj_doses/rate_denom };    // used to project future vaccination rates
             }
@@ -459,13 +499,13 @@ void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign*
 
                 }
 
-                const size_t emp_daily_standard_first_doses = (size_t) round(daily_total_first_doses * pop_ratio);
-                // doses_available.at(day)[URGENT_ALLOCATION]   += emp_daily_urgent_doses;
-                doses_available.at(day)[STANDARD_ALLOCATION] += emp_daily_standard_first_doses;
-                if(revacDay < par->runLength) {
-                    doses_available.at(revacDay)[STANDARD_ALLOCATION] += emp_daily_standard_first_doses;
-                    last_known_revac_doses = doses_available.at(revacDay)[STANDARD_ALLOCATION];
-                }
+                // const size_t emp_daily_standard_first_doses = (size_t) round(daily_total_first_doses * pop_ratio);
+                // // doses_available.at(day)[URGENT_ALLOCATION]   += emp_daily_urgent_doses;
+                // doses_available.at(day)[STANDARD_ALLOCATION] += emp_daily_standard_first_doses;
+                // if(revacDay < par->runLength) {
+                //     doses_available.at(revacDay)[STANDARD_ALLOCATION] += emp_daily_standard_first_doses;
+                //     last_known_revac_doses = doses_available.at(revacDay)[STANDARD_ALLOCATION];
+                // }
             }
         }
         // schedule any remaining people
@@ -479,13 +519,25 @@ void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign*
     int first_dose, second_dose, third_dose;
     string date;
 
+    // switch pop_ratio to reflect the state where dose data is being pulled from
+    switch(COUNTERFACTUAL_EXP_LOC) {
+        case FL: pop_ratio = (double)community->getNumPeople()/FL_POP; break;
+        case VT: pop_ratio = (double)community->getNumPeople()/VT_POP; break;
+        case AL: pop_ratio = (double)community->getNumPeople()/AL_POP; break;
+        case MS: pop_ratio = (double)community->getNumPeople()/MS_POP; break;
+        case PT: pop_ratio = (double)community->getNumPeople()/PT_POP; break;
+        default: pop_ratio = (double)community->getNumPeople()/FL_POP; break;
+    }
+
     while (getline(iss, buffer)) {
         line.clear();
         line.str(buffer);
 
         if (line >> date >> first_dose >> second_dose >> third_dose) {
             size_t sim_day = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, date);
-            doses_available.at(sim_day)[STANDARD_ALLOCATION]  += (size_t) round(third_dose * pop_ratio);
+            // doses_available.at(sim_day)[STANDARD_ALLOCATION]  += (size_t) round(third_dose * pop_ratio);
+            doses_available.at(sim_day)[STANDARD_ALLOCATION]  = (size_t) round((first_dose + second_dose + third_dose) * pop_ratio);
+            last_known_revac_doses                            = doses_available.at(sim_day)[STANDARD_ALLOCATION];
         }
     }
     iss.close();
@@ -493,6 +545,12 @@ void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign*
     // PROJECTED VACCINATION TO 2021-08-31
     // at same rate as 2021-05-29, vaccinate people until 2021-08-31
     if (par->runLength > last_day_of_data + 1) {
+        // revert pop_ratio back to original value despite which state dosing data is being used
+        switch (COUNTERFACTUAL_EXP_LOC) {
+            case PT: pop_ratio = (double)community->getNumPeople()/PT_POP; break;
+            default: pop_ratio = (double)community->getNumPeople()/FL_POP; break;
+        }
+
         vector<Person*> people_to_be_scheduled;
 
         // calculate the total number of unscheduled people left on 2021-05-29
@@ -747,9 +805,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     Vac_Campaign* vc = nullptr;
     community->setVac_Campaign(vc);
 
-    par->immunityLeaky             = true; // this is now used for both infection-derived and vaccine immunity
-
     if (vaccine) {
+        par->immunityLeaky         = true;
         par->immunityWanes         = false;
         par->numVaccineDoses       = 3;
         par->vaccineDoseInterval   = {21, 240};

@@ -56,7 +56,7 @@ Community::Community(const Parameters* parameters, Date* date) :
         _numNewInfectionsByStrain[(StrainType) strain] = vector<size_t>(_par->runLength);
     }
 
-    vector<string> inf_by_loc_keys = {"home", "neighbor", "work_staff", "patron", "school_staff", "student", "hcw", "patient", "ltcf_staff", "ltcf_resident"};
+    vector<string> inf_by_loc_keys = {"home", "social", "work_staff", "patron", "school_staff", "student", "hcw", "patient", "ltcf_staff", "ltcf_resident"};
     for (string key : inf_by_loc_keys) {
         _numNewlyInfectedByLoc[key] = vector<size_t>(_par->runLength, 0);
     }
@@ -106,7 +106,7 @@ void Community::reset() { // used for r-zero calculations, to reset pop after a 
         _numNewInfectionsByStrain[(StrainType) strain] = vector<size_t>(_par->runLength);
     }
 
-    vector<string> inf_by_loc_keys = {"home", "neighbor", "work_staff", "patron", "school_staff", "student", "hcw", "patient", "ltcf_staff", "ltcf_resident"};
+    vector<string> inf_by_loc_keys = {"home", "social", "work_staff", "patron", "school_staff", "student", "hcw", "patient", "ltcf_staff", "ltcf_resident"};
     for (string key : inf_by_loc_keys) {
         _numNewlyInfectedByLoc[key] = vector<size_t>(_par->runLength, 0);
     }
@@ -527,7 +527,7 @@ void Community::vaccinate() {
 
             // multi-dose vaccines
             if (v->getNumVaccinations() < _par->numVaccineDoses) {
-                vac_campaign->schedule_revaccination(_day + _par->vaccineDoseInterval, v);
+                vac_campaign->schedule_revaccination(_day + _par->vaccineDoseInterval.at(v->getNumVaccinations() - 1), v);
             }
 
             // vaccines that require regular boosting
@@ -658,41 +658,49 @@ void Community::updatePersonStatus() {
     return;
 }
 
-
-void Community::tallyInfectionByLoc(Infection* inf) {
-    // the methods used with Infection below generally are available for Person, but this should be faster
-    if (inf->getInfectedPlace()) {
-        Person* p           = inf->getInfectionOwner();
-        Location* inf_loc   = inf->getInfectedPlace();
-        LocationType inf_lt = inf->getInfectedPlace()->getType();
-        int day             = inf->getInfectedTime();
-
-        switch (inf_lt) {
-            case HOUSE:
-                if (inf_loc == p->getHomeLoc()) { _numNewlyInfectedByLoc["home"][day]++; }
-                else                            { _numNewlyInfectedByLoc["neighbor"][day]++; }
-                break;
-            case WORK:
-                if (inf_loc == p->getDayLoc())  { _numNewlyInfectedByLoc["work_staff"][day]++; }
-                else                            { _numNewlyInfectedByLoc["patron"][day]++; }
-                break;
-            case SCHOOL:
-                if (p->getAge() > 18)           { _numNewlyInfectedByLoc["school_staff"][day]++; }
-                else                            { _numNewlyInfectedByLoc["student"][day]++; }
-                break;
-            case HOSPITAL:
-                if (inf_loc == p->getDayLoc())  { _numNewlyInfectedByLoc["hcw"][day]++; }     // TODO -- this is not quite right logically, although it currently has no effect
-                else                            { _numNewlyInfectedByLoc["patient"][day]++; } // because all patients have covid and thus cannot become infected in hosp
-                break;
-            case NURSINGHOME:
-                if (inf_loc == p->getDayLoc())  { _numNewlyInfectedByLoc["ltcf_staff"][day]++; }
-                else                            { _numNewlyInfectedByLoc["ltcf_resident"][day]++; }
-                break;
-            default:
-                break;
-        }
-    }
-}
+// void Community::tallyInfectionsByLoc() {
+//     for (Person* p: _people) {
+//         if (p->isSurveilledPerson()) {
+//             if (p->getNumNaturalInfections() == 0) {
+//                 continue;              // no infection/outcomes to tally
+//             } else {
+//                 // the methods used with Infection below generally are available for Person, but this should be faster
+//                 const Infection* inf = p->getInfection();
+//                 if (inf->getInfectedTime()==_day) {
+//                     if (inf->getInfectedPlace()) {
+//                         Location* inf_loc   = inf->getInfectedPlace();
+//                         LocationType inf_lt = inf->getInfectedPlace()->getType();
+// 
+//                         switch (inf_lt) {
+//                             case HOUSE:
+//                                 if (inf_loc == p->getHomeLoc()) { _numNewlyInfectedByLoc["home"][_day]++; }
+//                                 else                            { _numNewlyInfectedByLoc["social"][_day]++; }
+//                                 break;
+//                             case WORK:
+//                                 if (inf_loc == p->getDayLoc()) { _numNewlyInfectedByLoc["work_staff"][_day]++; }
+//                                 else                           { _numNewlyInfectedByLoc["patron"][_day]++; }
+//                                 break;
+//                             case SCHOOL:
+//                                 if (p->getAge() > 18) { _numNewlyInfectedByLoc["school_staff"][_day]++; }
+//                                 else                  { _numNewlyInfectedByLoc["student"][_day]++; }
+//                                 break;
+//                             case HOSPITAL:
+//                                 if (inf_loc == p->getDayLoc()) { _numNewlyInfectedByLoc["hcw"][_day]++; }
+//                                 else                           { _numNewlyInfectedByLoc["patient"][_day]++; }
+//                                 break;
+//                             case NURSINGHOME:
+//                                 if (inf_loc == p->getDayLoc()) { _numNewlyInfectedByLoc["ltcf_staff"][_day]++; }
+//                                 else                           { _numNewlyInfectedByLoc["ltcf_resident"][_day]++; }
+//                                 break;
+//                             default:
+//                                 break;
+//                         }
+//                     }
+//                 }
+//             }
+//         }
+//     }
+// }
 
 
 void Community::flagInfectedLocation(Person* person, double relInfectiousness, LocationType locType, Location* _pLoc, int day) {
@@ -1236,10 +1244,17 @@ map<string, double> Community::calculate_daily_direct_VE() {
     map<string, double> VE_map;
     if (vac_campaign) {
         size_t num_ppl_fully_vaxd = 0;
+        size_t num_dose_1 = 0, num_dose_2 = 0, num_dose_3 = 0;
         size_t num_breakthru_infs = 0, num_breakthru_dis = 0, num_breakthru_hosp = 0, num_breakthru_dths = 0, num_breakthru_reported = 0;
         size_t num_unvaxd_infs = 0, num_unvaxd_dis  = 0, num_unvaxd_hosp = 0, num_unvaxd_dths = 0, num_unvaxd_reported = 0;
-
         for (Person* p : _people) {
+            switch (p->getNumVaccinations()) {
+                case 3: ++num_dose_3; [[fallthrough]];
+                case 2: ++num_dose_2; [[fallthrough]];
+                case 1: ++num_dose_1; break;
+                default: break;
+            }
+
             bool fully_vaxd_w_protection = p->isVaccinated() and p->getNumVaccinations() > 1 and p->daysSinceVaccination(_day) >= _par->vaccine_dose_to_protection_lag;
             if (fully_vaxd_w_protection) { ++num_ppl_fully_vaxd; }
             if (p->hasBeenInfected()) {
@@ -1272,6 +1287,9 @@ map<string, double> Community::calculate_daily_direct_VE() {
 
         size_t num_ppl_unvaxd = getNumPeople() - num_ppl_fully_vaxd;
         VE_map["coverage"]    = (double) num_ppl_fully_vaxd / getNumPeople();
+        VE_map["dose_1"]      = (double) num_dose_1 / getNumPeople();
+        VE_map["dose_2"]      = (double) num_dose_2 / getNumPeople();
+        VE_map["dose_3"]      = (double) num_dose_3 / getNumPeople();
 
         double unvax_inf_risk = (double) num_unvaxd_infs/num_ppl_unvaxd;
         double vax_inf_risk   = (double) num_breakthru_infs/num_ppl_fully_vaxd;
@@ -1301,4 +1319,22 @@ map<string, double> Community::calculate_daily_direct_VE() {
         VE_map["unvaxHosp"]      = (double) num_unvaxd_hosp;
     }
     return VE_map;
+}
+
+vector<size_t> Community::generateOffspringDistribution() {
+    vector<size_t> offspringDistribution(10, 0);
+
+    for (Person* p : _people) {
+        for (Infection* inf : p->getInfectionHistory()) {
+            size_t num_secondary_infs = inf->secondary_infection_tally();
+
+            if (num_secondary_infs > (offspringDistribution.size() - 1)) {
+                offspringDistribution.resize(num_secondary_infs + 1, 0);
+            }
+
+            offspringDistribution[num_secondary_infs]++;
+        }
+    }
+
+    return offspringDistribution;
 }
