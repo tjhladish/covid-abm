@@ -486,6 +486,7 @@ public:
     size_t contactTracingDepth;                             // tracing contacts = 1; tracing contacts-of-contacts = 2; etc...
 
     size_t symptom_onset(StrainType strain = WILDTYPE) const { // aka incubation period
+        // TODO - CABP: this could be a negative binomial instead (which is discrete)
         double deviate = gsl_ran_gamma(RNG, WILDTYPE_SYMPTOM_ONSET_GAMMA_SHAPE, strainPars[strain].relSymptomOnset * WILDTYPE_SYMPTOM_ONSET_GAMMA_SCALE);
         assert(deviate >= 0);
         return 1 + floor(deviate);
