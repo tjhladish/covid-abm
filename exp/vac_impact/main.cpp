@@ -747,8 +747,9 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     Vac_Campaign* vc = nullptr;
     community->setVac_Campaign(vc);
 
+    par->immunityLeaky             = true; // this is now used for both infection-derived and vaccine immunity
+
     if (vaccine) {
-        par->immunityLeaky         = true;
         par->immunityWanes         = false;
         par->numVaccineDoses       = 3;
         par->vaccineDoseInterval   = {21, 240};

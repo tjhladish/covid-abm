@@ -3,35 +3,11 @@
 #include "AbcSmc.h"
 #include <cstdlib>
 #include "CCRC32.h"
-#include "Utility.h"
 #include <math.h>
 
 #if __has_include("local.h")
 #include "local.h"
 #endif
-
-using namespace std;
-
-using covid::util::to_string;
-using covid::util::mean;
-using covid::util::stdev;
-using covid::util::max_element;
-
-time_t GLOBAL_START_TIME;
-
-string calculate_process_id(vector<double> &args, string &argstring) {
-    // CCRC32 checksum based on string version of argument values
-    CCRC32 crc32;
-    crc32.Initialize();
-
-    for (size_t i = 0; i < args.size(); i++) argstring += to_string((double) args[i]) + " ";
-
-    const unsigned char* argchars = reinterpret_cast<const unsigned char*> (argstring.c_str());
-    const int len = argstring.length();
-    const int process_id = crc32.FullCRC(argchars, len);
-
-    return to_string(process_id);
-}
 
 #ifdef LOCAL_HEADER
 const std::string HOME_DIR = getHOME();
@@ -39,14 +15,28 @@ const std::string HOME_DIR = getHOME();
 const std::string HOME_DIR = std::getenv("HOME");
 #endif
 
+using namespace std;
+
 int main(int argc, char* argv[]) {
-    if (not (argc == 1) ) {
+    if (not (argc == 2) ) {
         cerr << "ERROR: please provide JSON config file" << endl;
         exit(100);
     }
 
     AbcSmc* abc = new AbcSmc();
     abc->parse_config(string(argv[1]));
+
+    sqdb::Db db(abc->get_database_filename().c_str());
+    vector< vector<int> > serials;
+    abc->read_SMC_sets_from_database (db, serials);
+    //_filter_particles( t, _particle_metrics[t], _particle_parameters[t], next_pred_prior_size );
+    const int set = 0;             // dummy value in this case
+    ABC::Mat2D parameters = abc->get_particle_parameters()[set];
+    ABC::Mat2D metrics    = abc->get_particle_metrics()[set];
+
+    const int pred_prior_size = 0; // dummy value in this case
+    PLS_Model plsm = abc->run_PLS(parameters, metrics, parameters.rows(), parameters.cols());
+    //PLS_Model plsm = abc->_filter_particles(set,  particle_parameters[set], particle_metrics[set],  pred_prior_size);
 
     return 0;
 }
