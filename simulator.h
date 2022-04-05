@@ -1137,6 +1137,14 @@ void daily_detailed_output(Community* community, int t) {
 }
 
 
+int import_csv_to_db(string filename, string table, string db) {
+    stringstream ss;
+    ss << "sqlite3 " << db << " '.mode csv' '.import " << filename << ' ' << table << "'";
+    string cmd_str = ss.str();
+    return system(cmd_str.c_str());
+}
+
+
 void generate_infection_db(const Community* community, const unsigned long int serial) {
     stringstream infection_filename;
     infection_filename << "./infection_history_" << serial << ".csv";
@@ -1199,20 +1207,25 @@ void generate_infection_db(const Community* community, const unsigned long int s
     offspring_file.close();
     detection_file.close();
 
-    ofstream sql_import("import_script.sql", std::ios::trunc);
-    sql_import << ".import " << infection_filename.str() << " infection_history" << endl;
-    sql_import << ".import " << offspring_filename.str() << " secondary_infections" << endl;
-    sql_import << ".import " << detection_filename.str() << " infection_detection" << endl;
-    sql_import.close();
+    stringstream ss, db;
+    db << "infection_data_" << serial << ".sqlite";
+    ss << "sqlite3 " << db.str() << " '.read gen_infection_db.sql'";
 
-    stringstream ss;
-    ss << "sqlite3 infection_data_" << serial << ".sqlite '.read gen_infection_db.sql' '.mode csv' '.read import_script.sql'";
     string cmd_str = ss.str();
     int retval = system(cmd_str.c_str());
     if (retval == -1) { cerr << "System call to `sqlite3 infection_data_0.db '.read gen_infection_db.sql'` failed\n"; }
 
+    retval = import_csv_to_db(infection_filename.str(), "infection_history", db.str());
+    if (retval == -1) { cerr << "System failed to import infection history data to db\n"; }
+
+    retval = import_csv_to_db(offspring_filename.str(), "secondary_infections", db.str());
+    if (retval == -1) { cerr << "System failed to import secondary infections data to db\n"; }
+
+    retval = import_csv_to_db(detection_filename.str(), "infection_detection", db.str());
+    if (retval == -1) { cerr << "System failed to import infection detection data to db\n"; }
+
     ss.str(string());
-    ss << "rm " << infection_filename.str() << ' ' << offspring_filename.str() << ' ' << detection_filename.str() << " import_script.sql";
+    ss << "rm " << infection_filename.str() << ' ' << offspring_filename.str() << ' ' << detection_filename.str();
     cmd_str = ss.str();
     retval = system(cmd_str.c_str());
     if (retval == -1) { cerr << "System call to delete infection csv files failed\n"; }
