@@ -496,28 +496,6 @@ void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign*
     }
     iss.close();
 
-    iss.open(doseFilename);
-
-    // variable for counterfactual dosing data (location date adj_doses_avail_p10k)
-    int doses_avail_p10k;
-    string location;
-
-    while (getline(iss, buffer)) {
-        line.clear();
-        line.str(buffer);
-
-        if (line >> location >> date >> doses_avail_p10k) {
-            // skip lines of data not pertaining to this counterfactual_reference_loc
-            if (not (location == counterfactual_reference_loc)) { continue; }
-
-            size_t sim_day = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, date);
-            // doses_available.at(sim_day)[STANDARD_ALLOCATION]  += (size_t) round(third_dose * pop_ratio);
-            doses_available.at(sim_day)[STANDARD_ALLOCATION]  = (size_t) round(doses_avail_p10k * pop_adjustmet);
-            last_known_revac_doses                            = doses_available.at(sim_day)[STANDARD_ALLOCATION];
-        }
-    }
-    iss.close();
-
     // PROJECTED VACCINATION TO 2021-08-31
     // at same rate as 2021-05-29, vaccinate people until 2021-08-31
     if (par->runLength > last_day_of_data + 1) {
@@ -577,6 +555,28 @@ void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign*
             vc->schedule_vaccination(p);
         }
     }
+
+    iss.open(doseFilename);
+
+    // variable for counterfactual dosing data (location date adj_doses_avail_p10k)
+    double doses_avail_p10k;
+    string location;
+
+    while (getline(iss, buffer)) {
+        line.clear();
+        line.str(buffer);
+
+        if (line >> location >> date >> doses_avail_p10k) {
+            // skip lines of data not pertaining to this counterfactual_reference_loc
+            if (not (location == counterfactual_reference_loc)) { continue; }
+
+            size_t sim_day = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, date);
+            // doses_available.at(sim_day)[STANDARD_ALLOCATION]  += (size_t) round(third_dose * pop_ratio);
+            doses_available.at(sim_day)[STANDARD_ALLOCATION]  = (size_t) round(doses_avail_p10k * pop_adjustmet);
+            last_known_revac_doses                            = doses_available.at(sim_day)[STANDARD_ALLOCATION];
+        }
+    }
+    iss.close();
 
     vc->set_doses_available(doses_available);
 }
