@@ -134,23 +134,23 @@ class Community {
                 }
             }
 
-            if (o.vac_campaign) {
-                deque<Person*> urgent_queue = o.vac_campaign->getUrgentQueue();
-                for(Person* &p : urgent_queue) { p = person_ptr_map[p]; }
-                vac_campaign->setUrgentQueue(urgent_queue);
-
-                deque<Person*> standard_queue = o.vac_campaign->getStandardQueue();
-                for(Person* &p : standard_queue) { p = person_ptr_map[p]; }
-                vac_campaign->setStandardQueue(standard_queue);
-
-                vector< set<Person*, Person::PerPtrComp> > revaccinate_queue;
-                for(auto &q : o.vac_campaign->getRevaccinateQueue()) {
-                    set<Person*, Person::PerPtrComp> daily_queue;
-                    for(Person* p : q) { daily_queue.insert(person_ptr_map[p]); }
-                    revaccinate_queue.push_back(daily_queue);
-                }
-                vac_campaign->setRevaccinateQueue(revaccinate_queue);
-            }
+            // if (o.vac_campaign) {
+            //     deque<Person*> urgent_queue = o.vac_campaign->getUrgentQueue();
+            //     for(Person* &p : urgent_queue) { p = person_ptr_map[p]; }
+            //     vac_campaign->setUrgentQueue(urgent_queue);
+            //
+            //     deque<Person*> standard_queue = o.vac_campaign->getStandardQueue();
+            //     for(Person* &p : standard_queue) { p = person_ptr_map[p]; }
+            //     vac_campaign->setStandardQueue(standard_queue);
+            //
+            //     vector< set<Person*, Person::PerPtrComp> > revaccinate_queue;
+            //     for(auto &q : o.vac_campaign->getRevaccinateQueue()) {
+            //         set<Person*, Person::PerPtrComp> daily_queue;
+            //         for(Person* p : q) { daily_queue.insert(person_ptr_map[p]); }
+            //         revaccinate_queue.push_back(daily_queue);
+            //     }
+            //     vac_campaign->setRevaccinateQueue(revaccinate_queue);
+            // }
 
         }
 
