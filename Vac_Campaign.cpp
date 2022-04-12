@@ -134,12 +134,68 @@ using covid::util::choose_k;
 
 void Vac_Campaign::init_eligibility_queue(const Community* community) {
     eligibility_queue.clear();
-    eligibility_queue.resize(_par->numVaccineDoses - 1);
+    eligibility_queue.resize(_par->numVaccineDoses);
     Eligibility_Group* first_eg = new Eligibility_Group();
     first_eg->eligibility_day = 0;
 
+    // everyone in pop becomes eligible for first dose on day 0
     for (Person* p : community->getPeople()) {
         first_eg->eligible_people[age_bin_lookup[p->getAge()]].push_back(p);
     }
     eligibility_queue[0].push(first_eg);
+}
+
+// generates and saves comprehensive, mutually exclusive age bins for the entire population
+void Vac_Campaign::generate_age_bins(Community* community, std::set<int> unique_bin_mins, std::set<int> unique_bin_maxs) {
+    std::vector<int> mins(unique_bin_mins.begin(), unique_bin_mins.end());
+    std::vector<int> maxs(unique_bin_maxs.begin(), unique_bin_maxs.end());
+
+    std::set<int> ages_not_binned;
+    assert(mins.size() == maxs.size());
+
+    // for every possible age, check if that age is covered by an age bin from the input file
+    // after, only ages needing to be binned will remain
+    for (int age = 0; age < NUM_AGE_CLASSES; ++age) {
+        ages_not_binned.insert(age);
+        for (int i = 0; i < (int)mins.size(); ++i) {
+            if ((age >= mins[i]) and (age <= maxs[i])) {
+                ages_not_binned.erase(age);
+                break;
+            }
+        }
+    }
+
+    // for remaining ages needing to be binnned, find their bins
+    // will check each value for contiguity
+    std::vector ages_to_be_binned(ages_not_binned.begin(), ages_not_binned.end());
+    for (int i = 0; i < (int)ages_to_be_binned.size(); ++i) {
+        if (i == 0) { mins.push_back(ages_to_be_binned[i]); continue; }
+
+        if (i == ((int)ages_to_be_binned.size() - 1)) { maxs.push_back(ages_to_be_binned[i]); }
+
+        if (ages_to_be_binned[i] == (ages_to_be_binned[i - 1] + 1)) {
+            continue;
+        } else {
+            mins.push_back(ages_to_be_binned[i]);
+            maxs.push_back(ages_to_be_binned[i - 1]);
+        }
+    }
+
+    assert(mins.size() == maxs.size());
+    for (int i = 0; i < (int)mins.size(); ++i) { unique_age_bin_pops[mins[i]] = 0; }
+
+    // for each age, save the bin min associated with it for fast lookup
+    // for each bin, aggregate and save the bin population
+    age_bin_lookup = std::vector<int>(NUM_AGE_CLASSES);
+    for (int age = 0; age < NUM_AGE_CLASSES; ++age) {
+        for (int i = 0; i < (int)mins.size(); ++i) {
+            if ((age >= mins[i]) and (age <= maxs[i])) {
+                age_bin_lookup[age] = mins[i];
+                unique_age_bin_pops[mins[i]] += community->getAgeCohort(age).size();
+                break;
+            }
+        }
+    }
+
+    unique_age_bins = mins;
 }

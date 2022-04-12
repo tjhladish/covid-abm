@@ -6,6 +6,7 @@
 #include <deque>
 #include <map>
 #include <queue>
+#include <set>
 
 class Person;
 
@@ -53,13 +54,13 @@ enum VacCampaignType {
 class Vac_Campaign;
 class Community;
 
-// REFACTOR
 class Eligibility_Group {
   public:
     int eligibility_day;                                    // when these people become eligible for vaccination
     std::map<int, std::vector<Person*>> eligible_people;    // people to become eligible index by [age bin]
 
-    struct comparator { bool operator()(const Eligibility_Group* A, const Eligibility_Group* B) const { return A->eligibility_day < B->eligibility_day; } };
+    // comparator to use to rank Eligibility_Groups by eligibility_day in a priority queue
+    struct comparator { bool operator()(const Eligibility_Group* A, const Eligibility_Group* B) const { return A->eligibility_day > B->eligibility_day; } };
 };
 
 class Vaccinee {
@@ -86,7 +87,9 @@ class Vaccinee {
 
 class Vac_Campaign {
     public:
-        Vac_Campaign() {
+        Vac_Campaign(const Parameters* par) {
+            _par = par;
+
             prioritize_first_doses = false;
             flexible_queue_allocation = false;
             unlim_urgent_doses = false;
@@ -94,6 +97,9 @@ class Vac_Campaign {
             reactive_vac_dose_allocation = 0.0;
             start_of_campaign = vector<int>(NUM_OF_VAC_CAMPAIGN_TYPES, 0);
             end_of_campaign = vector<int>(NUM_OF_VAC_CAMPAIGN_TYPES, 0);
+            doses_available = std::vector< std::vector< std::map<int, int> > >(par->runLength, std::vector< std::map<int, int> >(par->numVaccineDoses));
+            doses_used = std::vector< std::vector< std::map<int, int> > >(par->runLength, std::vector< std::map<int, int> >(par->numVaccineDoses));
+            potential_vaccinees = std::vector< std::map<int, std::vector<Person*> > >(par->numVaccineDoses);
         }
         Vac_Campaign(const Vac_Campaign& o) {
             // urgent_queue                 = o.urgent_queue;
@@ -153,7 +159,7 @@ class Vac_Campaign {
         //     revaccinate_queue.resize(da.size());
         //     queue_tally.resize(da.size(), vector<int>(NUM_OF_VACCINATION_QUEUE_TYPES));
         // }
-        int get_doses_available(int day, int dose, int age_bin) { return doses_available[day][dose-1][age_bin]; }
+        int get_doses_available(int day, int dose, int age_bin) { return doses_available[day][dose][age_bin]; }
         int get_doses_available(int day) const {
             int tot_doses = 0;
             for (auto vec : doses_available[day]) {
@@ -165,7 +171,7 @@ class Vac_Campaign {
         }
 
         void set_doses_available(std::vector< std::vector< std::map<int, int> > > da) { doses_available = da; }
-        void set_doses_available(int day, int dose, int age_bin, int da) { doses_available[day][dose-1][age_bin] = da; }
+        void set_doses_available(int day, int dose, int age_bin, int da) { doses_available[day][dose][age_bin] = da; }
 
         std::vector<int> get_min_age() const  { return min_age; }
         int get_min_age(size_t day)    const  { return min_age.at(day); }
@@ -175,30 +181,38 @@ class Vac_Campaign {
 
         // std::map<int, std::vector< std::vector<Person*> >> potential_vaccinees; // pool of potential people to be vaccinated indexed by [age bin min][dose]
         std::vector< std::map<int, std::vector<Person*> > > get_potential_vaccinees() const { return potential_vaccinees; }
-        std::vector<Person*> get_potential_vaccinees(int dose, int age_bin) { return potential_vaccinees[dose-1][age_bin]; }
+        std::vector<Person*> get_potential_vaccinees(int dose, int age_bin) { return potential_vaccinees[dose][age_bin]; }
 
         void set_potential_vaccinees(std::vector< std::map<int, std::vector<Person*> > > pv) { potential_vaccinees = pv; }
-        void set_potential_vaccinees(int dose, int age_bin, std::vector<Person*> pv) { potential_vaccinees[dose-1][age_bin] = pv; }
-        void add_potential_vaccinee(int dose, int age_bin, Person* pv) { potential_vaccinees[dose-1][age_bin].push_back(pv); }
+        void set_potential_vaccinees(int dose, int age_bin, std::vector<Person*> pv) { potential_vaccinees[dose][age_bin] = pv; }
+        void add_potential_vaccinee(int dose, int age_bin, Person* p) { potential_vaccinees[dose][age_bin].push_back(p); }
 
         void add_new_eligible_people(int today) {
-            for (int dose = 0; dose < (_par->numVaccineDoses - 1); ++dose) {    // only need to iterate for any dose that would require a next dose
-                if (eligibility_queue[dose].top()->eligibility_day == today) {
+            for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {    // only need to iterate for any dose that would require a next dose
+                if ((eligibility_queue[dose].size() > 0) and (eligibility_queue[dose].top()) and (eligibility_queue[dose].top()->eligibility_day == today)) {
                     Eligibility_Group* eg = eligibility_queue[dose].top();
-                    for (int bin : unique_age_bins) {  // need to properly implement
+                    for (int bin : unique_age_bins) {
                             std::vector<Person*> people_to_add = eg->eligible_people[bin];
-                            potential_vaccinees[dose + 1][bin].insert(potential_vaccinees[dose + 1][bin].end(), people_to_add.begin(), people_to_add.end());
+                            potential_vaccinees[dose][bin].insert(potential_vaccinees[dose][bin].end(), people_to_add.begin(), people_to_add.end());
+                            // if (potential_vaccinees[dose][bin].size()) {
+                            //     gsl_ran_shuffle(_VAX_RNG, potential_vaccinees[dose][bin].data(), potential_vaccinees[dose][bin].size(), sizeof(Person*));
+                            // }
                     }
                     eligibility_queue[dose].pop();
                     delete eg;
                 }
             }
         }
-        /* REFACTOR next_vaccinee()
-            check if any doses remain today
-            iterate through doses_available to find a dose
-            randomly select vaccinee that matches dose reqs from potential_vaccinees
-        */
+
+        // swap the value at index with the value at the end
+        // warning: v is passed by reference and will be altered
+        void _move_to_end(int index, std::vector<Person*>& v) {
+            assert(index < (int) v.size());
+            Person* tmp = v.back();
+            v.back() = v[index];
+            v[index] = tmp;
+        }
+
         Vaccinee* next_vaccinee(size_t day, int dose, int age_bin) {
             Person* person = nullptr;
             VaccineAllocationType source_of_dose = NUM_OF_VACCINE_ALLOCATION_TYPES;
@@ -208,17 +222,24 @@ class Vac_Campaign {
             // TODO: handle first dose prioritization and flexible dose allocation
 
             int num_doses_available = doses_available[day][dose][age_bin];
-            std::vector<Person*> vaccinee_pool = potential_vaccinees[dose][age_bin];
+            std::vector<Person*>& vaccinee_pool = potential_vaccinees[dose][age_bin];
 
+            // only select a vaccinee if there are doses
             if (num_doses_available and vaccinee_pool.size()) {
                 int ran_index = gsl_ran_flat(_VAX_RNG, 0, vaccinee_pool.size());     // gsl selects on a<=x<b
-                person = vaccinee_pool[ran_index];
+                _move_to_end(ran_index, vaccinee_pool);
+                person = vaccinee_pool.back();
                 source_of_dose = STANDARD_ALLOCATION;
                 vaccinee_queue = STANDARD_QUEUE;
             }
 
             Vaccinee* vaccinee = person ? new Vaccinee(person, vaccinee_queue, source_of_dose) : nullptr;
             return vaccinee;
+        }
+
+        void remove_from_pool(int dose, int bin, Person* p) {
+            assert((not potential_vaccinees[dose][bin].empty()) and (p == potential_vaccinees[dose][bin].back()));
+            potential_vaccinees[dose][bin].pop_back();
         }
 
         // Vaccinee* next_vaccinee(size_t day) {
@@ -294,18 +315,18 @@ class Vac_Campaign {
         //     queue_tally[day][vac->status]++;
         // }
         // int get_dose_tally(size_t day, VaccinationQueueType q) { return queue_tally[day][q]; }
-        void tally_dose(int day, Vaccinee* vac) {
-            int age_bin = age_bin_lookup[vac->get_person()->getAge()];
-            int dose = vac->get_person()->getNumVaccinations();
-
-            --doses_available[day][dose-1][age_bin];
-            ++doses_used[day][dose-1][age_bin];
+        void tally_dose(int day, int dose, int age_bin) {
+            --doses_available[day][dose][age_bin];
+            ++doses_used[day][dose][age_bin];
         }
-        int get_doses_used(int day, int dose, int age_bin) { return doses_used[day][dose-1][age_bin]; }
+        int get_doses_used(int day, int dose, int age_bin) { return doses_used[day][dose][age_bin]; }
 
         void schedule_revaccinations(vector<Eligibility_Group*> revaccinations) {
-            for (int dose = 0; dose < (_par->numVaccineDoses - 1); ++dose) {
-                eligibility_queue[dose].push(revaccinations[dose]);
+            assert(eligibility_queue.size() == revaccinations.size());
+            for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
+// cerr << "revac " << dose << ' ' << eligibility_queue[dose].size() << " --> ";
+                if (revaccinations[dose]) { eligibility_queue[dose].push(revaccinations[dose]); }
+// cerr << eligibility_queue[dose].size() << endl;
             }
         }
 
@@ -335,50 +356,9 @@ class Vac_Campaign {
 
         int get_age_bin(int age) const { return age_bin_lookup.at(age); }
         std::vector<int> get_unique_age_bins() const { return unique_age_bins; }
+        std::map<int, int> get_unique_age_bin_pops() const { return unique_age_bin_pops; }
 
-        void generate_age_bins(std::set<int> unique_bin_mins, std::set<int> unique_bin_maxs) {
-            std::vector<int> mins(unique_bin_mins.begin(), unique_bin_mins.end());
-            std::vector<int> maxs(unique_bin_maxs.begin(), unique_bin_maxs.end());
-
-            std::set<int> ages_not_binned;
-            assert(mins.size() == maxs.size());
-
-            for (int age = 0; age < NUM_AGE_CLASSES; ++age) {
-                ages_not_binned.insert(age);
-                for (int i = 0; i < (int)mins.size(); ++i) {
-                    if ((age >= mins[i]) and (age <= maxs[i])) {
-                        ages_not_binned.erase(age);
-                        break;
-                    }
-                }
-            }
-
-            std::vector ages_to_be_binned(ages_not_binned.begin(), ages_not_binned.end());
-            for (int i = 0; i < (int)ages_to_be_binned.size(); ++i) {
-                if (i == 0) { mins.push_back(ages_to_be_binned[i]); continue; }
-
-                if (i == ((int)ages_to_be_binned.size() - 1)) { maxs.push_back(ages_to_be_binned[i]); }
-
-                if (ages_to_be_binned[i] == (ages_to_be_binned[i - 1] + 1)) {
-                    continue;
-                } else {
-                    mins.push_back(ages_to_be_binned[i]);
-                    maxs.push_back(ages_to_be_binned[i - 1]);
-                }
-            }
-
-            assert(mins.size() == maxs.size());
-            age_bin_lookup = std::vector<int>(NUM_AGE_CLASSES);
-            for (int age = 0; age < NUM_AGE_CLASSES; ++age) {
-                for (int i = 0; i < (int)mins.size(); ++i) {
-                    if ((age >= mins[i]) and (age <= maxs[i])) {
-                        age_bin_lookup[age] = mins[i];
-                        break;
-                    }
-                }
-            }
-            unique_age_bins = mins;
-        }
+        void generate_age_bins(Community* community, std::set<int> unique_bin_mins, std::set<int> unique_bin_maxs);
 
         void init_eligibility_queue(const Community* community);
 
@@ -407,12 +387,13 @@ class Vac_Campaign {
 
         std::vector< std::map<int, std::vector<Person*> > > potential_vaccinees; // pool of potential people to be vaccinated indexed by [next dose to give][age bin]
 
-        // outer vector indexed by last dose given
+        // outer vector indexed by next dose dose to be given
         // each queue holds the list of eligibility groups ordered by date of next dose
-        std::vector< std::priority_queue<Eligibility_Group*, std::vector<Eligibility_Group*>, Eligibility_Group::comparator> > eligibility_queue; // TODO: to be tested
+        std::vector< std::priority_queue<Eligibility_Group*, std::vector<Eligibility_Group*>, Eligibility_Group::comparator> > eligibility_queue;
 
         std::vector<int> age_bin_lookup;
         std::vector<int> unique_age_bins;
+        std::map<int, int> unique_age_bin_pops;
 
         const Parameters* _par;
         gsl_rng* _VAX_RNG;

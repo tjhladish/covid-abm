@@ -518,33 +518,39 @@ Infection* Community::infect(int id, StrainType strain) {
 
 
 void Community::vaccinate() {
+    // call vac_campaign function to dump eligible people into respective pools if possible
+    vac_campaign->add_new_eligible_people(_day);
+
     // only continue if any doses are available today
     if (not vac_campaign->get_doses_available(_day)) { return; }
 
-    // call vac_campaign function to dump eligible people into the pools if possible
-    vac_campaign->add_new_eligible_people(_day);
-
-    // create empty eligibility group to add to the queue
-    vector<Eligibility_Group*> revaccinations;
-    for (int dose = 0; dose < (_par->numVaccineDoses - 1); ++dose) {
+    // create empty eligibility group to add new revaccinations to the queue
+    vector<Eligibility_Group*> revaccinations(_par->numVaccineDoses);
+    for (int dose = 1; dose < _par->numVaccineDoses; ++dose) {
         Eligibility_Group* eg = new Eligibility_Group();
-        eg->eligibility_day = _day + _par->vaccineDoseInterval.at(dose);
-        revaccinations.push_back(eg);
+        eg->eligibility_day = _day + _par->vaccineDoseInterval.at(dose - 1);
+        revaccinations[dose] = eg;
     }
 
-    for (int bin : vac_campaign->get_unique_age_bins()) { // TODO: implement
+    // for each age bin, dose combination, select new vaccinees until there are no more doses available
+    for (int bin : vac_campaign->get_unique_age_bins()) {
         for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
-            Vaccinee* v = vac_campaign->next_vaccinee(_day, bin, dose);
+            Vaccinee* v = vac_campaign->next_vaccinee(_day, dose, bin);
             while (v) {
                 if (((v->get_person()->getNumVaccinations() < _par->numVaccineDoses) and v->get_person()->isSeroEligible()) // not completely vaccinated & eligible
-                  and vac_campaign->vaccinate(v, _day)) { // and person isn't dead, so got vaccinated
-                    vac_campaign->tally_dose(_day, v); // tally dose used, and person vaccinated
+                  and vac_campaign->vaccinate(v, _day)) {                       // and person isn't dead, so got vaccinated
+                    vac_campaign->tally_dose(_day, dose, bin);                  // tally dose used
 
                     // add people who are not fully vaccinated to proper eligible group for revaccination
-                    if (dose < _par->numVaccineDoses) {
-                        revaccinations[dose]->eligible_people[bin].push_back(v->get_person());
+                    if ((dose + 1) < _par->numVaccineDoses) {
+                        revaccinations[dose + 1]->eligible_people[bin].push_back(v->get_person());
                     }
                 }
+                // always remove vaccinee from the pool
+                // either was vaccinated, or was not eliglbe to be vaccinated (fully vaxd, not sero eligible, not alive)
+                vac_campaign->remove_from_pool(dose, bin, v->get_person());
+                delete v;
+                v = vac_campaign->next_vaccinee(_day, dose, bin);
             }
         }
     }
@@ -552,32 +558,6 @@ void Community::vaccinate() {
     // once all vaccinations complete, reschedule newly filled eligibility group
     vac_campaign->schedule_revaccinations(revaccinations);
 }
-
-// void Community::vaccinate() {
-//     Vaccinee* v = vac_campaign->next_vaccinee(_day);
-//     while (v) { // v is not nullptr, e.g. there is actually a dose and a person who might be vaccinatable
-//         if (((!v->get_person()->isVaccinated() and v->get_person()->isSeroEligible()) // unvaccinated & eligible
-//           or (v->get_status() == REVACCINATE_QUEUE)) // or scheduled for a subsequent dose
-//           and vac_campaign->vaccinate(v, _day)) { // and person isn't dead, so got vaccinated
-//             vac_campaign->tally_dose(_day, v); // tally dose used, and person vaccinated
-//
-//             // multi-dose vaccines
-//             if (v->getNumVaccinations() < _par->numVaccineDoses) {
-//                 vac_campaign->schedule_revaccination(_day + _par->vaccineDoseInterval.at(v->getNumVaccinations() - 1), v);
-//             }
-//
-//             // vaccines that require regular boosting
-//             if (_par->vaccineBoosting) {
-//                 vac_campaign->schedule_revaccination(_day + _par->vaccineBoostingInterval, v);
-//             }
-//         }
-//         delete v;
-//         v = vac_campaign->next_vaccinee(_day);
-//     }
-//
-//     // if we ran out of doses for today but still have people that need revaccination, reschedule them for tomorrow
-//     vac_campaign->reschedule_remaining_revaccinations(_day);
-// }
 
 vector<pair<size_t,double>> Community::getMeanNumSecondaryInfections() const {
     // this is not how many secondary infections occurred on day=index,
@@ -1108,6 +1088,7 @@ vector< set<Person*> > Community::traceForwardContacts() {
 
 void Community::tick() {
     _day = _date->day();
+// if (_day == 335) { exit(-1); }
 
 //cerr << endl << "D (u s)    " << vac_campaign->get_doses_available(_day, URGENT_ALLOCATION) << ' ' << vac_campaign->get_doses_available(_day, STANDARD_ALLOCATION) << endl;
 //cerr <<         "Q (u s re) " << vac_campaign->get_urgent_queue_size() << ' ' << vac_campaign->get_standard_queue_size() << ' ' << vac_campaign->get_revaccinate_queue_size(_day) << endl;
