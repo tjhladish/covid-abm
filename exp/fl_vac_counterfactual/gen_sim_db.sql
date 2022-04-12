@@ -44,9 +44,18 @@ CREATE TABLE infection_detection(
 DROP TABLE IF EXISTS vaccination_history;
 CREATE TABLE vaccination_history(
     p_id INTEGER,
+    p_age_bin INTEGER,
     dose INTEGER,
-    vax_day INTEGER,
-    FOREIGN KEY(p_id) REFERENCES infection_history(inf_owner_id)
+    vax_sim_day INTEGER,
+    vax_date TEXT,
+    FOREIGN KEY(p_id) REFERENCES infection_history(inf_owner_id),
+    FOREIGN KEY(p_age_bin) REFERENCES age_bins(bin_min)
+);
+
+DROP TABLE IF EXISTS age_bins;
+CREATE TABLE age_bins(
+    bin_min INTEGER,
+    bin_pop INTEGER
 );
 
 .mode csv

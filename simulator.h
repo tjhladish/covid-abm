@@ -1147,7 +1147,7 @@ void import_csv_to_db(string filename, string table, string db) {
 }
 
 
-void generate_sim_data_db(const Community* community, const unsigned long int serial) {
+void generate_sim_data_db(const Parameters* par, const Community* community, const unsigned long int serial) {
     stringstream infection_filename;
     infection_filename << "./infection_history_" << serial << ".csv";
 
@@ -1160,12 +1160,16 @@ void generate_sim_data_db(const Community* community, const unsigned long int se
     stringstream vaccination_filename;
     vaccination_filename << "./vaccine_history_" << serial << ".csv";
 
+    stringstream age_bins_filename;
+    age_bins_filename << "./age_bins_" << serial << ".csv";
+
     ofstream infection_file(infection_filename.str(), std::ios::trunc);     // for the infection table
     ofstream offspring_file(offspring_filename.str(), std::ios::trunc);     // for the offspring table
     ofstream detection_file(detection_filename.str(), std::ios::trunc);     // for the detection table
     ofstream vaccination_file(vaccination_filename.str(), std::ios::trunc); // for the vaccination table
+    ofstream age_bins_file(age_bins_filename.str(), std::ios::trunc);       // for the age bins table
 
-    if (not (infection_file and offspring_file and detection_file and vaccination_file)) { cerr << "FILES FAILED TO OPEN" << endl; exit(-1); }
+    if (not (infection_file and offspring_file and detection_file and vaccination_file and age_bins_file)) { cerr << "FILES FAILED TO OPEN" << endl; exit(-1); }
 
     for (Person* p : community->getPeople()) {
         for (Infection* inf : p->getInfectionHistory()) {
@@ -1210,15 +1214,24 @@ void generate_sim_data_db(const Community* community, const unsigned long int se
 
         for (int vax = 0; vax < (int) p->getVaccinationHistory().size(); ++vax) {
             vaccination_file << p->getID() << ','
+                             << community->getVac_Campaign()->get_age_bin(p->getAge()) << ','
                              << vax << ','
-                             << p->getVaccinationHistory()[vax] << endl;
+                             << p->getVaccinationHistory()[vax] << ','
+                             << Date::to_ymd(p->getVaccinationHistory()[vax], par) << endl;
         }
+    }
+
+    map<int, int> bin_pops = community->getVac_Campaign()->get_unique_age_bin_pops();
+    for (int bin : community->getVac_Campaign()->get_unique_age_bins()) {
+        age_bins_file << bin << ','
+                      << bin_pops[bin] << endl;
     }
 
     infection_file.close();
     offspring_file.close();
     detection_file.close();
     vaccination_file.close();
+    age_bins_file.close();
 
     stringstream ss, db;
     db << "sim_data_" << serial << ".sqlite";
@@ -1232,9 +1245,10 @@ void generate_sim_data_db(const Community* community, const unsigned long int se
     import_csv_to_db(offspring_filename.str(), "secondary_infections", db.str());
     import_csv_to_db(detection_filename.str(), "infection_detection", db.str());
     import_csv_to_db(vaccination_filename.str(), "vaccination_history", db.str());
+    import_csv_to_db(age_bins_filename.str(), "age_bins", db.str());
 
     ss.str(string());
-    ss << "rm " << infection_filename.str() << ' ' << offspring_filename.str() << ' ' << detection_filename.str() << ' ' << vaccination_filename.str();
+    ss << "rm " << infection_filename.str() << ' ' << offspring_filename.str() << ' ' << detection_filename.str() << ' ' << vaccination_filename.str() << ' ' << age_bins_filename.str();
     cmd_str = ss.str();
     retval = system(cmd_str.c_str());
     if (retval == -1) { cerr << "System call to delete infection csv files failed\n"; }

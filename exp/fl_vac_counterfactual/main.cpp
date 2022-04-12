@@ -649,7 +649,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         vc->set_reactive_vac_strategy(NUM_OF_VAC_CAMPAIGN_TYPES);
         vc->set_reactive_vac_dose_allocation(0.0);
 
-        vector<int> min_ages(par->runLength, 12);
+        vector<int> min_ages(par->runLength, 5);
         vc->set_min_age(min_ages);       // needed for e.g. urgent vaccinations
     }
 
@@ -723,7 +723,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     string output = ss.str();
     fputs(output.c_str(), stderr);
 
-    if (par->dump_simulation_data) { generate_sim_data_db(community, serial); }
+    if (par->dump_simulation_data) { generate_sim_data_db(par, community, serial); }
 
     // if (vc)      { delete vc; }           // should this be here? MOVED INTO COMMUNITY DESTRUCTOR
     if (VAX_RNG) { gsl_rng_free(VAX_RNG); }
