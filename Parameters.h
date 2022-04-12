@@ -666,7 +666,7 @@ public:
     std::vector<double> quarantineProbability;
     size_t selfQuarantineDuration;
 
-    bool dump_infection_data;
+    bool dump_simulation_data;
 };
 
 #endif

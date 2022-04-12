@@ -1137,15 +1137,17 @@ void daily_detailed_output(Community* community, int t) {
 }
 
 
-int import_csv_to_db(string filename, string table, string db) {
+void import_csv_to_db(string filename, string table, string db) {
     stringstream ss;
     ss << "sqlite3 " << db << " '.mode csv' '.import " << filename << ' ' << table << "'";
     string cmd_str = ss.str();
-    return system(cmd_str.c_str());
+    int retval = system(cmd_str.c_str());
+    if (retval == -1) { cerr << "System failed to import " << table << " data to db\n"; }
+    return;
 }
 
 
-void generate_infection_db(const Community* community, const unsigned long int serial) {
+void generate_sim_data_db(const Community* community, const unsigned long int serial) {
     stringstream infection_filename;
     infection_filename << "./infection_history_" << serial << ".csv";
 
@@ -1155,11 +1157,15 @@ void generate_infection_db(const Community* community, const unsigned long int s
     stringstream detection_filename;
     detection_filename << "./infection_detection_" << serial << ".csv";
 
-    ofstream infection_file(infection_filename.str(), std::ios::trunc); // for the infection table
-    ofstream offspring_file(offspring_filename.str(), std::ios::trunc); // for the offspring table
-    ofstream detection_file(detection_filename.str(), std::ios::trunc); // for the detection table
+    stringstream vaccination_filename;
+    vaccination_filename << "./vaccine_history_" << serial << ".csv";
 
-    if (not (infection_file and offspring_file and detection_file)) { cerr << "FILES FAILED TO OPEN" << endl; exit(-1); }
+    ofstream infection_file(infection_filename.str(), std::ios::trunc);     // for the infection table
+    ofstream offspring_file(offspring_filename.str(), std::ios::trunc);     // for the offspring table
+    ofstream detection_file(detection_filename.str(), std::ios::trunc);     // for the detection table
+    ofstream vaccination_file(vaccination_filename.str(), std::ios::trunc); // for the vaccination table
+
+    if (not (infection_file and offspring_file and detection_file and vaccination_file)) { cerr << "FILES FAILED TO OPEN" << endl; exit(-1); }
 
     for (Person* p : community->getPeople()) {
         for (Infection* inf : p->getInfectionHistory()) {
@@ -1201,31 +1207,34 @@ void generate_infection_db(const Community* community, const unsigned long int s
                                << inf_det->reported_time << endl;
             }
         }
+
+        for (int vax = 0; vax < (int) p->getVaccinationHistory().size(); ++vax) {
+            vaccination_file << p->getID() << ','
+                             << vax << ','
+                             << p->getVaccinationHistory()[vax] << endl;
+        }
     }
 
     infection_file.close();
     offspring_file.close();
     detection_file.close();
+    vaccination_file.close();
 
     stringstream ss, db;
-    db << "infection_data_" << serial << ".sqlite";
-    ss << "sqlite3 " << db.str() << " '.read gen_infection_db.sql'";
+    db << "sim_data_" << serial << ".sqlite";
+    ss << "sqlite3 " << db.str() << " '.read gen_sim_db.sql'";
 
     string cmd_str = ss.str();
     int retval = system(cmd_str.c_str());
-    if (retval == -1) { cerr << "System call to `sqlite3 infection_data_0.db '.read gen_infection_db.sql'` failed\n"; }
+    if (retval == -1) { cerr << "System call to `sqlite3 sim_data_0.db '.read gen_sim_db.sql'` failed\n"; }
 
-    retval = import_csv_to_db(infection_filename.str(), "infection_history", db.str());
-    if (retval == -1) { cerr << "System failed to import infection history data to db\n"; }
-
-    retval = import_csv_to_db(offspring_filename.str(), "secondary_infections", db.str());
-    if (retval == -1) { cerr << "System failed to import secondary infections data to db\n"; }
-
-    retval = import_csv_to_db(detection_filename.str(), "infection_detection", db.str());
-    if (retval == -1) { cerr << "System failed to import infection detection data to db\n"; }
+    import_csv_to_db(infection_filename.str(), "infection_history", db.str());
+    import_csv_to_db(offspring_filename.str(), "secondary_infections", db.str());
+    import_csv_to_db(detection_filename.str(), "infection_detection", db.str());
+    import_csv_to_db(vaccination_filename.str(), "vaccination_history", db.str());
 
     ss.str(string());
-    ss << "rm " << infection_filename.str() << ' ' << offspring_filename.str() << ' ' << detection_filename.str();
+    ss << "rm " << infection_filename.str() << ' ' << offspring_filename.str() << ' ' << detection_filename.str() << ' ' << vaccination_filename.str();
     cmd_str = ss.str();
     retval = system(cmd_str.c_str());
     if (retval == -1) { cerr << "System call to delete infection csv files failed\n"; }

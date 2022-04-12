@@ -120,7 +120,7 @@ void Parameters::define_defaults() {
     num_preview_windows = INT_MAX;
     autotuning_dataset = "";
 
-    dump_infection_data = false;
+    dump_simulation_data = false;
 }
 
 
@@ -309,4 +309,3 @@ double Parameters::timedInterventionEffect(TimedIntervention ti, size_t day) con
 //    iss.close();
 //    return;
 //}
-
