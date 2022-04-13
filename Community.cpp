@@ -552,6 +552,13 @@ void Community::vaccinate() {
                 delete v;
                 v = vac_campaign->next_vaccinee(_day, dose, bin);
             }
+
+            // roll over unused doses to tomorrow
+            int remaining_doses = vac_campaign->get_doses_available(_day, dose, bin);
+            if (remaining_doses and ((_day + 1) < (int) _par->runLength)) {
+                vac_campaign->set_doses_available(_day, dose, bin, 0);
+                vac_campaign->add_doses_available(_day + 1, dose, bin, remaining_doses);
+            }
         }
     }
 
