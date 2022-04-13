@@ -159,6 +159,7 @@ class Vac_Campaign {
         //     revaccinate_queue.resize(da.size());
         //     queue_tally.resize(da.size(), vector<int>(NUM_OF_VACCINATION_QUEUE_TYPES));
         // }
+        std::vector< std::vector< std::map<int, int> > > get_orig_doses_available() const { return orig_doses_available; }
         int get_doses_available(int day, int dose, int age_bin) { return doses_available[day][dose][age_bin]; }
         int get_doses_available(int day) const {
             int tot_doses = 0;
@@ -170,8 +171,13 @@ class Vac_Campaign {
             return tot_doses;
         }
 
-        void set_doses_available(std::vector< std::vector< std::map<int, int> > > da) { doses_available = da; }
+        void set_doses_available(std::vector< std::vector< std::map<int, int> > > da) { doses_available = da; orig_doses_available = da; }
         void set_doses_available(int day, int dose, int age_bin, int da) { doses_available[day][dose][age_bin] = da; }
+        void add_doses_available(int day, int dose, int age_bin, int da) {
+            doses_available[day][dose][age_bin] += da;
+            orig_doses_available[day][dose][age_bin] += da;
+            orig_doses_available[day-1][dose][age_bin] -= da;
+        }
 
         std::vector<int> get_min_age() const  { return min_age; }
         int get_min_age(size_t day)    const  { return min_age.at(day); }
@@ -383,6 +389,7 @@ class Vac_Campaign {
     private:
         // REFACTOR
         std::vector< std::vector< std::map<int, int> > > doses_available;         // daily dose availability indexed by [day][dose][age bin]
+        std::vector< std::vector< std::map<int, int> > > orig_doses_available;    // copy of pre-sim doses_available for use in model analytics
         std::vector< std::vector< std::map<int, int> > > doses_used;              // daily doses used indexed by [day][dose][age bin]
 
         std::vector< std::map<int, std::vector<Person*> > > potential_vaccinees; // pool of potential people to be vaccinated indexed by [next dose to give][age bin]
