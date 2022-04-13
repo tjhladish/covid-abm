@@ -49,13 +49,26 @@ CREATE TABLE vaccination_history(
     vax_sim_day INTEGER,
     vax_date TEXT,
     FOREIGN KEY(p_id) REFERENCES infection_history(inf_owner_id),
-    FOREIGN KEY(p_age_bin) REFERENCES age_bins(bin_min)
+    FOREIGN KEY(p_age_bin) REFERENCES age_bins(bin_min),
+    FOREIGN KEY(vax_sim_day) REFERENCES doses_available(sim_day),
+    FOREIGN KEY(vax_date) REFERENCES doses_available(date_str)
 );
 
 DROP TABLE IF EXISTS age_bins;
 CREATE TABLE age_bins(
     bin_min INTEGER,
     bin_pop INTEGER
+);
+
+DROP TABLE IF EXISTS doses_available;
+CREATE TABLE doses_available (
+    sim_day INTEGER,
+    date_str TEXT,
+    dose INTEGER,
+    bin INTEGER,
+    doses INTEGER,
+    FOREIGN KEY(sim_day) REFERENCES vaccination_history(vax_sim_day),
+    FOREIGN KEY(date_str) REFERENCES vaccination_history(vax_date)
 );
 
 .mode csv

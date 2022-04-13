@@ -1146,7 +1146,7 @@ void import_csv_to_db(string filename, string table, string db) {
     return;
 }
 
-
+// TODO: refactor to reduce duplication
 void generate_sim_data_db(const Parameters* par, const Community* community, const unsigned long int serial) {
     stringstream infection_filename;
     infection_filename << "./infection_history_" << serial << ".csv";
@@ -1163,13 +1163,19 @@ void generate_sim_data_db(const Parameters* par, const Community* community, con
     stringstream age_bins_filename;
     age_bins_filename << "./age_bins_" << serial << ".csv";
 
-    ofstream infection_file(infection_filename.str(), std::ios::trunc);     // for the infection table
-    ofstream offspring_file(offspring_filename.str(), std::ios::trunc);     // for the offspring table
-    ofstream detection_file(detection_filename.str(), std::ios::trunc);     // for the detection table
-    ofstream vaccination_file(vaccination_filename.str(), std::ios::trunc); // for the vaccination table
-    ofstream age_bins_file(age_bins_filename.str(), std::ios::trunc);       // for the age bins table
+    stringstream doses_available_filename;
+    doses_available_filename << "./doses_available_" << serial << ".csv";
 
-    if (not (infection_file and offspring_file and detection_file and vaccination_file and age_bins_file)) { cerr << "FILES FAILED TO OPEN" << endl; exit(-1); }
+    ofstream infection_file(infection_filename.str(), std::ios::trunc);         // for the infection table
+    ofstream offspring_file(offspring_filename.str(), std::ios::trunc);         // for the offspring table
+    ofstream detection_file(detection_filename.str(), std::ios::trunc);         // for the detection table
+    ofstream vaccination_file(vaccination_filename.str(), std::ios::trunc);     // for the vaccination table
+    ofstream age_bins_file(age_bins_filename.str(), std::ios::trunc);           // for the age bins table
+    ofstream doses_available_file(doses_available_filename.str(), std::ios::trunc);    // for the doses_available table
+
+    if (not (infection_file and offspring_file and detection_file and vaccination_file and age_bins_file and doses_available_file)) {
+        cerr << "FILES FAILED TO OPEN" << endl; exit(-1);
+    }
 
     for (Person* p : community->getPeople()) {
         for (Infection* inf : p->getInfectionHistory()) {
@@ -1222,9 +1228,20 @@ void generate_sim_data_db(const Parameters* par, const Community* community, con
     }
 
     map<int, int> bin_pops = community->getVac_Campaign()->get_unique_age_bin_pops();
+    std::vector< std::vector< std::map<int, int> > > doses = community->getVac_Campaign()->get_orig_doses_available();
     for (int bin : community->getVac_Campaign()->get_unique_age_bins()) {
         age_bins_file << bin << ','
                       << bin_pops[bin] << endl;
+
+        for (int day = 0; day < (int) par->runLength; ++day) {
+            for (int dose = 0; dose < par->numVaccineDoses; ++dose) {
+                doses_available_file << day << ','
+                                     << Date::to_ymd(day , par) << ','
+                                     << dose << ','
+                                     << bin << ','
+                                     << doses[day][dose][bin] << endl;
+            }
+        }
     }
 
     infection_file.close();
@@ -1232,6 +1249,7 @@ void generate_sim_data_db(const Parameters* par, const Community* community, con
     detection_file.close();
     vaccination_file.close();
     age_bins_file.close();
+    doses_available_file.close();
 
     stringstream ss, db;
     db << "sim_data_" << serial << ".sqlite";
@@ -1246,9 +1264,11 @@ void generate_sim_data_db(const Parameters* par, const Community* community, con
     import_csv_to_db(detection_filename.str(), "infection_detection", db.str());
     import_csv_to_db(vaccination_filename.str(), "vaccination_history", db.str());
     import_csv_to_db(age_bins_filename.str(), "age_bins", db.str());
+    import_csv_to_db(doses_available_filename.str(), "doses_available", db.str());
 
     ss.str(string());
-    ss << "rm " << infection_filename.str() << ' ' << offspring_filename.str() << ' ' << detection_filename.str() << ' ' << vaccination_filename.str() << ' ' << age_bins_filename.str();
+    ss << "rm " << infection_filename.str() << ' ' << offspring_filename.str() << ' '
+       << detection_filename.str() << ' ' << vaccination_filename.str() << ' ' << age_bins_filename.str() << ' ' << doses_available_filename.str();
     cmd_str = ss.str();
     retval = system(cmd_str.c_str());
     if (retval == -1) { cerr << "System call to delete infection csv files failed\n"; }
