@@ -43,6 +43,7 @@ void Parameters::define_defaults() {
     contactTracingDepth    = 0;
     quarantineProbability  = vector<double>(contactTracingDepth);
     selfQuarantineDuration = 0;
+    urgent_vax_dose_threshold = 0;  // default to 0 (no urgent vaccines) but must be <= numVaccineDoses
     //secondaryTransmission = true;
     populationFilename = "population.txt";
     locationFilename = "locations.txt";

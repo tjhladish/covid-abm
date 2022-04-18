@@ -484,6 +484,7 @@ public:
     double contactTracingCoverage;                          // fraction of detected infections that are contact traced as primary cases
     vector<double> contactTracingEV;                        // indexed by LocationType; Expected number of recalled contacts; HOME is used for neighbor contacts
     size_t contactTracingDepth;                             // tracing contacts = 1; tracing contacts-of-contacts = 2; etc...
+    int urgent_vax_dose_threshold;                       // what doses can be urgently provided (doses less than this threshold); must be <= numVaccineDoses
 
     size_t symptom_onset(StrainType strain = WILDTYPE) const { // aka incubation period
         // TODO - CABP: this could be a negative binomial instead (which is discrete)

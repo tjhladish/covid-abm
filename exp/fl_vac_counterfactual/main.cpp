@@ -378,7 +378,7 @@ void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign*
 
     // variables for queue file processing (date ref_location bin_min bin_max dose n_doses_p10k)
     string date, ref_loc;
-    int bin_min, bin_max, dose;
+    int bin_min, bin_max, dose, is_urg;
     double doses_p10k;
 
     // save unique age bin boundaries encountered
@@ -386,13 +386,17 @@ void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign*
 
     // temmporary daily doses per 10k availability indexed by [day][dose][age bin]
     vector< vector< map<int, double> > > doses_in(par->runLength, vector< map<int, double> >(par->numVaccineDoses));
+    vector< vector< map<int, double> > > urg_doses_in(par->runLength, vector< map<int, double> >(par->numVaccineDoses));
 
     // parse input file
     while (getline(iss, buffer)) {
         line.clear();
         line.str(buffer);
 
-        if (line >> date >> ref_loc >> bin_min >> bin_max >> dose >> doses_p10k) {
+        if (line >> date >> ref_loc >> bin_min >> bin_max >> dose >> is_urg >> doses_p10k) {
+if (is_urg and (doses_p10k > 0)) {
+    cerr << line.str() << endl;
+}
             const size_t sim_day = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, date);
 
             // skip lines of data not pertaining to this counterfactual_reference_loc or are beyond runLength
@@ -403,7 +407,11 @@ void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign*
             unique_bin_maxs.insert(bin_max);
 
             // save pop adjusted number of doses
-            doses_in[sim_day][dose - 1][bin_min] = doses_p10k;
+            if (is_urg) {
+                urg_doses_in[sim_day][dose - 1][bin_min] = doses_p10k;
+            } else {
+                doses_in[sim_day][dose - 1][bin_min] = doses_p10k;
+            }
         }
     }
 
@@ -416,6 +424,8 @@ void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign*
     // otherwise, mulitply by proper age bin population
     map<int, int> bin_pops = vc->get_unique_age_bin_pops();
     vector< vector< map<int, int> > > doses_available(par->runLength, vector< map<int, int> >(par->numVaccineDoses));
+    vector< vector< map<int, int> > > urg_doses_available(par->runLength, vector< map<int, int> >(par->numVaccineDoses));
+
     for (int day = 0; day < (int) par->runLength; ++day) {
         for (int bin : vc->get_unique_age_bins()) {
             for (int dose = 0; dose < par->numVaccineDoses; ++dose) {
@@ -424,12 +434,20 @@ void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign*
                 } else {
                     doses_available[day][dose][bin] = 0;
                 }
+
+                if (urg_doses_in[day][dose].count(bin)) {
+                    urg_doses_available[day][dose][bin] = (int)(urg_doses_in[day][dose][bin] * ((double)bin_pops[bin]/1e4));
+                } else {
+                    urg_doses_available[day][dose][bin] = 0;
+                }
             }
         }
     }
 
     // save bin pop adjusted doses available to the vac_campaign
     vc->set_doses_available(doses_available);
+    vc->set_urg_doses_available(urg_doses_available);
+    vc->init_orig_doses_available();
 }
 
 // REFACTOR generateVac_Campaign()
