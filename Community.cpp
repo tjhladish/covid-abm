@@ -525,12 +525,7 @@ void Community::vaccinate() {
     if (not vac_campaign->get_doses_available(_day)) { return; }
 
     // create empty eligibility group to add new revaccinations to the queue
-    vector<Eligibility_Group*> revaccinations(_par->numVaccineDoses);
-    for (int dose = 1; dose < _par->numVaccineDoses; ++dose) {
-        Eligibility_Group* eg = new Eligibility_Group();
-        eg->eligibility_day = _day + _par->vaccineDoseInterval.at(dose - 1);
-        revaccinations[dose] = eg;
-    }
+    vector<Eligibility_Group*> revaccinations = vac_campaign->init_new_eligible_groups(_day);
 
     // for each age bin, dose combination, select new vaccinees until there are no more doses available
     for (int bin : vac_campaign->get_unique_age_bins()) {
@@ -539,7 +534,7 @@ void Community::vaccinate() {
             while (v) {
                 if (((v->get_person()->getNumVaccinations() < _par->numVaccineDoses) and v->get_person()->isSeroEligible()) // not completely vaccinated & eligible
                   and vac_campaign->vaccinate(v, _day)) {                       // and person isn't dead, so got vaccinated
-                    vac_campaign->tally_dose(_day, dose, bin);                  // tally dose used
+                    vac_campaign->tally_dose(_day, dose, bin, v);                  // tally dose used
 
                     // add people who are not fully vaccinated to proper eligible group for revaccination
                     if ((dose + 1) < _par->numVaccineDoses) {
@@ -554,11 +549,12 @@ void Community::vaccinate() {
             }
 
             // roll over unused doses to tomorrow
-            int remaining_doses = vac_campaign->get_doses_available(_day, dose, bin);
-            if (remaining_doses and ((_day + 1) < (int) _par->runLength)) {
-                vac_campaign->set_doses_available(_day, dose, bin, 0);
-                vac_campaign->add_doses_available(_day + 1, dose, bin, remaining_doses);
-            }
+            vac_campaign->rollover_unused_doses(_day, dose, bin);
+            // int remaining_doses = vac_campaign->get_doses_available(_day, dose, bin);
+            // if (remaining_doses and ((_day + 1) < (int) _par->runLength)) {
+            //     vac_campaign->set_doses_available(_day, dose, bin, 0);
+            //     vac_campaign->add_doses_available(_day + 1, dose, bin, remaining_doses);
+            // }
         }
     }
 
