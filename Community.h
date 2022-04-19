@@ -134,55 +134,55 @@ class Community {
                 }
             }
 
-            if (vac_campaign) {
-                std::vector< std::map<int, std::vector<Person*> > > pv = vac_campaign->get_potential_vaccinees();
-                std::vector< std::map<int, std::vector<Person*> > > uv = vac_campaign->get_urgent_vaccinees();
-
-                std::vector< std::priority_queue<Eligibility_Group*, std::vector<Eligibility_Group*>, Eligibility_Group::comparator> > old_eq = o.vac_campaign->get_eligibility_queue();
-                std::vector< std::priority_queue<Eligibility_Group*, std::vector<Eligibility_Group*>, Eligibility_Group::comparator> > old_uq = o.vac_campaign->get_urgent_queue();
-
-                std::vector< std::priority_queue<Eligibility_Group*, std::vector<Eligibility_Group*>, Eligibility_Group::comparator> > eq = vac_campaign->get_eligibility_queue();
-                std::vector< std::priority_queue<Eligibility_Group*, std::vector<Eligibility_Group*>, Eligibility_Group::comparator> > uq = vac_campaign->get_urgent_queue();
-                eq.clear(); eq.resize(_par->numVaccineDoses);
-                uq.clear(); uq.resize(_par->numVaccineDoses);
-
-                for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
-                    for (int bin : vac_campaign->get_unique_age_bins()) {
-                        for (int i = 0; i < (int) pv.size(); ++i) { pv[dose][bin][i] = person_ptr_map[pv[dose][bin][i]]; }
-                        for (int i = 0; i < (int) uv.size(); ++i) { uv[dose][bin][i] = person_ptr_map[uv[dose][bin][i]]; }
-                    }
-
-                    while (old_eq[dose].size()) {
-                        Eligibility_Group* old_eg = old_eq[dose].top();
-                        Eligibility_Group* eg = new Eligibility_Group();
-                        eg->eligibility_day = old_eg->eligibility_day;
-                        for (int bin : vac_campaign->get_unique_age_bins()) {
-                            for (int i = 0; i < (int) old_eg->eligible_people[bin].size(); ++i) {
-                                eg->eligible_people[bin].push_back(person_ptr_map[old_eg->eligible_people[bin][i]]);
-                            }
-                        }
-                        eq[dose].push(eg);
-                        old_eq[dose].pop();
-                    }
-
-                    while (old_uq[dose].size()) {
-                        Eligibility_Group* old_eg = old_uq[dose].top();
-                        Eligibility_Group* eg = new Eligibility_Group();
-                        eg->eligibility_day = old_eg->eligibility_day;
-                        for (int bin : vac_campaign->get_unique_age_bins()) {
-                            for (int i = 0; i < (int) old_eg->eligible_people[bin].size(); ++i) {
-                                eg->eligible_people[bin].push_back(person_ptr_map[old_eg->eligible_people[bin][i]]);
-                            }
-                        }
-                        uq[dose].push(eg);
-                        old_uq[dose].pop();
-                    }
-                }
-                vac_campaign->set_potential_vaccinees(pv);
-                vac_campaign->set_urgent_vaccinees(uv);
-                vac_campaign->set_eligibility_queue(eq);
-                vac_campaign->set_urgent_queue(uq);
-            }
+            // if (vac_campaign) {
+            //     std::vector< std::map<int, std::vector<Person*> > > pv = vac_campaign->get_potential_vaccinees();
+            //     std::vector< std::map<int, std::vector<Person*> > > uv = vac_campaign->get_urgent_vaccinees();
+            //
+            //     std::vector< std::priority_queue<Eligibility_Group*, std::vector<Eligibility_Group*>, Eligibility_Group::comparator> > old_eq = o.vac_campaign->get_eligibility_queue();
+            //     std::vector< std::priority_queue<Eligibility_Group*, std::vector<Eligibility_Group*>, Eligibility_Group::comparator> > old_uq = o.vac_campaign->get_urgent_queue();
+            //
+            //     std::vector< std::priority_queue<Eligibility_Group*, std::vector<Eligibility_Group*>, Eligibility_Group::comparator> > eq = vac_campaign->get_eligibility_queue();
+            //     std::vector< std::priority_queue<Eligibility_Group*, std::vector<Eligibility_Group*>, Eligibility_Group::comparator> > uq = vac_campaign->get_urgent_queue();
+            //     eq.clear(); eq.resize(_par->numVaccineDoses);
+            //     uq.clear(); uq.resize(_par->numVaccineDoses);
+            //
+            //     for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
+            //         for (int bin : vac_campaign->get_unique_age_bins()) {
+            //             for (int i = 0; i < (int) pv.size(); ++i) { pv[dose][bin][i] = person_ptr_map[pv[dose][bin][i]]; }
+            //             for (int i = 0; i < (int) uv.size(); ++i) { uv[dose][bin][i] = person_ptr_map[uv[dose][bin][i]]; }
+            //         }
+            //
+            //         while (old_eq[dose].size()) {
+            //             Eligibility_Group* old_eg = old_eq[dose].top();
+            //             Eligibility_Group* eg = new Eligibility_Group();
+            //             eg->eligibility_day = old_eg->eligibility_day;
+            //             for (int bin : vac_campaign->get_unique_age_bins()) {
+            //                 for (int i = 0; i < (int) old_eg->eligible_people[bin].size(); ++i) {
+            //                     eg->eligible_people[bin].push_back(person_ptr_map[old_eg->eligible_people[bin][i]]);
+            //                 }
+            //             }
+            //             eq[dose].push(eg);
+            //             old_eq[dose].pop();
+            //         }
+            //
+            //         while (old_uq[dose].size()) {
+            //             Eligibility_Group* old_eg = old_uq[dose].top();
+            //             Eligibility_Group* eg = new Eligibility_Group();
+            //             eg->eligibility_day = old_eg->eligibility_day;
+            //             for (int bin : vac_campaign->get_unique_age_bins()) {
+            //                 for (int i = 0; i < (int) old_eg->eligible_people[bin].size(); ++i) {
+            //                     eg->eligible_people[bin].push_back(person_ptr_map[old_eg->eligible_people[bin][i]]);
+            //                 }
+            //             }
+            //             uq[dose].push(eg);
+            //             old_uq[dose].pop();
+            //         }
+            //     }
+            //     vac_campaign->set_potential_vaccinees(pv);
+            //     vac_campaign->set_urgent_vaccinees(uv);
+            //     vac_campaign->set_eligibility_queue(eq);
+            //     vac_campaign->set_urgent_queue(uq);
+            // }
         }
 
         ~Community();
