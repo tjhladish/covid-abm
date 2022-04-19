@@ -1228,7 +1228,7 @@ void generate_sim_data_db(const Parameters* par, const Community* community, con
     }
 
     map<int, int> bin_pops = community->getVac_Campaign()->get_unique_age_bin_pops();
-    std::vector< std::vector< std::map<int, int> > > doses = community->getVac_Campaign()->get_orig_doses_available();
+    // std::vector< std::vector< std::map<int, int*> > > doses = community->getVac_Campaign()->get_orig_doses_available();
     for (int bin : community->getVac_Campaign()->get_unique_age_bins()) {
         age_bins_file << bin << ','
                       << bin_pops[bin] << endl;
@@ -1239,7 +1239,7 @@ void generate_sim_data_db(const Parameters* par, const Community* community, con
                                      << Date::to_ymd(day , par) << ','
                                      << dose << ','
                                      << bin << ','
-                                     << doses[day][dose][bin] << endl;
+                                     /*<< *doses[day][dose][bin]*/ << endl;
             }
         }
     }
