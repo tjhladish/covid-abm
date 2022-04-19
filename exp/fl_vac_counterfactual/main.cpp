@@ -87,6 +87,18 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->runLength               = TOTAL_DURATION;
     //par->annualIntroductionsCoef = 1;
 
+    par->beginContactTracing           = par->runLength;//Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-06-01");
+    par->contactTracingCoverage        = 0.7;
+    par->contactTracingEV[HOME]        = 5.0;
+    par->contactTracingEV[WORK]        = 3.0;
+    par->contactTracingEV[SCHOOL]      = 3.0;
+    par->contactTracingEV[HOSPITAL]    = 0.0;
+    par->contactTracingEV[NURSINGHOME] = 5.0;
+    par->contactTracingDepth           = 2;
+
+    par->quarantineProbability  = {0.0, 0.0, 0.0};
+    par->selfQuarantineDuration = 10;
+
     vector<double> seasonality;
     for (size_t day = 0; day < 366; ++day) {
         seasonality.push_back(1 - 0.15*sin((4*M_PI*((int) day-60))/366));
@@ -258,7 +270,7 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->num_preview_windows = 3;
     par->autotuning_dataset = "autotuning_dataset_220217.csv";
 
-    par->dump_simulation_data = true;
+    par->dump_simulation_data = false;
 
     return par;
 }
@@ -354,7 +366,7 @@ void define_strain_parameters(Parameters* par) {
 
 
 // REFACTOR parseVaccineFile()
-void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign* vc, const size_t counterfactual_scenario) {
+void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign* vc, const size_t counterfactual_scenario, vector<bool> dose_pooling_flags) {
     const string vaccinationFilename = par->vaccination_file;
 
     // parses the JSON argument into a form to use in vax file parsing
@@ -385,7 +397,7 @@ void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign*
     set<int> unique_bin_mins, unique_bin_maxs;
 
     // temmporary daily doses per 10k availability indexed by [day][dose][age bin]
-    vector< vector< map<int, double> > > doses_in(par->runLength, vector< map<int, double> >(par->numVaccineDoses));
+    vector< vector< map<int, double> > > std_doses_in(par->runLength, vector< map<int, double> >(par->numVaccineDoses));
     vector< vector< map<int, double> > > urg_doses_in(par->runLength, vector< map<int, double> >(par->numVaccineDoses));
 
     // parse input file
@@ -394,9 +406,6 @@ void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign*
         line.str(buffer);
 
         if (line >> date >> ref_loc >> bin_min >> bin_max >> dose >> is_urg >> doses_p10k) {
-if (is_urg and (doses_p10k > 0)) {
-    cerr << line.str() << endl;
-}
             const size_t sim_day = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, date);
 
             // skip lines of data not pertaining to this counterfactual_reference_loc or are beyond runLength
@@ -410,7 +419,7 @@ if (is_urg and (doses_p10k > 0)) {
             if (is_urg) {
                 urg_doses_in[sim_day][dose - 1][bin_min] = doses_p10k;
             } else {
-                doses_in[sim_day][dose - 1][bin_min] = doses_p10k;
+                std_doses_in[sim_day][dose - 1][bin_min] = doses_p10k;
             }
         }
     }
@@ -423,20 +432,20 @@ if (is_urg and (doses_p10k > 0)) {
     // for any day, dose, bin combinations with no data, fill with 0
     // otherwise, mulitply by proper age bin population
     map<int, int> bin_pops = vc->get_unique_age_bin_pops();
-    vector< vector< map<int, int> > > doses_available(par->runLength, vector< map<int, int> >(par->numVaccineDoses));
+    vector< vector< map<int, int> > > std_doses_available(par->runLength, vector< map<int, int> >(par->numVaccineDoses));
     vector< vector< map<int, int> > > urg_doses_available(par->runLength, vector< map<int, int> >(par->numVaccineDoses));
 
     for (int day = 0; day < (int) par->runLength; ++day) {
         for (int bin : vc->get_unique_age_bins()) {
             for (int dose = 0; dose < par->numVaccineDoses; ++dose) {
-                if (doses_in[day][dose].count(bin)) {
-                    doses_available[day][dose][bin] = (int)(doses_in[day][dose][bin] * ((double)bin_pops[bin]/1e4));
+                if (std_doses_in[day][dose].count(bin)) {
+                    std_doses_available[day][dose][bin] = (int)(std_doses_in[day][dose][bin] * ((double)bin_pops[bin]/1e4));
                 } else {
-                    doses_available[day][dose][bin] = 0;
+                    std_doses_available[day][dose][bin] = 0;
                 }
 
                 if (urg_doses_in[day][dose].count(bin)) {
-                    urg_doses_available[day][dose][bin] = (int)(urg_doses_in[day][dose][bin] * ((double)bin_pops[bin]/1e4));
+                    urg_doses_available[day][dose][bin] = 20;//(int)(urg_doses_in[day][dose][bin] * ((double)bin_pops[bin]/1e4));
                 } else {
                     urg_doses_available[day][dose][bin] = 0;
                 }
@@ -445,20 +454,25 @@ if (is_urg and (doses_p10k > 0)) {
     }
 
     // save bin pop adjusted doses available to the vac_campaign
-    vc->set_doses_available(doses_available);
-    vc->set_urg_doses_available(urg_doses_available);
-    vc->init_orig_doses_available();
+    vc->set_pool_urg_doses(dose_pooling_flags[0]);
+    vc->set_pool_std_doses(dose_pooling_flags[1]);
+    vc->set_pool_all_doses(dose_pooling_flags[2]);
+
+    vc->init_doses_available(urg_doses_available, std_doses_available);
+    // vc->set_doses_available(doses_available);
+    // vc->set_urg_doses_available(urg_doses_available);
+    // vc->init_orig_doses_available();
 }
 
 // REFACTOR generateVac_Campaign()
-Vac_Campaign* generateVac_Campaign(const Parameters* par, Community* community, const size_t counterfactual_scenario) {
+Vac_Campaign* generateVac_Campaign(const Parameters* par, Community* community, const size_t counterfactual_scenario, vector<bool> dose_pooling_flags) {
     // create a new Vac_Campaign
     Vac_Campaign* vc = new Vac_Campaign(par);
     vc->set_rng(VAX_RNG);
 
     // parse input file to set daily doses available and generate unique, mutually exclusive age bins for the entire population
     cerr << "Reading vaccinations ... ";
-    parseVaccineFile(par, community, vc, counterfactual_scenario);
+    parseVaccineFile(par, community, vc, counterfactual_scenario, dose_pooling_flags);
     cerr << "done." << endl;
 
     // initialiaze eligibility queue
@@ -658,14 +672,29 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         par->vaccineDoseInterval   = {21, 240};
         par->vaccineTargetCoverage = 0.60;  // for healthcare workers only
         par->vaccine_dose_to_protection_lag = 10;
+        par->urgent_vax_dose_threshold = 1;
 
-        vc = generateVac_Campaign(par, community, counterfactual_scenario);
+        bool pool_urg_doses = true;
+        bool pool_std_doses = false;
+        bool pool_all_doses = false;
+
+        vc = generateVac_Campaign(par, community, counterfactual_scenario, {pool_urg_doses, pool_std_doses, pool_all_doses});
 
         // parameter handling --- how do we want to handle setting these? I just set them here rather than use par
         vc->set_prioritize_first_doses(false);
         vc->set_flexible_queue_allocation(false);
-        vc->set_reactive_vac_strategy(NUM_OF_VAC_CAMPAIGN_TYPES);
+
+        VacCampaignType selected_strat = NUM_OF_VAC_CAMPAIGN_TYPES;
+        vc->set_reactive_vac_strategy(selected_strat);
         vc->set_reactive_vac_dose_allocation(0.0);
+
+        int active_strat_start = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-06-01");
+        active_strat_start = (active_strat_start >= par->beginContactTracing) ? active_strat_start : par->beginContactTracing;
+        vc->set_start_of_campaign(selected_strat, active_strat_start);
+
+        vc->set_end_of_campaign(GENERAL_CAMPAIGN, par->runLength);
+        vc->set_end_of_campaign(selected_strat, par->runLength);
+
 
         vector<int> min_ages(par->runLength, 5);
         vc->set_min_age(min_ages);       // needed for e.g. urgent vaccinations

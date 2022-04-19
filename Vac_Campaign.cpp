@@ -9,9 +9,9 @@ using covid::util::choose_k;
 vector<Eligibility_Group*> Vac_Campaign::init_new_eligible_groups(int day) {
     // create empty eligibility group to add new urgent people to the queue
     vector<Eligibility_Group*> eligibles(_par->numVaccineDoses);
-    for (int dose = 1; dose < _par->numVaccineDoses; ++dose) {
+    for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
         Eligibility_Group* eg = new Eligibility_Group();
-        eg->eligibility_day = day + _par->vaccineDoseInterval.at(dose - 1);
+        eg->eligibility_day = (dose == 0) ? day + 1 : day + _par->vaccineDoseInterval.at(dose - 1);
         eligibles[dose] = eg;
     }
 
@@ -32,7 +32,8 @@ void Vac_Campaign::ring_scheduling(int day, vector< set<Person*> > tracedContact
         for (auto s : tracedContacts) {
             for (Person* p : s) {
                 // Parameters must ensure than urgent_vax_dose_threshold <= numVaccineDoses
-                if (is_age_eligible_on(p->getAge(), day) and not (p->hasBeenInfected() or (p->getNumVaccinations() < _par->urgent_vax_dose_threshold))) {
+                // if (is_age_eligible_on(p->getAge(), day) and not (p->hasBeenInfected() or (p->getNumVaccinations() < _par->urgent_vax_dose_threshold))) {
+                if (is_age_eligible_on(p->getAge(), day) and (p->getNumVaccinations() < _par->urgent_vax_dose_threshold)) {
                     // getNumVaccinations() used as an index will ensure this person is being scheduled for their next dose
                     // eg: if getNumVaccinations() returns 1, 1 as an index pushes this person for dose 2
                     urgents[p->getNumVaccinations()]->eligible_people[age_bin_lookup[p->getAge()]].push_back(p);
@@ -227,4 +228,57 @@ void Vac_Campaign::generate_age_bins(Community* community, std::set<int> unique_
     }
 
     unique_age_bins = mins;
+}
+
+std::vector< std::vector< std::map<int, int*> > > Vac_Campaign::_dose_pool(std::vector< std::vector< std::map<int, int> > > doses_in) {
+    std::vector< std::vector< std::map<int, int*> > > doses_available(_par->runLength, std::vector< std::map<int, int*> >(_par->numVaccineDoses));
+    for (int day = 0; day < (int) _par->runLength; ++day) {
+        _doses.push_back(0);
+        int* daily_pooled_dose_ptr = &_doses.back();
+        for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
+            for (int bin : unique_age_bins) {
+                *daily_pooled_dose_ptr += doses_in.at(day).at(dose).at(bin);
+                doses_available.at(day).at(dose)[bin] = daily_pooled_dose_ptr;
+            }
+        }
+    }
+    return doses_available;
+}
+
+std::vector< std::vector< std::map<int, int*> > > Vac_Campaign::_dose_store(std::vector< std::vector< std::map<int, int> > > doses_in) {
+    std::vector< std::vector< std::map<int, int*> > > doses_available(_par->runLength, std::vector< std::map<int, int*> >(_par->numVaccineDoses));
+    for (int day = 0; day < (int) _par->runLength; ++day) {
+        for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
+            for (int bin : unique_age_bins) {
+                _doses.push_back(0);
+                int* dose_ptr = &_doses.back();
+                *dose_ptr = doses_in.at(day).at(dose).at(bin);
+                doses_available.at(day).at(dose)[bin] = dose_ptr;
+            }
+        }
+    }
+    return doses_available;
+}
+
+void Vac_Campaign::init_doses_available(std::vector< std::vector< std::map<int, int> > > urg_in, std::vector< std::vector< std::map<int, int> > > std_in) {
+    // max number of _doses elements is the total possible number of day, dose, bin combinations for standard and urgent (hence the x2)
+    const size_t max_num_elements = _par->runLength * _par->numVaccineDoses * unique_age_bins.size() * 2;
+    _doses = std::vector<int>(0);
+    _doses.reserve(max_num_elements);
+
+    if (pool_urg_doses) {
+        urg_doses_available = _dose_pool(urg_in);   // pool urgent doses regardless of age or dose
+        std_doses_available = _dose_store(std_in);  // store standard doses normally
+    } else if (pool_std_doses) {
+        urg_doses_available = _dose_store(urg_in);  // store urgent doses normally
+        std_doses_available = _dose_pool(std_in);   // pool standard doses regardless of age or dose
+    } else if (pool_all_doses) {
+        // pool all doses regardless of age or dose
+        urg_doses_available = _dose_pool(urg_in);
+        std_doses_available = _dose_pool(std_in);
+    } else {
+        // store all doses normally
+        urg_doses_available = _dose_store(urg_in);
+        std_doses_available = _dose_store(std_in);
+    }
 }

@@ -522,7 +522,7 @@ void Community::vaccinate() {
     vac_campaign->add_new_eligible_people(_day);
 
     // only continue if any doses are available today
-    if (not vac_campaign->get_doses_available(_day)) { return; }
+    if (not vac_campaign->get_all_doses_available(_day)) { return; }
 
     // create empty eligibility group to add new revaccinations to the queue
     vector<Eligibility_Group*> revaccinations = vac_campaign->init_new_eligible_groups(_day);
@@ -543,7 +543,7 @@ void Community::vaccinate() {
                 }
                 // always remove vaccinee from the pool
                 // either was vaccinated, or was not eliglbe to be vaccinated (fully vaxd, not sero eligible, not alive)
-                vac_campaign->remove_from_pool(dose, bin, v->get_person());
+                vac_campaign->remove_from_pool(dose, bin, v);
                 delete v;
                 v = vac_campaign->next_vaccinee(_day, dose, bin);
             }
@@ -1063,29 +1063,20 @@ vector< set<Person*> > Community::traceForwardContacts() {
                 }
             }
         }
-// size_t num_quarantined = 0;
-//        for (Person* p : tracedContacts[depth]) {
-//            if ((not p->isQuarantining(_day)) and (gsl_rng_uniform(RNG) < _par->quarantineProbability[depth])) {
-//                p->selfQuarantine(_day, _par->selfQuarantineDuration);
-//                num_quarantined++;
-//            }
-//        }
-// cerr << "DEBUG NUM CONTACTS AT DEPTH         " << depth << " IS " << tracedContacts[depth].size() << endl;
-// cerr << "DEBUG PROB OF QUARANTINING AT DEPTH " << depth << " IS " << _par->quarantineProbability[depth] << endl;
-// cerr << "DEBUG NUM QUARANTINED FROM DEPTH    " << depth << " IS " << num_quarantined << endl;
     }
- size_t num_quarantined = 0;
- for (size_t depth = 0; depth < tracedContacts.size(); ++depth) {
-        for (Person* p : tracedContacts[depth]) {
-            if ((not p->isQuarantining(_day)) and (gsl_rng_uniform(RNG) < _par->quarantineProbability[depth])) {
-                p->selfQuarantine(_day, _par->selfQuarantineDuration);
-                num_quarantined++;
-            }
-        }
- //cerr << "DEBUG NUM CONTACTS AT DEPTH         " << depth << " IS " << tracedContacts[depth].size() << endl;
- //cerr << "DEBUG PROB OF QUARANTINING AT DEPTH " << depth << " IS " << _par->quarantineProbability[depth] << endl;
- //cerr << "DEBUG NUM QUARANTINED FROM DEPTH    " << depth << " IS " << num_quarantined << endl;
- }
+
+    size_t num_quarantined = 0;
+    for (size_t depth = 0; depth < tracedContacts.size(); ++depth) {
+           for (Person* p : tracedContacts[depth]) {
+               if ((not p->isQuarantining(_day)) and (gsl_rng_uniform(RNG) < _par->quarantineProbability[depth])) {
+                   p->selfQuarantine(_day, _par->selfQuarantineDuration);
+                   num_quarantined++;
+               }
+           }
+    // cerr << "DEBUG NUM CONTACTS AT DEPTH         " << depth << " IS " << tracedContacts[depth].size() << endl;
+    // cerr << "DEBUG PROB OF QUARANTINING AT DEPTH " << depth << " IS " << _par->quarantineProbability[depth] << endl;
+    // cerr << "DEBUG NUM QUARANTINED FROM DEPTH    " << depth << " IS " << num_quarantined << endl;
+    }
     return tracedContacts;
 }
 
@@ -1124,7 +1115,7 @@ void Community::tick() {
     // do contact tracing to a given depth using reported cases from today if _day is at or after the start of contact tracing
     vector< set<Person*> > tracedContactsByDepth = traceForwardContacts();
 
-    // if(vac_campaign) { vac_campaign->reactive_strategy(_day, tracedContactsByDepth, this); } // if there is no reactive strategy, nothing happens
+    if(vac_campaign) { vac_campaign->reactive_strategy(_day, tracedContactsByDepth, this); } // if there is no reactive strategy, nothing happens
 
     // output transmission type data
     //if (_day == (int) _par->runLength -1) {
