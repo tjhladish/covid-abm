@@ -159,11 +159,11 @@ void Vac_Campaign::reactive_strategy(int day, vector< set<Person*> > targetedPeo
 }
 
 void Vac_Campaign::init_eligibility_queue(const Community* community) {
-    eligibility_queue.clear();
-    eligibility_queue.resize(_par->numVaccineDoses);
+    std_eligibility_queue.clear();
+    std_eligibility_queue.resize(_par->numVaccineDoses);
 
-    urgent_queue.clear();
-    urgent_queue.resize(_par->numVaccineDoses);
+    urg_eligibility_queue.clear();
+    urg_eligibility_queue.resize(_par->numVaccineDoses);
 
     Eligibility_Group* first_eg = new Eligibility_Group();
     first_eg->eligibility_day = 0;
@@ -172,7 +172,7 @@ void Vac_Campaign::init_eligibility_queue(const Community* community) {
     for (Person* p : community->getPeople()) {
         first_eg->eligible_people[age_bin_lookup[p->getAge()]].push_back(p);
     }
-    eligibility_queue[0].push(first_eg);
+    std_eligibility_queue[0].push(first_eg);
 }
 
 // generates and saves comprehensive, mutually exclusive age bins for the entire population
@@ -230,8 +230,8 @@ void Vac_Campaign::generate_age_bins(Community* community, std::set<int> unique_
     unique_age_bins = mins;
 }
 
-std::vector< std::vector< std::map<int, int*> > > Vac_Campaign::_dose_pool(std::vector< std::vector< std::map<int, int> > > doses_in) {
-    std::vector< std::vector< std::map<int, int*> > > doses_available(_par->runLength, std::vector< std::map<int, int*> >(_par->numVaccineDoses));
+dosePtrs Vac_Campaign::_dose_pool(doseVals doses_in) {
+    dosePtrs doses_available(_par->runLength, std::vector< std::map<int, int*> >(_par->numVaccineDoses));
     for (int day = 0; day < (int) _par->runLength; ++day) {
         _doses.push_back(0);
         int* daily_pooled_dose_ptr = &_doses.back();
@@ -245,8 +245,8 @@ std::vector< std::vector< std::map<int, int*> > > Vac_Campaign::_dose_pool(std::
     return doses_available;
 }
 
-std::vector< std::vector< std::map<int, int*> > > Vac_Campaign::_dose_store(std::vector< std::vector< std::map<int, int> > > doses_in) {
-    std::vector< std::vector< std::map<int, int*> > > doses_available(_par->runLength, std::vector< std::map<int, int*> >(_par->numVaccineDoses));
+dosePtrs Vac_Campaign::_dose_store(doseVals doses_in) {
+    dosePtrs doses_available(_par->runLength, std::vector< std::map<int, int*> >(_par->numVaccineDoses));
     for (int day = 0; day < (int) _par->runLength; ++day) {
         for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
             for (int bin : unique_age_bins) {
@@ -260,7 +260,7 @@ std::vector< std::vector< std::map<int, int*> > > Vac_Campaign::_dose_store(std:
     return doses_available;
 }
 
-void Vac_Campaign::init_doses_available(std::vector< std::vector< std::map<int, int> > > urg_in, std::vector< std::vector< std::map<int, int> > > std_in) {
+void Vac_Campaign::init_doses_available(doseVals urg_in, doseVals std_in) {
     // max number of _doses elements is the total possible number of day, dose, bin combinations for standard and urgent (hence the x2)
     const size_t max_num_elements = _par->runLength * _par->numVaccineDoses * unique_age_bins.size() * 2;
     _doses = std::vector<int>(0);
