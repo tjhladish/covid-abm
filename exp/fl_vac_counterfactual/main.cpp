@@ -443,7 +443,7 @@ void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign*
                 }
 
                 if (urg_doses_in[day][dose].count(bin)) {
-                    urg_doses_available[day][dose][bin] = 20;//(int)(urg_doses_in[day][dose][bin] * ((double)bin_pops[bin]/1e4));
+                    urg_doses_available[day][dose][bin] = (int)(urg_doses_in[day][dose][bin] * ((double)bin_pops[bin]/1e4));
                 } else {
                     urg_doses_available[day][dose][bin] = 0;
                 }
