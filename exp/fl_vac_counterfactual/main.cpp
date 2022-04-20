@@ -54,8 +54,6 @@ const int FL_POP                  = 21538187;   // as of 2020 census
 
 vector<vector<double>> REPORTED_FRACTIONS;
 
-gsl_rng* VAX_RNG = gsl_rng_alloc(gsl_rng_mt19937);
-
 double calculate_conditional_death_reporting_probability(double RF_death, const vector<double> &rho_vals) {
     const double rho_death  = 1.0 - (1.0 - RF_death)/((1.0 - rho_vals[0])*(1.0 - rho_vals[1])*(1.0 - rho_vals[2])*(1.0 - rho_vals[3]));
     return rho_death;

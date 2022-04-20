@@ -51,6 +51,7 @@ enum PrevalenceReportingType {
 
 gsl_rng* RNG = gsl_rng_alloc(gsl_rng_taus2);
 gsl_rng* REPORTING_RNG = gsl_rng_alloc(gsl_rng_mt19937);
+gsl_rng* VAX_RNG = gsl_rng_alloc(gsl_rng_mt19937);
 
 // Predeclare local functions
 Community* build_community(const Parameters* par);
@@ -297,13 +298,15 @@ public:
         sim_ledger    = nullptr;
         rng           = nullptr;
         reporting_rng = nullptr;
+        vax_rng       = nullptr;
     };
 
-    SimulationCache(Community* o_community, SimulationLedger* o_sim_ledger, gsl_rng* o_rng, gsl_rng* o_reporting_rng) {
+    SimulationCache(Community* o_community, SimulationLedger* o_sim_ledger, gsl_rng* o_rng, gsl_rng* o_reporting_rng, gsl_rng* o_vax_rng) {
         community     = new Community(*o_community);
         sim_ledger    = new SimulationLedger(*o_sim_ledger);
         rng           = gsl_rng_clone(o_rng);
         reporting_rng = gsl_rng_clone(o_reporting_rng);
+        vax_rng       = gsl_rng_clone(o_vax_rng);
     };
 
     ~SimulationCache() {
@@ -311,12 +314,14 @@ public:
         delete sim_ledger;
         gsl_rng_free(rng);
         gsl_rng_free(reporting_rng);
+        gsl_rng_free(vax_rng);
     };
 
     Community* community;
     SimulationLedger* sim_ledger;
     gsl_rng* rng;
     gsl_rng* reporting_rng;
+    gsl_rng* vax_rng;
 };
 
 // helper function to call simvis.R when needed
@@ -612,7 +617,7 @@ void first_tuning_window_setup(const Parameters* par, Community* community, Beha
 
 void overwrite_sim_cache(SimulationCache* &sim_cache, Community* community, SimulationLedger* ledger, BehaviorAutoTuner* tuner) {
     if (sim_cache) { delete sim_cache; }
-    sim_cache = new SimulationCache(community, ledger, RNG, REPORTING_RNG);
+    sim_cache = new SimulationCache(community, ledger, RNG, REPORTING_RNG, VAX_RNG);
     tuner->tuning_window_ct++;
     tuner->recache = false;
 }
@@ -698,6 +703,9 @@ void restore_from_cache(Community* &community, Date* &date, SimulationCache* sim
 
     if (sim_cache->rng)           { gsl_rng_memcpy(RNG, sim_cache->rng); }
     if (sim_cache->reporting_rng) { gsl_rng_memcpy(REPORTING_RNG, sim_cache->reporting_rng); }
+    if (sim_cache->vax_rng)       { gsl_rng_memcpy(VAX_RNG, sim_cache->vax_rng); }
+
+    if (community->getVac_Campaign()) { community->getVac_Campaign()->set_rng(VAX_RNG); }
 }
 
 
@@ -854,7 +862,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
     if (par->behavioral_autotuning) {
         // create tuner and initialize first simulation cache
         tuner = initialize_behavior_autotuning(par, "rcasedeath-florida.csv");
-        sim_cache = new SimulationCache(community, ledger, RNG, REPORTING_RNG);
+        sim_cache = new SimulationCache(community, ledger, RNG, REPORTING_RNG, VAX_RNG);
         first_tuning_window_setup(par, community, tuner, social_distancing_anchors);
     } else if (not par->autotuning_dataset.empty()) {
         // filename provided for a dataset with behavioral values to use
