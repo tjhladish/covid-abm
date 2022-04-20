@@ -1,3 +1,5 @@
+rm plot_log*
+
 make sim_test
 
 time ./sim_test abc_covid.json --simulate --serial 0
