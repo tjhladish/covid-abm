@@ -3,6 +3,7 @@
 #include "Person.h"
 #include "Location.h"
 #include "Utility.h"
+#include <map>
 
 using covid::util::choose_k;
 
@@ -230,11 +231,11 @@ void Vac_Campaign::generate_age_bins(Community* community, std::set<int> unique_
     unique_age_bins = mins;
 }
 
-dosePtrs Vac_Campaign::_dose_pool(doseVals doses_in) {
-    dosePtrs doses_available(_par->runLength, std::vector< std::map<int, int*> >(_par->numVaccineDoses));
+Dose_Ptrs Vac_Campaign::_dose_pool(Dose_Vals doses_in) {
+    Dose_Ptrs doses_available(_par->runLength, std::vector< std::map<int, int*> >(_par->numVaccineDoses));
     for (int day = 0; day < (int) _par->runLength; ++day) {
         _doses.push_back(0);
-        int* daily_pooled_dose_ptr = &_doses.back();
+        int* daily_pooled_dose_ptr = &(_doses.back());
         for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
             for (int bin : unique_age_bins) {
                 *daily_pooled_dose_ptr += doses_in.at(day).at(dose).at(bin);
@@ -245,27 +246,29 @@ dosePtrs Vac_Campaign::_dose_pool(doseVals doses_in) {
     return doses_available;
 }
 
-dosePtrs Vac_Campaign::_dose_store(doseVals doses_in) {
-    dosePtrs doses_available(_par->runLength, std::vector< std::map<int, int*> >(_par->numVaccineDoses));
+Dose_Ptrs Vac_Campaign::_dose_store(Dose_Vals doses_in) {
+    Dose_Ptrs doses_available(_par->runLength, std::vector< std::map<int, int*> >(_par->numVaccineDoses));
     for (int day = 0; day < (int) _par->runLength; ++day) {
         for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
             for (int bin : unique_age_bins) {
-                _doses.push_back(0);
-                int* dose_ptr = &_doses.back();
-                *dose_ptr = doses_in.at(day).at(dose).at(bin);
-                doses_available.at(day).at(dose)[bin] = dose_ptr;
+                _doses.push_back(doses_in.at(day).at(dose).at(bin));
+                doses_available.at(day).at(dose)[bin] = &(_doses.back());
             }
         }
     }
     return doses_available;
 }
 
-void Vac_Campaign::init_doses_available(doseVals urg_in, doseVals std_in) {
+void Vac_Campaign::_clear_and_resize_doses() {
     // max number of _doses elements is the total possible number of day, dose, bin combinations for standard and urgent (hence the x2)
     const size_t max_num_elements = _par->runLength * _par->numVaccineDoses * unique_age_bins.size() * 2;
+    // the vector must be of size 0 but have the capacity for max_num_elements to prevent reallocation of the vector (nullifying all former pointers to it)
     _doses = std::vector<int>(0);
     _doses.reserve(max_num_elements);
+}
 
+void Vac_Campaign::init_doses_available(Dose_Vals urg_in, Dose_Vals std_in) {
+    _clear_and_resize_doses();
     if (pool_urg_doses) {
         urg_doses_available = _dose_pool(urg_in);   // pool urgent doses regardless of age or dose
         std_doses_available = _dose_store(std_in);  // store standard doses normally
@@ -280,5 +283,38 @@ void Vac_Campaign::init_doses_available(doseVals urg_in, doseVals std_in) {
         // store all doses normally
         urg_doses_available = _dose_store(urg_in);
         std_doses_available = _dose_store(std_in);
+    }
+}
+
+void Vac_Campaign::copy_doses_available(Vac_Campaign* ovc) {
+    _clear_and_resize_doses();
+    std::map<int*, int*> dose_ptr_map;
+    for (int day = 0; day < (int) _par->runLength; ++day) {
+        for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
+            for (int bin : unique_age_bins) {
+                int* other_urg_ptr = ovc->urg_doses_available[day][dose][bin];
+                int* other_std_ptr = ovc->std_doses_available[day][dose][bin];
+
+                if (dose_ptr_map.count(other_urg_ptr)) {
+                    // ptr has already been seen; use the same new ptr to maintain pooled relationships
+                    urg_doses_available[day][dose][bin] = dose_ptr_map[other_urg_ptr];
+                } else {
+                    // this is a new ptr; push back value and create new ptr
+                    _doses.push_back(*other_urg_ptr);
+                    urg_doses_available[day][dose][bin] = &(_doses.back());
+                    dose_ptr_map[other_urg_ptr] = &(_doses.back());
+                }
+
+                if (dose_ptr_map.count(other_std_ptr)) {
+                    // ptr has already been seen; use the same new ptr to maintain pooled relationships
+                    std_doses_available[day][dose][bin] = dose_ptr_map[other_std_ptr];
+                } else {
+                    // this is a new ptr; push back value and create new ptr
+                    _doses.push_back(*other_std_ptr);
+                    std_doses_available[day][dose][bin] = &(_doses.back());
+                    dose_ptr_map[other_std_ptr] = &(_doses.back());
+                }
+            }
+        }
     }
 }
