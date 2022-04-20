@@ -117,7 +117,7 @@ class Vac_Campaign {
             std_doses_available = Dose_Ptrs(par->runLength, std::vector< std::map<int, int*> >(par->numVaccineDoses));
             urg_doses_available = Dose_Ptrs(par->runLength, std::vector< std::map<int, int*> >(par->numVaccineDoses));
 
-            doses_used = Dose_Vals(par->runLength, std::vector< std::map<int, int> >(par->numVaccineDoses));
+            std_doses_used = Dose_Vals(par->runLength, std::vector< std::map<int, int> >(par->numVaccineDoses));
             urg_doses_used = Dose_Vals(par->runLength, std::vector< std::map<int, int> >(par->numVaccineDoses));
 
             potential_std_vaccinees = Vaccinee_Pool(par->numVaccineDoses);
@@ -135,7 +135,7 @@ class Vac_Campaign {
             std_doses_available = o.std_doses_available;
             urg_doses_available = o.urg_doses_available;
 
-            doses_used = o.doses_used;
+            std_doses_used = o.std_doses_used;
             urg_doses_used = o.urg_doses_used;
 
             potential_std_vaccinees = o.potential_std_vaccinees;
@@ -376,14 +376,17 @@ class Vac_Campaign {
         void tally_dose(int day, int dose, int age_bin, Vaccinee* v) {
             if (v->get_dose_source() == STANDARD_ALLOCATION) {
                 --(*std_doses_available[day][dose][age_bin]);
-                ++doses_used[day][dose][age_bin];
+                ++std_doses_used[day][dose][age_bin];
             } else if (v->get_dose_source() == URGENT_ALLOCATION) {
                 --(*urg_doses_available[day][dose][age_bin]);
                 ++urg_doses_used[day][dose][age_bin];
             }
         }
 
-        int get_doses_used(int day, int dose, int age_bin) { return doses_used[day][dose][age_bin]; }
+        Dose_Vals get_std_doses_used() { return std_doses_used; }
+        Dose_Vals get_urg_doses_used() { return urg_doses_used; }
+
+        int get_std_doses_used(int day, int dose, int age_bin) { return std_doses_used[day][dose][age_bin]; }
         int get_urg_doses_used(int day, int dose, int age_bin) { return urg_doses_used[day][dose][age_bin]; }
 
         void schedule_revaccinations(vector<Eligibility_Group*> revaccinations) {
@@ -423,7 +426,7 @@ class Vac_Campaign {
         Dose_Ptrs std_doses_available;                           // daily standard dose availability indexed by [day][dose][age bin]
         Dose_Ptrs urg_doses_available;                           // daily urgent dose availability indexed by [day][dose][age bin]
 
-        Dose_Vals doses_used;                                    // daily doses used indexed by [day][dose][age bin]
+        Dose_Vals std_doses_used;                                    // daily doses used indexed by [day][dose][age bin]
         Dose_Vals urg_doses_used;                                // daily doses used indexed by [day][dose][age bin]
 
         Vaccinee_Pool potential_std_vaccinees;                   // pool of potential people to be vaccinated indexed by [next dose to give][age bin]
