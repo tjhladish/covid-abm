@@ -66,7 +66,20 @@ CREATE TABLE doses_available (
     date_str TEXT,
     dose INTEGER,
     bin INTEGER,
-    doses INTEGER,
+    std_doses INTEGER,
+    urg_doses INTEGER,
+    FOREIGN KEY(sim_day) REFERENCES vaccination_history(vax_sim_day),
+    FOREIGN KEY(date_str) REFERENCES vaccination_history(vax_date)
+);
+
+DROP TABLE IF EXISTS doses_used;
+CREATE TABLE doses_used (
+    sim_day INTEGER,
+    date_str TEXT,
+    dose INTEGER,
+    bin INTEGER,
+    std_doses INTEGER,
+    urg_doses INTEGER,
     FOREIGN KEY(sim_day) REFERENCES vaccination_history(vax_sim_day),
     FOREIGN KEY(date_str) REFERENCES vaccination_history(vax_date)
 );

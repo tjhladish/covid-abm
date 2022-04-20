@@ -768,7 +768,18 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     string output = ss.str();
     fputs(output.c_str(), stderr);
 
-    if (par->dump_simulation_data) { generate_sim_data_db(par, community, serial); }
+    if (par->dump_simulation_data) {
+        vector<string> tables = {
+            "infection_history",
+            "secondary_infections",
+            "infection_detection",
+            "vaccination_history",
+            "age_bins",
+            "doses_available",
+            "doses_used"
+        };
+        generate_sim_data_db(par, community, serial, tables);
+    }
 
     // if (vc)      { delete vc; }           // should this be here? MOVED INTO COMMUNITY DESTRUCTOR
     if (VAX_RNG) { gsl_rng_free(VAX_RNG); }

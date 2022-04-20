@@ -1031,11 +1031,6 @@ if (*date == "2021-12-01") { gsl_rng_set(RNG, par->randomseed); }
 
 cerr_vector(community->getTimedIntervention(SOCIAL_DISTANCING));
 
-vector<size_t> offspringDistribution = community->generateOffspringDistribution();
-cerr << endl << "OFFSPRING DISTR" << endl;
-cerr_vector(offspringDistribution);
-cerr << endl;
-
     if (RNG) { gsl_rng_free(RNG); }
     if (REPORTING_RNG) { gsl_rng_free(REPORTING_RNG); }
 
@@ -1154,36 +1149,22 @@ void import_csv_to_db(string filename, string table, string db) {
     return;
 }
 
-// TODO: refactor to reduce duplication
-void generate_sim_data_db(const Parameters* par, const Community* community, const unsigned long int serial) {
-    stringstream infection_filename;
-    infection_filename << "./infection_history_" << serial << ".csv";
-
-    stringstream offspring_filename;
-    offspring_filename << "./offspring_infections_" << serial << ".csv";
-
-    stringstream detection_filename;
-    detection_filename << "./infection_detection_" << serial << ".csv";
-
-    stringstream vaccination_filename;
-    vaccination_filename << "./vaccine_history_" << serial << ".csv";
-
-    stringstream age_bins_filename;
-    age_bins_filename << "./age_bins_" << serial << ".csv";
-
-    stringstream doses_available_filename;
-    doses_available_filename << "./doses_available_" << serial << ".csv";
-
-    ofstream infection_file(infection_filename.str(), std::ios::trunc);         // for the infection table
-    ofstream offspring_file(offspring_filename.str(), std::ios::trunc);         // for the offspring table
-    ofstream detection_file(detection_filename.str(), std::ios::trunc);         // for the detection table
-    ofstream vaccination_file(vaccination_filename.str(), std::ios::trunc);     // for the vaccination table
-    ofstream age_bins_file(age_bins_filename.str(), std::ios::trunc);           // for the age bins table
-    ofstream doses_available_file(doses_available_filename.str(), std::ios::trunc);    // for the doses_available table
-
-    if (not (infection_file and offspring_file and detection_file and vaccination_file and age_bins_file and doses_available_file)) {
-        cerr << "FILES FAILED TO OPEN" << endl; exit(-1);
+void generate_sim_data_db(const Parameters* par, const Community* community, const unsigned long int serial, vector<string> tables) {
+    vector<stringstream> filenames(tables.size());
+    for (size_t i = 0; i < tables.size(); ++i) {
+        filenames[i] << "./" << tables[i] << "_" << serial << ".csv";
     }
+
+    map<string, ofstream> ofiles;
+    for (size_t i = 0; i < tables.size(); ++i) {
+        ofiles[tables[i]] = ofstream(filenames[i].str(), std::ios::trunc);
+    }
+
+    bool all_files_open = true;
+    for (const auto& [table, ofile] : ofiles) {
+        all_files_open = all_files_open and (bool)ofile;
+    }
+    if (not all_files_open) { cerr << "FILES FAILED TO OPEN" << endl; exit(-1); }
 
     for (Person* p : community->getPeople()) {
         for (Infection* inf : p->getInfectionHistory()) {
@@ -1192,72 +1173,80 @@ void generate_sim_data_db(const Parameters* par, const Community* community, con
             int inf_by_id    = inf->getInfectedBy() ? inf->getInfectedBy()->getID() : -1;
             int inf_owner_id = inf->getInfectionOwner() ? inf->getInfectionOwner()->getID() : -1;
 
-            infection_file << inf << ','
-                           << inf_place_id << ','
-                           << inf_by_id << ','
-                           << inf_owner_id << ','
-                           << inf->getInfectedTime() << ','
-                           << inf->getInfectiousTime() << ','
-                           << inf->getInfectiousEndTime() << ','
-                           << inf->getSymptomTime() << ','
-                           << inf->getSymptomEndTime() << ','
-                           << inf->getSevereTime() << ','
-                           << inf->getSevereEndTime() << ','
-                           << inf->getHospitalizedTime() << ','
-                           << inf->getCriticalTime() << ','
-                           << inf->getCriticalEndTime() << ','
-                           << inf->getIcuTime() << ','
-                           << inf->getDeathTime() << ','
-                           << inf->getStrain() << ','
-                           << inf->getRelInfectiousness() << ','
-                           << inf->getDetection() << ','
-                           << inf->secondary_infection_tally() << endl;
+            ofiles["infection_history"] << inf << ','
+                                        << inf_place_id << ','
+                                        << inf_by_id << ','
+                                        << inf_owner_id << ','
+                                        << inf->getInfectedTime() << ','
+                                        << inf->getInfectiousTime() << ','
+                                        << inf->getInfectiousEndTime() << ','
+                                        << inf->getSymptomTime() << ','
+                                        << inf->getSymptomEndTime() << ','
+                                        << inf->getSevereTime() << ','
+                                        << inf->getSevereEndTime() << ','
+                                        << inf->getHospitalizedTime() << ','
+                                        << inf->getCriticalTime() << ','
+                                        << inf->getCriticalEndTime() << ','
+                                        << inf->getIcuTime() << ','
+                                        << inf->getDeathTime() << ','
+                                        << inf->getStrain() << ','
+                                        << inf->getRelInfectiousness() << ','
+                                        << inf->getDetection() << ','
+                                        << inf->secondary_infection_tally() << "\n";
 
             for (Infection* sec_inf : inf->get_infections_caused()) {
-                offspring_file << inf << ',' << sec_inf << endl;
+                ofiles["secondary_infections"] << inf << ',' << sec_inf << "\n";
             }
 
             if (inf->getDetection()) {
                 Detection* inf_det = inf->getDetection();
-                detection_file << inf_det << ','
-                               << inf << ','
-                               << inf_det->detected_state << ','
-                               << inf_det->reported_time << endl;
+                ofiles["infection_detection"] << inf_det << ','
+                                              << inf << ','
+                                              << inf_det->detected_state << ','
+                                              << inf_det->reported_time << "\n";
             }
         }
 
         for (int vax = 0; vax < (int) p->getVaccinationHistory().size(); ++vax) {
-            vaccination_file << p->getID() << ','
-                             << community->getVac_Campaign()->get_age_bin(p->getAge()) << ','
-                             << vax << ','
-                             << p->getVaccinationHistory()[vax] << ','
-                             << Date::to_ymd(p->getVaccinationHistory()[vax], par) << endl;
+            ofiles["vaccination_history"] << p->getID() << ','
+                                          << community->getVac_Campaign()->get_age_bin(p->getAge()) << ','
+                                          << vax << ','
+                                          << p->getVaccinationHistory()[vax] << ','
+                                          << Date::to_ymd(p->getVaccinationHistory()[vax], par) << "\n";
         }
     }
 
     map<int, int> bin_pops = community->getVac_Campaign()->get_unique_age_bin_pops();
-    // std::vector< std::vector< std::map<int, int*> > > doses = community->getVac_Campaign()->get_orig_doses_available();
+    Dose_Ptrs std_doses = community->getVac_Campaign()->get_std_doses_available();
+    Dose_Ptrs urg_doses = community->getVac_Campaign()->get_urg_doses_available();
+
+    Dose_Vals std_doses_used = community->getVac_Campaign()->get_std_doses_used();
+    Dose_Vals urg_doses_used = community->getVac_Campaign()->get_urg_doses_used();
+
     for (int bin : community->getVac_Campaign()->get_unique_age_bins()) {
-        age_bins_file << bin << ','
-                      << bin_pops[bin] << endl;
+        ofiles["age_bins"] << bin << ','
+                           << bin_pops[bin] << "\n";
 
         for (int day = 0; day < (int) par->runLength; ++day) {
             for (int dose = 0; dose < par->numVaccineDoses; ++dose) {
-                doses_available_file << day << ','
+                ofiles["doses_available"] << day << ','
+                                          << Date::to_ymd(day , par) << ','
+                                          << dose << ','
+                                          << bin << ','
+                                          << *std_doses[day][dose][bin] << ','
+                                          << *urg_doses[day][dose][bin] << "\n";
+
+                ofiles["doses_used"] << day << ','
                                      << Date::to_ymd(day , par) << ','
                                      << dose << ','
                                      << bin << ','
-                                     /*<< *doses[day][dose][bin]*/ << endl;
+                                     << std_doses_used[day][dose][bin] << ','
+                                     << urg_doses_used[day][dose][bin] << "\n";
             }
         }
     }
 
-    infection_file.close();
-    offspring_file.close();
-    detection_file.close();
-    vaccination_file.close();
-    age_bins_file.close();
-    doses_available_file.close();
+    for (auto& [table, ofile] : ofiles) { ofile.close(); }
 
     stringstream ss, db;
     db << "sim_data_" << serial << ".sqlite";
@@ -1267,16 +1256,14 @@ void generate_sim_data_db(const Parameters* par, const Community* community, con
     int retval = system(cmd_str.c_str());
     if (retval == -1) { cerr << "System call to `sqlite3 sim_data_0.db '.read gen_sim_db.sql'` failed\n"; }
 
-    import_csv_to_db(infection_filename.str(), "infection_history", db.str());
-    import_csv_to_db(offspring_filename.str(), "secondary_infections", db.str());
-    import_csv_to_db(detection_filename.str(), "infection_detection", db.str());
-    import_csv_to_db(vaccination_filename.str(), "vaccination_history", db.str());
-    import_csv_to_db(age_bins_filename.str(), "age_bins", db.str());
-    import_csv_to_db(doses_available_filename.str(), "doses_available", db.str());
+    for (size_t i = 0; i < tables.size(); ++i) {
+        import_csv_to_db(filenames[i].str(), tables[i], db.str());
+    }
 
     ss.str(string());
-    ss << "rm " << infection_filename.str() << ' ' << offspring_filename.str() << ' '
-       << detection_filename.str() << ' ' << vaccination_filename.str() << ' ' << age_bins_filename.str() << ' ' << doses_available_filename.str();
+    ss << "rm";
+    for (size_t i = 0; i < filenames.size(); ++i) { ss << ' ' << filenames[i].str(); }
+
     cmd_str = ss.str();
     retval = system(cmd_str.c_str());
     if (retval == -1) { cerr << "System call to delete infection csv files failed\n"; }
