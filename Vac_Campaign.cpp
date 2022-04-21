@@ -53,7 +53,7 @@ void Vac_Campaign::geographic_scheduling(int day, vector< set<Person*> > targete
         for (Person* p : tracedCases) { tracedLocs.insert(p->getHomeLoc()); }
 
         set<Location*> targetedLocs;
-        const double radius = 0.001;                                  // distance in decimal degrees to add to center_loc to draw the capture area
+        const double radius = 0.001;    // distance in decimal degrees to add to center_loc to draw the capture area
         for (Location* center_loc : tracedLocs) {
             vector<Location*> locs_to_search;
             for (double y = -0.01; y <= 0.01; y += 0.01) {
@@ -231,6 +231,8 @@ void Vac_Campaign::generate_age_bins(Community* community, std::set<int> unique_
     unique_age_bins = mins;
 }
 
+// called when doses should be aggregated regardless of dose or age bin
+// all dose, bin combinations for a given day will point to the same int in _doses and share those doses
 Dose_Ptrs Vac_Campaign::_dose_pool(Dose_Vals doses_in) {
     Dose_Ptrs doses_available(_par->runLength, std::vector< std::map<int, int*> >(_par->numVaccineDoses));
     for (int day = 0; day < (int) _par->runLength; ++day) {
@@ -246,6 +248,8 @@ Dose_Ptrs Vac_Campaign::_dose_pool(Dose_Vals doses_in) {
     return doses_available;
 }
 
+// stores doses as read in the input file
+// each day, dose, bin combinations will point to a unique int in _doses representing that combination's doses available
 Dose_Ptrs Vac_Campaign::_dose_store(Dose_Vals doses_in) {
     Dose_Ptrs doses_available(_par->runLength, std::vector< std::map<int, int*> >(_par->numVaccineDoses));
     for (int day = 0; day < (int) _par->runLength; ++day) {
@@ -286,6 +290,7 @@ void Vac_Campaign::init_doses_available(Dose_Vals urg_in, Dose_Vals std_in) {
     }
 }
 
+// called from the Community copy ctor to handle the construction of a new _doses to ensure it does not move and invalidate any ptrs
 void Vac_Campaign::copy_doses_available(Vac_Campaign* ovc) {
     _clear_and_resize_doses();
     std::map<int*, int*> dose_ptr_map;
