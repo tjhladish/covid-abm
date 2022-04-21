@@ -41,7 +41,8 @@ const string output_dir("/ufrc/longini/tjhladish/");
 //const string vaccination_file = pop_dir + "/../fl_vac/fl_vac_v4.txt";
 
 const int RESTART_BURNIN          = 0;
-const int FORECAST_DURATION       = 200;
+const int FORECAST_DURATION       = 747;
+//const int FORECAST_DURATION       = 456;
 const int OVERRUN                 = 14; // to get accurate Rt estimates near the end of the forecast duration
 const bool RUN_FORECAST           = true;
 const int TOTAL_DURATION          = RUN_FORECAST ? RESTART_BURNIN + FORECAST_DURATION + OVERRUN : RESTART_BURNIN;
@@ -53,7 +54,7 @@ const int FL_POP                  = 21538187;   // as of 2020 census
 
 vector<vector<double>> REPORTED_FRACTIONS;
 
-gsl_rng* VAX_RNG = gsl_rng_alloc(gsl_rng_mt19937);
+// gsl_rng* VAX_RNG = gsl_rng_alloc(gsl_rng_mt19937);
 
 double calculate_conditional_death_reporting_probability(double RF_death, const vector<double> &rho_vals) {
     const double rho_death  = 1.0 - (1.0 - RF_death)/((1.0 - rho_vals[0])*(1.0 - rho_vals[1])*(1.0 - rho_vals[2])*(1.0 - rho_vals[3]));
@@ -86,6 +87,18 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->runLength               = TOTAL_DURATION;
     //par->annualIntroductionsCoef = 1;
 
+    par->beginContactTracing           = par->runLength;//Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-06-01");
+    par->contactTracingCoverage        = 0.7;
+    par->contactTracingEV[HOME]        = 5.0;
+    par->contactTracingEV[WORK]        = 3.0;
+    par->contactTracingEV[SCHOOL]      = 3.0;
+    par->contactTracingEV[HOSPITAL]    = 0.0;
+    par->contactTracingEV[NURSINGHOME] = 5.0;
+    par->contactTracingDepth           = 2;
+
+    par->quarantineProbability  = {0.0, 0.0, 0.0};
+    par->selfQuarantineDuration = 10;
+
     vector<double> seasonality;
     for (size_t day = 0; day < 366; ++day) {
         seasonality.push_back(1 - 0.15*sin((4*M_PI*((int) day-60))/366));
@@ -102,7 +115,7 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
 
         const double RF_death_early = 0.8; //0.78; // overall probability of detecting death, at any point
         const double RF_death_late  = 0.9; //0.78; // overall probability of detecting death, at any point
-        
+
         // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
         vector<double> initial_vals    = {0.0, 0.05, 0.7, 0.1};    // Start of sim (Feb 2020) conditional probabilities
         initial_vals.push_back(calculate_conditional_death_reporting_probability(RF_death_early, initial_vals));
@@ -249,15 +262,15 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->locationFilename         = pop_dir    + "/locations-"          + SIM_POP + ".txt";
     par->networkFilename          = pop_dir    + "/network-"            + SIM_POP + ".txt";
     par->publicActivityFilename   = pop_dir    + "/public-activity-"    + SIM_POP + ".txt";
-    par->vaccination_file         = pop_dir    + "/../fl_vac/fl_vac_v4.txt";
-    par->dose_file                = pop_dir    + "/../fl_vac/doses.txt";
+    par->vaccination_file         = "./counterfactual_doses_v2.txt"; //"./dose_data/fl_vac_v4.txt"; //pop_dir    + "/../fl_vac/fl_vac_v4.txt";
+    // par->dose_file                = "./counterfactual_doses.txt"; //"./dose_data/FL_doses.txt"; //pop_dir    + "/../fl_vac/doses.txt";
 
     par->behavioral_autotuning = false;
     par->tuning_window = 14;
     par->num_preview_windows = 3;
     par->autotuning_dataset = "autotuning_dataset_220217.csv";
 
-    par->dump_infection_data = false;
+    par->dump_simulation_data = false;
 
     return par;
 }
@@ -295,10 +308,34 @@ void define_strain_parameters(Parameters* par) {
     par->strainPars[DELTA].relIcuMortality     = 3.0; // TODO - this is due to icu crowding.  should be represented differently
     par->strainPars[DELTA].immuneEscapeProb    = 0.15;
 
+//    const size_t omicron_scenario = 0;
 
     const double appxNonOmicronInfPd     = 9.0;
     const double appxOmicronInfPd        = 6.0;
     const double relInfectiousnessDenom  = (1.0 - pow(1.0 - par->household_transmission_haz_mult, appxOmicronInfPd/appxNonOmicronInfPd)) / par->household_transmission_haz_mult;
+
+//    switch (omicron_scenario) {
+//        case 0: // high immune escape, low transmissibility; low severity
+//            par->strainPars[OMICRON].immuneEscapeProb  = 0.7;
+//            par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.5 / relInfectiousnessDenom;
+//            par->strainPars[OMICRON].relPathogenicity  = par->strainPars[ALPHA].relPathogenicity * 0.5;
+//            par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.25;
+//            break;
+//        case 1: // high immune escape, low transmissibility; delta severity
+//            par->strainPars[OMICRON].immuneEscapeProb  = 0.7;
+//            par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.5 / relInfectiousnessDenom;
+//            par->strainPars[OMICRON].relPathogenicity  = par->strainPars[DELTA].relPathogenicity * 0.5;
+//            par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.5;
+//            break;
+//        case 2: // moderate immune escape, high transmissibility; low severity
+//            break;
+//        case 3: // moderate immune escape, high transmissibility; delta severity
+//            par->strainPars[OMICRON].immuneEscapeProb  = 0.5;
+//            par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 2.0 / relInfectiousnessDenom;
+//            par->strainPars[OMICRON].relPathogenicity  = par->strainPars[DELTA].relPathogenicity * 0.5;
+//            par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.5;
+//            break;
+//    }
 
     par->strainPars[OMICRON].immuneEscapeProb  = 0.6;
     par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 2.0 / relInfectiousnessDenom;
@@ -310,12 +347,17 @@ void define_strain_parameters(Parameters* par) {
 //    par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.5;
 //    par->strainPars[OMICRON].relPathogenicity  = par->strainPars[ALPHA].relPathogenicity;
 //    par->strainPars[OMICRON].relSeverity       = 1.1; // only applies if not vaccine protected
-//    par->strainPars[OMICRON].relCriticality    = 1.0;
-//    par->strainPars[OMICRON].relMortality      = 1.0;
+//  //par->strainPars[OMICRON].relCriticality    = 1.0;
+//  //par->strainPars[OMICRON].relMortality      = 1.0;
 //    par->strainPars[OMICRON].relIcuMortality   = 2.0;
 //    par->strainPars[OMICRON].immuneEscapeProb  = 0.7;
 
-    //                             W, A, D, O
+    //                          WILDTYPE, ALPHA, DELTA, OMICRON
+    //par->crossProtectionMatrix = {{ true, false, false,   false},    // WILDTYPE
+    //                              {false,  true, false,   false},    // ALPHA
+    //                              {false, false,  true,   false},    // DELTA
+    //                              {false, false, false,    true}};   // OMICRON
+
     par->crossProtectionMatrix = {{1, 0, 0, 0},    // WILDTYPE
                                   {0, 1, 0, 0},    // ALPHA
                                   {0, 0, 1, 0},    // DELTA
@@ -323,22 +365,17 @@ void define_strain_parameters(Parameters* par) {
 }
 
 
-void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign* vc, set<Person*, Person::PerPtrComp>& scheduled_people, vector<int>& sch_hcw_by_age) {
-    // ratio of synthpop to FL pop
-    const double pop_ratio = (double)community->getNumPeople()/FL_POP;
+// REFACTOR parseVaccineFile()
+void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign* vc, const size_t counterfactual_scenario, vector<bool> dose_pooling_flags) {
     const string vaccinationFilename = par->vaccination_file;
-    const string doseFilename        = par->dose_file;
 
-    // temporary data structure to hold calculated doses used before setting up the vac_campaign
-    vector< vector<int> > doses_available;
-    doses_available.resize(par->runLength, vector<int>(NUM_OF_VACCINE_ALLOCATION_TYPES));
-    vector<vector<Person*>> unscheduled_people(NUM_AGE_CLASSES);
-
-    for(size_t age = 0; age < unscheduled_people.size(); ++age) {
-        // grab all people of that age ONLY if they are not a HCW
-        for(Person* p : community->getAgeCohort(age)) { if(not p->isHCW()) { unscheduled_people[age].push_back(p); } }
-        // shuffle age bin after all people are added
-        if(unscheduled_people[age].size() != 0){ gsl_ran_shuffle(VAX_RNG, unscheduled_people[age].data(), unscheduled_people[age].size(), sizeof(Person*)); }
+    // parses the JSON argument into a form to use in vax file parsing
+    string counterfactual_reference_loc;
+    switch(counterfactual_scenario) {
+        case 1:  counterfactual_reference_loc = "VT"; break;
+        case 2:  counterfactual_reference_loc = "MS"; break;
+        case 0:
+        default: counterfactual_reference_loc = "FL"; break;
     }
 
     // check that vaccinationFilename exists and can be opened
@@ -351,203 +388,97 @@ void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign*
         exit(-1);
     }
 
-    // variables for vaccination file processing
-    string age_grp, end_of_week_date, prev_wk = "0000-00-00";
-    size_t mrna_dose_1, mrna_dose_2, jj_doses;
-    size_t bin_min, bin_max;
+    // variables for queue file processing (date ref_location bin_min bin_max dose n_doses_p10k)
+    string date, ref_loc;
+    int bin_min, bin_max, dose, is_urg;
+    double doses_p10k;
 
-    // saves the final vaccination rates for each age bin for use in projected vaccination
-    vector<vector<double>> last_known_vac_rate(NUM_AGE_CLASSES, vector<double>(3, 0.0));
-    size_t last_known_revac_doses = 0;
+    // save unique age bin boundaries encountered
+    set<int> unique_bin_mins, unique_bin_maxs;
 
-    size_t last_day_of_data = 0;
+    // temmporary daily doses per 10k availability indexed by [day][dose][age bin]
+    vector< vector< map<int, double> > > std_doses_in(par->runLength, vector< map<int, double> >(par->numVaccineDoses));
+    vector< vector< map<int, double> > > urg_doses_in(par->runLength, vector< map<int, double> >(par->numVaccineDoses));
+
+    // parse input file
     while (getline(iss, buffer)) {
         line.clear();
         line.str(buffer);
 
-        // vector to hold all scheduled people (regardless of age) for a given week (for shuffling purposes)
-        vector<Person*> people_to_be_scheduled;
+        if (line >> date >> ref_loc >> bin_min >> bin_max >> dose >> is_urg >> doses_p10k) {
+            const size_t sim_day = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, date);
 
-        if (line >> age_grp >> end_of_week_date >> mrna_dose_1 >> mrna_dose_2 >> jj_doses >> bin_min >> bin_max) {
-            // calculate and save vaccination rates into last_known_vac_rate
-            double bin_pop_size = 0.0;
-            for (size_t age = bin_min; age <= bin_max; ++age) {
-                bin_pop_size += unscheduled_people[age].size();
+            // skip lines of data not pertaining to this counterfactual_reference_loc or are beyond runLength
+            if (not ((ref_loc == counterfactual_reference_loc) and (sim_day < par->runLength))) { continue; }
+
+            // will only insert values not encountered before
+            unique_bin_mins.insert(bin_min);
+            unique_bin_maxs.insert(bin_max);
+
+            // save pop adjusted number of doses
+            if (is_urg) {
+                urg_doses_in[sim_day][dose - 1][bin_min] = doses_p10k;
+            } else {
+                std_doses_in[sim_day][dose - 1][bin_min] = doses_p10k;
             }
+        }
+    }
 
-            const double rate_denom = bin_pop_size * 7.0;
-            assert(rate_denom > 0);
-            for (size_t age = bin_min; age <= bin_max; ++age) {
-                last_known_vac_rate[age] = {mrna_dose_1/rate_denom, mrna_dose_2/rate_denom, jj_doses/rate_denom };    // used to project future vaccination rates
-            }
+    // TODO: do dose availability projections if runLength > last day of dose data file
 
-            // keeps track of which week is being processed
-            // if the current week has changed, shuffle the previous week's people and schedule
-            if(end_of_week_date != prev_wk) {
-                if(people_to_be_scheduled.size() != 0){ gsl_ran_shuffle(VAX_RNG, people_to_be_scheduled.data(), people_to_be_scheduled.size(), sizeof(Person*)); }
-                for(Person* p : people_to_be_scheduled) { vc->schedule_vaccination(p); }    // revaccinations automatically handled in Community::vaccinate()
-                people_to_be_scheduled.clear();
-                prev_wk = end_of_week_date;
-            }
+    // call Vac_Campaign function to create age_bin_lookup data structure
+    vc->generate_age_bins(community, unique_bin_mins, unique_bin_maxs);
 
-            // tally daily dose totals for this age bin
-            const double daily_total_first_doses = (mrna_dose_1 + jj_doses)/7.0;
-            // const double daily_total_doses = daily_total_first_doses + (mrna_dose_2/7.0);
+    // for any day, dose, bin combinations with no data, fill with 0
+    // otherwise, mulitply by proper age bin population
+    map<int, int> bin_pops = vc->get_unique_age_bin_pops();
+    vector< vector< map<int, int> > > std_doses_available(par->runLength, vector< map<int, int> >(par->numVaccineDoses));
+    vector< vector< map<int, int> > > urg_doses_available(par->runLength, vector< map<int, int> >(par->numVaccineDoses));
 
-            // binomial distribution parameters
-            const double sch_binom_np = (daily_total_first_doses) * pop_ratio;      // np = total number of doses administered to this age bin group adjusted for synthpop size
-
-            // use date (which is the final day of an week of reported data) from file to cycle through the days in the matching simulation week
-            const size_t end_of_week = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, end_of_week_date);
-            for(size_t day = end_of_week-6; day <= end_of_week; ++day) {
-                const size_t revacDay = day + par->vaccineDoseInterval[0];          // revac in this scope refers to the second dose timing
-                last_day_of_data = max(day, last_day_of_data);
-                if(day >= par->runLength) { continue; }
-
-                for (size_t age = bin_min; age <= bin_max; ++age) {
-                    // binomial distribution parameters
-                    const size_t sch_binom_n = unscheduled_people[age].size();      // n = number of unscheduled people remaining in age group (number of trials)
-                    const double sch_binom_p = sch_binom_np/bin_pop_size;           // p = probability of selecting someone from the age group to be vaccinated (Pr{success})
-
-                    // select number of people to vaccinate for this week from this age group using binomial distribution
-                    const size_t binom_sample    = sch_binom_n > 0 ? gsl_ran_binomial(VAX_RNG, sch_binom_p, sch_binom_n) : 0;
-                    const size_t num_to_schedule = max(0, (int) binom_sample - sch_hcw_by_age[age]);
-                    sch_hcw_by_age[age]          = max(0, sch_hcw_by_age[age] - (int) binom_sample);
-
-                    // schedule proper number of vaccinations from proper age group and remove from unscheduled data structure
-                    for(size_t num_scheduled = 0; num_scheduled < num_to_schedule; ++num_scheduled){
-                        Person* p = unscheduled_people[age].back();
-                        // set.insert.second returns bool (true if inserted, false if not) --- this keeps track of who has been scheduled and prevents double-scheduling
-                        if((scheduled_people.insert(p).second)){ people_to_be_scheduled.push_back(p); }
-                        unscheduled_people[age].pop_back();
-                    }
-
-                    // // tally doses used for that day for urgent allocation (reactive strategy) adjusted for synthpop size
-                    // const size_t emp_daily_urgent_doses = vc->get_reactive_vac_strategy() != NUM_OF_REACTIVE_VAC_STRATEGY_TYPES ?
-                    //                           (size_t) round(vc->get_reactive_vac_dose_allocation() * daily_total_doses * pop_ratio) :
-                    //                           0;
-
-                    // // tally doses used for that week for standard allocation (general strategy) adjusted for synthpop size
-                    // const size_t emp_daily_standard_doses = vc->get_reactive_vac_strategy() != NUM_OF_REACTIVE_VAC_STRATEGY_TYPES ?
-                    //                             (size_t) round((1 - vc->get_reactive_vac_dose_allocation()) * daily_total_doses * pop_ratio) :
-                    //                             (size_t) round(daily_total_doses * pop_ratio);
-
+    for (int day = 0; day < (int) par->runLength; ++day) {
+        for (int bin : vc->get_unique_age_bins()) {
+            for (int dose = 0; dose < par->numVaccineDoses; ++dose) {
+                if (std_doses_in[day][dose].count(bin)) {
+                    std_doses_available[day][dose][bin] = (int)(std_doses_in[day][dose][bin] * ((double)bin_pops[bin]/1e4));
+                } else {
+                    std_doses_available[day][dose][bin] = 0;
                 }
 
-                const size_t emp_daily_standard_first_doses = (size_t) round(daily_total_first_doses * pop_ratio);
-                // doses_available.at(day)[URGENT_ALLOCATION]   += emp_daily_urgent_doses;
-                doses_available.at(day)[STANDARD_ALLOCATION] += emp_daily_standard_first_doses;
-                if(revacDay < par->runLength) {
-                    doses_available.at(revacDay)[STANDARD_ALLOCATION] += emp_daily_standard_first_doses;
-                    last_known_revac_doses = doses_available.at(revacDay)[STANDARD_ALLOCATION];
+                if (urg_doses_in[day][dose].count(bin)) {
+                    urg_doses_available[day][dose][bin] = 20;//(int)(urg_doses_in[day][dose][bin] * ((double)bin_pops[bin]/1e4));
+                } else {
+                    urg_doses_available[day][dose][bin] = 0;
                 }
             }
         }
-        // schedule any remaining people
-        if(people_to_be_scheduled.size() != 0){ gsl_ran_shuffle(VAX_RNG, people_to_be_scheduled.data(), people_to_be_scheduled.size(), sizeof(Person*)); }
-        for(Person* p : people_to_be_scheduled) { vc->schedule_vaccination(p); }
-        people_to_be_scheduled.clear();
     }
-    iss.close();
 
-    iss.open(doseFilename);
-    int first_dose, second_dose, third_dose;
-    string date;
+    // save bin pop adjusted doses available to the vac_campaign
+    vc->set_pool_urg_doses(dose_pooling_flags[0]);
+    vc->set_pool_std_doses(dose_pooling_flags[1]);
+    vc->set_pool_all_doses(dose_pooling_flags[2]);
 
-    while (getline(iss, buffer)) {
-        line.clear();
-        line.str(buffer);
-
-        if (line >> date >> first_dose >> second_dose >> third_dose) {
-            size_t sim_day = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, date);
-            if(sim_day >= par->runLength) { continue; }
-            doses_available.at(sim_day)[STANDARD_ALLOCATION]  += (size_t) round(third_dose * pop_ratio);
-        }
-    }
-    iss.close();
-
-    // PROJECTED VACCINATION TO 2021-08-31
-    // at same rate as 2021-05-29, vaccinate people until 2021-08-31
-    if (par->runLength > last_day_of_data + 1) {
-        vector<Person*> people_to_be_scheduled;
-
-        // calculate the total number of unscheduled people left on 2021-05-29
-        size_t num_current_unsch = 0;
-        for(auto const& unsch_grp : unscheduled_people) { num_current_unsch += unsch_grp.size(); }
-
-        for(size_t day = last_day_of_data+1; day < par->runLength; ++day) {
-            const size_t revacDay = day+par->vaccineDoseInterval[0];        // revac in this scope refers to second dose timing
-            // const size_t proj_daily_urgent_doses =  * ;
-            // const size_t proj_daily_standard_doses = doses_available.at(may29)[STANDARD_ALLOCATION];
-            // adjust available doses by the ratio of unscheduled people on day to unscheduled people on 2021-05-29
-            // results in diminishing number of doses available without causing dose shortages
-            double proj_dose_adj = 0;
-            for(size_t age = 0; age < NUM_AGE_CLASSES; ++age) {
-                const double sch_binom_p = pop_ratio*(last_known_vac_rate[age][0] + last_known_vac_rate[age][2]);
-
-                // binomial distribution parameters
-                const size_t sch_binom_n = unscheduled_people[age].size();      // n = number of unscheduled people remaining in age group
-                proj_dose_adj += sch_binom_n;
-                // select number of people to vaccinate for this week from this age group using binomial distribution
-                // POSSIBLE TODO:  add binom_sample, sch_hcw_by_age adjustment like how it is above
-                const size_t num_to_schedule = gsl_ran_binomial(VAX_RNG, sch_binom_p, sch_binom_n);
-                // schedule proper number of vaccinations from proper age group and remove from unscheduled data structure
-                for(size_t num_scheduled = 0; num_scheduled < num_to_schedule; ++num_scheduled){
-                    Person* p = unscheduled_people[age].back();
-                    // set.insert.second returns bool (true if inserted, false if not) --- this keeps track of who has been scheduled and prevents double-scheduling
-                    if((scheduled_people.insert(p).second)){ people_to_be_scheduled.push_back(p); }
-                    unscheduled_people[age].pop_back();
-                }
-            }
-            // shuffle group, so it's not sorted by age
-            if(people_to_be_scheduled.size() != 0){ gsl_ran_shuffle(VAX_RNG, people_to_be_scheduled.data(), people_to_be_scheduled.size(), sizeof(Person*)); }
-            for(Person* p : people_to_be_scheduled) { vc->schedule_vaccination(p); }
-            people_to_be_scheduled.clear();
-
-            // vaccinate same fraction of unvacinated people each day
-            // doses_available.at(day)[URGENT_ALLOCATION]   += round(proj_dose_adj*doses_available.at(last_day_of_data)[URGENT_ALLOCATION] / num_current_unsch);
-            doses_available.at(day)[STANDARD_ALLOCATION] += round(proj_dose_adj*last_known_revac_doses / num_current_unsch);
-            if(revacDay < par->runLength) { doses_available.at(revacDay)[STANDARD_ALLOCATION] += round(proj_dose_adj*last_known_revac_doses / num_current_unsch); }
-        }
-    }
-    vc->set_doses_available(doses_available);
+    vc->init_doses_available(urg_doses_available, std_doses_available);
+    // vc->set_doses_available(doses_available);
+    // vc->set_urg_doses_available(urg_doses_available);
+    // vc->init_orig_doses_available();
 }
 
-Vac_Campaign* generateVac_Campaign(const Parameters* par, Community* community) {
-    // keeps track of who has been scheduled to prevent scheduling the same person twice
-    set<Person*, Person::PerPtrComp> scheduled_people;
-
+// REFACTOR generateVac_Campaign()
+Vac_Campaign* generateVac_Campaign(const Parameters* par, Community* community, const size_t counterfactual_scenario, vector<bool> dose_pooling_flags) {
     // create a new Vac_Campaign
-    Vac_Campaign* vc = new Vac_Campaign();
-    vc->set_par(par);
+    Vac_Campaign* vc = new Vac_Campaign(par);
+    vc->set_rng(VAX_RNG);
 
-    vector<Person*> ppl_to_sch = community->getPeople();
-    gsl_ran_shuffle(VAX_RNG, ppl_to_sch.data(), ppl_to_sch.size(), sizeof(Person*));
-    for (Person* p : ppl_to_sch) { vc->schedule_vaccination(p); }
+    // parse input file to set daily doses available and generate unique, mutually exclusive age bins for the entire population
+    cerr << "Reading vaccinations ... ";
+    parseVaccineFile(par, community, vc, counterfactual_scenario, dose_pooling_flags);
+    cerr << "done." << endl;
 
-    vector< vector<int> > doses_available;
-    doses_available.resize(par->runLength, vector<int>(NUM_OF_VACCINE_ALLOCATION_TYPES));
-    for (size_t day = 60; day < par->runLength; ++day) {
-        doses_available.at(day)[STANDARD_ALLOCATION] = 100;
-    }
-    vc->set_doses_available(doses_available);
+    // initialiaze eligibility queue
+    vc->init_eligibility_queue(community);
 
-//    vector<int> sch_hcw_by_age(NUM_AGE_CLASSES);
-//    // add all healthcare workers (hospital + nursing home workers) to standard queue BEFORE all other people are scheduled
-//    for(Person* p : community->getPeople()) {
-//        // get work location ID + check if workplace is a hospital or nursing home
-//        // if so, schedule vaccination and add to scheduled_people
-//        if(p->isHCW()) {
-//            // set.insert.second returns bool (true if inserted, false if not) --- this keeps track of who has been scheduled and prevents double-scheduling
-//            if((gsl_rng_uniform(VAX_RNG) < par->vaccineTargetCoverage) and (scheduled_people.insert(p).second)){
-//                assert(p->getAge() >= 12);
-//                vc->schedule_vaccination(p);
-//                sch_hcw_by_age[p->getAge()]++;
-//            }
-//        }
-//    }
-//
-//    parseVaccineFile(par, community, vc, scheduled_people, sch_hcw_by_age);
+    // set newly initialized vac_campaign to community
     community->setVac_Campaign(vc);
 
     return vc;
@@ -721,6 +652,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     const bool vaccine             = (bool) args[0];
     // const size_t realization    = (size_t) args[1];
     const bool mutation          = (bool) args[2];
+    const size_t counterfactual_scenario = (size_t) args[3];
 
     Parameters* par = define_simulator_parameters(args, rng_seed, serial, process_id);
     define_strain_parameters(par);
@@ -740,16 +672,31 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         par->vaccineDoseInterval   = {21, 240};
         par->vaccineTargetCoverage = 0.60;  // for healthcare workers only
         par->vaccine_dose_to_protection_lag = 10;
+        par->urgent_vax_dose_threshold = 1;
 
-        vc = generateVac_Campaign(par, community);
+        bool pool_urg_doses = true;
+        bool pool_std_doses = false;
+        bool pool_all_doses = false;
+
+        vc = generateVac_Campaign(par, community, counterfactual_scenario, {pool_urg_doses, pool_std_doses, pool_all_doses});
 
         // parameter handling --- how do we want to handle setting these? I just set them here rather than use par
         vc->set_prioritize_first_doses(false);
         vc->set_flexible_queue_allocation(false);
-        vc->set_reactive_vac_strategy(NUM_OF_VAC_CAMPAIGN_TYPES);
+
+        VacCampaignType selected_strat = NUM_OF_VAC_CAMPAIGN_TYPES;
+        vc->set_reactive_vac_strategy(selected_strat);
         vc->set_reactive_vac_dose_allocation(0.0);
 
-        vector<int> min_ages(par->runLength, 12);
+        int active_strat_start = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-06-01");
+        active_strat_start = (active_strat_start >= par->beginContactTracing) ? active_strat_start : par->beginContactTracing;
+        vc->set_start_of_campaign(selected_strat, active_strat_start);
+
+        vc->set_end_of_campaign(GENERAL_CAMPAIGN, par->runLength);
+        vc->set_end_of_campaign(selected_strat, par->runLength);
+
+
+        vector<int> min_ages(par->runLength, 5);
         vc->set_min_age(min_ages);       // needed for e.g. urgent vaccinations
     }
 
@@ -783,24 +730,24 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 //    }
 
 // comment out this block if simvis.R is not needed
-// {
-//     vector<pair<size_t, double>> Rt = community->getMeanNumSecondaryInfections();
-//     vector<double> Rt_ma = calc_Rt_moving_average(Rt, 7);
-// 
-//     assert(Rt.size()+1 == plot_log_buffer.size()); // there's a header line
-//     for (size_t i = 1; i < plot_log_buffer.size(); ++i) {
-//         //plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt[i-1].second);
-//         plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt_ma[i-1]);
-//     }
-//     bool overwrite = true;
-//     string filename = "plot_log" + to_string(serial) + ".csv";
-//     write_daily_buffer(plot_log_buffer, process_id, filename, overwrite);
-//     stringstream ss;
-//     ss << "Rscript expanded_simvis.R " << serial;
-//     string cmd_str = ss.str();
-//     int retval = system(cmd_str.c_str());
-//     if (retval == -1) { cerr << "System call to `Rscript expanded_simvis.R` failed\n"; }
-// }
+//{
+//    vector<pair<size_t, double>> Rt = community->getMeanNumSecondaryInfections();
+//    vector<double> Rt_ma = calc_Rt_moving_average(Rt, 7);
+//
+//    assert(Rt.size()+1 == plot_log_buffer.size()); // there's a header line
+//    for (size_t i = 1; i < plot_log_buffer.size(); ++i) {
+//        //plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt[i-1].second);
+//        plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt_ma[i-1]);
+//    }
+//    bool overwrite = true;
+//    string filename = "plot_log" + to_string(serial) + ".csv";
+//    write_daily_buffer(plot_log_buffer, process_id, filename, overwrite);
+//    stringstream ss;
+//    ss << "Rscript expanded_simvis.R " << serial;
+//    string cmd_str = ss.str();
+//    int retval = system(cmd_str.c_str());
+//    if (retval == -1) { cerr << "System call to `Rscript expanded_simvis.R` failed\n"; }
+//}
 
     time (&end);
     double dif = difftime (end,start);
@@ -823,7 +770,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     string output = ss.str();
     fputs(output.c_str(), stderr);
 
-    if (par->dump_infection_data) { generate_infection_db(community, serial); }
+    if (par->dump_simulation_data) { generate_sim_data_db(par, community, serial); }
 
     // if (vc)      { delete vc; }           // should this be here? MOVED INTO COMMUNITY DESTRUCTOR
     if (VAX_RNG) { gsl_rng_free(VAX_RNG); }
