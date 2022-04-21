@@ -4,7 +4,7 @@
     "predictive_prior_fraction" : 1.0,
     "pls_training_fraction"     : 1.0,
 
-    "database_filename"         : "covid_vac_v12.0.sqlite",
+    "database_filename"         : "covid_counterfactuals_v1.0.sqlite",
 
     "parameters" : [
         {"name"       : "vaccine",
@@ -28,12 +28,12 @@
          "par2"       : 1,
          "step"       : 0},
 
-        {"name"       : "omicron_scenario",
-         "short_name" : "omi_scen",
+        {"name"       : "counterfactual_scenario",
+         "short_name" : "counterfact_scen",
          "dist_type"  : "PSEUDO",
          "num_type"   : "INT",
          "par1"       : 0,
-         "par2"       : 3,
+         "par2"       : 2,
          "step"       : 1}
     ],
 
