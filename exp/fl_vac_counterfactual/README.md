@@ -6,7 +6,7 @@
     - Move the downloaded files to the "dose_data" directory
 * Run the following in order:
     - `bash download_cdc_covid_vax_data.sh`
-    - `Rscript vax_adj_v7.R ACS_2019_pop_data.csv cdc_covid-19_vax_data.csv ./dose_data`
+    - `make process_state_vax_data`
     - `make`
     - `./sim_test abc_covid_counterfactuals.json --process`
     - `./sim_test abc_covid_counterfactuals.json --simulate --serial 0`
