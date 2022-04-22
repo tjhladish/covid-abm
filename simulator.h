@@ -694,14 +694,13 @@ void process_behavior_fit(int fit_is_good, double fit_distance, const Parameters
 }
 
 
-void restore_from_cache(Community* &community, Date* &date, SimulationCache* sim_cache, SimulationLedger* &ledger, vector<TimeSeriesAnchorPoint> social_distancing_anchors) {
+bool restore_from_cache(Community* &community, Date* &date, SimulationCache* sim_cache, SimulationLedger* &ledger, vector<TimeSeriesAnchorPoint> social_distancing_anchors) {
     if (ledger) { delete ledger; }
     ledger = new SimulationLedger(*(sim_cache->sim_ledger));
 
     if (community) { delete community; }
     community = new Community(*(sim_cache->community));
     date      = community->get_date();
-    date->decrement(); // date is always incremented before tick is called next, so need to decrement before that if restoring
     community->setSocialDistancingTimedIntervention(social_distancing_anchors);
 
     if (sim_cache->rng)           { gsl_rng_memcpy(RNG, sim_cache->rng); }
@@ -709,11 +708,12 @@ void restore_from_cache(Community* &community, Date* &date, SimulationCache* sim
     if (sim_cache->vax_rng)       { gsl_rng_memcpy(VAX_RNG, sim_cache->vax_rng); }
 
     if (community->getVac_Campaign()) { community->getVac_Campaign()->set_rng(VAX_RNG); }
+    return true;
 }
 
 
 // main helper function to control the behavior auto tuning system
-void behavior_autotuning(const Parameters* par, Community* &community, Date* &date, SimulationLedger* &ledger, BehaviorAutoTuner* tuner, SimulationCache* &sim_cache, vector<TimeSeriesAnchorPoint> &social_distancing_anchors) {
+void behavior_autotuning(const Parameters* par, Community* &community, Date* &date, SimulationLedger* &ledger, BehaviorAutoTuner* tuner, SimulationCache* &sim_cache, vector<TimeSeriesAnchorPoint> &social_distancing_anchors, bool& restore_occurred) {
     const size_t day = date->day();
 
     if (tuner->recache and (day + 1) == tuner->tuning_window_ct * par->tuning_window) {
@@ -765,7 +765,7 @@ cerr << "Decision made." << endl;
         }
 
         process_behavior_fit(fit_is_good, fit_distance, par, tuner, social_distancing_anchors);
-        restore_from_cache(community, date, sim_cache, ledger, social_distancing_anchors);
+        restore_occurred = restore_from_cache(community, date, sim_cache, ledger, social_distancing_anchors);
     }
 }
 
@@ -872,11 +872,13 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
         init_behavioral_vals_from_file(par, community);
     }
 
+    bool restore_occurred = false;
     for (; date->day() < (signed) par->runLength; date->increment()) {
+        if (restore_occurred) { date->decrement(); restore_occurred = false; }// date is always incremented before tick is called next, so need to decrement before that if restoring
 //if (*date == "2021-12-01") { gsl_rng_set(RNG, par->randomseed); }
         community->tick();
 
-        if (par->behavioral_autotuning) { behavior_autotuning(par, community, date, ledger, tuner, sim_cache, social_distancing_anchors); }
+        if (par->behavioral_autotuning) { behavior_autotuning(par, community, date, ledger, tuner, sim_cache, social_distancing_anchors, restore_occurred); }
 
         const size_t sim_day = date->day();
 
