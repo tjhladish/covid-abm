@@ -8,9 +8,10 @@ if (interactive()) { setwd("~/documents/work/covid-abm/exp/fl_vac_counterfactual
 .args <- if (interactive()) c(
   "ACS_2019_pop_data.csv",
   "cdc_covid-19_vax_data.csv",
-  "./dose_data",
-  "./fig"
+  "./dose_data"
 ) else commandArgs(trailingOnly = TRUE)
+
+dir.create("./fig/state_vax_input", showWarnings = FALSE)
 
 #' read in population data, empirical vaccination data
 pop.in <- fread(.args[1], header = TRUE)
@@ -322,6 +323,6 @@ dose_delivery <- ggplot() +
 #   ggtitle("Total coverage per age bin per dose (empirical vs. adjusted)") +
 #   shr
 
-ggsave(filename = paste0(.args[4], "/tot_cov_comparison_v2.png"), plot = tot_cov_comparison, device = 'png', units = 'in', height = 6, width = 12, dpi = 300)
-ggsave(filename = paste0(.args[4], "/adj_binned_cov_comparison_v2.png"), plot = adj_binned_cov_fig, device = 'png', units = 'in', height = 6, width = 15, dpi = 300)
-ggsave(filename = paste0(.args[4], "/dosing_adjustment_v2.png"), plot = dose_delivery, device = 'png', units = 'in', height = 6, width = 15, dpi = 300)
+ggsave(filename = "./fig/state_vax_input/tot_cov_comparison_v2.png", plot = tot_cov_comparison, device = 'png', units = 'in', height = 6, width = 12, dpi = 300)
+ggsave(filename = "./fig/state_vax_input/adj_binned_cov_comparison_v2.png", plot = adj_binned_cov_fig, device = 'png', units = 'in', height = 6, width = 15, dpi = 300)
+ggsave(filename = "./fig/state_vax_input/dosing_adjustment_v2.png", plot = dose_delivery, device = 'png', units = 'in', height = 6, width = 15, dpi = 300)

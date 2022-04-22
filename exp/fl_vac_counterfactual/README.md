@@ -13,3 +13,11 @@
 ---
 # Setting up active vaccination counterfactual simulations
 TBA
+---
+# Processing scripts
+* To run simulation diagnostics/data processing:
+    - In "main.cpp", set `par->dump_simulation_data` to `true`
+    - After the simulation, a database named `sim_data_<serial>.sqlite` is generated
+    - Run the following R scripts to analyze model performance:
+        - `Rscript sim_data_processing_v1.2.R sim_data_<serial>.sqlite`
+        - `Rscript model_vax_delivery_v1.2.R ACS_2019_pop_data.csv cdc_covid-19_vax_data.csv ./dose_data sim_data_<serial>.sqlite`
