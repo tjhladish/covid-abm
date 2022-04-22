@@ -701,6 +701,7 @@ void restore_from_cache(Community* &community, Date* &date, SimulationCache* sim
     if (community) { delete community; }
     community = new Community(*(sim_cache->community));
     date      = community->get_date();
+    date->decrement(); // date is always incremented before tick is called next, so need to decrement before that if restoring
     community->setSocialDistancingTimedIntervention(social_distancing_anchors);
 
     if (sim_cache->rng)           { gsl_rng_memcpy(RNG, sim_cache->rng); }
@@ -877,8 +878,6 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
 
         if (par->behavioral_autotuning) { behavior_autotuning(par, community, date, ledger, tuner, sim_cache, social_distancing_anchors); }
 
-        //update_vaccinations(par, community, date);
-        //community->tick();
         const size_t sim_day = date->day();
 
         if ( mutant_intro_dates.size() ) {
@@ -936,7 +935,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
         //    cerr << "infLoc " << date->to_ymd() << ' ' << key << ' ' << community->getNumNewInfectionsByLoc(key)[sim_day] << endl;
         //}
         if (not par->behavioral_autotuning) {
-            if (date->dayOfMonth()==1) cerr << "        rep sday        date  infinc  cAR     rcases  rcta7  crcases  rdeath  crdeath  sevprev   crhosp  closed  socdist  coverage\n";
+            if (date->dayOfMonth()==1) cerr << "        rep sday        date  infinc  cAR     rcases  rcta7  crcases  rdeath  crdeath  sevprev   crhosp  closed  socdist dose1   dose2   dose3\n";
             cerr << right
                 << setw(11) << "NA" //process_id
                 << setw(5)  << sim_day
@@ -951,11 +950,10 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
                 << setw(9)  << severe_prev[sim_day]
                 << setw(9)  << accumulate(rhosp.begin(), rhosp.begin()+sim_day+1, 0)
                 << setw(8)  << community->getTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, sim_day)
-                << "  "     << setprecision(2) << community->getTimedIntervention(SOCIAL_DISTANCING, sim_day)
-                << "  "     << setprecision(2) << VE_data["coverage"]
-                << "  "     << setprecision(2) << VE_data["dose_1"]
-                << "  "     << setprecision(2) << VE_data["dose_2"]
-                << "  "     << setprecision(2) << VE_data["dose_3"]
+                << "  " << setw(6)     << setprecision(2) << left << community->getTimedIntervention(SOCIAL_DISTANCING, sim_day) << right
+                << "  " << setw(6)     << setprecision(2) << left << VE_data["dose_1"] << right
+                << "  " << setw(6)     << setprecision(2) << left << VE_data["dose_2"] << right
+                << "  " << setw(6)     << setprecision(2) << left << VE_data["dose_3"] << right
                 //             << "  "     << setprecision(2) << (double) severe[sim_day] / reported_cases
                 << endl;
         }

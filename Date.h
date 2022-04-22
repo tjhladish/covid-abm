@@ -106,6 +106,7 @@ class Date {
 
     bool endOfPeriod(int n)  const { return (day()+1) % n == 0; }
     bool endOfWeek()         const { return (day()+1) % 7 == 0; }
+    bool startOfMonth()      const { return dayOfMonth() == 1; }
     bool endOfMonth()        const {
         vector<size_t>::const_iterator it;
         // find out if today corresponds to a month-end
@@ -133,6 +134,17 @@ class Date {
         if (_julian_day > num_days_in_year(_julian_year)) {
             _julian_day = 1;
             _julian_year++;
+        }
+    }
+
+    void decrement() {
+        if(startOfMonth()) _month_ct--;
+        _simulation_day--;
+        if (_julian_day == 1) {
+            _julian_year--;
+            _julian_day = num_days_in_year(_julian_year);
+        } else {
+            _julian_day--;
         }
     }
 

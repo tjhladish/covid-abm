@@ -264,7 +264,7 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->vaccination_file         = "./counterfactual_doses_v2.txt"; //"./dose_data/fl_vac_v4.txt"; //pop_dir    + "/../fl_vac/fl_vac_v4.txt";
     // par->dose_file                = "./counterfactual_doses.txt"; //"./dose_data/FL_doses.txt"; //pop_dir    + "/../fl_vac/doses.txt";
 
-    par->behavioral_autotuning = false;
+    par->behavioral_autotuning = true;
     par->tuning_window = 14;
     par->num_preview_windows = 3;
     par->autotuning_dataset = "autotuning_dataset.csv";
