@@ -41,8 +41,8 @@ const string output_dir("/ufrc/longini/tjhladish/");
 //const string vaccination_file = pop_dir + "/../fl_vac/fl_vac_v4.txt";
 
 const int RESTART_BURNIN          = 0;
-const int FORECAST_DURATION       = 747;//770;//863;
-//const int FORECAST_DURATION       = 456;
+const int FORECAST_DURATION       = 747;
+//const int FORECAST_DURATION       = 468;
 const int OVERRUN                 = 14; // to get accurate Rt estimates near the end of the forecast duration
 const bool RUN_FORECAST           = true;
 const int TOTAL_DURATION          = RUN_FORECAST ? RESTART_BURNIN + FORECAST_DURATION + OVERRUN : RESTART_BURNIN;
@@ -64,10 +64,10 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->define_defaults();
     par->serial = serial;
 
-    const float T = 0.032 * 5.0;//0.022; // 0.0215 for the fl pop, 0.022 for the pseudo 1000k pop
+    const float T = 0.07; //0.022; // 0.0215 for the fl pop, 0.022 for the pseudo 1000k pop
 
     par->household_transmission_haz_mult   = T;
-    par->social_transmission_haz_mult      = T / 10.0; // assumes complete graphs between households
+    par->social_transmission_haz_mult      = T / 2.0; // assumes complete graphs between households
     par->workplace_transmission_haz_mult   = T / 2.0;
     par->school_transmission_haz_mult      = T / 2.0;
     par->hospital_transmission_haz_mult    = T / 10.0;
@@ -81,7 +81,7 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->yearlyOutput            = true;
     par->abcVerbose              = false; // needs to be false to get WHO daily output
     par->startJulianYear         = JULIAN_START_YEAR;
-    par->startDayOfYear          = Date::to_julian_day("2020-02-05");
+    par->startDayOfYear          = Date::to_julian_day("2020-02-10");
     par->runLength               = TOTAL_DURATION;
     //par->annualIntroductionsCoef = 1;
 
@@ -111,11 +111,11 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
         //par->reportedFraction = {0.0, 0.2, 0.75, 0.75, 0.75};      // fraction of asymptomatic, mild, severe, critical, and deaths reported
         //par->probFirstDetection = {0.0, 0.12, 0.55, 0.1, 0.01};      // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
 
-        const double RF_death_early = 0.8; //0.78; // overall probability of detecting death, at any point
-        const double RF_death_late  = 0.9; //0.78; // overall probability of detecting death, at any point
+        const double RF_death_early = 1.0; //0.8; // overall probability of detecting death, at any point
+        const double RF_death_late  = 1.0; //0.9; // overall probability of detecting death, at any point
 
         // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
-        vector<double> initial_vals    = {0.0, 0.05, 0.7, 0.1};    // Start of sim (Feb 2020) conditional probabilities
+        vector<double> initial_vals    = {0.0, 0.1, 0.7, 0.1};    // Start of sim (Feb 2020) conditional probabilities
         initial_vals.push_back(calculate_conditional_death_reporting_probability(RF_death_early, initial_vals));
 
         const int isd1 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-06-01"); // inflection date 1
@@ -230,11 +230,11 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->symptomToTestLag = 2;
 //    par->meanDeathReportingLag = 9;
 
-    const double max_icu_mortality_reduction = 0.4;         // primarily due to use of dexamethasone
+    const double max_icu_mortality_reduction = 0.35;         // primarily due to use of dexamethasone
     const size_t icu_mortality_inflection_sim_day = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-06-15");
-    const double icu_mortality_reduction_slope = 0.5;       // 0.5 -> change takes ~2 weeks; 0.1 -> ~2 months
+    const double icu_mortality_reduction_slope = 1.0;       // 0.5 -> change takes ~2 weeks; 0.1 -> ~2 months
     par->createIcuMortalityReductionModel(max_icu_mortality_reduction, icu_mortality_inflection_sim_day, icu_mortality_reduction_slope);
-    par->icuMortalityFraction = 0.43;                       // fraction of all deaths that occur in ICUs
+    par->icuMortalityFraction = 0.43;                       // 0.72*0.6; fraction of all deaths that occur in ICUs
                                                             // used for interpreting empirical mortality data, *not within simulation*
                                                             // 0.7229464 = fraction of covid FL deaths that were inpatient (1/2020 through 1/2022)
                                                             // --> https://www.cdc.gov/nchs/nvss/vsrr/covid_weekly/index.htm#PlaceDeath
@@ -260,13 +260,14 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->locationFilename         = pop_dir    + "/locations-"          + SIM_POP + ".txt";
     par->networkFilename          = pop_dir    + "/network-"            + SIM_POP + ".txt";
     par->publicActivityFilename   = pop_dir    + "/public-activity-"    + SIM_POP + ".txt";
+    par->rCaseDeathFilename       = "./rcasedeath-florida.csv";
     par->vaccination_file         = "./counterfactual_doses_v2.txt"; //"./dose_data/fl_vac_v4.txt"; //pop_dir    + "/../fl_vac/fl_vac_v4.txt";
     // par->dose_file                = "./counterfactual_doses.txt"; //"./dose_data/FL_doses.txt"; //pop_dir    + "/../fl_vac/doses.txt";
 
     par->behavioral_autotuning = false;
     par->tuning_window = 14;
     par->num_preview_windows = 3;
-    par->autotuning_dataset = "autotuning_dataset_220217.csv";
+    par->autotuning_dataset = "autotuning_dataset.csv";
 
     par->dump_simulation_data = false;
 
