@@ -45,15 +45,16 @@ void Parameters::define_defaults() {
     selfQuarantineDuration = 0;
     urgent_vax_dose_threshold = 0;  // default to 0 (no urgent vaccines) but must be <= numVaccineDoses
     //secondaryTransmission = true;
-    populationFilename = "population.txt";
-    locationFilename = "locations.txt";
-    publicActivityFilename = "public-activity.txt";
-    networkFilename = "network.txt";
-    peopleOutputFilename = "";
+    populationFilename      = "population.txt";
+    locationFilename        = "locations.txt";
+    publicActivityFilename  = "public-activity.txt";
+    networkFilename         = "network.txt";
+    peopleOutputFilename    = "";
     yearlyPeopleOutputFilename = "";
-    dailyOutputFilename = "";
-    vaccination_file = "";
-    dose_file = "";
+    dailyOutputFilename     = "";
+    rCaseDeathFilename      = "";
+    vaccination_file        = "";
+    dose_file               = "";
     //annualIntroductionsFilename = "";                   // time series of some external factor determining introduction rate
     //annualIntroductionsCoef = 1;                        // multiplier to rescale external introductions to something sensible
     //annualIntroductions = {1.0};

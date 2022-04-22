@@ -562,6 +562,7 @@ public:
     std::string peopleOutputFilename;
     std::string yearlyPeopleOutputFilename;
     std::string dailyOutputFilename;
+    std::string rCaseDeathFilename;
     std::string vaccination_file;
     std::string dose_file;
     //std::string annualIntroductionsFilename;                // time series of some external factor determining introduction rate

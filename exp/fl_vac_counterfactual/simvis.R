@@ -88,7 +88,7 @@ d$crdeath  = cumsum(d$rdeath)
 ed$rcase = ed$rcase*per10k
 #ed$rhosp = ed$rhosp*per10k
 #ed$rdeath = ed$rdeath*per10k #*death_underreporting
-ed$rdeath = ed$death_incd*per10k
+ed$rdeath = ed$excess*per10k
 ed$crcase  = cumsum(ed$rcase)
 ed$crdeath = cumsum(ed$rdeath)
 

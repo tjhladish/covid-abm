@@ -45,7 +45,8 @@ d$brkthruRatioAvg = filter(d$brkthruRatio, rep(1/7, 7), sides = 2)
 ed$rcase = ed$rcase*per10k
 #ed$rhosp = ed$rhosp*per10k
 #ed$rdeath = ed$rdeath*per10k #*death_underreporting
-ed$rdeath = ed$death_incd*per10k
+#ed$rdeath = ed$death_incd*per10k
+ed$rdeath  = ed$excess*per10k
 ed$crcase  = cumsum(ed$rcase)
 ed$crdeath = cumsum(ed$rdeath)
 cdc$brkthruRatio = cdc$Vaccinated.with.outcome/(cdc$Vaccinated.with.outcome + cdc$Unvaccinated.with.outcome)

@@ -256,13 +256,15 @@ Date,rcase,rdeath,death_incd
 2020-03-04,4,0,0
 */
 // parse empirical data file and store in a map with key of sim_day and value of a vector of cases and deaths
-map<size_t, vector<int>> parse_emp_data_file(const Parameters* par, const string emp_data_file) {
-    vector< vector<string> > emp_data = read_2D_vector_file(emp_data_file, ',');
+map<size_t, vector<int>> parse_emp_data_file(const Parameters* par) {
+    vector< vector<string> > emp_data = read_2D_vector_file(par->rCaseDeathFilename, ',');
     map<size_t, vector<int>> recast_emp_data;
 
     for (vector<string> &v : emp_data) {
         if (v[0] == "Date") { continue; }
-        int rcase = stoi(v[1]), rdeath = stoi(v[3]);
+        int rcase = stoi(v[1]);
+        //int rdeath = stoi(v[3]);
+        int rdeath = 0; //v[4] == "" ? 0  : stoi(v[4]); // deprecated: no longer using deaths for this, but we need to not crash if death column is empty
         recast_emp_data[Date::to_sim_day(par->startJulianYear, par->startDayOfYear, v[0])] = {rcase, rdeath};
     }
     return recast_emp_data;
@@ -581,12 +583,12 @@ double bin_search_anchor(BehaviorAutoTuner* tuner, double distance) {
 
 
 // if auto tuning, this is the first step (create a new tuner, initialize defaults, ask user if manual control is desired)
-BehaviorAutoTuner* initialize_behavior_autotuning(const Parameters* par, string emp_data_filename) {
+BehaviorAutoTuner* initialize_behavior_autotuning(const Parameters* par) {
     BehaviorAutoTuner* tuner = new BehaviorAutoTuner();
     tuner->init_defaults();
     tuner->user_sim_setup();
 
-    tuner->emp_data = parse_emp_data_file(par, emp_data_filename);
+    tuner->emp_data = parse_emp_data_file(par);
 
     return tuner;
 }
@@ -861,7 +863,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
 
     if (par->behavioral_autotuning) {
         // create tuner and initialize first simulation cache
-        tuner = initialize_behavior_autotuning(par, "rcasedeath-florida.csv");
+        tuner = initialize_behavior_autotuning(par);
         sim_cache = new SimulationCache(community, ledger, RNG, REPORTING_RNG, VAX_RNG);
         first_tuning_window_setup(par, community, tuner, social_distancing_anchors);
     } else if (not par->autotuning_dataset.empty()) {
