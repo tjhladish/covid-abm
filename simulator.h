@@ -872,7 +872,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
     }
 
     for (; date->day() < (signed) par->runLength; date->increment()) {
-if (*date == "2021-12-01") { gsl_rng_set(RNG, par->randomseed); }
+//if (*date == "2021-12-01") { gsl_rng_set(RNG, par->randomseed); }
         community->tick();
 
         if (par->behavioral_autotuning) { behavior_autotuning(par, community, date, ledger, tuner, sim_cache, social_distancing_anchors); }
