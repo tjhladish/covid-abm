@@ -8,9 +8,10 @@ if (interactive()) { setwd("~/documents/work/covid-abm/exp/fl_vac_counterfactual
 .args <- if (interactive()) c(
   "ACS_2019_pop_data.csv",
   "cdc_covid-19_vax_data.csv",
-  "./dose_data",
-  "./fig"
+  "./dose_data"
 ) else commandArgs(trailingOnly = TRUE)
+
+dir.create(file.path('.', 'fig'), showWarnings = FALSE)
 
 #' read in population data, empirical vaccination data
 pop.in <- fread(.args[1], header = TRUE)
@@ -149,7 +150,7 @@ dose.in = data.table()
 for (loc in locs_of_interest) {
   tmp <- fread(paste0(.args[3], "/trends_in_number_of_covid19_vaccinations_in_", tolower(loc), ".csv"))
   dose_table <- tmp[, .(location = loc, date = Date, first = `Daily Count People Receiving Dose 1`,
-                       second = `Daily Count of People Fully Vaccinated`, third = `Daily Count People Receiving a Booster Dose`)]
+                       second = `Daily Count of People Fully Vaccinated`, third = `Daily Count People Receiving a First Booster Dose`)]
   dose.in <- rbindlist(list(dose.in, dose_table))
 }
 dose.in[pop.dt[bin_min == 5 & bin_max == 120, .(location, pop)], on = .(location), tot_pop := pop][, tot_doses := sum(first+second+third), by = .(location, date)]
@@ -322,6 +323,6 @@ dose_delivery <- ggplot() +
 #   ggtitle("Total coverage per age bin per dose (empirical vs. adjusted)") +
 #   shr
 
-ggsave(filename = paste0(.args[4], "/tot_cov_comparison_v2.png"), plot = tot_cov_comparison, device = 'png', units = 'in', height = 6, width = 12, dpi = 300)
-ggsave(filename = paste0(.args[4], "/adj_binned_cov_comparison_v2.png"), plot = adj_binned_cov_fig, device = 'png', units = 'in', height = 6, width = 15, dpi = 300)
-ggsave(filename = paste0(.args[4], "/dosing_adjustment_v2.png"), plot = dose_delivery, device = 'png', units = 'in', height = 6, width = 15, dpi = 300)
+ggsave(filename = paste0("./fig/tot_cov_comparison_v2.png"), plot = tot_cov_comparison, device = 'png', units = 'in', height = 6, width = 12, dpi = 300)
+ggsave(filename = paste0("./fig/adj_binned_cov_comparison_v2.png"), plot = adj_binned_cov_fig, device = 'png', units = 'in', height = 6, width = 15, dpi = 300)
+ggsave(filename = paste0("./fig/dosing_adjustment_v2.png"), plot = dose_delivery, device = 'png', units = 'in', height = 6, width = 15, dpi = 300)
