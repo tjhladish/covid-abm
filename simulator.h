@@ -872,13 +872,16 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
         init_behavioral_vals_from_file(par, community);
     }
 
-    bool restore_occurred = false;
+    bool restore_occurred = false; // relevant for behavior autotuning
     for (; date->day() < (signed) par->runLength; date->increment()) {
         if (restore_occurred) { date->decrement(); restore_occurred = false; }// date is always incremented before tick is called next, so need to decrement before that if restoring
 //if (*date == "2021-12-01") { gsl_rng_set(RNG, par->randomseed); }
         community->tick();
 
-        if (par->behavioral_autotuning) { behavior_autotuning(par, community, date, ledger, tuner, sim_cache, social_distancing_anchors, restore_occurred); }
+        if (par->behavioral_autotuning) {
+            behavior_autotuning(par, community, date, ledger, tuner, sim_cache, social_distancing_anchors, restore_occurred);
+            if (restore_occurred) { continue; }
+        }
 
         const size_t sim_day = date->day();
 
