@@ -117,30 +117,33 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
         // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
         vector<double> initial_vals    = {0.0, 0.1, 0.7, 0.1};    // Start of sim (Feb 2020) conditional probabilities
         initial_vals.push_back(calculate_conditional_death_reporting_probability(RF_death_early, initial_vals));
-
         const int isd1 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-06-01"); // inflection date 1
 
         vector<double> summer2020_vals = {0.0, 0.7, 0.5, 0.1};
         summer2020_vals.push_back(calculate_conditional_death_reporting_probability(RF_death_late, summer2020_vals));
-
         const int isd2 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-10-01"); // inflection date 2
 
-        vector<double> winter2020_vals = {0.2, 0.7, 0.5, 0.1};
+        vector<double> winter2020_vals = {0.25, 0.9, 0.5, 0.1};
         winter2020_vals.push_back(calculate_conditional_death_reporting_probability(RF_death_late, winter2020_vals));
+        const int isd3 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-06-01"); // inflection date 3
 
-        const int isd3 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-12-01"); // inflection date 3
+        vector<double> summer2021_vals = {0.1, 0.7, 0.5, 0.1};
+        summer2021_vals.push_back(calculate_conditional_death_reporting_probability(RF_death_late, summer2021_vals));
+        const int isd4 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-12-01"); // inflection date 4
 
-        vector<double> winter2021_vals = {0.05, 0.7, 0.5, 0.1};
+        vector<double> winter2021_vals = {0.05, 0.5, 0.5, 0.1};
         winter2021_vals.push_back(calculate_conditional_death_reporting_probability(RF_death_late, winter2021_vals));
 
-        vector<vector<double>> vals = {initial_vals, summer2020_vals, winter2020_vals, winter2021_vals};
-        cerr << "death init, summer2020, winter2020, winter2021: " << initial_vals.back() << " " << summer2020_vals.back() << " " << winter2020_vals.back() << " " << winter2021_vals.back() << endl;
+        vector<vector<double>> vals = {initial_vals, summer2020_vals, winter2020_vals, summer2021_vals, winter2021_vals};
+        cerr << "death init, summer2020, winter2020, summer2021, winter2021: " << initial_vals.back() << " " << summer2020_vals.back() << " " << winter2020_vals.back() << " " << summer2021_vals.back() << " " << winter2021_vals.back() << endl;
 
-        vector<vector<int>> inflection_sim_day = { vector<int>(NUM_OF_OUTCOME_TYPES, isd1),   // first transition
-                                                   vector<int>(NUM_OF_OUTCOME_TYPES, isd2),   // second
-                                                   vector<int>(NUM_OF_OUTCOME_TYPES, isd3) }; // third
+        vector<vector<int>> inflection_sim_day = { vector<int>(NUM_OF_OUTCOME_TYPES, isd1),
+                                                   vector<int>(NUM_OF_OUTCOME_TYPES, isd2),
+                                                   vector<int>(NUM_OF_OUTCOME_TYPES, isd3),
+                                                   vector<int>(NUM_OF_OUTCOME_TYPES, isd4) };
 
         vector<vector<double>> slopes = { vector<double>(NUM_OF_OUTCOME_TYPES, 0.1),
+                                          vector<double>(NUM_OF_OUTCOME_TYPES, 0.1),
                                           vector<double>(NUM_OF_OUTCOME_TYPES, 0.1),
                                           vector<double>(NUM_OF_OUTCOME_TYPES, 0.1) }; // sign is determined based on initial/final values
 
@@ -149,11 +152,13 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
         vector<double> reported_frac_init       = par->toReportedFraction(initial_vals);
         vector<double> reported_frac_summer2020 = par->toReportedFraction(summer2020_vals);
         vector<double> reported_frac_winter2020 = par->toReportedFraction(winter2020_vals);
+        vector<double> reported_frac_summer2021 = par->toReportedFraction(summer2021_vals);
         vector<double> reported_frac_winter2021 = par->toReportedFraction(winter2021_vals);
 
         cerr_vector(reported_frac_init); cerr << endl;  REPORTED_FRACTIONS.push_back(reported_frac_init);
         cerr_vector(reported_frac_summer2020); cerr << endl; REPORTED_FRACTIONS.push_back(reported_frac_summer2020);
         cerr_vector(reported_frac_winter2020); cerr << endl; REPORTED_FRACTIONS.push_back(reported_frac_winter2020);
+        cerr_vector(reported_frac_summer2021); cerr << endl; REPORTED_FRACTIONS.push_back(reported_frac_summer2021);
         cerr_vector(reported_frac_winter2021); cerr << endl; REPORTED_FRACTIONS.push_back(reported_frac_winter2021);
 
         //cerr << "Detection probability by day\n";
@@ -250,7 +255,7 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->VES = {{WILDTYPE, {0.0}}};
 
     //par->hospitalizedFraction = 0.25; // fraction of cases assumed to be hospitalized
-    par->probInitialExposure = {4.0e-04};
+    par->probInitialExposure = {1.0e-04};
     //par->probDailyExposure   = vector(120, 2.0e-05);        // introductions are initially lower
     //par->probDailyExposure.resize(par->runLength, 2.0e-04); // and then pick up after ~ 4 months
     par->probDailyExposure   = {1.0e-04};        // introductions are initially lower
@@ -339,7 +344,7 @@ void define_strain_parameters(Parameters* par) {
     par->strainPars[OMICRON].immuneEscapeProb  = 0.6;
     par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 2.0 / relInfectiousnessDenom;
     par->strainPars[OMICRON].relPathogenicity  = par->strainPars[ALPHA].relPathogenicity * 0.5;
-    par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.25;
+    par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.75;
     par->strainPars[OMICRON].relIcuMortality   = 2.0;
     par->strainPars[OMICRON].symptomaticInfectiousPeriod = appxNonOmicronInfPd - 1;
     par->strainPars[OMICRON].relSymptomOnset = 0.5;     // roughly based on MMWR Early Release Vol. 70 12/28/2021
@@ -554,27 +559,28 @@ vector<double> tally_counts(const Parameters* par, Community* community, int dis
     const size_t num_weeks = (par->runLength - discard_days - OVERRUN)/7;   // number of full weeks of data to be aggregated
 
     //vector<size_t> infected    = community->getNumNewlyInfected();
-    //vector< vector<int> > severe      = community->getNumSevereCases();
     vector<size_t> symptomatic = community->getNumNewlySymptomatic();
+    vector<size_t> severe      = community->getNumNewlySevere();
     vector<size_t> dead        = community->getNumNewlyDead();
 
     // pair of num of primary infections starting this day, and mean num secondary infections they cause
     vector<pair<size_t, double>> R = community->getMeanNumSecondaryInfections();
     vector<size_t> Rt_incidence_tally(num_weeks, 0);
 
-    vector<double> metrics(num_weeks*3, 0.0);
+    vector<double> metrics(num_weeks*4, 0.0);
     for (size_t t = discard_days; t < discard_days + (7*num_weeks); ++t) {
         const size_t w = (t-discard_days)/7; // which reporting week are we in?
         metrics[w]                 += symptomatic[t];
-        metrics[num_weeks + w]     += dead[t];
-        metrics[2 * num_weeks + w] += R[t].first > 0 ? R[t].first*R[t].second : 0;
+        metrics[num_weeks + w]     += severe[t];
+        metrics[2 * num_weeks + w] += dead[t];
+        metrics[3 * num_weeks + w] += R[t].first > 0 ? R[t].first*R[t].second : 0;
         Rt_incidence_tally[w]      += R[t].first;
     }
 
     for (size_t w = 0; w < num_weeks; ++w) {
-        metrics[2 * num_weeks + w] /= Rt_incidence_tally[w] > 0 ? Rt_incidence_tally[w] : 1.0;
+        metrics[3 * num_weeks + w] /= Rt_incidence_tally[w] > 0 ? Rt_incidence_tally[w] : 1.0;
     }
-metrics.resize(300);
+//metrics.resize(300);
     return metrics;
 }
 
@@ -629,10 +635,10 @@ void calculate_reporting_ratios(Community* community) {
 
 vector<double> simulator(vector<double> args, const unsigned long int rng_seed, const unsigned long int serial, const ABC::MPI_par* mp = nullptr) {
     cerr << "rng seed: " << rng_seed << endl;
-    //gsl_rng_set(RNG, rng_seed);
-    //gsl_rng_set(VAX_RNG, rng_seed);
-    gsl_rng_set(RNG, 1);
-    gsl_rng_set(VAX_RNG, 1);
+    gsl_rng_set(RNG, rng_seed);
+    gsl_rng_set(VAX_RNG, rng_seed);
+    //gsl_rng_set(RNG, 1);
+    //gsl_rng_set(VAX_RNG, 1);
     // initialize bookkeeping for run
     time_t start, end;
     time (&start);
@@ -758,6 +764,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
     vector<double> metrics = tally_counts(par, community, 0);
     //calculate_reporting_ratios(community);
+
 
     stringstream ss;
     ss << mp->mpi_rank << " end " << hex << process_id << " " << dec << dif << " ";
