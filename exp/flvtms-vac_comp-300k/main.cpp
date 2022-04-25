@@ -85,7 +85,7 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->runLength               = TOTAL_DURATION;
     //par->annualIntroductionsCoef = 1;
 
-    par->beginContactTracing           = par->runLength;//Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-06-01");
+    par->beginContactTracing           = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-06-01");
     par->contactTracingCoverage        = 0.7;
     par->contactTracingEV[HOME]        = 5.0;
     par->contactTracingEV[WORK]        = 3.0;
