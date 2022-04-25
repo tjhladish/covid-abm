@@ -41,8 +41,8 @@ const string output_dir("/ufrc/longini/tjhladish/");
 //const string vaccination_file = pop_dir + "/../fl_vac/fl_vac_v4.txt";
 
 const int RESTART_BURNIN          = 0;
-const int FORECAST_DURATION       = 747;
-//const int FORECAST_DURATION       = 468;
+const int FORECAST_DURATION       = 747; // stop after omicron
+//const int FORECAST_DURATION       = 468; // stop prior to delta
 const int OVERRUN                 = 14; // to get accurate Rt estimates near the end of the forecast duration
 const bool RUN_FORECAST           = true;
 const int TOTAL_DURATION          = RUN_FORECAST ? RESTART_BURNIN + FORECAST_DURATION + OVERRUN : RESTART_BURNIN;
@@ -119,19 +119,19 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
         initial_vals.push_back(calculate_conditional_death_reporting_probability(RF_death_early, initial_vals));
         const int isd1 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-06-01"); // inflection date 1
 
-        vector<double> summer2020_vals = {0.0, 0.7, 0.5, 0.1};
+        vector<double> summer2020_vals = {0.1, 0.7, 0.5, 0.1};
         summer2020_vals.push_back(calculate_conditional_death_reporting_probability(RF_death_late, summer2020_vals));
         const int isd2 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-10-01"); // inflection date 2
 
-        vector<double> winter2020_vals = {0.25, 0.9, 0.5, 0.1};
+        vector<double> winter2020_vals = {0.4, 0.9, 0.5, 0.1};
         winter2020_vals.push_back(calculate_conditional_death_reporting_probability(RF_death_late, winter2020_vals));
         const int isd3 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-06-01"); // inflection date 3
 
-        vector<double> summer2021_vals = {0.1, 0.7, 0.5, 0.1};
+        vector<double> summer2021_vals = {0.2, 0.7, 0.75, 0.1};
         summer2021_vals.push_back(calculate_conditional_death_reporting_probability(RF_death_late, summer2021_vals));
         const int isd4 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-12-01"); // inflection date 4
 
-        vector<double> winter2021_vals = {0.05, 0.5, 0.5, 0.1};
+        vector<double> winter2021_vals = {0.1, 0.5, 0.9, 0.1};
         winter2021_vals.push_back(calculate_conditional_death_reporting_probability(RF_death_late, winter2021_vals));
 
         vector<vector<double>> vals = {initial_vals, summer2020_vals, winter2020_vals, summer2021_vals, winter2021_vals};
@@ -343,6 +343,8 @@ void define_strain_parameters(Parameters* par) {
 
     par->strainPars[OMICRON].immuneEscapeProb  = 0.6;
     par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 2.0 / relInfectiousnessDenom;
+    cerr << "delta, omicron rel infectiousness: " << par->strainPars[DELTA].relInfectiousness << " " << par->strainPars[OMICRON].relInfectiousness << endl;
+    exit(10);
     par->strainPars[OMICRON].relPathogenicity  = par->strainPars[ALPHA].relPathogenicity * 0.5;
     par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.75;
     par->strainPars[OMICRON].relIcuMortality   = 2.0;
