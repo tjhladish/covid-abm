@@ -151,7 +151,7 @@ dose.in = data.table()
 for (loc in locs_of_interest) {
   tmp <- fread(paste0(.args[3], "/trends_in_number_of_covid19_vaccinations_in_", tolower(loc), ".csv"))
   dose_table <- tmp[, .(location = loc, date = Date, first = `Daily Count People Receiving Dose 1`,
-                       second = `Daily Count of People Fully Vaccinated`, third = `Daily Count People Receiving a First Booster Dose`)]
+                       second = `Daily Count of People Fully Vaccinated`, third = `Daily Count People Receiving a Booster Dose`)]
   dose.in <- rbindlist(list(dose.in, dose_table))
 }
 dose.in[pop.dt[bin_min == 5 & bin_max == 120, .(location, pop)], on = .(location), tot_pop := pop][, tot_doses := sum(first+second+third), by = .(location, date)]
