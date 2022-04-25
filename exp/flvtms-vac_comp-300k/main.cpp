@@ -269,7 +269,7 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->vaccination_file         = "./counterfactual_doses_v2.txt"; //"./dose_data/fl_vac_v4.txt"; //pop_dir    + "/../fl_vac/fl_vac_v4.txt";
     // par->dose_file                = "./counterfactual_doses.txt"; //"./dose_data/FL_doses.txt"; //pop_dir    + "/../fl_vac/doses.txt";
 
-    par->behavioral_autotuning = true;
+    par->behavioral_autotuning = false;
     par->tuning_window = 14;
     par->num_preview_windows = 3;
     par->autotuning_dataset = "autotuning_dataset.csv";
@@ -654,9 +654,9 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     cerr << "SCENARIO " << rng_seed;
     for (auto _p: args) { cerr << " " << _p; } cerr << endl;
 
-    const bool vaccine             = (bool) args[0];
-    // const size_t realization    = (size_t) args[1];
-    const bool mutation          = (bool) args[2];
+    // const size_t realization             = (size_t) args[0];
+    const bool vaccine                   = (bool) args[1];
+    const bool mutation                  = (bool) args[2];
     const size_t counterfactual_scenario = (size_t) args[3];
 
     Parameters* par = define_simulator_parameters(args, rng_seed, serial, process_id);
