@@ -1,4 +1,6 @@
 #!/usr/bin/env Rscript
+library(MMWRweek)
+
 args = commandArgs(trailingOnly=TRUE)
 
 suffix = ''
@@ -29,7 +31,9 @@ ed$date = as.Date(ed$Date)
 
 cdcFull = read.csv("Rates_of_COVID-19_Cases_or_Deaths_by_Age_Group_and_Vaccination_Status.csv", stringsAsFactors=F)
 cdc = cdcFull[cdcFull$Age.group == "all_ages_adj" & cdcFull$Vaccine.product == "all_types"  & cdcFull$outcome == "case",]
-cdc$date = as.Date("2020-12-27") + (cdc$MMWR.week*7)
+cdc$MMWR.week_adj = as.numeric(sub('.{4}(.*)', '\\1', cdc$MMWR.week))
+cdc$MMWR.year_adj = as.numeric(sub('(.{4}).*', '\\1', cdc$MMWR.week))
+cdc$date = as.Date(MMWRweek2Date(cdc$MMWR.year_adj, cdc$MMWR.week_adj))
 
 hhsHosp = read.csv("COVID-19_Reported_Patient_Impact_and_Hospital_Capacity_by_State_Timeseries.csv", stringsAsFactors=F, header=T)
 hhsHosp = hhsHosp[hhsHosp$state == 'FL',]
