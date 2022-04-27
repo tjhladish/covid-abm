@@ -20,7 +20,7 @@ vector<Eligibility_Group*> Vac_Campaign::init_new_eligible_groups(int day) {
 }
 
 // TODO: will people be urgently queued for doses other than dose 1?
-void Vac_Campaign::ring_scheduling(int day, vector< set<Person*> > tracedContacts) {
+void Vac_Campaign::ring_scheduling(int day, vector<set<Person*, PerPtrComp>> tracedContacts) {
     if (day >= start_of_campaign[RING_VACCINATION]) {
         //schedule urgent vax
         // TODO add nuaince to...
@@ -46,9 +46,9 @@ void Vac_Campaign::ring_scheduling(int day, vector< set<Person*> > tracedContact
     return;
 }
 
-void Vac_Campaign::geographic_scheduling(int day, vector< set<Person*> > targetedPeople, Community* community) {
+void Vac_Campaign::geographic_scheduling(int day, vector<set<Person*, PerPtrComp>> targetedPeople, Community* community) {
     if (day >= start_of_campaign[GEO_VACCINATION]) {
-        set<Person*> tracedCases = targetedPeople[0];
+        set<Person*, PerPtrComp> tracedCases = targetedPeople[0];
         set<Location*> tracedLocs;
         for (Person* p : tracedCases) { tracedLocs.insert(p->getHomeLoc()); }
 
@@ -93,13 +93,13 @@ void Vac_Campaign::geographic_scheduling(int day, vector< set<Person*> > targete
     }
 }
 
-void Vac_Campaign::location_scheduling(int day, vector< set<Person*> > targetedPeople) {
+void Vac_Campaign::location_scheduling(int day, vector<set<Person*, PerPtrComp>> targetedPeople) {
     if (day >= start_of_campaign[LOCATION_VACCINATION]) {
         const double work_and_neighbr_coverage = 0.5;
         const size_t expected_classroom_size   = 30;
 
-        set<Person*> tracedCases = targetedPeople[0];
-        set<Person*> all_people_to_vax;
+        set<Person*, PerPtrComp> tracedCases = targetedPeople[0];
+        set<Person*, PerPtrComp> all_people_to_vax;
 
         // create empty eligibility group to add new urgent people to the queue
         vector<Eligibility_Group*> urgents = init_new_eligible_groups(day);
@@ -146,7 +146,7 @@ void Vac_Campaign::location_scheduling(int day, vector< set<Person*> > targetedP
     }
 }
 
-void Vac_Campaign::reactive_strategy(int day, vector< set<Person*> > targetedPeople, Community* community) {
+void Vac_Campaign::reactive_strategy(int day, vector<set<Person*, PerPtrComp>> targetedPeople, Community* community) {
     // general handler for which campgain shoudl be called from Community::tick()
     switch (reactive_vac_strategy) {
         case RING_VACCINATION:     { ring_scheduling(day, targetedPeople); break; }

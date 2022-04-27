@@ -981,19 +981,19 @@ void Community::clear_public_activity() {
     }
 }
 
-void _conditional_insert(set<Person*> &into, const vector<Person*> &from, set<Person*> &ref, const size_t day) {
+void _conditional_insert(set<Person*, PerPtrComp> &into, const vector<Person*> &from, set<Person*, PerPtrComp> &ref, const size_t day) {
     for(Person* p : from) {
         if(p->isAlive(day) and ref.insert(p).second) { into.insert(p); }
     }
 }
 
-vector< set<Person*> > Community::traceForwardContacts() {
-    //vector< set<Person*> > tracedContacts(_par->contactTracingDepth);      // returned data structure of traced contacts of the priumary cases categorized by depth
-    vector< set<Person*> > tracedContacts(_par->contactTracingDepth + 1);      // returned data structure of traced contacts of the priumary cases categorized by depth
+vector< set<Person*, PerPtrComp> > Community::traceForwardContacts() {
+    //vector< set<Person*, PerPtrComp> > tracedContacts(_par->contactTracingDepth);      // returned data structure of traced contacts of the priumary cases categorized by depth
+    vector< set<Person*, PerPtrComp> > tracedContacts(_par->contactTracingDepth + 1);      // returned data structure of traced contacts of the priumary cases categorized by depth
     // only do contact tracing after the start date set in main
     if(_day < _par->beginContactTracing) { return tracedContacts; }
 
-    set<Person*> tracedCases;
+    set<Person*, PerPtrComp> tracedCases;
     for(Person* p : _people) {
         if(p->isAlive(_day) and p->hasBeenInfected()) {
             Infection* mostRecentInfection = p->getInfection();
@@ -1005,13 +1005,13 @@ vector< set<Person*> > Community::traceForwardContacts() {
 
     tracedContacts[0] = tracedCases;
 
-    set<Person*> allTracedPeople;               // used to ensure all people are traced only once
-    set<Person*> allInterviewedPeople;          // used to ensure all people are interviewed only once
+    set<Person*, PerPtrComp> allTracedPeople;               // used to ensure all people are traced only once
+    set<Person*, PerPtrComp> allInterviewedPeople;          // used to ensure all people are interviewed only once
 
     //for(size_t depth = 0; depth < _par->contactTracingDepth; ++depth) {
     for(size_t depth = 0; depth < _par->contactTracingDepth; ++depth) {
-        //set<Person*> peopleToInterview = depth == 0 ? tracedCases : tracedContacts[depth-1];
-        set<Person*> peopleToInterview = depth == 0 ? tracedCases : tracedContacts[depth];
+        //set<Person*, PerPtrComp> peopleToInterview = depth == 0 ? tracedCases : tracedContacts[depth-1];
+        set<Person*, PerPtrComp> peopleToInterview = depth == 0 ? tracedCases : tracedContacts[depth];
 
         for(Person* p : peopleToInterview) {
             // set.insert().second returns bool: T if inserted, F if not inserted
@@ -1113,7 +1113,7 @@ void Community::tick() {
     updateHotLocations();
 
     // do contact tracing to a given depth using reported cases from today if _day is at or after the start of contact tracing
-    vector< set<Person*> > tracedContactsByDepth = traceForwardContacts();
+    vector<set<Person*, PerPtrComp>> tracedContactsByDepth = traceForwardContacts();
 
     if(vac_campaign) { vac_campaign->reactive_strategy(_day, tracedContactsByDepth, this); } // if there is no reactive strategy, nothing happens
 

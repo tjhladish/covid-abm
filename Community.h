@@ -259,7 +259,7 @@ class Community {
         void reportCase(int onsetDate, long int reportDate, bool hospitalized);
         void reportDeath(int eventDate, long int reportDate);
         void tallyOutcome(OutcomeType ot) { _cumulIncByOutcome[ot]++; }
-        vector< set<Person*> > traceForwardContacts();
+        vector< set<Person*, PerPtrComp> > traceForwardContacts();
 
 
 //        int ageIntervalSize(int ageMin, int ageMax) { return std::accumulate(_personAgeCohortSizes+ageMin, _personAgeCohortSizes+ageMax,0); }

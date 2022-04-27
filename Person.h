@@ -205,8 +205,6 @@ class Person {
 
         ~Person();
 
-        struct PerPtrComp { bool operator()(const Person* A, const Person* B) const { return A->getID() < B->getID(); } };
-
         inline int getID() const { return id; }
 
         int getAge() const { return age; }
@@ -368,4 +366,7 @@ class Person {
         static const Parameters* _par;
         static size_t NEXT_ID;                                          // unique ID to assign to the next Person allocated
 };
+
+struct PerPtrComp { bool operator()(const Person* A, const Person* B) const { return A->getID() < B->getID(); } };
+
 #endif
