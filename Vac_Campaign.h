@@ -79,6 +79,8 @@ typedef std::vector< std::vector< std::map<int, int*> > > Dose_Ptrs;
 // structured storages of values for doses used by [day][dose][age bin]
 typedef std::vector< std::vector< std::map<int, int> > > Dose_Vals;
 
+//typedef std::set<Person*, PerPtrComp> Person_Set;
+
 class Vaccinee {
     friend Vac_Campaign;
     public:
@@ -376,11 +378,11 @@ class Vac_Campaign {
         void schedule_revaccinations(vector<Eligibility_Group*> revaccinations) { _add_new_eligibility_groups(std_eligibility_queue, revaccinations); }
         void schedule_urgent_doses(vector<Eligibility_Group*> urgents)          { _add_new_eligibility_groups(urg_eligibility_queue, urgents); }
 
-        void ring_scheduling(int day, vector< set<Person*> > tracedContacts);
-        void geographic_scheduling(int day, vector< set<Person*> > targetedPeople, Community* community);
-        void location_scheduling(int day, vector< set<Person*> > targetedPeople);
+        void ring_scheduling(int day, vector<set<Person*, PerPtrComp>> tracedContacts);
+        void geographic_scheduling(int day, vector<set<Person*, PerPtrComp>> targetedPeople, Community* community);
+        void location_scheduling(int day, vector<set<Person*, PerPtrComp>> targetedPeople);
 
-        void reactive_strategy(int day, vector< set<Person*> > targetedPeople, Community* community);
+        void reactive_strategy(int day, vector<set<Person*, PerPtrComp>> targetedPeople, Community* community);
 
         int get_age_bin(int age) const { return age_bin_lookup.at(age); }
         std::vector<int> get_unique_age_bins() const { return unique_age_bins; }
