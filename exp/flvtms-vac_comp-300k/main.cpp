@@ -285,6 +285,9 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
 
 
 void define_strain_parameters(Parameters* par) {
+    par->IEP                   = 0.75;
+    par->IEH                   = 0.5;
+
     par->VES                   = {{WILDTYPE, {0.40, 0.80}},
                                   {ALPHA,    {0.40, 0.80}},
                                   {DELTA,    {0.40, 0.80}},    // efficacy currently is being reduced in Person.cpp
@@ -300,21 +303,21 @@ void define_strain_parameters(Parameters* par) {
 
     par->strainPars[ALPHA].relInfectiousness   = 1.6;
     par->strainPars[ALPHA].relPathogenicity    = 1.1;
-    par->strainPars[ALPHA].immuneEscapeProb    = 0.0;
+    par->strainPars[ALPHA].immuneEscapeProb    = 0.15;
 
-    par->strainPars[DELTA].relInfectiousness   = par->strainPars[ALPHA].relInfectiousness * 1.5;
+    par->strainPars[DELTA].relInfectiousness   = par->strainPars[ALPHA].relInfectiousness * 1.6;
     par->strainPars[DELTA].relPathogenicity    = par->strainPars[ALPHA].relPathogenicity * 2.83;
     par->strainPars[DELTA].relSeverity         = 1.3; // relSeverity only applies if not vaccine protected; CABP - may be more like 1.3 based on mortality increase
-    par->strainPars[DELTA].relIcuMortality     = 3.0; // TODO - this is due to icu crowding.  should be represented differently
-    par->strainPars[DELTA].immuneEscapeProb    = 0.15;
+    par->strainPars[DELTA].relIcuMortality     = 4.0; // TODO - this is due to icu crowding.  should be represented differently
+    par->strainPars[DELTA].immuneEscapeProb    = 0.2;
 
     const double appxNonOmicronInfPd     = 9.0;
     const double appxOmicronInfPd        = 6.0;
     const double relInfectiousnessDenom  = (1.0 - pow(1.0 - par->household_transmission_haz_mult, appxOmicronInfPd/appxNonOmicronInfPd)) / par->household_transmission_haz_mult;
 
-    par->strainPars[OMICRON].immuneEscapeProb  = 0.6;
-    par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 2.0 / relInfectiousnessDenom;
-    par->strainPars[OMICRON].relPathogenicity  = par->strainPars[ALPHA].relPathogenicity * 0.5;
+    par->strainPars[OMICRON].immuneEscapeProb  = 0.5;
+    par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 2.0 / relInfectiousnessDenom; // CABP: 2.148 would be justified
+    par->strainPars[OMICRON].relPathogenicity  = par->strainPars[DELTA].relPathogenicity * 0.5;
     par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.75;
     par->strainPars[OMICRON].relIcuMortality   = 2.0;
     par->strainPars[OMICRON].symptomaticInfectiousPeriod = appxNonOmicronInfPd - 1;
