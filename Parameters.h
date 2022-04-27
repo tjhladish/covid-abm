@@ -661,6 +661,8 @@ public:
     CsmhScenario csmhScenario;
 
     bool behavioral_autotuning;
+    bool tune_to_cumul_cases;
+    size_t death_tuning_offset;
     size_t tuning_window;
     size_t num_preview_windows;
     std::string autotuning_dataset;

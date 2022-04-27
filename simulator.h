@@ -249,13 +249,8 @@ size_t tally_decreases(const vector<T> &vals) {
 }
 
 
-/*
-Date,rcase,rdeath,death_incd
-2020-03-02,2,0,0
-2020-03-03,2,0,0
-2020-03-04,4,0,0
-*/
 // parse empirical data file and store in a map with key of sim_day and value of a vector of cases and deaths
+// new req: empty values need to be filled with "NA"
 map<size_t, vector<int>> parse_emp_data_file(const Parameters* par) {
     vector< vector<string> > emp_data = read_2D_vector_file(par->rCaseDeathFilename, ',');
     map<size_t, vector<int>> recast_emp_data;
@@ -263,8 +258,7 @@ map<size_t, vector<int>> parse_emp_data_file(const Parameters* par) {
     for (vector<string> &v : emp_data) {
         if (v[0] == "Date") { continue; }
         int rcase = stoi(v[1]);
-        //int rdeath = stoi(v[3]);
-        int rdeath = 0; //v[4] == "" ? 0  : stoi(v[4]); // deprecated: no longer using deaths for this, but we need to not crash if death column is empty
+        int rdeath = v[4] == "NA" ? 0 : stoi(v[4]);
         recast_emp_data[Date::to_sim_day(par->startJulianYear, par->startDayOfYear, v[0])] = {rcase, rdeath};
     }
     return recast_emp_data;
@@ -346,7 +340,7 @@ void gen_simvis(vector<string> &plot_log_buffer) {
 
 // helper function to handle score the fit in a tuning window
 // NOTE: USING DEATHS BY DAY OF DEATH NOT DAY OF REPORTING
-double score_fit(const Parameters* par, const Community* community, const size_t sim_day, vector<size_t> sim_rcases_szt, const map<size_t, vector<int>> &emp_data_map) {
+double score_fit(const Parameters* par, const Community* community, const size_t sim_day, vector<size_t> sim_rdata_szt, const map<size_t, vector<int>> &emp_data_map) {
     const int fit_window_size = (par->num_preview_windows + 1) * par->tuning_window;    // size of the tuning window
     const int window_start = ((int) sim_day + 1) - fit_window_size;                     // sim_day at the start of the window
 
@@ -370,11 +364,12 @@ double score_fit(const Parameters* par, const Community* community, const size_t
 
     vector<double> fit_weights = Date::linInterpolateTimeSeries(fit_and_prev_anchors, par->startJulianYear, par->startDayOfYear);
 
-    // cuts reported cases from the parsed empirical data
-    vector<double> emp_rcases(sim_day + 1, 0.0); // default to 0 if data is missing, for purposes of calculating cumulative sum
+    // cuts reported cases or deaths from the parsed empirical data
+    vector<double> emp_rdata(sim_day + 1, 0.0); // default to 0 if data is missing, for purposes of calculating cumulative sum
     for (size_t day = 0; day <= sim_day; ++day) {
         if (emp_data_map.count(day)) {
-            emp_rcases[day] = emp_data_map.at(day).at(0);
+            // if tuning to case data, store cases (index 0), otherwise store deaths (index 1)
+            emp_rdata[day] = (par->tune_to_cumul_cases) ? emp_data_map.at(day).at(0) : emp_data_map.at(day).at(1);
         } else {
             fit_weights[day] = 0.0;             // if there is no empirical data for this day, change the error weight to 0 (ignore the error on this day)
         }
@@ -384,16 +379,16 @@ double score_fit(const Parameters* par, const Community* community, const size_t
     const double fl_pop   = 21538187;
     const double fl_p10k  = 1e4/fl_pop;
 
-    for (auto& val: emp_rcases) { val *= fl_p10k; }     // normalize emp rcases to per 10000 people
+    for (auto& val: emp_rdata) { val *= fl_p10k; }     // normalize emp rcases to per 10000 people
 
-    vector<double> sim_rcases(sim_rcases_szt.size());
-    for (size_t i = 0; i < sim_rcases.size(); ++i) { sim_rcases[i] = sim_rcases_szt[i] * sim_p10k; }    // normalize sim rcases to per 10000 people
+    vector<double> sim_rdata(sim_rdata_szt.size());
+    for (size_t i = 0; i < sim_rdata.size(); ++i) { sim_rdata[i] = sim_rdata_szt[i] * sim_p10k; }    // normalize sim rcases to per 10000 people
 
     // calculate cumulative sum of emp and sim rcases
-    vector<double> emp_rcases_cumul(emp_rcases.size());
-    vector<double> sim_rcases_cumul(sim_rcases.size());
-    partial_sum(emp_rcases.begin(), emp_rcases.end(), emp_rcases_cumul.begin());
-    partial_sum(sim_rcases.begin(), sim_rcases.end(), sim_rcases_cumul.begin());
+    vector<double> emp_rdata_cumul(emp_rdata.size());
+    vector<double> sim_rdata_cumul(sim_rdata.size());
+    partial_sum(emp_rdata.begin(), emp_rdata.end(), emp_rdata_cumul.begin());
+    partial_sum(sim_rdata.begin(), sim_rdata.end(), sim_rdata_cumul.begin());
 
     double distance = 0.0;
     double error = 0.0;
@@ -403,27 +398,27 @@ double score_fit(const Parameters* par, const Community* community, const size_t
     // for each day from the beginning of the sim to now, calculate the error (sim rcases - emp rcases) and the distance (error * weight)
     for (size_t d = 0; d <= sim_day; ++d) {
         //string date = Date::to_ymd(d, par);
-        const double daily_crcase_error    = sim_rcases_cumul[d] - emp_rcases_cumul[d];
-        const double daily_crcase_distance = daily_crcase_error * fit_weights[d];
-        error    += daily_crcase_error;
-        distance += daily_crcase_distance;
+        const double daily_crdata_error    = sim_rdata_cumul[d] - emp_rdata_cumul[d];
+        const double daily_crdata_distance = daily_crdata_error * fit_weights[d];
+        error    += daily_crdata_error;
+        distance += daily_crdata_distance;
 
-        abs_error    += abs(daily_crcase_error);
-        abs_distance += abs(daily_crcase_distance);
+        abs_error    += abs(daily_crdata_error);
+        abs_distance += abs(daily_crdata_distance);
     }
 
     // handles normalizing distance based on avg rep case incidence (offset by given number of days)
     const size_t fit_norm_offset = par->tuning_window * par->num_preview_windows;   // offset (in days) for when to calculate avg rep case incidence
     size_t num_days_to_avg = 3; // might consider 7 (one week)
     size_t epi_3day_window_start = (int) sim_day - fit_norm_offset - (num_days_to_avg - 1)/2;   // day to start averaging at
-    vector<size_t> rcases_to_avg(emp_rcases.begin() + epi_3day_window_start, emp_rcases.begin() + epi_3day_window_start + num_days_to_avg);
-    const double mean_rcases  = mean(rcases_to_avg);
+    vector<size_t> rdata_to_avg(emp_rdata.begin() + epi_3day_window_start, emp_rdata.begin() + epi_3day_window_start + num_days_to_avg);
+    const double mean_rdata  = mean(rdata_to_avg);
 
-    vector<double> single_rcase_p10k = {0, 0, (1 * fl_p10k)};   // for use if there are no rep cases to average (needed to prevent division by 0 later on)
+    vector<double> single_rdata_p10k = {0, 0, (1 * fl_p10k)};   // for use if there are no rep cases to average (needed to prevent division by 0 later on)
 
-    double avg_3day_rcases_w_offset = mean_rcases == 0 ? mean(single_rcase_p10k) : mean_rcases;
+    double avg_3day_rdata_w_offset = mean_rdata == 0 ? mean(single_rdata_p10k) : mean_rdata;
 
-    const double normed_distance = distance/avg_3day_rcases_w_offset;
+    const double normed_distance = distance/avg_3day_rdata_w_offset;
     return normed_distance;
 }
 
@@ -511,7 +506,7 @@ class BehaviorAutoTuner {
     void clear_output_buffer() { output_buffer.str(""); }
 
     void print_header() {
-        output_buffer << right << "  day          window  emp data%  sum dist   cur val  new best              search range   new val";
+        output_buffer << right << "  day anchor          window  emp data%  sum dist   cur val  new best              search range   new val";
         cerr << right << output_buffer.str() << endl;
         clear_output_buffer();
     }
@@ -654,7 +649,8 @@ void process_behavior_fit(int fit_is_good, double fit_distance, const Parameters
             tuner->print_header();
         }
 
-        social_distancing_anchors.emplace_back(Date::to_ymd((par->tuning_window * (tuner->tuning_window_ct + 1)) - 1, par), val1);
+        const size_t next_anchor_day = (par->tuning_window * (tuner->tuning_window_ct + 1)) - 1;
+        social_distancing_anchors.emplace_back(Date::to_ymd(next_anchor_day, par), val1);
     } else { // calling scope deemed window's fit as "not good"
         // if using the automated system, conduct modified binary search for new anchor val
         if (not tuner->manual_control) { tuner->cur_anchor_val = bin_search_anchor(tuner, fit_distance); }
@@ -682,7 +678,8 @@ void process_behavior_fit(int fit_is_good, double fit_distance, const Parameters
                 val = tuner->cur_anchor_val;
             }
 
-            social_distancing_anchors.back() = {Date::to_ymd((par->tuning_window * tuner->tuning_window_ct) - 1, par), val};
+            const size_t anchor_to_update_day = (par->tuning_window * tuner->tuning_window_ct) - 1;
+            social_distancing_anchors.back() = {Date::to_ymd(anchor_to_update_day, par), val};
         }
         //  this is what "waits" for the 'enter' keypress
         if (not tuner->manual_control and tuner->slow_auto) { cin.ignore(); }
@@ -715,11 +712,16 @@ bool restore_from_cache(Community* &community, Date* &date, SimulationCache* sim
 // main helper function to control the behavior auto tuning system
 void behavior_autotuning(const Parameters* par, Community* &community, Date* &date, SimulationLedger* &ledger, BehaviorAutoTuner* tuner, SimulationCache* &sim_cache, vector<TimeSeriesAnchorPoint> &social_distancing_anchors, bool& restore_occurred) {
     const size_t day = date->day();
+    const size_t recaching_day = (tuner->tuning_window_ct * par->tuning_window) - 1;
+    const size_t behavior_processing_day = (par->tune_to_cumul_cases)
+                                               ? ((tuner->tuning_window_ct + par->num_preview_windows) * par->tuning_window) - 1
+                                               : (((tuner->tuning_window_ct + par->num_preview_windows) * par->tuning_window) - 1) + par->death_tuning_offset;
 
-    if (tuner->recache and (day + 1) == tuner->tuning_window_ct * par->tuning_window) {
+
+    if (tuner->recache and (day == recaching_day)) {
         // we are at the end of tuning window that was deemed "good"
         overwrite_sim_cache(sim_cache, community, ledger, tuner);
-    } else if ((day + 1) == (tuner->tuning_window_ct + par->num_preview_windows) * par->tuning_window) {
+    } else if (day == behavior_processing_day) {
         // calculates the proportion of days in the tuning window that has empirical data
         size_t window_start_sim_day = (day + 1) - ((par->num_preview_windows + 1) * par->tuning_window);
         size_t num_days_w_emp_data = 0;
@@ -729,11 +731,13 @@ void behavior_autotuning(const Parameters* par, Community* &community, Date* &da
         // begin adding tuning data to print to screen
         tuner->output_buffer << right
                              << setw(5) << day
+                             << setw(7) << (tuner->tuning_window_ct * par->tuning_window) - 1
                              << setw(3) << "[" << setw(5) << window_start_sim_day << ", " << setw(5) << day << "]"
                              << setw(10) << prop_days_w_emp_data * 100 << "%";
 
         // calculate normalized distance for this tuning window
-        double fit_distance = score_fit(par, community, day, community->getNumDetectedCasesReport(), tuner->emp_data);
+        vector<size_t> model_tuning_data = (par->tune_to_cumul_cases) ? community->getNumDetectedCasesReport() : community-> getNumDetectedDeathsReport();
+        double fit_distance = score_fit(par, community, day, model_tuning_data, tuner->emp_data);
 //cerr << "current anchor, score: " << tuner->cur_anchor_val << ", " << fit_distance << endl;
         // keep track of the anchor val with the smallest distance for this window
         tuner->update_best_distance(fit_distance);
@@ -994,7 +998,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
 
     const vector<size_t> sim_reported_cases = community->getNumDetectedCasesReport();
     if (par->behavioral_autotuning) {
-        ofstream ofs("autotuning_dataset.csv");
+        ofstream ofs("autotuning_dataset_dump.csv");
         ofs << "date,sim_rcase,emp_rcase,behavior" << endl;
         for (size_t i = 0; i < par->runLength; ++i) {
             int daily_emp_data = tuner->emp_data.count(i) ? tuner->emp_data.at(i)[0] : 0;

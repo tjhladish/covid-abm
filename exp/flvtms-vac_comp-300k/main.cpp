@@ -270,6 +270,8 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     // par->dose_file                = "./counterfactual_doses.txt"; //"./dose_data/FL_doses.txt"; //pop_dir    + "/../fl_vac/doses.txt";
 
     par->behavioral_autotuning = false;
+    par->tune_to_cumul_cases = true;
+    par->death_tuning_offset = 18;
     par->tuning_window = 14;
     par->num_preview_windows = 3;
     par->autotuning_dataset = "autotuning_dataset.csv";
