@@ -52,11 +52,46 @@ const size_t JULIAN_START_YEAR    = 2020;
 
 const int FL_POP                  = 21538187;   // as of 2020 census
 
-vector<vector<double>> REPORTED_FRACTIONS;
+//vector<vector<double>> REPORTED_FRACTIONS;
 
-double calculate_conditional_death_reporting_probability(double RF_death, const vector<double> &rho_vals) {
+double calculate_conditional_death_reporting_probability(const vector<double> &rho_vals, double RF_death) {
     const double rho_death  = 1.0 - (1.0 - RF_death)/((1.0 - rho_vals[0])*(1.0 - rho_vals[1])*(1.0 - rho_vals[2])*(1.0 - rho_vals[3]));
     return rho_death;
+}
+
+void add_death_probabilities(vector<vector<double>>& first_detection_probs, const double RF_death) {
+    for (auto && v: first_detection_probs) { v.push_back(calculate_conditional_death_reporting_probability(v, RF_death)); }
+}
+
+vector<vector<int>> create_sim_day_matrix(const Parameters* par, vector<string>& inflection_dates) {
+    vector<vector<int>> inflection_matrix;
+    for (string date_string: inflection_dates) {
+        const int sim_day = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, date_string);
+        inflection_matrix.push_back(vector<int>(NUM_OF_OUTCOME_TYPES, sim_day)); // assume same inflection date for all outcome types
+    }
+    return inflection_matrix;
+}
+
+vector<vector<double>> create_slope_matrix(size_t num_inflections, double slope) { // assume same logistic slope for all reporting transitions
+    vector<vector<double>> slope_matrix;
+    for (size_t i = 0; i < num_inflections; ++i) {
+        slope_matrix.push_back(vector<double>(NUM_OF_OUTCOME_TYPES, slope));
+    }
+    return slope_matrix;
+}
+
+vector<vector<double>> as_reported_fractions(const Parameters* par, const vector<vector<double>>& first_detection_probs) {
+    vector<vector<double>> RF_matrix;
+    for (auto&& v: first_detection_probs) {
+        RF_matrix.push_back(par->toReportedFraction(v));
+    }
+    return RF_matrix;
+}
+
+void cerr_matrix(const vector<vector<double>> mat) {
+    for (auto v: mat) {
+        cerr_vector(v); cerr << endl;
+    }
 }
 
 Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned long int rng_seed, const unsigned long int serial, const string /*process_id*/) {
@@ -107,59 +142,28 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
 
     {
         // Create model for how outcome-dependent detection probabilities change over time
-        //par->reportedFraction = {0.0, 0.01, 0.5, 0.8, 1.0};      // fraction of asymptomatic, mild, severe, critical, and deaths reported
-        //par->reportedFraction = {0.0, 0.2, 0.75, 0.75, 0.75};      // fraction of asymptomatic, mild, severe, critical, and deaths reported
-        //par->probFirstDetection = {0.0, 0.12, 0.55, 0.1, 0.01};      // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
-
-        const double RF_death_early = 1.0; //0.8; // overall probability of detecting death, at any point
-        const double RF_death_late  = 1.0; //0.9; // overall probability of detecting death, at any point
+        const double RF_death = 1.0; // overall probability of detecting death, at any point
 
         // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
-        vector<double> initial_vals    = {0.0, 0.1, 0.7, 0.1};    // Start of sim (Feb 2020) conditional probabilities
-        initial_vals.push_back(calculate_conditional_death_reporting_probability(RF_death_early, initial_vals));
-        const int isd1 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-06-01"); // inflection date 1
+        vector<vector<double>> first_detection_probs = { {0.0, 0.1, 0.7, 0.1}, // up to "2020-06-01"
+                                                         {0.1, 0.5, 0.5, 0.1}, // up to "2020-10-01"
+                                                         {0.3, 0.9, 0.5, 0.1}, // up to "2021-02-15"
+                                                         {0.1, 0.7, 0.75, 0.1},// up to "2021-10-01"
+                                                         {0.1, 0.6, 0.9, 0.1} };
 
-        vector<double> summer2020_vals = {0.1, 0.7, 0.5, 0.1};
-        summer2020_vals.push_back(calculate_conditional_death_reporting_probability(RF_death_late, summer2020_vals));
-        const int isd2 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-10-01"); // inflection date 2
+        add_death_probabilities(first_detection_probs, RF_death);
+        vector<string> inflection_dates = {"2020-06-01",
+                                           "2020-10-01",
+                                           "2021-02-15",
+                                           "2021-10-01"};
+        vector<vector<int>> inflection_matrix = create_sim_day_matrix(par, inflection_dates);
+        // sign of slope is determined based on initial/final values
+        vector<vector<double>> slope_matrix   = create_slope_matrix(inflection_dates.size(), 0.1); // assume same logistic slope for all reporting transitions
 
-        vector<double> winter2020_vals = {0.4, 0.9, 0.5, 0.1};
-        winter2020_vals.push_back(calculate_conditional_death_reporting_probability(RF_death_late, winter2020_vals));
-        const int isd3 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-06-01"); // inflection date 3
+        par->createDetectionModel(first_detection_probs, inflection_matrix, slope_matrix);
 
-        vector<double> summer2021_vals = {0.2, 0.7, 0.75, 0.1};
-        summer2021_vals.push_back(calculate_conditional_death_reporting_probability(RF_death_late, summer2021_vals));
-        const int isd4 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-12-01"); // inflection date 4
-
-        vector<double> winter2021_vals = {0.1, 0.5, 0.9, 0.1};
-        winter2021_vals.push_back(calculate_conditional_death_reporting_probability(RF_death_late, winter2021_vals));
-
-        vector<vector<double>> vals = {initial_vals, summer2020_vals, winter2020_vals, summer2021_vals, winter2021_vals};
-        cerr << "death init, summer2020, winter2020, summer2021, winter2021: " << initial_vals.back() << " " << summer2020_vals.back() << " " << winter2020_vals.back() << " " << summer2021_vals.back() << " " << winter2021_vals.back() << endl;
-
-        vector<vector<int>> inflection_sim_day = { vector<int>(NUM_OF_OUTCOME_TYPES, isd1),
-                                                   vector<int>(NUM_OF_OUTCOME_TYPES, isd2),
-                                                   vector<int>(NUM_OF_OUTCOME_TYPES, isd3),
-                                                   vector<int>(NUM_OF_OUTCOME_TYPES, isd4) };
-
-        vector<vector<double>> slopes = { vector<double>(NUM_OF_OUTCOME_TYPES, 0.1),
-                                          vector<double>(NUM_OF_OUTCOME_TYPES, 0.1),
-                                          vector<double>(NUM_OF_OUTCOME_TYPES, 0.1),
-                                          vector<double>(NUM_OF_OUTCOME_TYPES, 0.1) }; // sign is determined based on initial/final values
-
-        par->createDetectionModel(vals, inflection_sim_day, slopes);
-
-        vector<double> reported_frac_init       = par->toReportedFraction(initial_vals);
-        vector<double> reported_frac_summer2020 = par->toReportedFraction(summer2020_vals);
-        vector<double> reported_frac_winter2020 = par->toReportedFraction(winter2020_vals);
-        vector<double> reported_frac_summer2021 = par->toReportedFraction(summer2021_vals);
-        vector<double> reported_frac_winter2021 = par->toReportedFraction(winter2021_vals);
-
-        cerr_vector(reported_frac_init); cerr << endl;  REPORTED_FRACTIONS.push_back(reported_frac_init);
-        cerr_vector(reported_frac_summer2020); cerr << endl; REPORTED_FRACTIONS.push_back(reported_frac_summer2020);
-        cerr_vector(reported_frac_winter2020); cerr << endl; REPORTED_FRACTIONS.push_back(reported_frac_winter2020);
-        cerr_vector(reported_frac_summer2021); cerr << endl; REPORTED_FRACTIONS.push_back(reported_frac_summer2021);
-        cerr_vector(reported_frac_winter2021); cerr << endl; REPORTED_FRACTIONS.push_back(reported_frac_winter2021);
+        vector<vector<double>> RF_matrix = as_reported_fractions(par, first_detection_probs);
+        cerr_matrix(RF_matrix);
 
         //cerr << "Detection probability by day\n";
         //for (size_t d = 0; d < par->probFirstDetection.size(); ++d) {
@@ -281,24 +285,16 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
 
 
 void define_strain_parameters(Parameters* par) {
-    const double x_alpha_1 = 1;//0.529; // calculated using quadratic formula: (VES*VEP)x^2 - (VES+VEP)x + VESP_alpha = 0, where VES and VEP are for wildtype
-    const double x_alpha_2 = 1;//0.948;
-
-    const double x_delta_1 = 1;//0.338;
-    const double x_delta_2 = 1;//0.843;
-
     par->VES                   = {{WILDTYPE, {0.40, 0.80}},
-                                  {ALPHA, {0.40*x_alpha_1, 0.80*x_alpha_2}},
-                                  {DELTA, {0.40*x_delta_1, 0.80*x_delta_2}},    // efficacy currently is being reduced in Person.cpp
-                                  {OMICRON, {0.40*x_delta_1, 0.80*x_delta_2}}};
+                                  {ALPHA,    {0.40, 0.80}},
+                                  {DELTA,    {0.40, 0.80}},    // efficacy currently is being reduced in Person.cpp
+                                  {OMICRON,  {0.40, 0.80}}};
     par->VES_NAIVE             = par->VES;
     par->VEP                   = {{WILDTYPE, {0.67, 0.75}},
-                                  {ALPHA, {0.67*x_alpha_1, 0.75*x_alpha_2}},
-                                  {DELTA, {0.67*x_delta_1, 0.75*x_delta_2}},
-                                  {OMICRON, {0.67*x_delta_1, 0.75*x_delta_2}}};
-    //par->VEH                   = {{WILDTYPE, {0.9, 1.0}},   {ALPHA, {0.9, 1.0}}, {DELTA, {0.9, 0.93}}, {OMICRON, {0.35, 0.7}}};
+                                  {ALPHA,    {0.67, 0.75}},
+                                  {DELTA,    {0.67, 0.75}},
+                                  {OMICRON,  {0.67, 0.75}}};
     par->VEH                   = {{WILDTYPE, {0.9, 1.0}},   {ALPHA, {0.9, 1.0}}, {DELTA, {0.9, 0.93}}, {OMICRON, {0.48, 0.96}}};
-    //par->VEI                   = {{WILDTYPE, {0.4, 0.8}},   {ALPHA, {0.4, 0.8}}, {DELTA, {0.4, 0.8}}, {OMICRON, {0.4, 0.8}}};
     par->VEI                   = {{WILDTYPE, {0.4, 0.8}},   {ALPHA, {0.4, 0.8}}, {DELTA, {0.4, 0.8}}, {OMICRON, {0.2, 0.4}}};
     par->VEF                   = {{WILDTYPE, {0.0, 0.0}},   {ALPHA, {0.0, 0.0}}, {DELTA, {0.0, 0.0}}, {OMICRON, {0.0, 0.0}}}; // effect likely captured by VEH
 
@@ -312,57 +308,19 @@ void define_strain_parameters(Parameters* par) {
     par->strainPars[DELTA].relIcuMortality     = 3.0; // TODO - this is due to icu crowding.  should be represented differently
     par->strainPars[DELTA].immuneEscapeProb    = 0.15;
 
-//    const size_t omicron_scenario = 0;
-
     const double appxNonOmicronInfPd     = 9.0;
     const double appxOmicronInfPd        = 6.0;
     const double relInfectiousnessDenom  = (1.0 - pow(1.0 - par->household_transmission_haz_mult, appxOmicronInfPd/appxNonOmicronInfPd)) / par->household_transmission_haz_mult;
 
-//    switch (omicron_scenario) {
-//        case 0: // high immune escape, low transmissibility; low severity
-//            par->strainPars[OMICRON].immuneEscapeProb  = 0.7;
-//            par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.5 / relInfectiousnessDenom;
-//            par->strainPars[OMICRON].relPathogenicity  = par->strainPars[ALPHA].relPathogenicity * 0.5;
-//            par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.25;
-//            break;
-//        case 1: // high immune escape, low transmissibility; delta severity
-//            par->strainPars[OMICRON].immuneEscapeProb  = 0.7;
-//            par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.5 / relInfectiousnessDenom;
-//            par->strainPars[OMICRON].relPathogenicity  = par->strainPars[DELTA].relPathogenicity * 0.5;
-//            par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.5;
-//            break;
-//        case 2: // moderate immune escape, high transmissibility; low severity
-//            break;
-//        case 3: // moderate immune escape, high transmissibility; delta severity
-//            par->strainPars[OMICRON].immuneEscapeProb  = 0.5;
-//            par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 2.0 / relInfectiousnessDenom;
-//            par->strainPars[OMICRON].relPathogenicity  = par->strainPars[DELTA].relPathogenicity * 0.5;
-//            par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.5;
-//            break;
-//    }
-
     par->strainPars[OMICRON].immuneEscapeProb  = 0.6;
     par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 2.0 / relInfectiousnessDenom;
-    cerr << "delta, omicron rel infectiousness: " << par->strainPars[DELTA].relInfectiousness << " " << par->strainPars[OMICRON].relInfectiousness << endl;
-    exit(10);
     par->strainPars[OMICRON].relPathogenicity  = par->strainPars[ALPHA].relPathogenicity * 0.5;
     par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.75;
     par->strainPars[OMICRON].relIcuMortality   = 2.0;
     par->strainPars[OMICRON].symptomaticInfectiousPeriod = appxNonOmicronInfPd - 1;
     par->strainPars[OMICRON].relSymptomOnset = 0.5;     // roughly based on MMWR Early Release Vol. 70 12/28/2021
-//    par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 1.5;
-//    par->strainPars[OMICRON].relPathogenicity  = par->strainPars[ALPHA].relPathogenicity;
-//    par->strainPars[OMICRON].relSeverity       = 1.1; // only applies if not vaccine protected
-//  //par->strainPars[OMICRON].relCriticality    = 1.0;
-//  //par->strainPars[OMICRON].relMortality      = 1.0;
-//    par->strainPars[OMICRON].relIcuMortality   = 2.0;
-//    par->strainPars[OMICRON].immuneEscapeProb  = 0.7;
 
-    //                          WILDTYPE, ALPHA, DELTA, OMICRON
-    //par->crossProtectionMatrix = {{ true, false, false,   false},    // WILDTYPE
-    //                              {false,  true, false,   false},    // ALPHA
-    //                              {false, false,  true,   false},    // DELTA
-    //                              {false, false, false,    true}};   // OMICRON
+    cerr << "delta, omicron rel infectiousness: " << par->strainPars[DELTA].relInfectiousness << " " << par->strainPars[OMICRON].relInfectiousness << endl;
 
     par->crossProtectionMatrix = {{1, 0, 0, 0},    // WILDTYPE
                                   {0, 1, 0, 0},    // ALPHA
@@ -608,32 +566,32 @@ vector<double> calc_Rt_moving_average(vector<pair<size_t, double>> Rt_pairs, siz
     return Rt_ma;
 }
 
-void calculate_reporting_ratios(Community* community) {
-    // this counts infections/cases/deaths that happen during the simulation,
-    // but not cases and deaths that are scheduled to happen after the last simulated day
-    const double cinf   = sum(community->getNumNewlyInfected());
-    const double ccase  = sum(community->getNumNewlySymptomatic());
-    const double csev   = sum(community->getNumNewlySevere());
-    const double ccrit  = sum(community->getNumNewlyCritical());
-    const double cdeath = sum(community->getNumNewlyDead());
-
-    cerr << "true infections, mild, severe, critical, deaths: " << cinf << " " << ccase << " " << csev  << " " << ccrit << " " << cdeath << endl;
-    cerr << "IFR, CFR: " << 100*cdeath/cinf << "%, " << 100*cdeath/ccase << "%" << endl;
-
-    // This is not a perfect way of calculating the case:death ratios, but it should be a reasonable approximation
-    const vector<vector<double>> RF = REPORTED_FRACTIONS;
-    cerr << "\nReported fractions (asymp, mild, severe, crit, death [case:death ratio]):" << endl;
-    cerr << "wave 1: "; cerr_vector(RF[0]); cerr << " [" << (int) (RF[0][0]*cinf + RF[0][1]*ccase + RF[0][2]*csev + RF[0][3]*ccrit + RF[0][4]*cdeath)/(RF[0][4]*cdeath) << "] " << endl;
-    cerr << "wave 2: "; cerr_vector(RF[1]); cerr << " [" << (int) (RF[1][0]*cinf + RF[1][1]*ccase + RF[1][2]*csev + RF[1][3]*ccrit + RF[1][4]*cdeath)/(RF[1][4]*cdeath) << "] " << endl;
-    cerr << "wave 3: "; cerr_vector(RF[2]); cerr << " [" << (int) (RF[2][0]*cinf + RF[2][1]*ccase + RF[2][2]*csev + RF[2][3]*ccrit + RF[2][4]*cdeath)/(RF[2][4]*cdeath) << "] " << endl;
-
-    cerr << "\nIncidence by outcome:\n";
-    cerr << "\t ASYMPTOMATIC :\t" << community->getCumulIncidenceByOutcome(ASYMPTOMATIC) << endl;
-    cerr << "\t MILD :  \t" << community->getCumulIncidenceByOutcome(MILD) << endl;
-    cerr << "\t SEVERE :\t" << community->getCumulIncidenceByOutcome(SEVERE) << endl;
-    cerr << "\t CRITICAL :\t" << community->getCumulIncidenceByOutcome(CRITICAL) << endl;
-    cerr << "\t DEATH :\t" << community->getCumulIncidenceByOutcome(DEATH) << endl;
-}
+//void calculate_reporting_ratios(Community* community) {
+//    // this counts infections/cases/deaths that happen during the simulation,
+//    // but not cases and deaths that are scheduled to happen after the last simulated day
+//    const double cinf   = sum(community->getNumNewlyInfected());
+//    const double ccase  = sum(community->getNumNewlySymptomatic());
+//    const double csev   = sum(community->getNumNewlySevere());
+//    const double ccrit  = sum(community->getNumNewlyCritical());
+//    const double cdeath = sum(community->getNumNewlyDead());
+//
+//    cerr << "true infections, mild, severe, critical, deaths: " << cinf << " " << ccase << " " << csev  << " " << ccrit << " " << cdeath << endl;
+//    cerr << "IFR, CFR: " << 100*cdeath/cinf << "%, " << 100*cdeath/ccase << "%" << endl;
+//
+//    // This is not a perfect way of calculating the case:death ratios, but it should be a reasonable approximation
+//    const vector<vector<double>> RF = as_reported_fractions();
+//    cerr << "\nReported fractions (asymp, mild, severe, crit, death [case:death ratio]):" << endl;
+//    cerr << "wave 1: "; cerr_vector(RF[0]); cerr << " [" << (int) (RF[0][0]*cinf + RF[0][1]*ccase + RF[0][2]*csev + RF[0][3]*ccrit + RF[0][4]*cdeath)/(RF[0][4]*cdeath) << "] " << endl;
+//    cerr << "wave 2: "; cerr_vector(RF[1]); cerr << " [" << (int) (RF[1][0]*cinf + RF[1][1]*ccase + RF[1][2]*csev + RF[1][3]*ccrit + RF[1][4]*cdeath)/(RF[1][4]*cdeath) << "] " << endl;
+//    cerr << "wave 3: "; cerr_vector(RF[2]); cerr << " [" << (int) (RF[2][0]*cinf + RF[2][1]*ccase + RF[2][2]*csev + RF[2][3]*ccrit + RF[2][4]*cdeath)/(RF[2][4]*cdeath) << "] " << endl;
+//
+//    cerr << "\nIncidence by outcome:\n";
+//    cerr << "\t ASYMPTOMATIC :\t" << community->getCumulIncidenceByOutcome(ASYMPTOMATIC) << endl;
+//    cerr << "\t MILD :  \t" << community->getCumulIncidenceByOutcome(MILD) << endl;
+//    cerr << "\t SEVERE :\t" << community->getCumulIncidenceByOutcome(SEVERE) << endl;
+//    cerr << "\t CRITICAL :\t" << community->getCumulIncidenceByOutcome(CRITICAL) << endl;
+//    cerr << "\t DEATH :\t" << community->getCumulIncidenceByOutcome(DEATH) << endl;
+//}
 
 vector<double> simulator(vector<double> args, const unsigned long int rng_seed, const unsigned long int serial, const ABC::MPI_par* mp = nullptr) {
     cerr << "rng seed: " << rng_seed << endl;
