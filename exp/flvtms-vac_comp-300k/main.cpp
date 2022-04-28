@@ -288,18 +288,12 @@ void define_strain_parameters(Parameters* par) {
     par->IEP                   = 0.75;
     par->IEH                   = 0.5;
 
-    par->VES                   = {{WILDTYPE, {0.40, 0.80}},
-                                  {ALPHA,    {0.40, 0.80}},
-                                  {DELTA,    {0.40, 0.80}},    // efficacy currently is being reduced in Person.cpp
-                                  {OMICRON,  {0.40, 0.80}}};
+    par->VES                   = {{WILDTYPE, {0.40, 0.80}}, {ALPHA, {0.40, 0.80}}, {DELTA, {0.40, 0.80}}, {OMICRON, {0.40, 0.80}}}; // efficacy currently is being reduced in Person.cpp
+    par->VEP                   = {{WILDTYPE, {0.67, 0.75}}, {ALPHA, {0.67, 0.75}}, {DELTA, {0.67, 0.75}}, {OMICRON, {0.67, 0.75}}};
+    par->VEH                   = {{WILDTYPE, {0.9,  1.0}},  {ALPHA, {0.9,  1.0}},  {DELTA, {0.9,  0.93}}, {OMICRON, {0.48, 0.96}}};
+    par->VEI                   = {{WILDTYPE, {0.4,  0.8}},  {ALPHA, {0.4,  0.8}},  {DELTA, {0.4,  0.8}},  {OMICRON, {0.2,  0.4}}};
+    par->VEF                   = {{WILDTYPE, {0.0,  0.0}},  {ALPHA, {0.0,  0.0}},  {DELTA, {0.0,  0.0}},  {OMICRON, {0.0,  0.0}}}; // effect likely captured by VEH
     par->VES_NAIVE             = par->VES;
-    par->VEP                   = {{WILDTYPE, {0.67, 0.75}},
-                                  {ALPHA,    {0.67, 0.75}},
-                                  {DELTA,    {0.67, 0.75}},
-                                  {OMICRON,  {0.67, 0.75}}};
-    par->VEH                   = {{WILDTYPE, {0.9, 1.0}},   {ALPHA, {0.9, 1.0}}, {DELTA, {0.9, 0.93}}, {OMICRON, {0.48, 0.96}}};
-    par->VEI                   = {{WILDTYPE, {0.4, 0.8}},   {ALPHA, {0.4, 0.8}}, {DELTA, {0.4, 0.8}}, {OMICRON, {0.2, 0.4}}};
-    par->VEF                   = {{WILDTYPE, {0.0, 0.0}},   {ALPHA, {0.0, 0.0}}, {DELTA, {0.0, 0.0}}, {OMICRON, {0.0, 0.0}}}; // effect likely captured by VEH
 
     par->strainPars[ALPHA].relInfectiousness   = 1.6;
     par->strainPars[ALPHA].relPathogenicity    = 1.1;
