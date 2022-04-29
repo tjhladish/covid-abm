@@ -122,12 +122,18 @@ class Community {
 
             // groups of infectious people: indexed by day, location type, location ptr, and relative infectiousness
             // std::vector< std::map<LocationType, std::map<Location*, std::map<double, std::vector<Person*>>, Location::LocPtrComp>>> _isHot;
-            for (size_t i=0; i < o._isHot.size(); ++i) {
-                for (const auto& [lt, locMap] : o._isHot[i]) {
+            for (size_t day = 0; day < o._isHot.size(); ++day) {
+                // std::map<LocationType, std::map<Location*, std::map<double, std::vector<Person*>>, Location::LocPtrComp>>
+                for (const auto& [lt, locMap] : o._isHot[day]) {
+                    // std::map<Location*, std::map<double, std::vector<Person*>>, Location::LocPtrComp>
                     for (const auto& [loc, relinfMap] : locMap) {
+                        // std::map<double, std::vector<Person*>>
                         for (const auto& [relinfness, v] : relinfMap) {
+                            // std::vector<Person*>
                             for (Person* p : v) {
-                                _isHot[i][lt][location_ptr_map[loc]][relinfness].push_back(person_ptr_map[p]);
+                                Location* new_loc = location_ptr_map[loc];
+                                Person* new_per   = person_ptr_map[p];
+                                _isHot[day][lt][new_loc][relinfness].push_back(new_per);
                             }
                         }
                     }
