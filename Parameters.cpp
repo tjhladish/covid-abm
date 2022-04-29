@@ -277,8 +277,8 @@ void Parameters::createSocialDistancingModel(std::string filename, size_t metric
 }
 
 
-size_t ReportingLagModel::sample(const gsl_rng* RNG, const Date* date) const {
-    return sample(RNG, date->to_string({"yyyy", "mm", "dd"}, "-"));
+size_t ReportingLagModel::sample(const gsl_rng* REPORTING_RNG, const Date* date) const {
+    return sample(REPORTING_RNG, date->to_string({"yyyy", "mm", "dd"}, "-"));
 }
 
 

@@ -43,6 +43,11 @@ void Infection::dumper() const {
     cerr << "\tdeathTime        : " << deathTime                                     << endl;
     cerr << "\tinfections_caused: " << infections_caused.size()                      << endl;
     cerr << "\trelInfectiousness: " << relInfectiousness                             << endl;
+    cerr << "\tis detected?     : " << boolalpha << (bool)_detection << noboolalpha        << endl;
+    if (_detection) {
+        cerr << "\t    detected state : " << _detection->detected_state                << endl;
+        cerr << "\t    reported time  : " << _detection->reported_time                 << endl;
+    }
 }
 
 
