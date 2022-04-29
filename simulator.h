@@ -219,6 +219,7 @@ int seed_epidemic(const Parameters* par, Community* community, const Date* date,
         for (int i=0; i<num_exposed; i++) {
             // gsl_rng_uniform_int returns on [0, numperson-1]
             int transmit_to_id = gsl_rng_uniform_int(RNG, numperson);
+
             if (community->infect(transmit_to_id, (StrainType) weighted_choice(RNG, strain_weights))) {
                 introduced_infection_ct++;
             }
@@ -258,7 +259,7 @@ map<size_t, vector<int>> parse_emp_data_file(const Parameters* par) {
     for (vector<string> &v : emp_data) {
         if (v[0] == "Date") { continue; }
         int rcase = stoi(v[1]);
-        int rdeath = v[4] == "NA" ? 0 : stoi(v[4]);
+        int rdeath = 0; //v[4] == "NA" ? 0 : stoi(v[4]);
         recast_emp_data[Date::to_sim_day(par->startJulianYear, par->startDayOfYear, v[0])] = {rcase, rdeath};
     }
     return recast_emp_data;
@@ -909,14 +910,15 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
 
     bool restore_occurred = false; // relevant for behavior autotuning
     for (; date->day() < (signed) par->runLength; date->increment()) {
-        if (par->behavioral_autotuning and date->day() > 0) {
-            behavior_autotuning(par, community, date, ledger, tuner, sim_cache, social_distancing_anchors, restore_occurred);
-        }
+//        if (par->behavioral_autotuning and date->day() > 0) {
+//            behavior_autotuning(par, community, date, ledger, tuner, sim_cache, social_distancing_anchors, restore_occurred);
+//        }
         // if (restore_occurred) { date->decrement(); restore_occurred = false; }// date is always incremented before tick is called next, so need to decrement before that if restoring
 //if (*date == "2021-12-01") { gsl_rng_set(RNG, par->randomseed);
-cerr << "DEBUG (pre tick day) " << date->day() << ' ' << gsl_rng_uniform(RNG) << ' ' << gsl_rng_uniform(REPORTING_RNG) << endl;
+
+cout << "DEBUG (pre tick day) " << right << setw(4) << date->day() << ' ' << left << setw(12) << gsl_rng_uniform(RNG) << ' ' << setw(12) << gsl_rng_uniform(REPORTING_RNG) << " | " << right;
         community->tick();
-cerr << "DEBUG (post tick day) " << date->day() << ' ' << gsl_rng_uniform(RNG) << ' ' << gsl_rng_uniform(REPORTING_RNG) << endl;
+cout << left << setw(12) << gsl_rng_uniform(RNG) << ' ' << setw(12) << gsl_rng_uniform(REPORTING_RNG) << right << endl;
 
         // if (par->behavioral_autotuning) {
         //     behavior_autotuning(par, community, date, ledger, tuner, sim_cache, social_distancing_anchors, restore_occurred);
@@ -924,6 +926,10 @@ cerr << "DEBUG (post tick day) " << date->day() << ' ' << gsl_rng_uniform(RNG) <
         // }
 
         community->tick();
+gsl_rng* tmp_rng = gsl_rng_clone(RNG);
+cout << "tmp A: " << gsl_rng_uniform(tmp_rng) << endl;
+gsl_rng_free(tmp_rng);
+
 
         const size_t sim_day = date->day();
 
@@ -962,6 +968,7 @@ cerr << "DEBUG (post tick day) " << date->day() << ' ' << gsl_rng_uniform(RNG) <
         }
 
         seed_epidemic(par, community, date, ledger->strains);
+
 // cerr << "DEBUG (post seed day) " << date->day() << ' ' << gsl_rng_uniform(RNG) << ' ' << gsl_rng_uniform(RNG) << endl;
         const vector<size_t> infections         = community->getNumNewlyInfected();
         const vector<size_t> all_reported_cases = community->getNumDetectedCasesReport();
@@ -1033,7 +1040,6 @@ cerr << "DEBUG (post tick day) " << date->day() << ' ' << gsl_rng_uniform(RNG) <
            << VE_data["vaxHosp"]*1e4/pop_at_risk << ","
            << VE_data["unvaxHosp"]*1e4/pop_at_risk;
         ledger->plot_log_buffer.push_back(ss.str());
-
     }
 
     const vector<size_t> sim_reported_cases = community->getNumDetectedCasesReport();

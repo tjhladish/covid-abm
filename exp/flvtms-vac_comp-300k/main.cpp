@@ -42,12 +42,12 @@ const string output_dir("/ufrc/longini/tjhladish/");
 
 const int RESTART_BURNIN          = 0;
 vector<int> debug_len = {43, 100, 200};
-const int FORECAST_DURATION       = debug_len[1];
+const int FORECAST_DURATION       = debug_len[2];
 // const int FORECAST_DURATION       = 747;
 // const int FORECAST_DURATION       = 468;
 const int OVERRUN                 = 14; // to get accurate Rt estimates near the end of the forecast duration
 const bool RUN_FORECAST           = true;
-const int TOTAL_DURATION          = RUN_FORECAST ? RESTART_BURNIN + FORECAST_DURATION + OVERRUN : RESTART_BURNIN;
+int TOTAL_DURATION          = RUN_FORECAST ? RESTART_BURNIN + FORECAST_DURATION + OVERRUN : RESTART_BURNIN;
 //const size_t JULIAN_TALLY_DATE    = 146; // intervention julian date - 1
 const size_t JULIAN_START_YEAR    = 2020;
 //const double DEATH_UNDERREPORTING = 11807.0/20100.0; // FL Mar15-Sep5, https://www.nytimes.com/interactive/2020/05/05/us/coronavirus-death-toll-us.html
@@ -273,7 +273,7 @@ cerr << "DEBUG (runL) " << par->runLength << endl;
     par->vaccination_file         = "./active_vax_counterfactual_doses.txt"; //"./dose_data/fl_vac_v4.txt"; //pop_dir    + "/../fl_vac/fl_vac_v4.txt";
     // par->dose_file                = "./counterfactual_doses.txt"; //"./dose_data/FL_doses.txt"; //pop_dir    + "/../fl_vac/doses.txt";
 
-    par->behavioral_autotuning = true;
+    par->behavioral_autotuning = false;
     par->tune_to_cumul_cases = true;
     par->death_tuning_offset = 18;
     par->tuning_window = 14;
@@ -644,6 +644,10 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     gsl_rng_set(RNG, rng_seed);
     gsl_rng_set(VAX_RNG, rng_seed);
     gsl_rng_set(REPORTING_RNG, rng_seed);
+
+//for (int i = 0; i < 1e6; ++i) { cerr << "RNG " << setprecision(40) << gsl_rng_uniform(RNG) << endl; } exit(10);
+//for (int i = 0; i < 1e7; ++i) { cerr << "REPORTING_RNG " << gsl_rng_uniform(REPORTING_RNG) << endl; } exit(10);
+
     //gsl_rng_set(RNG, 1);
     //gsl_rng_set(VAX_RNG, 1);
     // initialize bookkeeping for run
@@ -817,10 +821,10 @@ void usage() {
 
 
 int main(int argc, char* argv[]) {
-    if (not (argc == 3 or argc == 5 or argc == 6) ) {
-        usage();
-        exit(100);
-    }
+//    if (not (argc == 3 or argc == 5 or argc == 6) ) {
+//        usage();
+//        exit(100);
+//    }
 
     bool process_db = false;
     bool simulate_db = false;
@@ -840,8 +844,8 @@ int main(int argc, char* argv[]) {
             requested_serial = atoi(argv[++i]);
         } else if ( strcmp(argv[i], "--posterior" ) == 0 ) {
             requested_posterior_idx = atoi(argv[++i]);
-//        } else if ( strcmp(argv[i], "--runLength" ) == 0 ) {
-//            TOTAL_DURATION = atoi(argv[++i]);
+        } else if ( strcmp(argv[i], "--runLength" ) == 0 ) {
+            TOTAL_DURATION = atoi(argv[++i]);
         } else {
             usage();
             exit(101);
