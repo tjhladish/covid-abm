@@ -419,6 +419,8 @@ double score_fit(const Parameters* par, const Community* community, const size_t
     double avg_3day_rdata_w_offset = mean_rdata == 0 ? mean(single_rdata_p10k) : mean_rdata;
 
     const double normed_distance = distance/avg_3day_rdata_w_offset;
+cerr << "DEBUG (norm dist) " << normed_distance << endl;
+exit(-1);
     return normed_distance;
 }
 
@@ -468,16 +470,18 @@ class BehaviorAutoTuner {
     }
 
     void user_sim_setup() {
-        cerr << "DO YOU WANT TO SIMULATE MANUALLY? (y/n) ";
-        cin >> usr_choice;
-        manual_control = (usr_choice == 'y') ? true :
-                         (usr_choice == 'n') ? false : true;
+        // cerr << "DO YOU WANT TO SIMULATE MANUALLY? (y/n) ";
+        // cin >> usr_choice;
+        // manual_control = (usr_choice == 'y') ? true :
+        //                  (usr_choice == 'n') ? false : true;
+        manual_control = false;
 
         if (not manual_control) {
-            cerr << "DO YOU WANT THE AUTO FITTING TO WAIT FOR KEYPRESSES BEFORE CONTINUING? (y/n) ";
-            cin >> usr_choice;
-            slow_auto = (usr_choice == 'y') ? true :
-                        (usr_choice == 'n') ? false : true;
+            // cerr << "DO YOU WANT THE AUTO FITTING TO WAIT FOR KEYPRESSES BEFORE CONTINUING? (y/n) ";
+            // cin >> usr_choice;
+            // slow_auto = (usr_choice == 'y') ? true :
+            //             (usr_choice == 'n') ? false : true;
+            slow_auto = false;
         }
     }
 
@@ -633,12 +637,12 @@ void process_behavior_fit(int fit_is_good, double fit_distance, const Parameters
     if(fit_is_good) { // calling scope deemed window's fit as "good"
         tuner->recache = true;  // because fit is good, we can overwrite cache
 
-        double val1;
+        double val_next;
         if (tuner->manual_control) {
             cerr << "FIT IS GOOD" << endl << "Enter next soc_contact step: ";
-            cin >> val1;
+            cin >> val_next;
         } else {
-            val1 = tuner->cur_anchor_val;   // always start the next window with the val that was selected
+            val_next = tuner->cur_anchor_val;   // always start the next window with the val that was selected
             tuner->reset_bin_search_range();
             if (tuner->slow_auto) { cin.ignore(); }
 
@@ -649,8 +653,34 @@ void process_behavior_fit(int fit_is_good, double fit_distance, const Parameters
             tuner->print_header();
         }
 
+        // need to overwrite the previously changing anchor with the best performing value
+        if (tuner->tuning_window_ct == 1) { // tuning the first window
+            double val1, val2;
+            if (tuner->manual_control) {
+                // TODO: fix manual mode
+                exit(-1);
+            } else {
+                val1 = tuner->cur_anchor_val;
+                val2 = val1;
+            }
+
+            social_distancing_anchors[0] = {Date::to_ymd(0, par), val1};
+            social_distancing_anchors[1] = {Date::to_ymd(par->tuning_window - 1, par), val2};
+        } else { // past the first tuning window
+            double val;
+            if (tuner->manual_control) {
+                // TODO: fix manual mode
+                exit(-1);
+            } else {
+                val = tuner->cur_anchor_val;
+            }
+
+            const size_t anchor_to_update_day = (par->tuning_window * tuner->tuning_window_ct) - 1;
+            social_distancing_anchors.back() = {Date::to_ymd(anchor_to_update_day, par), val};
+        }
+
         const size_t next_anchor_day = (par->tuning_window * (tuner->tuning_window_ct + 1)) - 1;
-        social_distancing_anchors.emplace_back(Date::to_ymd(next_anchor_day, par), val1);
+        social_distancing_anchors.emplace_back(Date::to_ymd(next_anchor_day, par), val_next);
     } else { // calling scope deemed window's fit as "not good"
         // if using the automated system, conduct modified binary search for new anchor val
         if (not tuner->manual_control) { tuner->cur_anchor_val = bin_search_anchor(tuner, fit_distance); }
@@ -737,6 +767,7 @@ void behavior_autotuning(const Parameters* par, Community* &community, Date* &da
 
         // calculate normalized distance for this tuning window
         vector<size_t> model_tuning_data = (par->tune_to_cumul_cases) ? community->getNumDetectedCasesReport() : community-> getNumDetectedDeathsReport();
+cerr << "DEBUG (tuning dat) "; cerr_vector(model_tuning_data); cerr << endl;
         double fit_distance = score_fit(par, community, day, model_tuning_data, tuner->emp_data);
 //cerr << "current anchor, score: " << tuner->cur_anchor_val << ", " << fit_distance << endl;
         // keep track of the anchor val with the smallest distance for this window
@@ -878,14 +909,20 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
 
     bool restore_occurred = false; // relevant for behavior autotuning
     for (; date->day() < (signed) par->runLength; date->increment()) {
-        if (restore_occurred) { date->decrement(); restore_occurred = false; }// date is always incremented before tick is called next, so need to decrement before that if restoring
-//if (*date == "2021-12-01") { gsl_rng_set(RNG, par->randomseed); }
-        community->tick();
-
         if (par->behavioral_autotuning) {
             behavior_autotuning(par, community, date, ledger, tuner, sim_cache, social_distancing_anchors, restore_occurred);
-            if (restore_occurred) { continue; }
+            // if (restore_occurred) { print_once = true; restore_occurred = false; }
         }
+        // if (restore_occurred) { date->decrement(); restore_occurred = false; }// date is always incremented before tick is called next, so need to decrement before that if restoring
+//if (*date == "2021-12-01") { gsl_rng_set(RNG, par->randomseed);
+cerr << "DEBUG (pre tick day) " << date->day() << ' ' << gsl_rng_uniform(RNG) << ' ' << gsl_rng_uniform(REPORTING_RNG) << endl;
+        community->tick();
+cerr << "DEBUG (post tick day) " << date->day() << ' ' << gsl_rng_uniform(RNG) << ' ' << gsl_rng_uniform(REPORTING_RNG) << endl;
+
+        // if (par->behavioral_autotuning) {
+        //     behavior_autotuning(par, community, date, ledger, tuner, sim_cache, social_distancing_anchors, restore_occurred);
+        //     if (restore_occurred) { continue; }
+        // }
 
         const size_t sim_day = date->day();
 
@@ -924,6 +961,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
         }
 
         seed_epidemic(par, community, date, ledger->strains);
+// cerr << "DEBUG (post seed day) " << date->day() << ' ' << gsl_rng_uniform(RNG) << ' ' << gsl_rng_uniform(RNG) << endl;
         const vector<size_t> infections         = community->getNumNewlyInfected();
         const vector<size_t> all_reported_cases = community->getNumDetectedCasesReport();
         const size_t reported_cases             = all_reported_cases[sim_day];

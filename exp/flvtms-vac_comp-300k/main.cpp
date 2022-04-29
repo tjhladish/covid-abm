@@ -41,8 +41,10 @@ const string output_dir("/ufrc/longini/tjhladish/");
 //const string vaccination_file = pop_dir + "/../fl_vac/fl_vac_v4.txt";
 
 const int RESTART_BURNIN          = 0;
-const int FORECAST_DURATION       = 747;
-//const int FORECAST_DURATION       = 468;
+vector<int> debug_len = {43, 100, 200};
+const int FORECAST_DURATION       = debug_len[1];
+// const int FORECAST_DURATION       = 747;
+// const int FORECAST_DURATION       = 468;
 const int OVERRUN                 = 14; // to get accurate Rt estimates near the end of the forecast duration
 const bool RUN_FORECAST           = true;
 const int TOTAL_DURATION          = RUN_FORECAST ? RESTART_BURNIN + FORECAST_DURATION + OVERRUN : RESTART_BURNIN;
@@ -83,6 +85,7 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->startJulianYear         = JULIAN_START_YEAR;
     par->startDayOfYear          = Date::to_julian_day("2020-02-10");
     par->runLength               = TOTAL_DURATION;
+cerr << "DEBUG (runL) " << par->runLength << endl;
     //par->annualIntroductionsCoef = 1;
 
     par->beginContactTracing           = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-06-01");
@@ -95,6 +98,7 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->contactTracingDepth           = 2;
 
     par->quarantineProbability  = {0.0, 0.0, 0.0};
+    // par->quarantineProbability  = {0.9, 0.75, 0.5};
     par->selfQuarantineDuration = 10;
 
     vector<double> seasonality;
@@ -266,10 +270,10 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->networkFilename          = pop_dir    + "/network-"            + SIM_POP + ".txt";
     par->publicActivityFilename   = pop_dir    + "/public-activity-"    + SIM_POP + ".txt";
     par->rCaseDeathFilename       = "./rcasedeath-florida.csv";
-    par->vaccination_file         = "./counterfactual_doses_v2.txt"; //"./dose_data/fl_vac_v4.txt"; //pop_dir    + "/../fl_vac/fl_vac_v4.txt";
+    par->vaccination_file         = "./active_vax_counterfactual_doses.txt"; //"./dose_data/fl_vac_v4.txt"; //pop_dir    + "/../fl_vac/fl_vac_v4.txt";
     // par->dose_file                = "./counterfactual_doses.txt"; //"./dose_data/FL_doses.txt"; //pop_dir    + "/../fl_vac/doses.txt";
 
-    par->behavioral_autotuning = false;
+    par->behavioral_autotuning = true;
     par->tune_to_cumul_cases = true;
     par->death_tuning_offset = 18;
     par->tuning_window = 14;
@@ -639,6 +643,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     cerr << "rng seed: " << rng_seed << endl;
     gsl_rng_set(RNG, rng_seed);
     gsl_rng_set(VAX_RNG, rng_seed);
+    gsl_rng_set(REPORTING_RNG, rng_seed);
     //gsl_rng_set(RNG, 1);
     //gsl_rng_set(VAX_RNG, 1);
     // initialize bookkeeping for run
@@ -692,6 +697,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         vc->set_flexible_queue_allocation(false);
 
         VacCampaignType selected_strat = NUM_OF_VAC_CAMPAIGN_TYPES;
+        // VacCampaignType selected_strat = RING_VACCINATION;
         vc->set_reactive_vac_strategy(selected_strat);
         vc->set_reactive_vac_dose_allocation(0.0);
 
@@ -796,6 +802,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     delete par;
     delete community;
 
+metrics = vector<double>(424);
     return metrics;
 }
 

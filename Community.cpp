@@ -1253,7 +1253,7 @@ double Community::getHouseholdSecondaryAttackRate(std::vector<Person*> &pop) {
 
 map<string, double> Community::calculate_daily_direct_VE() {
     map<string, double> VE_map;
-    if (vac_campaign) {
+    // if (vac_campaign) {
         size_t num_ppl_fully_vaxd = 0;
         size_t num_dose_1 = 0, num_dose_2 = 0, num_dose_3 = 0;
         size_t num_breakthru_infs = 0, num_breakthru_dis = 0, num_breakthru_hosp = 0, num_breakthru_dths = 0, num_breakthru_reported = 0;
@@ -1328,7 +1328,7 @@ map<string, double> Community::calculate_daily_direct_VE() {
         VE_map["unvaxInfs"]      = (double) num_unvaxd_infs;
         VE_map["vaxHosp"]        = (double) num_breakthru_hosp;
         VE_map["unvaxHosp"]      = (double) num_unvaxd_hosp;
-    }
+    // }
     return VE_map;
 }
 

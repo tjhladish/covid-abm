@@ -321,7 +321,7 @@ class Person {
         void endQuarantine();
         bool isQuarantining(const size_t today);
 
-        void dumper() const {
+        void dumper(int day = 0) const {
             cerr << "Person ID: " << id << endl;
             cerr << "\thome loc: " << home_loc->getID() << endl;
             cerr << "\tday loc: " << (day_loc ? day_loc->getID() : -1) << endl;
@@ -334,6 +334,10 @@ class Person {
             cerr << "\tinfection days: "; for (size_t i = 0; i < infectionHistory.size(); ++i) { cerr << getInfectedTime(i) << ' '; } cerr << endl;
             cerr << "\tvaccination history size: " << vaccineHistory.size() << endl;
             cerr << "\tvaccine dose days: "; for (int d : vaccineHistory) { cerr << d << ' '; } cerr << endl;
+            cerr << boolalpha << "\tis alive: " << isAlive(day) << endl;
+            cerr << boolalpha << "\tin hospital: " << inHospital(day) << endl;
+            cerr << boolalpha << "\tin icu: " << inIcu(day) << endl;
+            cerr << noboolalpha;
         }
 
 
