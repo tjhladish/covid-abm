@@ -271,8 +271,7 @@ Infection* Person::infect(Community* community, Person* source, const Date* date
     mortalityCoef                     *= getNumNaturalInfections() > 1 ? (1.0 - _par->IEF) : 1.0;
     mortalityCoef                     *= 1.0 - effective_VEF;
 
-    const double icuMortality          = _par->icuMortality(comorbidity, age, infection.icuBegin) * _par->strainPars[strain].relIcuMortality * mortalityCoef;
-    const double nonIcuMotality        = NON_ICU_CRITICAL_MORTALITY * mortalityCoef;
+    const double nonIcuMotality        = NON_ICU_CRITICAL_MORTALITY * mortalityCoef;        // icu mortality calculated later, as it depends on timing
 
     infection.relInfectiousness       *= _par->strainPars[strain].relInfectiousness;
     infection.relInfectiousness       *= getNumNaturalInfections() > 1 ? (1.0 - _par->IEI) : 1.0;
@@ -335,6 +334,8 @@ Infection* Person::infect(Community* community, Person* source, const Date* date
                 if (gsl_rng_uniform(RNG) < icu_prob) {
                     // Patient goes to intensive care
                     infection.icuBegin = infection.criticalBegin;
+                    const double icuMortality          = _par->icuMortality(comorbidity, age, infection.icuBegin) * _par->strainPars[strain].relIcuMortality * mortalityCoef;
+
                     if (not hosp) { infection.hospitalizedBegin = infection.icuBegin; } // if they weren't hospitalized before, they are now
                     death = gsl_rng_uniform(RNG) < icuMortality;
                     if (death) {
