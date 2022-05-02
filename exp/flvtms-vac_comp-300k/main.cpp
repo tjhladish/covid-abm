@@ -41,10 +41,8 @@ const string output_dir("/ufrc/longini/tjhladish/");
 //const string vaccination_file = pop_dir + "/../fl_vac/fl_vac_v4.txt";
 
 const int RESTART_BURNIN          = 0;
-vector<int> debug_len = {43, 100, 200};
-const int FORECAST_DURATION       = debug_len[2];
 // const int FORECAST_DURATION       = 747;
-// const int FORECAST_DURATION       = 468;
+const int FORECAST_DURATION       = 200;//468;
 const int OVERRUN                 = 14; // to get accurate Rt estimates near the end of the forecast duration
 const bool RUN_FORECAST           = true;
 int TOTAL_DURATION          = RUN_FORECAST ? RESTART_BURNIN + FORECAST_DURATION + OVERRUN : RESTART_BURNIN;
@@ -667,7 +665,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
     // const size_t realization             = (size_t) args[0];
     const bool vaccine                   = (bool) args[1];
-    const bool mutation                  = (bool) args[2];
+    const bool mutation                  = false; // (bool) args[2];
     const size_t counterfactual_scenario = (size_t) args[3];
 
     Parameters* par = define_simulator_parameters(args, rng_seed, serial, process_id);

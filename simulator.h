@@ -420,8 +420,8 @@ double score_fit(const Parameters* par, const Community* community, const size_t
     double avg_3day_rdata_w_offset = mean_rdata == 0 ? mean(single_rdata_p10k) : mean_rdata;
 
     const double normed_distance = distance/avg_3day_rdata_w_offset;
-cerr << "DEBUG (norm dist) " << normed_distance << endl;
-exit(-1);
+// cerr << "DEBUG (norm dist) " << normed_distance << endl;
+// exit(-1);
     return normed_distance;
 }
 
@@ -752,6 +752,9 @@ void behavior_autotuning(const Parameters* par, Community* &community, Date* &da
     if (tuner->recache and (day == recaching_day)) {
         // we are at the end of tuning window that was deemed "good"
         overwrite_sim_cache(sim_cache, community, ledger, tuner);
+// gsl_rng* tmp_rng = gsl_rng_clone(RNG);
+// cout << "tmp A: " << day << ' ' << community->getTimedIntervention(SOCIAL_DISTANCING, day) << ' ' << gsl_rng_uniform(tmp_rng) << endl;
+// gsl_rng_free(tmp_rng);
     } else if (day == behavior_processing_day) {
         // calculates the proportion of days in the tuning window that has empirical data
         size_t window_start_sim_day = (day + 1) - ((par->num_preview_windows + 1) * par->tuning_window);
@@ -768,7 +771,8 @@ void behavior_autotuning(const Parameters* par, Community* &community, Date* &da
 
         // calculate normalized distance for this tuning window
         vector<size_t> model_tuning_data = (par->tune_to_cumul_cases) ? community->getNumDetectedCasesReport() : community-> getNumDetectedDeathsReport();
-cerr << "DEBUG (tuning dat) "; cerr_vector(model_tuning_data); cerr << endl;
+// cerr << "DEBUG (tuning dat) "; cerr_vector(model_tuning_data);
+ // cerr << endl;
         double fit_distance = score_fit(par, community, day, model_tuning_data, tuner->emp_data);
 //cerr << "current anchor, score: " << tuner->cur_anchor_val << ", " << fit_distance << endl;
         // keep track of the anchor val with the smallest distance for this window
@@ -910,25 +914,35 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
 
     bool restore_occurred = false; // relevant for behavior autotuning
     for (; date->day() < (signed) par->runLength; date->increment()) {
-//        if (par->behavioral_autotuning and date->day() > 0) {
-//            behavior_autotuning(par, community, date, ledger, tuner, sim_cache, social_distancing_anchors, restore_occurred);
-//        }
+       if (par->behavioral_autotuning /*and date->day() > 0*/) {
+           behavior_autotuning(par, community, date, ledger, tuner, sim_cache, social_distancing_anchors, restore_occurred);
+       }
+       // else {
+       //     if (date->day() > 0 and (date->day() % (tmp_int * par->tuning_window - 1) == 0)) {
+       //         gsl_rng* tmp_rng = gsl_rng_clone(RNG);
+       //         cout << "tmp A: " << date->day() << ' ' << community->getTimedIntervention(SOCIAL_DISTANCING, date->day()) << ' ' << gsl_rng_uniform(tmp_rng) << endl;
+       //         gsl_rng_free(tmp_rng);
+       //         ++tmp_int;
+       //     }
+       // }
         // if (restore_occurred) { date->decrement(); restore_occurred = false; }// date is always incremented before tick is called next, so need to decrement before that if restoring
 //if (*date == "2021-12-01") { gsl_rng_set(RNG, par->randomseed);
 
-cout << "DEBUG (pre tick day) " << right << setw(4) << date->day() << ' ' << left << setw(12) << gsl_rng_uniform(RNG) << ' ' << setw(12) << gsl_rng_uniform(REPORTING_RNG) << " | " << right;
+if ((date->day() == 67) or (date->day() == 68)) {
+    cout << "DEBUG (pre tick day) " << right << setw(4) << date->day() << ' ' << left
+         << setw(12) << inspect_next_rng_val(RNG) << ' ' << setw(12) << inspect_next_rng_val(REPORTING_RNG) << " | " << right;
+}
         community->tick();
-cout << left << setw(12) << gsl_rng_uniform(RNG) << ' ' << setw(12) << gsl_rng_uniform(REPORTING_RNG) << right << endl;
+if ((date->day() == 67) or (date->day() == 68)) {
+    cout << left << setw(12) << inspect_next_rng_val(RNG) << ' ' << setw(12) << inspect_next_rng_val(REPORTING_RNG) << right << endl;
+}
 
         // if (par->behavioral_autotuning) {
         //     behavior_autotuning(par, community, date, ledger, tuner, sim_cache, social_distancing_anchors, restore_occurred);
         //     if (restore_occurred) { continue; }
         // }
 
-        community->tick();
-gsl_rng* tmp_rng = gsl_rng_clone(RNG);
-cout << "tmp A: " << gsl_rng_uniform(tmp_rng) << endl;
-gsl_rng_free(tmp_rng);
+        //community->tick();
 
 
         const size_t sim_day = date->day();
@@ -1084,7 +1098,7 @@ gsl_rng_free(tmp_rng);
     cerr << "icu deaths, total deaths, ratio: " << cdeath_icu << ", " << cdeath2 << ", " << cdeath_icu/cdeath2 << endl;
     cerr << "severe infections / all reported cases: " << (double) csev / rc_ct << endl;
 
-cerr_vector(community->getTimedIntervention(SOCIAL_DISTANCING));
+cerr_vector(community->getTimedIntervention(SOCIAL_DISTANCING)); cerr << endl;
 
     if (RNG) { gsl_rng_free(RNG); }
     if (REPORTING_RNG) { gsl_rng_free(REPORTING_RNG); }
