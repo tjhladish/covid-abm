@@ -510,6 +510,20 @@ Person* Community::getPersonByID(int pid) {
 }
 
 
+Location* Community::getLocationByID(int lid) {
+    // This assumes that IDs start at 1, and tries to guess
+    // that location with ID id is in position id-1
+    // TODO - make that not true (about starting at 1)
+    if(lid < 0 or lid > (signed) getNumPeople()) {
+        cerr << "ERROR: failed to find person with id " << lid << " max: " << getNumPeople() << endl;
+        assert(lid > 0 and lid <= (signed) getNumPeople());
+    }
+
+    assert (_location[lid]->getID() == lid);
+    return _location[lid];
+}
+
+
 // infect - infects person id
 Infection* Community::infect(int id, StrainType strain) {
     Person* person = getPersonByID(id);

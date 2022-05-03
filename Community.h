@@ -207,6 +207,7 @@ class Community {
         size_t getNumSymptomatic(int day);
         size_t getNumNaive();
         Person* getPersonByID(int id);
+        Location* getLocationByID(int id);
         Infection*  infect(int id, StrainType strain);
         int getDay() { return _day; }                                // what day is it?
         //void swapImmuneStates();
