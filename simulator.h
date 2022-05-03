@@ -996,7 +996,8 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
         ofs << "date,sim_rcase,emp_rcase,behavior" << endl;
         for (size_t i = 0; i < par->runLength; ++i) {
             int daily_emp_data = tuner->emp_data.count(i) ? tuner->emp_data.at(i)[0] : 0;
-            ofs << Date::to_ymd(i, par) << "," << sim_reported_cases[i] << "," << daily_emp_data << "," << community->getTimedIntervention(SOCIAL_DISTANCING, i) << endl;
+            ofs << Date::to_ymd(i, par) << "," << sim_reported_cases[i] << "," << daily_emp_data << ","
+            << setprecision(40) << community->getTimedIntervention(SOCIAL_DISTANCING, i) << setprecision(6) << endl;
         }
         ofs.close();
     }
