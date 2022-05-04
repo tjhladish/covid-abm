@@ -396,12 +396,14 @@ Infection* Person::infect(Community* community, Person* source, const Date* date
         }
 
         if (report_date >= (long int) _par->runLength) { detected = false; }
+        // this needs to be evaluated early to ensure consistent number of REPORTING_RNG draws regardless of runLength
+        size_t death_rep_lag = infection.fatal() ? _par->deathReportingLag(REPORTING_RNG) : 0;
 
         if (detected) {
             infection.detect(detected_state, report_date);
             community->reportCase(sample_collection_date, report_date, infection.hospital());
             if (infection.fatal()) {
-                long int medical_examiner_report_date = infection.deathTime + _par->deathReportingLag(REPORTING_RNG);
+                long int medical_examiner_report_date = infection.deathTime + death_rep_lag;
                 // medical examiner only orders post-mortem PCR if sample was not already taken
                 medical_examiner_report_date = max(medical_examiner_report_date, report_date);
                 //community->reportDeath(sample_collection_date, medical_examiner_report_date);
