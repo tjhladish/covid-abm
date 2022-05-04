@@ -201,12 +201,14 @@ class Community {
         bool loadPopulation(std::string populationFilename, std::string comorbidityFilename = "", std::string publicActivityFilename = "", std::string immunityFilename = "");
         bool loadLocations(std::string locationFilename, std::string networkFilename = "");
         size_t getNumPeople() const { return _people.size(); }
+        size_t getNumLocations() const { return _location.size(); }
         std::vector<Person*> getPeople() const { return _people; }
         size_t getNumInfected(int day); // includes people in incubation period
         size_t getNumInfectious(int day);
         size_t getNumSymptomatic(int day);
         size_t getNumNaive();
         Person* getPersonByID(int id);
+        Location* getLocationByID(int id);
         Infection*  infect(int id, StrainType strain);
         int getDay() { return _day; }                                // what day is it?
         //void swapImmuneStates();
