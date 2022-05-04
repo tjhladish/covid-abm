@@ -259,7 +259,7 @@ map<size_t, vector<int>> parse_emp_data_file(const Parameters* par) {
     for (vector<string> &v : emp_data) {
         if (v[0] == "Date") { continue; }
         int rcase = stoi(v[1]);
-        int rdeath = 0; //v[4] == "NA" ? 0 : stoi(v[4]);
+        int rdeath = v[4] == "NA" ? 0 : stoi(v[4]);
         recast_emp_data[Date::to_sim_day(par->startJulianYear, par->startDayOfYear, v[0])] = {rcase, rdeath};
     }
     return recast_emp_data;
@@ -420,8 +420,6 @@ double score_fit(const Parameters* par, const Community* community, const size_t
     double avg_3day_rdata_w_offset = mean_rdata == 0 ? mean(single_rdata_p10k) : mean_rdata;
 
     const double normed_distance = distance/avg_3day_rdata_w_offset;
-// cerr << "DEBUG (norm dist) " << normed_distance << endl;
-// exit(-1);
     return normed_distance;
 }
 
@@ -771,7 +769,6 @@ void behavior_autotuning(const Parameters* par, Community* &community, Date* &da
 
         // calculate normalized distance for this tuning window
         vector<size_t> model_tuning_data = (par->tune_to_cumul_cases) ? community->getNumDetectedCasesReport() : community-> getNumDetectedDeathsReport();
-// cerr << "DEBUG (tuning dat) "; cerr_vector(model_tuning_data);
  // cerr << endl;
         double fit_distance = score_fit(par, community, day, model_tuning_data, tuner->emp_data);
 //cerr << "current anchor, score: " << tuner->cur_anchor_val << ", " << fit_distance << endl;
@@ -928,22 +925,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
         // if (restore_occurred) { date->decrement(); restore_occurred = false; }// date is always incremented before tick is called next, so need to decrement before that if restoring
 //if (*date == "2021-12-01") { gsl_rng_set(RNG, par->randomseed);
 
-if ((date->day() == 67) or (date->day() == 68)) {
-    cout << "DEBUG (pre tick day) " << right << setw(4) << date->day() << ' ' << left
-         << setw(12) << inspect_next_rng_val(RNG) << ' ' << setw(12) << inspect_next_rng_val(REPORTING_RNG) << " | " << right;
-}
         community->tick();
-if ((date->day() == 67) or (date->day() == 68)) {
-    cout << left << setw(12) << inspect_next_rng_val(RNG) << ' ' << setw(12) << inspect_next_rng_val(REPORTING_RNG) << right << endl;
-}
-
-        // if (par->behavioral_autotuning) {
-        //     behavior_autotuning(par, community, date, ledger, tuner, sim_cache, social_distancing_anchors, restore_occurred);
-        //     if (restore_occurred) { continue; }
-        // }
-
-        //community->tick();
-
 
         const size_t sim_day = date->day();
 
@@ -983,7 +965,6 @@ if ((date->day() == 67) or (date->day() == 68)) {
 
         seed_epidemic(par, community, date, ledger->strains);
 
-// cerr << "DEBUG (post seed day) " << date->day() << ' ' << gsl_rng_uniform(RNG) << ' ' << gsl_rng_uniform(RNG) << endl;
         const vector<size_t> infections         = community->getNumNewlyInfected();
         const vector<size_t> all_reported_cases = community->getNumDetectedCasesReport();
         const size_t reported_cases             = all_reported_cases[sim_day];
@@ -1062,7 +1043,8 @@ if ((date->day() == 67) or (date->day() == 68)) {
         ofs << "date,sim_rcase,emp_rcase,behavior" << endl;
         for (size_t i = 0; i < par->runLength; ++i) {
             int daily_emp_data = tuner->emp_data.count(i) ? tuner->emp_data.at(i)[0] : 0;
-            ofs << Date::to_ymd(i, par) << "," << sim_reported_cases[i] << "," << daily_emp_data << "," << community->getTimedIntervention(SOCIAL_DISTANCING, i) << endl;
+            ofs << Date::to_ymd(i, par) << "," << sim_reported_cases[i] << "," << daily_emp_data << ","
+            << setprecision(40) << community->getTimedIntervention(SOCIAL_DISTANCING, i) << setprecision(6) << endl;
         }
         ofs.close();
     }

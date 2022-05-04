@@ -41,8 +41,8 @@ const string output_dir("/ufrc/longini/tjhladish/");
 //const string vaccination_file = pop_dir + "/../fl_vac/fl_vac_v4.txt";
 
 const int RESTART_BURNIN          = 0;
-// const int FORECAST_DURATION       = 747;
-const int FORECAST_DURATION       = 200;//468;
+const int FORECAST_DURATION       = 747;
+// const int FORECAST_DURATION       = 468;
 const int OVERRUN                 = 14; // to get accurate Rt estimates near the end of the forecast duration
 const bool RUN_FORECAST           = true;
 int TOTAL_DURATION          = RUN_FORECAST ? RESTART_BURNIN + FORECAST_DURATION + OVERRUN : RESTART_BURNIN;
@@ -83,7 +83,6 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->startJulianYear         = JULIAN_START_YEAR;
     par->startDayOfYear          = Date::to_julian_day("2020-02-10");
     par->runLength               = TOTAL_DURATION;
-cerr << "DEBUG (runL) " << par->runLength << endl;
     //par->annualIntroductionsCoef = 1;
 
     par->beginContactTracing           = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-06-01");
