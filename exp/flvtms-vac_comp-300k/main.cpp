@@ -49,7 +49,7 @@ int TOTAL_DURATION          = RUN_FORECAST ? RESTART_BURNIN + FORECAST_DURATION 
 //const size_t JULIAN_TALLY_DATE    = 146; // intervention julian date - 1
 const size_t JULIAN_START_YEAR    = 2020;
 //const double DEATH_UNDERREPORTING = 11807.0/20100.0; // FL Mar15-Sep5, https://www.nytimes.com/interactive/2020/05/05/us/coronavirus-death-toll-us.html
-
+bool autotune                     = false;
 const int FL_POP                  = 21538187;   // as of 2020 census
 
 vector<vector<double>> REPORTED_FRACTIONS;
@@ -268,15 +268,16 @@ cerr << "DEBUG (runL) " << par->runLength << endl;
     par->networkFilename          = pop_dir    + "/network-"            + SIM_POP + ".txt";
     par->publicActivityFilename   = pop_dir    + "/public-activity-"    + SIM_POP + ".txt";
     par->rCaseDeathFilename       = "./rcasedeath-florida.csv";
-    par->vaccination_file         = "./active_vax_counterfactual_doses.txt"; //"./dose_data/fl_vac_v4.txt"; //pop_dir    + "/../fl_vac/fl_vac_v4.txt";
+    par->vaccination_file         = "./counterfactual_doses_v2.txt";
+    //par->vaccination_file         = "./active_vax_counterfactual_doses.txt"; //"./dose_data/fl_vac_v4.txt"; //pop_dir    + "/../fl_vac/fl_vac_v4.txt";
     // par->dose_file                = "./counterfactual_doses.txt"; //"./dose_data/FL_doses.txt"; //pop_dir    + "/../fl_vac/doses.txt";
 
-    par->behavioral_autotuning = false;
+    par->behavioral_autotuning = autotune;
     par->tune_to_cumul_cases = true;
     par->death_tuning_offset = 18;
     par->tuning_window = 14;
     par->num_preview_windows = 3;
-    par->autotuning_dataset = "autotuning_dataset.csv";
+    par->autotuning_dataset = "autotuning_dataset_dump.csv";
 
     par->dump_simulation_data = false;
 
@@ -665,7 +666,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
     // const size_t realization             = (size_t) args[0];
     const bool vaccine                   = (bool) args[1];
-    const bool mutation                  = false; // (bool) args[2];
+    const bool mutation                  = (bool) args[2];
     const size_t counterfactual_scenario = (size_t) args[3];
 
     Parameters* par = define_simulator_parameters(args, rng_seed, serial, process_id);
@@ -835,7 +836,7 @@ int main(int argc, char* argv[]) {
             process_db = true;
         } else if ( strcmp(argv[i], "--simulate") == 0  ) {
             simulate_db = true;
-            buffer_size = buffer_size == -1 ? 1 : buffer_size;
+//            buffer_size = buffer_size == -1 ? 1 : buffer_size;
         } else if ( strcmp(argv[i], "-n" ) == 0 ) {
             buffer_size = atoi(argv[++i]);
         } else if ( strcmp(argv[i], "--serial" ) == 0 ) {
@@ -844,6 +845,8 @@ int main(int argc, char* argv[]) {
             requested_posterior_idx = atoi(argv[++i]);
         } else if ( strcmp(argv[i], "--runLength" ) == 0 ) {
             TOTAL_DURATION = atoi(argv[++i]);
+        } else if ( strcmp(argv[i], "--autotune" ) == 0 ) {
+            autotune = true;
         } else {
             usage();
             exit(101);
