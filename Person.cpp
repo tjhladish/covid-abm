@@ -61,8 +61,6 @@ Person::Person() {
     naiveVaccineProtection = false;
     long_term_care = false;
     comorbidity = HEALTHY;
-    quarantineStart = INT_MAX;
-    quarantineEnd = INT_MAX;
 }
 
 
@@ -70,6 +68,43 @@ Person::~Person() {
     clearInfectionHistory();
 }
 
+
+void Person::revertState(const Date* date) {
+    const int time = date->day();
+    // remove infection history since date
+    while (infectionHistory.size() > 0) {
+        Infection* inf = infectionHistory.back();
+        if (inf->getInfectedTime() >= time) {
+            delete inf;
+            infectionHistory.pop_back();
+        }
+    }
+
+    while (vaccineHistory.size() > 0) {
+        if (vaccineHistory.back() >= time) {
+            vaccineHistory.pop_back();
+        }
+    }
+
+    const bool had_infection   = infectionHistory.size() > 0;
+    const bool had_vaccination = vaccineHistory.size() > 0;
+
+    if (had_infection and had_vaccination) {
+        immune_state = NATURAL_AND_VACCINATED;
+    } else if (had_infection) {
+        immune_state = NATURAL;
+    } else if (had_vaccination) {
+        immune_state = VACCINATED;
+    } else {
+        immune_state = NAIVE;
+    }
+
+    while (quarantineHistory.size() > 0) {
+        if (quarantineHistory.back().first >= time) {
+            quarantineHistory.pop_back();
+        }
+    }
+}
 
 void Person::clearInfectionHistory() {
     for (unsigned int i = 0; i < infectionHistory.size(); i++) {
@@ -555,19 +590,11 @@ bool Person::vaccinate(int time) {
     }
 }
 
-void Person::selfQuarantine(const size_t today, const size_t quarantineDuration) {
-    // set quarantine status
-    quarantineStart = today;
-    quarantineEnd   = today + quarantineDuration;
+void Person::scheduleQuarantine(int time, int quarantineDuration) {
+    quarantineHistory.emplace_back(time, time + quarantineDuration);
 }
 
-void Person::endQuarantine() {
-    // clear quarantine status
-    quarantineStart = INT_MAX;
-    quarantineEnd   = INT_MAX;
-}
-
-bool Person::isQuarantining(const size_t today) {
-    // check quarantine status
-    return (quarantineStart != INT_MAX and quarantineEnd != INT_MAX) and (today >= quarantineStart) and (today <= quarantineEnd);
+bool Person::isQuarantining(int time) {
+    const pair<int, int> interval = quarantineHistory.back();
+    return time >= interval.first and time < interval.second;
 }

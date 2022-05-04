@@ -96,7 +96,7 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
 
     par->quarantineProbability  = {0.0, 0.0, 0.0};
     // par->quarantineProbability  = {0.9, 0.75, 0.5};
-    par->selfQuarantineDuration = 10;
+    par->quarantineDuration = 10;
 
     vector<double> seasonality;
     for (size_t day = 0; day < 366; ++day) {
@@ -682,7 +682,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         par->immunityWanes         = false;
         par->numVaccineDoses       = 3;
         par->vaccineDoseInterval   = {21, 240};
-        par->vaccineTargetCoverage = 0.60;  // for healthcare workers only
+//        par->vaccineTargetCoverage = 0.60;  // for healthcare workers only
         par->vaccine_dose_to_protection_lag = 10;
         par->urgent_vax_dose_threshold = 1;
 

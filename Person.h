@@ -9,7 +9,7 @@
 #include "Parameters.h"
 #include "Location.h"
 
-enum QuarantineLevel {FULL, MODERATE, MINIMAL, NUM_OF_QUARANTINE_LEVELS};
+//enum QuarantineLevel {MINIMAL, MODERATE, FULL, NUM_OF_QUARANTINE_LEVELS};
 
 class Location;
 class Community;
@@ -190,8 +190,6 @@ class Person {
             naiveVaccineProtection  = o.naiveVaccineProtection;
             immune_state            = o.immune_state;
             infectionHistory        = std::vector<Infection*>(o.infectionHistory.size());
-            quarantineStart         = o.quarantineStart;
-            quarantineEnd           = o.quarantineEnd;
 
             for(size_t i = 0; i < o.infectionHistory.size(); ++i) {
                 infectionHistory[i] = new Infection(*(o.infectionHistory[i]));
@@ -201,9 +199,12 @@ class Person {
             startingNaturalEfficacy = o.startingNaturalEfficacy;
             immunityQuantile        = o.immunityQuantile;
             vaccineHistory          = o.vaccineHistory;
+            quarantineHistory       = o.quarantineHistory;
         };
 
         ~Person();
+
+        void revertState(const Date* date);
 
         inline int getID() const { return id; }
 
@@ -317,11 +318,10 @@ class Person {
         static void reset_ID_counter() { NEXT_ID = 0; }
         bool isSurveilledPerson() { return id < _par->numSurveilledPeople; }
 
-        void selfQuarantine(const size_t today, const size_t quarantineDuration);
-        void endQuarantine();
-        bool isQuarantining(const size_t today);
+        void scheduleQuarantine(int start, int quarantineDuration);
+        bool isQuarantining(int time);
 
-        void dumper(int day = 0) const {
+        void dumper(int time = 0) const {
             cerr << "Person ID: " << id << endl;
             cerr << "\thome loc: " << home_loc->getID() << endl;
             cerr << "\tday loc: " << (day_loc ? day_loc->getID() : -1) << endl;
@@ -334,9 +334,9 @@ class Person {
             cerr << "\tinfection days: "; for (size_t i = 0; i < infectionHistory.size(); ++i) { cerr << getInfectedTime(i) << ' '; } cerr << endl;
             cerr << "\tvaccination history size: " << vaccineHistory.size() << endl;
             cerr << "\tvaccine dose days: "; for (int d : vaccineHistory) { cerr << d << ' '; } cerr << endl;
-            cerr << boolalpha << "\tis alive: " << isAlive(day) << endl;
-            cerr << boolalpha << "\tin hospital: " << inHospital(day) << endl;
-            cerr << boolalpha << "\tin icu: " << inIcu(day) << endl;
+            cerr << boolalpha << "\tis alive: " << isAlive(time) << endl;
+            cerr << boolalpha << "\tin hospital: " << inHospital(time) << endl;
+            cerr << boolalpha << "\tin icu: " << inIcu(time) << endl;
             cerr << noboolalpha;
         }
 
@@ -362,8 +362,7 @@ class Person {
         std::vector<int> vaccineHistory;                                // vector of days on which vaccinations were received
         void clearInfectionHistory();
 
-        size_t quarantineStart;
-        size_t quarantineEnd;
+        std::vector<pair<int,int>> quarantineHistory;
 
         bool vaccinate(int time);                                       // vaccinate this person
 

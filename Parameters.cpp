@@ -15,83 +15,75 @@
 using namespace covid::util;
 
 void Parameters::define_defaults() {
-    serial = 0;
-    randomseed = 5489;
-    runLength = 0;
-    household_transmission_haz_mult = 0.15;
-    social_transmission_haz_mult = 0.15;
-    workplace_transmission_haz_mult = 0.15;
-    school_transmission_haz_mult = 0.15;
-    hospital_transmission_haz_mult = 0.015;
+    serial                         = 0;
+    randomseed                     = 5489;
+    runLength                      = 0;
+
+    household_transmission_haz_mult   = 0.15;
+    social_transmission_haz_mult      = 0.15;
+    workplace_transmission_haz_mult   = 0.15;
+    school_transmission_haz_mult      = 0.15;
+    hospital_transmission_haz_mult    = 0.015;
     nursinghome_transmission_haz_mult = 0.3;
-    VES = {{WILDTYPE, {0.7}}};
-    VES_NAIVE = {{WILDTYPE, {0.0}}};
-    VEP = {{WILDTYPE, {0.0}}};
-    VEH = {{WILDTYPE, {0.0}}};
-    VEF = {{WILDTYPE, {0.0}}};
-    VEI = {{WILDTYPE, {0.0}}};
-    //IES = 0.0;
-    IEP = 0.75;
-    IEH = 0.0;
-    IEF = 0.0;
-    IEI = 0.0;
+
+    VES                            = {{WILDTYPE, {0.7}}};
+    VES_NAIVE                      = {{WILDTYPE, {0.0}}};
+    VEP                            = {{WILDTYPE, {0.0}}};
+    VEH                            = {{WILDTYPE, {0.0}}};
+    VEF                            = {{WILDTYPE, {0.0}}};
+    VEI                            = {{WILDTYPE, {0.0}}};
+
+    //IES                            = 0.0;
+    IEP                            = 0.75;
+    IEH                            = 0.0;
+    IEF                            = 0.0;
+    IEI                            = 0.0;
+
     vaccine_dose_to_protection_lag = 10;
-    immunityLeaky = false;
-    beginContactTracing = INT_MAX;
-    contactTracingCoverage = 0.0;
-    contactTracingEV       = vector<double>(NUM_OF_LOCATION_TYPES);
-    contactTracingDepth    = 0;
-    quarantineProbability  = vector<double>(contactTracingDepth);
-    selfQuarantineDuration = 0;
-    urgent_vax_dose_threshold = 0;  // default to 0 (no urgent vaccines) but must be <= numVaccineDoses
-    //secondaryTransmission = true;
-    populationFilename      = "population.txt";
-    locationFilename        = "locations.txt";
-    publicActivityFilename  = "public-activity.txt";
-    networkFilename         = "network.txt";
-    vaccinationFilename     = "";
-    doseFilename            = "";
+    immunityLeaky                  = false;
+    beginContactTracing            = INT_MAX;
+    contactTracingCoverage         = 0.0;
+    contactTracingEV               = vector<double>(NUM_OF_LOCATION_TYPES);
+    contactTracingDepth            = 0;
+    quarantineProbability          = vector<double>(contactTracingDepth);
+    quarantineDuration             = 0;
+    urgent_vax_dose_threshold      = 0;  // default to 0 (no urgent vaccines) but must be <= numVaccineDoses
+    populationFilename             = "population.txt";
+    locationFilename               = "locations.txt";
+    publicActivityFilename         = "public-activity.txt";
+    networkFilename                = "network.txt";
+    vaccinationFilename            = "";
+    doseFilename                   = "";
 
-    behaviorFilename        = "autotuned-behavior.csv";
-    autotuningFilename      = "autotuned-behavior.csv";
-    rCaseDeathFilename      = "";
+    behaviorFilename               = "autotuned-behavior.csv";
+    autotuningFilename             = "autotuned-behavior.csv";
+    rCaseDeathFilename             = "";
 
-    peopleOutputFilename    = "";
-    yearlyPeopleOutputFilename = "";
-    dailyOutputFilename     = "";
-    //annualIntroductionsFilename = "";                   // time series of some external factor determining introduction rate
-    //annualIntroductionsCoef = 1;                        // multiplier to rescale external introductions to something sensible
-    //annualIntroductions = {1.0};
-    //daysImmune = 365;
-    //probFirstDetection = {0.0, 0.1, 0.6, 0.3, 0.1};     // prob of detection if not detected earlier {asymptomatic, mild, severe, critical, deaths}
-    //numDailyExposed.push_back(0.0);                     // default: no introductions
+    peopleOutputFilename           = "";
+    yearlyPeopleOutputFilename     = "";
+    dailyOutputFilename            = "";
     probDailyExposure.push_back(0.0);                   // default: no introductions
-    icuMortalityFraction = 0.5;                         // fraction of empirical deaths that are assumed to have occured in ICUs
-    pathogenicityReduction = 0.0;                       // fraction of empirical infections that were missed in pathogenicity studies
-    susceptibilityCorrection = 0.0;                     // 0.0 means use published age-specific susceptibility values; 1.0 means 100% susceptibility
+    icuMortalityFraction           = 0.5;               // fraction of empirical deaths that are assumed to have occured in ICUs
+    pathogenicityReduction         = 0.0;               // fraction of empirical infections that were missed in pathogenicity studies
+    susceptibilityCorrection       = 0.0;               // 0.0 means use published age-specific susceptibility values; 1.0 means 100% susceptibility
 
-    symptomToTestLag = 2;
-    defaultReportingLag = 10;
-    rlm = nullptr;                                       // reporting lag model
-    //meanDeathReportingLag = 4;
-    numInitialExposed  = 0;
-    numInitialInfected = 0;
-    probInitialExposure = 0.0;
-    //probInitialInfection = 0.0;
+    symptomToTestLag               = 2;
+    defaultReportingLag            = 10;
+    rlm                            = nullptr;           // reporting lag model
+    numInitialExposed              = 0;
+    numInitialInfected             = 0;
+    probInitialExposure            = 0.0;
+    //probInitialInfection           = 0.0;
 
-//    catchupVaccinationEvents.clear();
-    vaccineTargetAge = 9;
-    vaccineTargetCoverage = 0.0;
-    vaccineTargetStartDate = INT_MAX;
-    numVaccineDoses = 3;
-    vaccineDoseInterval = vector<int>(numVaccineDoses);
+    numVaccineDoses                = 3;
+    vaccineDoseInterval            = vector<int>(numVaccineDoses);
 
-    immunityWanes = false;
-    seroPositivityThreshold = 0.0;
-    vaccineImmunityDuration = INT_MAX;
-    vaccineBoosting = false;
-    vaccineBoostingInterval = 730;
-    retroactiveMatureVaccine = false;
+    immunityWanes                  = false;
+    seroPositivityThreshold        = 0.0;
+    vaccineImmunityDuration        = INT_MAX;
+    vaccineBoosting                = false;
+    vaccineBoostingInterval        = 730;
+    retroactiveMatureVaccine       = false;
 
     // vacCampaign_prioritize_first_doses = false;
     // vacCampaign_flexible_queue_allocation = false;
@@ -101,34 +93,34 @@ void Parameters::define_defaults() {
         strainPars.emplace_back((StrainType) strain);
     }
 
-    numSurveilledPeople = INT_MAX;
+    numSurveilledPeople            = INT_MAX;
 
-    traceContacts = false;
-    startDayOfYear = 1;
+    traceContacts                  = false;
+    startDayOfYear                 = 1;
 
-    dailyOutput   = false;
-    periodicOutput  = false;
-    periodicOutputInterval  = 5;
-    weeklyOutput  = false;
-    monthlyOutput = false;
-    yearlyOutput  = false;
-    abcVerbose    = false;
+    dailyOutput                    = false;
+    periodicOutput                 = false;
+    periodicOutputInterval         = 5;
+    weeklyOutput                   = false;
+    monthlyOutput                  = false;
+    yearlyOutput                   = false;
+    abcVerbose                     = false;
 
     // WHO vaccine mechanism variables
     vaccineSeroConstraint = VACCINATE_ALL_SERO_STATUSES;
     seroTestFalsePos = 0.0;
     seroTestFalseNeg = 0.0;
 
-    csmhScenario = NUM_OF_CSMH_SCENARIOS; // default to no scenario
+//    csmhScenario = NUM_OF_CSMH_SCENARIOS; // default to no scenario
 
-    behavioral_autotuning = false;
-    tune_to_cumul_cases = true;
-    death_tuning_offset = 0;
-    tuning_window = INT_MAX;
-    num_preview_windows = INT_MAX;
-    autotuning_dataset = "";
+    behavioral_autotuning          = false;
+    tune_to_cumul_cases            = true;
+    death_tuning_offset            = 0;
+    tuning_window                  = INT_MAX;
+    num_preview_windows            = INT_MAX;
+    autotuning_dataset             = "";
 
-    dump_simulation_data = false;
+    dump_simulation_data           = false;
 }
 
 

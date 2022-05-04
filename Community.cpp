@@ -678,9 +678,6 @@ void Community::updatePersonStatus() {
                 }*/
             }
         }
-        if (p->isQuarantining(_day) and not p->isQuarantining(_day+1)) {
-            p->endQuarantine();
-        }
     }
     return;
 }
@@ -1077,7 +1074,7 @@ vector< set<Person*, PerPtrComp> > Community::traceForwardContacts() {
     for (size_t depth = 0; depth < tracedContacts.size(); ++depth) {
            for (Person* p : tracedContacts[depth]) {
                if ((not p->isQuarantining(_day)) and (gsl_rng_uniform(RNG) < _par->quarantineProbability[depth])) {
-                   p->selfQuarantine(_day, _par->selfQuarantineDuration);
+                   p->scheduleQuarantine(_day, _par->quarantineDuration);
                    num_quarantined++;
                }
            }

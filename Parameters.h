@@ -34,7 +34,7 @@ namespace covid {
         using std::strcmp;
         using std::strtol;
         using std::strtod;
-        using std::bitset;
+//        using std::bitset;
     }
 }
 
@@ -625,10 +625,6 @@ public:
     int numVaccineDoses;                                    // Number of times to boost; default is INT_MAX
     std::vector<int> vaccineDoseInterval;                   // How often to we re-vaccinate for initial vaccine course, in days
     int vaccineBoostingInterval;                            // How often to we re-vaccinate for boosting, in days
-//    std::vector<CatchupVaccinationEvent> catchupVaccinationEvents;
-    int vaccineTargetAge;
-    double vaccineTargetCoverage;
-    int vaccineTargetStartDate;
 
     std::vector<StrainPars> strainPars;
     std::vector<std::vector<bool>> crossProtectionMatrix;
@@ -657,7 +653,7 @@ public:
     unsigned long int serial;
 
     VaccineSeroConstraint vaccineSeroConstraint;
-    CsmhScenario csmhScenario;
+//    CsmhScenario csmhScenario;
 
     bool behavioral_autotuning;
     bool tune_to_cumul_cases;
@@ -667,7 +663,7 @@ public:
     std::string autotuning_dataset;
 
     std::vector<double> quarantineProbability;
-    size_t selfQuarantineDuration;
+    int quarantineDuration;
 
     bool dump_simulation_data;
 };
