@@ -433,6 +433,13 @@ namespace covid {
             }
             return biting_age_cdf_mesh;
         }
+
+        inline double inspect_next_rng_val(gsl_rng* rng) {
+            gsl_rng* rng_copy = gsl_rng_clone(rng);
+            double next_val = gsl_rng_uniform(rng_copy);
+            gsl_rng_free(rng_copy);
+            return next_val;
+        }
     }
 }
 #endif
