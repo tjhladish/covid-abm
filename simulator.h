@@ -64,19 +64,19 @@ Community* build_community(const Parameters* par) {
     Date* date = new Date(par);
     Community* community = new Community(par, date);
     Person::setPar(par);
-cerr << "Reading locations ... ";
+    cerr << "Reading locations ... ";
     if (!community->loadLocations(par->locationFilename, par->networkFilename)) {
         cerr << "ERROR: Could not load locations" << endl;
         exit(-1);
     }
-cerr << "done.\n";
-cerr << "Reading population ... ";
+    cerr << "done.\n";
+    cerr << "Reading population ... ";
     if (!community->loadPopulation(par->populationFilename, par->comorbidityFilename, par->publicActivityFilename)) {
         cerr << "ERROR: Could not load population" << endl;
         exit(-1);
     }
 
-cerr << "done.\n"; //  Now sleeping for 20s so ram usage can be checked.\n";
+    cerr << "done.\n"; //  Now sleeping for 20s so ram usage can be checked.\n";
 //sleep(20);
     if (par->abcVerbose) {
         cerr << community->getNumPeople() << " people" << endl;
@@ -88,16 +88,6 @@ cerr << "done.\n"; //  Now sleeping for 20s so ram usage can be checked.\n";
 
     return community;
 }
-
-// DEPRECATED
-// Community* deep_copy_community(const Parameters* par) {
-//     Date* date = new Date(par);
-//     Community* community = new Community(par, date);
-//     Person::setPar(par);
-//     // deep copy locations
-//     // deep copy population
-//     return community;
-// }
 
 
 void seed_epidemic(const Parameters* par, Community* community, StrainType strain) {
@@ -429,7 +419,6 @@ class Range {
 public:
     Range() {};
     Range(double _min, double _max) : min(_min), max(_max) {};
-//    Range(initializer_list<double> vals) : min(*(vals.begin())), max(*(vals.begin()+1)) {};
 
     void set_range(double _min, double _max) {
         min = _min;
@@ -542,10 +531,6 @@ double bin_search_anchor(BehaviorAutoTuner* tuner, double distance) {
     // grab the current search range and anchor value from the tuner
     Range* range = tuner->bin_search_range;
     const double cur_val = tuner->cur_anchor_val;
-//    if (abs(range.best_distance) > abs(distance) ) {
-//        range.best_distance = distance;
-//        range.best_value    = cur_val;
-//    }
 
     // prevents infinite searching; if a proposed anchor is less than MIN_ADJ different than cur_val, we stop the search
     const double MIN_ADJ = 0.01;
@@ -750,9 +735,6 @@ void behavior_autotuning(const Parameters* par, Community* &community, Date* &da
     if (tuner->recache and (day == recaching_day)) {
         // we are at the end of tuning window that was deemed "good"
         overwrite_sim_cache(sim_cache, community, ledger, tuner);
-// gsl_rng* tmp_rng = gsl_rng_clone(RNG);
-// cout << "tmp A: " << day << ' ' << community->getTimedIntervention(SOCIAL_DISTANCING, day) << ' ' << gsl_rng_uniform(tmp_rng) << endl;
-// gsl_rng_free(tmp_rng);
     } else if (day == behavior_processing_day) {
         // calculates the proportion of days in the tuning window that has empirical data
         size_t window_start_sim_day = (day + 1) - ((par->num_preview_windows + 1) * par->tuning_window);
@@ -769,9 +751,8 @@ void behavior_autotuning(const Parameters* par, Community* &community, Date* &da
 
         // calculate normalized distance for this tuning window
         vector<size_t> model_tuning_data = (par->tune_to_cumul_cases) ? community->getNumDetectedCasesReport() : community-> getNumDetectedDeathsReport();
- // cerr << endl;
         double fit_distance = score_fit(par, community, day, model_tuning_data, tuner->emp_data);
-//cerr << "current anchor, score: " << tuner->cur_anchor_val << ", " << fit_distance << endl;
+        //cerr << "current anchor, score: " << tuner->cur_anchor_val << ", " << fit_distance << endl;
         // keep track of the anchor val with the smallest distance for this window
         tuner->update_best_distance(fit_distance);
 
@@ -782,19 +763,23 @@ void behavior_autotuning(const Parameters* par, Community* &community, Date* &da
             cerr << "IS THE FIT GOOD? ";
             cin >> fit_is_good;
         } else {
-            //fit_is_good = abs(fit_distance) < tuner->fit_threshold
-            fit_is_good = abs(fit_distance) < (tuner->fit_threshold * prop_days_w_emp_data)                 // is the abs(distance) less than the threshold after adjusting for the presence of emp data
-                          or (fit_distance > 0 and tuner->cur_anchor_val == tuner->bin_search_range_max())  // is the distance pos and the cur val is the max of the search range (can't search more)
-                          or (fit_distance < 0 and tuner->cur_anchor_val == tuner->bin_search_range_min())  // is the distance neg and the cur val is the min of the search range (can't search more)
+                                                                // is the abs(distance) less than the threshold after adjusting for the presence of emp data
+            fit_is_good = abs(fit_distance) < (tuner->fit_threshold * prop_days_w_emp_data)
+                                                                // is the distance pos and the cur val is the max of the search range (can't search more)
+                          or (fit_distance > 0 and tuner->cur_anchor_val == tuner->bin_search_range_max())
+                                                                // is the distance neg and the cur val is the min of the search range (can't search more)
+                          or (fit_distance < 0 and tuner->cur_anchor_val == tuner->bin_search_range_min())
+                                                                // are we out of data to fit against
                           or (tuner->tuning_window_ct > 1 and prop_days_w_emp_data == 0)
-                          or (tuner->bin_search_range_max() == tuner->bin_search_range_min());              // are the search range min and max equal (can't search more)
+                                                                // are the search range min and max equal (can't search more)
+                          or (tuner->bin_search_range_max() == tuner->bin_search_range_min());
 
             if (fit_is_good) {
                 // if the fit is deemed "good" ensure that we will use the best val found
                 tuner->cur_anchor_val = tuner->best_anchor_val;
                 fit_distance = tuner->best_distance;
-cerr << "Decision made." << endl;
-//cerr << "Using anchor val: " << tuner->cur_anchor_val << endl;
+                cerr << "Decision made." << endl;
+                //cerr << "Using anchor val: " << tuner->cur_anchor_val << endl;
                 if (tuner->tuning_window_ct > 1 and prop_days_w_emp_data == 0.25) {
                     tuner->cur_anchor_val = min_element(community->getTimedIntervention(SOCIAL_DISTANCING));
                 }
@@ -911,19 +896,10 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
 
     bool restore_occurred = false; // relevant for behavior autotuning
     for (; date->day() < (signed) par->runLength; date->increment()) {
-       if (par->behavioral_autotuning /*and date->day() > 0*/) {
+       if (par->behavioral_autotuning) {
            behavior_autotuning(par, community, date, ledger, tuner, sim_cache, social_distancing_anchors, restore_occurred);
        }
-       // else {
-       //     if (date->day() > 0 and (date->day() % (tmp_int * par->tuning_window - 1) == 0)) {
-       //         gsl_rng* tmp_rng = gsl_rng_clone(RNG);
-       //         cout << "tmp A: " << date->day() << ' ' << community->getTimedIntervention(SOCIAL_DISTANCING, date->day()) << ' ' << gsl_rng_uniform(tmp_rng) << endl;
-       //         gsl_rng_free(tmp_rng);
-       //         ++tmp_int;
-       //     }
-       // }
-        // if (restore_occurred) { date->decrement(); restore_occurred = false; }// date is always incremented before tick is called next, so need to decrement before that if restoring
-//if (*date == "2021-12-01") { gsl_rng_set(RNG, par->randomseed);
+//if (*date == "2021-12-01") { gsl_rng_set(RNG, par->randomseed); // use something like this if we want to only have dynamic uncertainty beyond some date
 
         community->tick();
 
@@ -931,7 +907,6 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
 
         if ( mutant_intro_dates.size() ) {
             if (*date >= mutant_intro_dates[0] and *date < mutant_intro_dates[1]) {
-                //const int time_since_intro = date->day() - Date::to_sim_day(par->julian_start_day, par->julian_start_year, mutant_intro_dates[0]);
                 if (ledger->strains[WILDTYPE] > 1) {
                     ledger->strains[WILDTYPE]--;
                     ledger->strains[ALPHA]++;
@@ -1039,12 +1014,12 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
 
     const vector<size_t> sim_reported_cases = community->getNumDetectedCasesReport();
     if (par->behavioral_autotuning) {
-        ofstream ofs("autotuning_dataset_dump.csv");
+        ofstream ofs(par->autotuningFilename);
         ofs << "date,sim_rcase,emp_rcase,behavior" << endl;
         for (size_t i = 0; i < par->runLength; ++i) {
             int daily_emp_data = tuner->emp_data.count(i) ? tuner->emp_data.at(i)[0] : 0;
             ofs << Date::to_ymd(i, par) << "," << sim_reported_cases[i] << "," << daily_emp_data << ","
-            << setprecision(40) << community->getTimedIntervention(SOCIAL_DISTANCING, i) << setprecision(6) << endl;
+            << setprecision(20) << community->getTimedIntervention(SOCIAL_DISTANCING, i) << setprecision(6) << endl;
         }
         ofs.close();
     }

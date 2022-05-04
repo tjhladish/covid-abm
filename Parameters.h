@@ -550,8 +550,6 @@ public:
     size_t numInitialExposed;                               // for general use
     size_t numInitialInfected;                              // for R0 estimation
     double probInitialExposure;                             // for general use, to scale intial exposures with pop size
-//    double probInitialInfection;
-//    std::vector<double> numDailyExposed;                    // dimension is days
     std::vector<double> probDailyExposure;                  // per person, per day probability of exposure
 
     std::string populationFilename;
@@ -559,15 +557,16 @@ public:
     std::string locationFilename;
     std::string publicActivityFilename;
     std::string networkFilename;
+    std::string vaccinationFilename;
+    std::string doseFilename;
+
+    std::string behaviorFilename;                           // for input
+    std::string autotuningFilename;                         // for output
+    std::string rCaseDeathFilename;
+
     std::string peopleOutputFilename;
     std::string yearlyPeopleOutputFilename;
     std::string dailyOutputFilename;
-    std::string rCaseDeathFilename;
-    std::string vaccination_file;
-    std::string dose_file;
-    //std::string annualIntroductionsFilename;                // time series of some external factor determining introduction rate
-    //std::vector<double> annualIntroductions;
-    //double annualIntroductionsCoef;                         // multiplier to rescale external introductions to something sensible
 
     double sampleStartingNaturalEfficacy(const gsl_rng* RNG) const {
         // neutralization level relative to mean natural immunity following infection, after: https://www.nature.com/articles/s41591-021-01377-8/figures/1

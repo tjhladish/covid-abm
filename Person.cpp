@@ -403,7 +403,7 @@ Infection* Person::infect(Community* community, Person* source, const Date* date
             infection.detect(detected_state, report_date);
             community->reportCase(sample_collection_date, report_date, infection.hospital());
             if (infection.fatal()) {
-                long int medical_examiner_report_date = infection.deathTime + death_rep_lag;//_par->deathReportingLag(REPORTING_RNG);
+                long int medical_examiner_report_date = infection.deathTime + death_rep_lag;
                 // medical examiner only orders post-mortem PCR if sample was not already taken
                 medical_examiner_report_date = max(medical_examiner_report_date, report_date);
                 //community->reportDeath(sample_collection_date, medical_examiner_report_date);

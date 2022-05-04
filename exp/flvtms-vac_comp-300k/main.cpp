@@ -267,16 +267,16 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->networkFilename          = pop_dir    + "/network-"            + SIM_POP + ".txt";
     par->publicActivityFilename   = pop_dir    + "/public-activity-"    + SIM_POP + ".txt";
     par->rCaseDeathFilename       = "./rcasedeath-florida.csv";
-    par->vaccination_file         = "./counterfactual_doses_v2.txt";
-    //par->vaccination_file         = "./active_vax_counterfactual_doses.txt"; //"./dose_data/fl_vac_v4.txt"; //pop_dir    + "/../fl_vac/fl_vac_v4.txt";
-    // par->dose_file                = "./counterfactual_doses.txt"; //"./dose_data/FL_doses.txt"; //pop_dir    + "/../fl_vac/doses.txt";
+    par->vaccinationFilename      = "./counterfactual_doses_v2.txt";
+    //par->vaccinationFilename      = "./active_vax_counterfactual_doses.txt"; //"./dose_data/fl_vac_v4.txt"; //pop_dir    + "/../fl_vac/fl_vac_v4.txt";
+    // par->doseFilename            = "./counterfactual_doses.txt"; //"./dose_data/FL_doses.txt"; //pop_dir    + "/../fl_vac/doses.txt";
 
     par->behavioral_autotuning = autotune;
     par->tune_to_cumul_cases = true;
     par->death_tuning_offset = 18;
     par->tuning_window = 14;
     par->num_preview_windows = 3;
-    par->autotuning_dataset = "autotuning_dataset_dump.csv";
+    par->behaviorFilename = "autotuning_dataset_dump.csv";
 
     par->dump_simulation_data = false;
 
@@ -375,8 +375,6 @@ void define_strain_parameters(Parameters* par) {
 
 // REFACTOR parseVaccineFile()
 void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign* vc, const size_t counterfactual_scenario, vector<bool> dose_pooling_flags) {
-    const string vaccinationFilename = par->vaccination_file;
-
     // parses the JSON argument into a form to use in vax file parsing
     string counterfactual_reference_loc;
     switch(counterfactual_scenario) {
@@ -387,12 +385,12 @@ void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign*
     }
 
     // check that vaccinationFilename exists and can be opened
-    ifstream iss(vaccinationFilename);
+    ifstream iss(par->vaccinationFilename);
     string buffer;
     istringstream line;
 
     if (!iss) {
-        cerr << "ERROR: vaccination file " << vaccinationFilename << " not found." << endl;
+        cerr << "ERROR: vaccination file " << par->vaccinationFilename << " not found." << endl;
         exit(-1);
     }
 

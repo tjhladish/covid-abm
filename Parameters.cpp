@@ -49,12 +49,16 @@ void Parameters::define_defaults() {
     locationFilename        = "locations.txt";
     publicActivityFilename  = "public-activity.txt";
     networkFilename         = "network.txt";
+    vaccinationFilename     = "";
+    doseFilename            = "";
+
+    behaviorFilename        = "autotuned-behavior.csv";
+    autotuningFilename      = "autotuned-behavior.csv";
+    rCaseDeathFilename      = "";
+
     peopleOutputFilename    = "";
     yearlyPeopleOutputFilename = "";
     dailyOutputFilename     = "";
-    rCaseDeathFilename      = "";
-    vaccination_file        = "";
-    dose_file               = "";
     //annualIntroductionsFilename = "";                   // time series of some external factor determining introduction rate
     //annualIntroductionsCoef = 1;                        // multiplier to rescale external introductions to something sensible
     //annualIntroductions = {1.0};
