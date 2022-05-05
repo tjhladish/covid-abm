@@ -110,5 +110,7 @@ det_to_dth_lag = dbGetQuery(db, stmt)
 det_to_dth_lag = setDT(det_to_dth_lag)
 dbDisconnect(db)
 
+inf_to_dth_lag = inf_history[death_time != 2147483647, death_time - infected_time]
+
 hist(det_to_dth_lag$lag, freq = F)
 hist(det_to_dth_lag[lag >= 0, lag], freq = F)
