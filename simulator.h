@@ -360,7 +360,15 @@ double score_fit(const Parameters* par, const Community* community, const size_t
     for (size_t day = 0; day <= sim_day; ++day) {
         if (emp_data_map.count(day)) {
             // if tuning to case data, store cases (index 0), otherwise store deaths (index 1)
-            emp_rdata[day] = (par->tune_to_cumul_cases) ? emp_data_map.at(day).at(0) : emp_data_map.at(day).at(1);
+            switch (par->behavior_fitting_data_target) {
+                case CASES:  emp_rdata[day] = emp_data_map.at(day).at(0); break;
+                case DEATHS: emp_rdata[day] = emp_data_map.at(day).at(1); break;
+                case NUM_OF_AUTO_FITTING_DATA_TARGETS: [[fallthrough]];
+                default: {
+                    cerr << "ERROR: no PPB auto fitting data target selected." << endl;
+                    exit(-1);
+                }
+            }
         } else {
             fit_weights[day] = 0.0;             // if there is no empirical data for this day, change the error weight to 0 (ignore the error on this day)
         }
@@ -727,9 +735,16 @@ bool restore_from_cache(Community* &community, Date* &date, SimulationCache* sim
 void behavior_autotuning(const Parameters* par, Community* &community, Date* &date, SimulationLedger* &ledger, BehaviorAutoTuner* tuner, SimulationCache* &sim_cache, vector<TimeSeriesAnchorPoint> &social_distancing_anchors, bool& restore_occurred) {
     const size_t day = date->day();
     const size_t recaching_day = (tuner->tuning_window_ct * par->tuning_window) - 1;
-    const size_t behavior_processing_day = (par->tune_to_cumul_cases)
-                                               ? ((tuner->tuning_window_ct + par->num_preview_windows) * par->tuning_window) - 1
-                                               : (((tuner->tuning_window_ct + par->num_preview_windows) * par->tuning_window) - 1) + par->death_tuning_offset;
+    size_t behavior_processing_day;
+    switch (par->behavior_fitting_data_target) {
+        case CASES:  behavior_processing_day = ((tuner->tuning_window_ct + par->num_preview_windows) * par->tuning_window) - 1; break;
+        case DEATHS: behavior_processing_day = (((tuner->tuning_window_ct + par->num_preview_windows) * par->tuning_window) - 1) + par->death_tuning_offset; break;
+        case NUM_OF_AUTO_FITTING_DATA_TARGETS: [[fallthrough]];
+        default: {
+            cerr << "ERROR: no PPB auto fitting data target selected." << endl;
+            exit(-1);
+        }
+    }
 
 
     if (tuner->recache and (day == recaching_day)) {
@@ -750,7 +765,16 @@ void behavior_autotuning(const Parameters* par, Community* &community, Date* &da
                              << setw(10) << prop_days_w_emp_data * 100 << "%";
 
         // calculate normalized distance for this tuning window
-        vector<size_t> model_tuning_data = (par->tune_to_cumul_cases) ? community->getNumDetectedCasesReport() : community-> getNumDetectedDeathsReport();
+        vector<size_t> model_tuning_data;
+        switch (par->behavior_fitting_data_target) {
+            case CASES: model_tuning_data = community->getNumDetectedCasesReport(); break;
+            case DEATHS: model_tuning_data = community->getNumDetectedDeathsReport(); break;
+            case NUM_OF_AUTO_FITTING_DATA_TARGETS: [[fallthrough]];
+            default: {
+                cerr << "ERROR: no PPB auto fitting data target selected." << endl;
+                exit(-1);
+            }
+        }
         double fit_distance = score_fit(par, community, day, model_tuning_data, tuner->emp_data);
         //cerr << "current anchor, score: " << tuner->cur_anchor_val << ", " << fit_distance << endl;
         // keep track of the anchor val with the smallest distance for this window

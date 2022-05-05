@@ -272,8 +272,8 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     // par->doseFilename            = "./counterfactual_doses.txt"; //"./dose_data/FL_doses.txt"; //pop_dir    + "/../fl_vac/doses.txt";
 
     par->behavioral_autotuning = autotune;
-    par->tune_to_cumul_cases = true;
-    par->death_tuning_offset = 18;
+    par->behavior_fitting_data_target = CASES;
+    par->death_tuning_offset = 18; // 18 is median lag b/n infection and death; 8 is median lag b/n detection and death
     par->tuning_window = 14;
     par->num_preview_windows = 3;
     par->behaviorFilename = "autotuning_dataset_dump.csv";
