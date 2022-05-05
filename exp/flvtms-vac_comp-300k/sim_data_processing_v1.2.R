@@ -4,10 +4,11 @@ library(lubridate)
 library(ggplot2)
 library(viridis)
 
-if (interactive()) { setwd("~/documents/work/covid-abm/exp/fl_vac_counterfactual/") }
+if (interactive()) { setwd("~/documents/work/covid-abm/exp/flvtms-vac_comp-300k") }
 
 .args <- if (interactive()) c(
-  "sim_data_0.sqlite"
+  "sim_data_100.sqlite",
+  "../../pop/sim_pop-pseudo-300K-3.1/sim_pop-pseudo-300K-3.1.sqlite"
 ) else commandArgs(trailingOnly = TRUE)
 
 db_path <- .args[1]
@@ -19,23 +20,25 @@ dir.create(figPath, showWarnings = FALSE)
 # OFFSPRING DISTRIBUTION
 db = dbConnect(RSQLite::SQLite(), db_path)
 stmt = "select * from infection_history;"
-seconday_inf_counts = dbGetQuery(db, stmt)
+inf_history = dbGetQuery(db, stmt)
 dbDisconnect(db)
 
-seconday_inf_counts = setDT(seconday_inf_counts)
+inf_history = setDT(inf_history)
 
-hist(seconday_inf_counts[, num_sec_infs], freq=F)
+hist(inf_history[, num_sec_infs], freq=F)
 
-out_table = seconday_inf_counts[, .N, by = .(num_sec_infs)][order(num_sec_infs)]
-fwrite(x=out_table, file='./offspring_distribution.csv', sep=',', quote=F)
+out_table = inf_history[, .N, by = .(num_sec_infs)][order(num_sec_infs)]
+ofilename = paste0("./offspring_distribution_", serial, ".csv")
+fwrite(x=out_table, file=ofilename, sep=',', quote=F)
 
-out_table = seconday_inf_counts[, .N, by = .(day=infected_time, num_sec_infs)][order(day, num_sec_infs)]
-fwrite(x=out_table, file='./daily_offspring_distributions.csv', sep=',', quote=F)
+out_table = inf_history[, .N, by = .(day=infected_time, num_sec_infs)][order(day, num_sec_infs)]
+ofilename = paste0("./daily_offspring_distributions_", serial, ".csv")
+fwrite(x=out_table, file=ofilename, sep=',', quote=F)
 
 # INFECTIONS BY TYPE
 db = dbConnect(RSQLite::SQLite(), db_path)
-db2 = dbConnect(RSQLite::SQLite(), "../../pop/sim_pop-pseudo-300K-3.1/sim_pop-pseudo-300K-3.1.sqlite")
-dbExecute(db, "attach database '../../pop/sim_pop-pseudo-300K-3.1/sim_pop-pseudo-300K-3.1.sqlite' as synthpop")
+stmt = paste0("attach database '", .args[2], "' as synthpop")
+dbExecute(db, stmt)
 
 stmt = "select ih.inf, ih.infected_time, ih.inf_place_id, l.type as inf_place_type, ih.inf_owner_id, p.age, r.locid as home_id, m.locid as day_id, m.type as day_type 
 from infection_history as ih 
@@ -46,7 +49,6 @@ left join synthpop.pers as p on (ih.inf_owner_id + 1) = p.pid;"
 
 inf_hist_w_locs = dbGetQuery(db, stmt)
 dbDisconnect(db)
-dbDisconnect(db2)
 
 inf_hist_w_locs = setDT(inf_hist_w_locs)
 inf_hist_w_locs[, inf_place_id_adj := inf_place_id + 1]
@@ -97,3 +99,16 @@ inf_by_loc_plot = ggplot(inf_by_loc_ts, aes(x = sim_start_date + infected_time, 
   ylab("Num. infections")
 
 ggsave(filename = paste0(figPath, "/inf_by_loc.png"), plot = inf_by_loc_plot, device = 'png', units = 'in', height = 6, width = 12, dpi = 300)
+
+# AVG TIMING BETWEEN INFECTION AND DEATH
+db = dbConnect(RSQLite::SQLite(), db_path)
+stmt = 'select ih.inf, ih.inf_owner_id, id.detected_state, id.reported_time, ih.death_time, (ih.death_time - id.reported_time) as lag 
+from infection_history as ih  
+left join infection_detection as id on (ih.inf = id.inf) 
+where ih.detected != 0 and ih.death_time != 2147483647;'
+det_to_dth_lag = dbGetQuery(db, stmt)
+det_to_dth_lag = setDT(det_to_dth_lag)
+dbDisconnect(db)
+
+hist(det_to_dth_lag$lag, freq = F)
+hist(det_to_dth_lag[lag >= 0, lag], freq = F)

@@ -3,7 +3,7 @@ library(lubridate)
 library(ggplot2)
 library(viridis)
 
-if (interactive()) { setwd("~/documents/work/covid-abm/exp/fl_vac_counterfactual/") }
+if (interactive()) { setwd("~/documents/work/covid-abm/exp/flvtms-vac_comp-300k/") }
 
 .args <- if (interactive()) c(
   "ACS_2019_pop_data.csv",
@@ -207,8 +207,19 @@ tmp[, `:=` (
   n_doses_p10k = 0
 )]
 out.dt <- rbindlist(list(out.dt, tmp))
-fwrite(out.dt[,.(date, ref_location, bin_min, bin_max, dose, is_urg, n_doses_p10k)], file = "counterfactual_doses_v2.txt", sep = ' ')
+fwrite(out.dt[,.(date, ref_location, bin_min, bin_max, dose, is_urg, n_doses_p10k)], file = "state_based_counterfactual_doses.txt", sep = ' ')
 
+active_dosing = prepended_doses.dt[,.(date, ref_location=location, bin_min, bin_max, dose, n_doses_p10k)][ref_location == "FL"]
+active_dosing[, is_urg := 0]
+tmp <- prepended_doses.dt[,.(date, ref_location=location, bin_min, bin_max, dose, n_doses_p10k)][ref_location == "FL"]
+tmp[, is_urg := 1]
+tmp[dose != 1 | date < "2021-06-01", n_doses_p10k := 0]
+active_dosing <- rbindlist(list(active_dosing, tmp))
+fwrite(active_dosing[,.(date, ref_location, bin_min, bin_max, dose, is_urg, n_doses_p10k)], file = "active_vax_counterfactual_doses.txt", sep = ' ')
+
+ggplot() +
+  geom_line(data = active_dosing[is_urg == 0 & dose == 1, .(doses=sum(n_doses_p10k)), by=.(date)][, doses := filter(doses, rep(1/7,7), sides=2)], aes(date, doses)) +
+  geom_line(data = active_dosing[is_urg == 1 & dose == 1, .(doses=sum(n_doses_p10k)), by=.(date)][, doses := filter(doses, rep(1/7,7), sides=2)], aes(date, doses), color='red')
 
 #' fancy stuff from CABP
 #' gg.scale.wrapper <- function(
