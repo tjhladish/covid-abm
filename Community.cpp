@@ -916,7 +916,8 @@ void Community::nursinghome_transmission() {
 void Community::_transmission(Location* source_loc, vector<Person*> at_risk_group, const map<double, vector<Person*>> &infectious_groups, const double T) {
     const bool check_susceptibility = true;
     for (Person* p: at_risk_group) {
-        if (p->isQuarantining(_date->day())) { continue; }
+        // skip transmission for this person if they are self-quarantining unless it is within their home
+        if (p->isQuarantining(_date->day()) and not (source_loc == p->getHomeLoc())) { continue; }
         if (gsl_rng_uniform(RNG) < T) {
             Person* infecter     = nullptr;
             Infection* source_infection = nullptr;
