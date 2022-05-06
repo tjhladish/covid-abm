@@ -42,6 +42,19 @@ void Location::dumper() const {
     cerr << "\tneighbors: "; for (auto l: _neighbors) { cerr << l->getID() << " "; } cerr << endl;
 }
 
+void Location::revertState(const Date* date) {
+    const int time = date->day();
+    // _visitors should be empty before tick() is called because it is cleared after each day
+    // _person is only dynamic for hospitals
+    if (_type == HOSPITAL) {
+        for (Person* p : _person) {
+            // remove all patients from this hospital (HCWs will not be removed since that is a static property)
+            // those patients that should be in a hospital will be added back by Person::revertState()
+            if (not (p->getDayLoc() == this)) { removePerson(p); }
+        }
+    }
+}
+
 
 bool Location::removePerson(Person* p) { // TODO -- consider implications of using set for container, to make removing faster
     for (unsigned int i=0; i<_person.size(); i++) {

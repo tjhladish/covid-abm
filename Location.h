@@ -87,6 +87,8 @@ class Location {
         bool operator == ( const Location* other ) const { return _ID == other->_ID; }
         void dumper() const;
 
+        void revertState(const Date* date);
+
         // We use this to make sure that locations are iterated through in a well-defined order (by ID), rather than by mem address
 
     protected:
