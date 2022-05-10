@@ -28,45 +28,46 @@ const Parameters* Community::_par;
 
 int mod(int k, int n) { return ((k %= n) < 0) ? k+n : k; } // correct for non-negative n
 
-Community::Community(const Parameters* parameters, Date* date) :
-    _numNewlyInfected(parameters->runLength, 0), // +1 not needed; runLength is already a valid size
-    _numNewlySymptomatic(parameters->runLength, 0),
-    _numNewlySevere(parameters->runLength, 0),
-    _numNewlyCritical(parameters->runLength, 0),
-    _numNewlyDead(parameters->runLength, 0),
-    _numVaccinatedCases(parameters->runLength, 0),
-    _numSeverePrev(parameters->runLength, 0),
-    _numHospInc(parameters->runLength, 0),
-    _numHospPrev(parameters->runLength, 0),
-    _numIcuInc(parameters->runLength, 0),
-    _numIcuPrev(parameters->runLength, 0),
-    _numDetectedCasesOnset(parameters->runLength, 0),
-    _numDetectedCasesReport(parameters->runLength, 0),
-    _numDetectedHospitalizations(parameters->runLength, 0),
-    //_numDetectedDeaths(parameters->runLength, 0),
-    _numDetectedDeathsOnset(parameters->runLength, 0),
-    _numDetectedDeathsReport(parameters->runLength, 0),
-    _cumulIncByOutcome(NUM_OF_OUTCOME_TYPES, 0),
-    _isHot(parameters->runLength)
+Community::Community(const Parameters* parameters, Date* date) //:
+    // _numNewlyInfected(parameters->runLength, 0), // +1 not needed; runLength is already a valid size
+    // _numNewlySymptomatic(parameters->runLength, 0),
+    // _numNewlySevere(parameters->runLength, 0),
+    // _numNewlyCritical(parameters->runLength, 0),
+    // _numNewlyDead(parameters->runLength, 0),
+    // _numVaccinatedCases(parameters->runLength, 0),
+    // _numSeverePrev(parameters->runLength, 0),
+    // _numHospInc(parameters->runLength, 0),
+    // _numHospPrev(parameters->runLength, 0),
+    // _numIcuInc(parameters->runLength, 0),
+    // _numIcuPrev(parameters->runLength, 0),
+    // _numDetectedCasesOnset(parameters->runLength, 0),
+    // _numDetectedCasesReport(parameters->runLength, 0),
+    // _numDetectedHospitalizations(parameters->runLength, 0),
+    // //_numDetectedDeaths(parameters->runLength, 0),
+    // _numDetectedDeathsOnset(parameters->runLength, 0),
+    // _numDetectedDeathsReport(parameters->runLength, 0),
+    // _cumulIncByOutcome(NUM_OF_OUTCOME_TYPES, 0),
+    // _isHot(parameters->runLength)
     {
     _par = parameters;
     _date = date;
     _day = 0;
-    for (int strain = 0; strain < (int) NUM_OF_STRAIN_TYPES; ++strain) {
-        _numNewInfectionsByStrain[(StrainType) strain] = vector<size_t>(_par->runLength);
-    }
+    cmty_ledger = new Community_Ledger(_par);
+    // for (int strain = 0; strain < (int) NUM_OF_STRAIN_TYPES; ++strain) {
+    //     _numNewInfectionsByStrain[(StrainType) strain] = vector<size_t>(_par->runLength);
+    // }
+    //
+    // vector<string> inf_by_loc_keys = {"home", "social", "work_staff", "patron", "school_staff", "student", "hcw", "patient", "ltcf_staff", "ltcf_resident"};
+    // for (string key : inf_by_loc_keys) {
+    //     _numNewlyInfectedByLoc[key] = vector<size_t>(_par->runLength, 0);
+    // }
 
-    vector<string> inf_by_loc_keys = {"home", "social", "work_staff", "patron", "school_staff", "student", "hcw", "patient", "ltcf_staff", "ltcf_resident"};
-    for (string key : inf_by_loc_keys) {
-        _numNewlyInfectedByLoc[key] = vector<size_t>(_par->runLength, 0);
-    }
-
-    for (auto &e: _isHot) {
-        for (size_t locType = 0; locType < NUM_OF_LOCATION_TYPES; ++locType) {
-            e[(LocationType) locType] = {};
-        }
-    }
-    timedInterventions = _par->timedInterventions;
+    // for (auto &e: _isHot) {
+    //     for (size_t locType = 0; locType < NUM_OF_LOCATION_TYPES; ++locType) {
+    //         e[(LocationType) locType] = {};
+    //     }
+    // }
+    // timedInterventions = _par->timedInterventions;
 }
 
 
@@ -91,29 +92,32 @@ void Community::reset() { // used for r-zero calculations, to reset pop after a 
     }
 
     // reset locations
-    for (auto &e: _isHot) e.clear();
+    // for (auto &e: _isHot) e.clear();
+
+    if (cmty_ledger) { delete cmty_ledger; }
+    cmty_ledger = new Community_Ledger(_par);
 
     // clear community queues & tallies
 //    _exposedQueue.clear();
-    _numNewlyInfected.clear();
-    _numNewlySymptomatic.clear();
-    _numNewlyDead.clear();
-    _numVaccinatedCases.clear();
+    // _numNewlyInfected.clear();
+    // _numNewlySymptomatic.clear();
+    // _numNewlyDead.clear();
+    // _numVaccinatedCases.clear();
 
 //    _exposedQueue.resize(MAX_INCUBATION, vector<Person*>(0));
-    _numNewlyInfected.resize(_par->runLength);
-    for (int strain = 0; strain < (int) NUM_OF_STRAIN_TYPES; ++strain) {
-        _numNewInfectionsByStrain[(StrainType) strain] = vector<size_t>(_par->runLength);
-    }
-
-    vector<string> inf_by_loc_keys = {"home", "social", "work_staff", "patron", "school_staff", "student", "hcw", "patient", "ltcf_staff", "ltcf_resident"};
-    for (string key : inf_by_loc_keys) {
-        _numNewlyInfectedByLoc[key] = vector<size_t>(_par->runLength, 0);
-    }
-
-    _numNewlySymptomatic.resize(_par->runLength);
-    _numNewlyDead.resize(_par->runLength);
-    _numVaccinatedCases.resize(_par->runLength);
+    // _numNewlyInfected.resize(_par->runLength);
+    // for (int strain = 0; strain < (int) NUM_OF_STRAIN_TYPES; ++strain) {
+    //     _numNewInfectionsByStrain[(StrainType) strain] = vector<size_t>(_par->runLength);
+    // }
+    //
+    // vector<string> inf_by_loc_keys = {"home", "social", "work_staff", "patron", "school_staff", "student", "hcw", "patient", "ltcf_staff", "ltcf_resident"};
+    // for (string key : inf_by_loc_keys) {
+    //     _numNewlyInfectedByLoc[key] = vector<size_t>(_par->runLength, 0);
+    // }
+    //
+    // _numNewlySymptomatic.resize(_par->runLength);
+    // _numNewlyDead.resize(_par->runLength);
+    // _numVaccinatedCases.resize(_par->runLength);
 }
 
 
@@ -123,7 +127,7 @@ Community::~Community() {
     if (vac_campaign) { delete vac_campaign; }
 
     Person::reset_ID_counter();
-    _isHot.clear();
+    // _isHot.clear();
 
     for (unsigned int i = 0; i < _location.size(); i++ ) delete _location[i];
     _location.clear();
@@ -136,12 +140,26 @@ Community::~Community() {
 
 //    _exposedQueue.clear();
     _personAgeCohort.clear();
-    _numNewlyInfected.clear();
-    _numNewInfectionsByStrain.clear();
-    _numNewlyInfectedByLoc.clear();
-    _numNewlySymptomatic.clear();
-    _numNewlyDead.clear();
-    _numVaccinatedCases.clear();
+    // _numNewlyInfected.clear();
+    // _numNewInfectionsByStrain.clear();
+    // _numNewlyInfectedByLoc.clear();
+    // _numNewlySymptomatic.clear();
+    // _numNewlyDead.clear();
+    // _numVaccinatedCases.clear();
+    if (cmty_ledger) { delete cmty_ledger; }
+}
+
+void Community::revertState(Community_Ledger* cl, Date* d) {
+    // overwrite ledger
+    if (cmty_ledger) { delete cmty_ledger; }
+    cmty_ledger = cl;
+    // overwrite date
+    if (_date) { delete _date; }
+    _date = d;
+    // revert locations
+    for (Location* loc : _location) { loc->revertState(); }
+    // revert people
+    for (Person* p : _people) { p->revertState(_date); }
 }
 
 
@@ -600,11 +618,11 @@ void Community::reportCase(int onsetDate, long int reportDate, bool hospitalized
     assert(onsetDate >= 0);
     assert(reportDate >= 0);
     // onset == sample collection date; FL doesn't report when symptoms began
-    if ((unsigned) onsetDate < _numDetectedCasesOnset.size()) { _numDetectedCasesOnset[onsetDate]++; }
-    if ((unsigned) reportDate < _numDetectedCasesReport.size()) {
-        _numDetectedCasesReport[reportDate]++;
+    if ((unsigned) onsetDate < cmty_ledger->_numDetectedCasesOnset.size()) { cmty_ledger->_numDetectedCasesOnset[onsetDate]++; }
+    if ((unsigned) reportDate < cmty_ledger->_numDetectedCasesReport.size()) {
+        cmty_ledger->_numDetectedCasesReport[reportDate]++;
         // it's not clear exactly how to interpret the date on which the state reports a hospitalization
-        if (hospitalized) { _numDetectedHospitalizations[reportDate]++; }
+        if (hospitalized) { cmty_ledger->_numDetectedHospitalizations[reportDate]++; }
     }
 }
 
@@ -616,8 +634,8 @@ void Community::reportCase(int onsetDate, long int reportDate, bool hospitalized
 void Community::reportDeath(int onsetDate, long int reportDate) {
     assert(onsetDate >= 0);
     assert(reportDate >= 0);
-    if ((unsigned) onsetDate < _numDetectedDeathsOnset.size()) { _numDetectedDeathsOnset[onsetDate]++; }
-    if ((unsigned) reportDate < _numDetectedDeathsReport.size()) { _numDetectedDeathsReport[reportDate]++; }
+    if ((unsigned) onsetDate < cmty_ledger->_numDetectedDeathsOnset.size()) { cmty_ledger->_numDetectedDeathsOnset[onsetDate]++; }
+    if ((unsigned) reportDate < cmty_ledger->_numDetectedDeathsReport.size()) { cmty_ledger->_numDetectedDeathsReport[reportDate]++; }
 }
 
 
@@ -641,33 +659,33 @@ void Community::updatePersonStatus() {
                 // the methods used with Infection below generally are available for Person, but this should be faster
                 const Infection* inf = p->getInfection();
                 if (inf->getInfectedTime()==_day) {
-                    _numNewlyInfected[_day]++;
-                    _numNewInfectionsByStrain.at(inf->getStrain())[_day]++;
+                    cmty_ledger->_numNewlyInfected[_day]++;
+                    cmty_ledger->_numNewInfectionsByStrain.at(inf->getStrain())[_day]++;
                 }
 
                 if (inf->getSymptomTime()==_day) {                              // started showing symptoms today
-                    _numNewlySymptomatic[_day]++;
-                    if (p->isVaccinated()) { _numVaccinatedCases[_day]++; }
+                    cmty_ledger->_numNewlySymptomatic[_day]++;
+                    if (p->isVaccinated()) { cmty_ledger->_numVaccinatedCases[_day]++; }
                 }
 
-                if (inf->isSevere(_day)) { _numSeverePrev[_day]++; }
+                if (inf->isSevere(_day)) { cmty_ledger->_numSeverePrev[_day]++; }
 
                 if (inf->inHospital(_day)) {
-                    _numHospPrev[_day]++;
+                    cmty_ledger->_numHospPrev[_day]++;
                     if (inf->getHospitalizedTime()==_day) {
-                        _numHospInc[_day]++;
+                        cmty_ledger->_numHospInc[_day]++;
                     }
                     if (inf->inIcu(_day)) {
-                        _numIcuPrev[_day]++;
+                        cmty_ledger->_numIcuPrev[_day]++;
                         if (inf->getIcuTime()==_day) {
-                            _numIcuInc[_day]++;
+                            cmty_ledger->_numIcuInc[_day]++;
                         }
                     }
                 }
 
-                if (inf->getSevereTime()==_day)   { _numNewlySevere[_day]++; }
-                if (inf->getCriticalTime()==_day) { _numNewlyCritical[_day]++; }
-                if (p->isNewlyDead(_day))       { _numNewlyDead[_day]++; }
+                if (inf->getSevereTime()==_day)   { cmty_ledger->_numNewlySevere[_day]++; }
+                if (inf->getCriticalTime()==_day) { cmty_ledger->_numNewlyCritical[_day]++; }
+                if (p->isNewlyDead(_day))         { cmty_ledger->_numNewlyDead[_day]++; }
                 /*if (p->getWithdrawnTime()==_day) {                            // started withdrawing
                     p->getLocation(HOME_MORNING)->addPerson(p,WORK_DAY);       // stays at home at mid-day
                     p->getLocation(WORK_DAY)->removePerson(p,WORK_DAY);        // does not go to work
@@ -729,7 +747,7 @@ void Community::updatePersonStatus() {
 
 void Community::flagInfectedLocation(Person* person, double relInfectiousness, LocationType locType, Location* _pLoc, int day) {
     assert(day >= 0);
-    if ((unsigned) day < _par->runLength) _isHot[day][locType][_pLoc][relInfectiousness].push_back(person);
+    if ((unsigned) day < _par->runLength) cmty_ledger->_isHot[day][locType][_pLoc][relInfectiousness].push_back(person);
 }
 
 
@@ -768,7 +786,7 @@ Infection* Community::trace_contact(Person* &infecter, Location* source_loc, con
 
 
 double Community::social_distancing(int _day) {
-    return timedInterventions[SOCIAL_DISTANCING][_day];
+    return cmty_ledger->_timedInterventions[SOCIAL_DISTANCING][_day];
 }
 
 
@@ -782,7 +800,7 @@ double _tally_infectiousness (const map<double, vector<Person*>> infectious_grou
 
 
 void Community::within_household_transmission() {
-    for (const auto& [loc, infectious_groups]: _isHot[_day][HOUSE]) {
+    for (const auto& [loc, infectious_groups]: cmty_ledger->_isHot[_day][HOUSE]) {
         const double infectious_weight = _tally_infectiousness(infectious_groups);
         const double hazard =  _par->household_transmission_haz_mult * _par->seasonality_on(_date) * infectious_weight;
         const double T = 1.0 - exp(-hazard);
@@ -793,7 +811,7 @@ void Community::within_household_transmission() {
 
 
 void Community::between_household_transmission() {
-    for (const auto& [loc, infectious_groups]: _isHot[_day][HOUSE]) {
+    for (const auto& [loc, infectious_groups]: cmty_ledger->_isHot[_day][HOUSE]) {
         const double infectious_weight = _tally_infectiousness(infectious_groups);
         // ↓↓↓ this model made it almost impossible to stop transmission using SD
         //if (social_distancing(_day) - loc->getRiskiness() < gsl_rng_uniform(RNG)) { // this household is not cautious enough to avoid interactions
@@ -820,10 +838,10 @@ void Community::between_household_transmission() {
 void Community::workplace_transmission() {
     // Transmission for school employees is considered school transmission, not workplace transmission
     // This includes all other employees, as well as consumer visits to restaurants, bars, retail locations, and religious facilities
-    for (const auto& [loc, infectious_groups]: _isHot[_day][WORK]) {
+    for (const auto& [loc, infectious_groups]: cmty_ledger->_isHot[_day][WORK]) {
         // if non-essential businesses are closed, skip this workplace
         const int workplace_size = loc->getNumPeople() + loc->getNumVisitors();
-        if (workplace_size < 2 or (loc->isNonEssential() and timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE][_day])) {
+        if (workplace_size < 2 or (loc->isNonEssential() and cmty_ledger->_timedInterventions[NONESSENTIAL_BUSINESS_CLOSURE][_day])) {
             continue;
         }
 
@@ -855,9 +873,9 @@ void Community::workplace_transmission() {
 
 void Community::school_transmission() {
     // Transmission for school employees is considered school transmission, not workplace transmission
-    const double hazard_coef = (1.0 - timedInterventions[SCHOOL_CLOSURE][_day]) * _par->school_transmission_haz_mult * _par->seasonality_on(_date);
+    const double hazard_coef = (1.0 - cmty_ledger->_timedInterventions[SCHOOL_CLOSURE][_day]) * _par->school_transmission_haz_mult * _par->seasonality_on(_date);
     if (hazard_coef != 0.0) {
-        for (const auto& [loc, infectious_groups]: _isHot[_day][SCHOOL]) {
+        for (const auto& [loc, infectious_groups]: cmty_ledger->_isHot[_day][SCHOOL]) {
             const int school_size = loc->getNumPeople();
             if (school_size < 2) { continue; }
             const double infectious_weight = _tally_infectiousness(infectious_groups);
@@ -871,7 +889,7 @@ void Community::school_transmission() {
 
 
 void Community::hospital_transmission() {
-    for (const auto& [loc, infectious_groups]: _isHot[_day][HOSPITAL]) {
+    for (const auto& [loc, infectious_groups]: cmty_ledger->_isHot[_day][HOSPITAL]) {
         const int hospital_census = loc->getNumPeople(); // workers + patients
         if (hospital_census < 2) { continue; }
         const double infectious_weight = _tally_infectiousness(infectious_groups);
@@ -899,7 +917,7 @@ void Community::generic_location_transmission(const auto& hot_location_type_data
 
 
 void Community::nursinghome_transmission() {
-    for (const auto& [loc, infectious_groups]: _isHot[_day][NURSINGHOME]) {
+    for (const auto& [loc, infectious_groups]: cmty_ledger->_isHot[_day][NURSINGHOME]) {
         const int nursinghome_census = loc->getNumPeople(); // workers + residents
         if (nursinghome_census < 2) { continue; }
         const double infectious_weight = _tally_infectiousness(infectious_groups);
@@ -939,7 +957,7 @@ void Community::_transmission(Location* source_loc, vector<Person*> at_risk_grou
 
 void Community::updateHotLocations() {
     for (size_t locType = 0; locType < NUM_OF_LOCATION_TYPES; ++locType) {
-        _isHot[_day][(LocationType) locType].clear();
+        cmty_ledger->_isHot[_day][(LocationType) locType].clear();
     }
 }
 
@@ -1101,7 +1119,7 @@ void Community::tick() {
     workplace_transmission();
     clear_public_activity();
 
-    if (_date->isWeekday() and (timedInterventions[SCHOOL_CLOSURE][_day] < 1)) {
+    if (_date->isWeekday() and (cmty_ledger->_timedInterventions[SCHOOL_CLOSURE][_day] < 1)) {
         school_transmission();
     }
     nursinghome_transmission();

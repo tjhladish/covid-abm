@@ -20,6 +20,121 @@ class Person;
 // We use this to created a vector of people, sorted by decreasing age.  Used for aging/immunity swapping.
 //struct PerPtrComp { bool operator()(const Person* A, const Person* B) const { return A->getAge() > B->getAge(); } };
 
+class Community_Ledger {
+    friend class Community;
+public:
+    Community_Ledger(const Parameters* par) :
+        _numNewlyInfected(par->runLength, 0), // +1 not needed; runLength is already a valid size
+        _numNewlySymptomatic(par->runLength, 0),
+        _numNewlySevere(par->runLength, 0),
+        _numNewlyCritical(par->runLength, 0),
+        _numNewlyDead(par->runLength, 0),
+        _numVaccinatedCases(par->runLength, 0),
+        _numSeverePrev(par->runLength, 0),
+        _numHospInc(par->runLength, 0),
+        _numHospPrev(par->runLength, 0),
+        _numIcuInc(par->runLength, 0),
+        _numIcuPrev(par->runLength, 0),
+        _numDetectedCasesOnset(par->runLength, 0),
+        _numDetectedCasesReport(par->runLength, 0),
+        _numDetectedHospitalizations(par->runLength, 0),
+        //_numDetectedDeaths(parameters->runLength, 0),
+        _numDetectedDeathsOnset(par->runLength, 0),
+        _numDetectedDeathsReport(par->runLength, 0),
+        _cumulIncByOutcome(NUM_OF_OUTCOME_TYPES, 0),
+        _isHot(par->runLength),
+        _timedInterventions(par->timedInterventions)
+    {
+        for (int strain = 0; strain < (int) NUM_OF_STRAIN_TYPES; ++strain) {
+            _numNewInfectionsByStrain[(StrainType) strain] = vector<size_t>(par->runLength);
+        }
+
+        vector<string> inf_by_loc_keys = {"home", "social", "work_staff", "patron", "school_staff", "student", "hcw", "patient", "ltcf_staff", "ltcf_resident"};
+        for (string key : inf_by_loc_keys) {
+            _numNewlyInfectedByLoc[key] = vector<size_t>(par->runLength, 0);
+        }
+
+        for (auto &e: _isHot) {
+            for (size_t locType = 0; locType < NUM_OF_LOCATION_TYPES; ++locType) {
+                e[(LocationType) locType] = {};
+            }
+        }
+    }
+
+    Community_Ledger(const Community_Ledger& o) {
+        _numNewlyInfected = o._numNewlyInfected;
+        _numNewInfectionsByStrain = o._numNewInfectionsByStrain;
+        _numNewlyInfectedByLoc = o._numNewlyInfectedByLoc;
+        _numNewlySymptomatic = o._numNewlySymptomatic;
+        _numNewlySevere = o._numNewlySevere;
+        _numNewlyCritical = o._numNewlyCritical;
+        _numNewlyDead = o._numNewlyDead;
+        _numVaccinatedCases = o._numVaccinatedCases;
+        _numSeverePrev = o._numSeverePrev;
+        _numHospInc = o._numHospInc;
+        _numHospPrev = o._numHospPrev;
+        _numIcuInc = o._numIcuInc;
+        _numIcuPrev = o._numIcuPrev;
+        _numDetectedCasesOnset = o._numDetectedCasesOnset;
+        _numDetectedCasesReport = o._numDetectedCasesReport;
+        _numDetectedHospitalizations = o._numDetectedHospitalizations;
+        _numDetectedDeathsOnset = o._numDetectedDeathsOnset;
+        _numDetectedDeathsReport = o._numDetectedDeathsReport;
+        _cumulIncByOutcome = o._cumulIncByOutcome;
+        _isHot = o._isHot;
+        _timedInterventions = o._timedInterventions;
+    }
+
+    ~Community_Ledger() {   // is any of this necessay?
+        _numNewlyInfected.clear();
+        _numNewInfectionsByStrain.clear();
+        _numNewlyInfectedByLoc.clear();
+        _numNewlySymptomatic.clear();
+        _numNewlySevere.clear();
+        _numNewlyCritical.clear();
+        _numNewlyDead.clear();
+        _numVaccinatedCases.clear();
+        _numSeverePrev.clear();
+        _numHospInc.clear();
+        _numHospPrev.clear();
+        _numIcuInc.clear();
+        _numIcuPrev.clear();
+        _numDetectedCasesOnset.clear();
+        _numDetectedCasesReport.clear();
+        _numDetectedHospitalizations.clear();
+        _numDetectedDeathsOnset.clear();
+        _numDetectedDeathsReport.clear();
+        _cumulIncByOutcome.clear();
+        _isHot.clear();
+        _timedInterventions.clear();
+    }
+private:
+    std::vector<size_t> _numNewlyInfected;
+    std::map<StrainType, std::vector<size_t>> _numNewInfectionsByStrain;
+    std::map<std::string, std::vector<size_t>> _numNewlyInfectedByLoc;
+    std::vector<size_t> _numNewlySymptomatic;                              // true cases, no lag due to detection
+    std::vector<size_t> _numNewlySevere;                                   // true cases, no lag due to detection
+    std::vector<size_t> _numNewlyCritical;                                 // true cases, no lag due to detection
+    std::vector<size_t> _numNewlyDead;                                     // true cases, no lag due to detection
+    std::vector<size_t> _numVaccinatedCases;
+    std::vector<size_t> _numSeverePrev;
+    std::vector<size_t> _numHospInc;
+    std::vector<size_t> _numHospPrev;
+    std::vector<size_t> _numIcuInc;
+    std::vector<size_t> _numIcuPrev;
+    std::vector<size_t> _numDetectedCasesOnset;
+    std::vector<size_t> _numDetectedCasesReport;
+    std::vector<size_t> _numDetectedHospitalizations;
+    std::vector<size_t> _numDetectedDeathsOnset;
+    std::vector<size_t> _numDetectedDeathsReport;
+    std::vector<size_t> _cumulIncByOutcome;
+
+    // groups of infectious people: indexed by day, location type, location ptr, and relative infectiousness
+    std::vector< std::map<LocationType, std::map<Location*, std::map<double, std::vector<Person*>>, Location::LocPtrComp>>> _isHot;
+
+    std::map<TimedIntervention, std::vector<double>> _timedInterventions;
+};
+
 class Community {
     public:
         Community(const Parameters* parameters, Date* date);
@@ -33,28 +148,29 @@ class Community {
             _location_map                = o._location_map;
             // _exposedQueue                = o._exposedQueue;
             _day                         = o._day;
-            _numNewlyInfected            = o._numNewlyInfected;
-            _numNewInfectionsByStrain    = o._numNewInfectionsByStrain;
-            _numNewlyInfectedByLoc       = o._numNewlyInfectedByLoc;
-            _numNewlySymptomatic         = o._numNewlySymptomatic;
-            _numNewlySevere              = o._numNewlySevere;
-            _numNewlyCritical            = o._numNewlyCritical;
-            _numNewlyDead                = o._numNewlyDead;
-            _numVaccinatedCases          = o._numVaccinatedCases;
-            _numSeverePrev               = o._numSeverePrev;
-            _numHospInc                  = o._numHospInc;
-            _numHospPrev                 = o._numHospPrev;
-            _numIcuInc                   = o._numIcuInc;
-            _numIcuPrev                  = o._numIcuPrev;
-            _numDetectedCasesOnset       = o._numDetectedCasesOnset;
-            _numDetectedCasesReport      = o._numDetectedCasesReport;
-            _numDetectedHospitalizations = o._numDetectedHospitalizations;
+            // _numNewlyInfected            = o._numNewlyInfected;
+            // _numNewInfectionsByStrain    = o._numNewInfectionsByStrain;
+            // _numNewlyInfectedByLoc       = o._numNewlyInfectedByLoc;
+            // _numNewlySymptomatic         = o._numNewlySymptomatic;
+            // _numNewlySevere              = o._numNewlySevere;
+            // _numNewlyCritical            = o._numNewlyCritical;
+            // _numNewlyDead                = o._numNewlyDead;
+            // _numVaccinatedCases          = o._numVaccinatedCases;
+            // _numSeverePrev               = o._numSeverePrev;
+            // _numHospInc                  = o._numHospInc;
+            // _numHospPrev                 = o._numHospPrev;
+            // _numIcuInc                   = o._numIcuInc;
+            // _numIcuPrev                  = o._numIcuPrev;
+            // _numDetectedCasesOnset       = o._numDetectedCasesOnset;
+            // _numDetectedCasesReport      = o._numDetectedCasesReport;
+            // _numDetectedHospitalizations = o._numDetectedHospitalizations;
             //_numDetectedDeaths           = o._numDetectedDeaths;
-            _numDetectedDeathsOnset      = o._numDetectedDeathsOnset;
-            _numDetectedDeathsReport     = o._numDetectedDeathsReport;
-            _cumulIncByOutcome           = o._cumulIncByOutcome;
-            _isHot                       = std::vector< std::map<LocationType, std::map<Location*, std::map<double, std::vector<Person*>>, Location::LocPtrComp>>>(o._isHot.size());
-            for (auto &e: _isHot) {
+            // _numDetectedDeathsOnset      = o._numDetectedDeathsOnset;
+            // _numDetectedDeathsReport     = o._numDetectedDeathsReport;
+            // _cumulIncByOutcome           = o._cumulIncByOutcome;
+            cmty_ledger                  = o.cmty_ledger ? new Community_Ledger(*(o.cmty_ledger)) : nullptr;
+            // _isHot                       = std::vector< std::map<LocationType, std::map<Location*, std::map<double, std::vector<Person*>>, Location::LocPtrComp>>>(o._isHot.size());
+            for (auto &e: cmty_ledger->_isHot) {
                 for (size_t locType = 0; locType < NUM_OF_LOCATION_TYPES; ++locType) {
                     e[(LocationType) locType] = {};
                 }
@@ -63,7 +179,7 @@ class Community {
             // _peopleByAge                 = o._peopleByAge;
             vac_campaign                 = o.vac_campaign ? new Vac_Campaign(*(o.vac_campaign)) : nullptr;
             // _revaccinate_set             = o._revaccinate_set;
-            timedInterventions           = o.timedInterventions;
+            // timedInterventions           = o.timedInterventions;
 
             // allocate new location and person objects
             map<Location*, Location*> location_ptr_map;
@@ -122,9 +238,9 @@ class Community {
 
             // groups of infectious people: indexed by day, location type, location ptr, and relative infectiousness
             // std::vector< std::map<LocationType, std::map<Location*, std::map<double, std::vector<Person*>>, Location::LocPtrComp>>> _isHot;
-            for (size_t day = 0; day < o._isHot.size(); ++day) {
+            for (size_t day = 0; day < o.cmty_ledger->_isHot.size(); ++day) {
                 // std::map<LocationType, std::map<Location*, std::map<double, std::vector<Person*>>, Location::LocPtrComp>>
-                for (const auto& [lt, locMap] : o._isHot[day]) {
+                for (const auto& [lt, locMap] : o.cmty_ledger->_isHot[day]) {
                     // std::map<Location*, std::map<double, std::vector<Person*>>, Location::LocPtrComp>
                     for (const auto& [loc, relinfMap] : locMap) {
                         // std::map<double, std::vector<Person*>>
@@ -133,7 +249,7 @@ class Community {
                             for (Person* p : v) {
                                 Location* new_loc = location_ptr_map[loc];
                                 Person* new_per   = person_ptr_map[p];
-                                _isHot[day][lt][new_loc][relinfness].push_back(new_per);
+                                cmty_ledger->_isHot[day][lt][new_loc][relinfness].push_back(new_per);
                             }
                         }
                     }
@@ -234,29 +350,29 @@ class Community {
         void setVESs(std::vector<double> f);
         void setVac_Campaign(Vac_Campaign* vc) { vac_campaign = vc; }
         Vac_Campaign* getVac_Campaign() const { return vac_campaign; }
-        std::vector<size_t> getNumNewlyInfected() { return _numNewlyInfected; }
-        std::vector<size_t> getNumNewInfections(StrainType strain) { return _numNewInfectionsByStrain.at(strain); }
-        std::vector<size_t> getNumNewInfectionsByLoc(string key) { return _numNewlyInfectedByLoc[key]; }
-        std::vector<size_t> getNumNewlySymptomatic() { return _numNewlySymptomatic; }
-        std::vector<size_t> getNumNewlySevere() { return _numNewlySevere; }
-        std::vector<size_t> getNumNewlyCritical() { return _numNewlyCritical; }
-        std::vector<size_t> getNumNewlyDead() { return _numNewlyDead; }
+        std::vector<size_t> getNumNewlyInfected() { return cmty_ledger->_numNewlyInfected; }
+        std::vector<size_t> getNumNewInfections(StrainType strain) { return cmty_ledger->_numNewInfectionsByStrain.at(strain); }
+        std::vector<size_t> getNumNewInfectionsByLoc(string key) { return cmty_ledger->_numNewlyInfectedByLoc[key]; }
+        std::vector<size_t> getNumNewlySymptomatic() { return cmty_ledger->_numNewlySymptomatic; }
+        std::vector<size_t> getNumNewlySevere() { return cmty_ledger->_numNewlySevere; }
+        std::vector<size_t> getNumNewlyCritical() { return cmty_ledger->_numNewlyCritical; }
+        std::vector<size_t> getNumNewlyDead() { return cmty_ledger->_numNewlyDead; }
 
-        std::vector<size_t> getNumVaccinatedCases() { return _numVaccinatedCases; }
-        std::vector<size_t> getNumSeverePrev() { return _numSeverePrev; }
-        std::vector<size_t> getNumHospInc() { return _numHospInc; }
-        std::vector<size_t> getNumHospPrev() { return _numHospPrev; }
-        std::vector<size_t> getNumIcuInc() { return _numIcuInc; }
-        std::vector<size_t> getNumIcuPrev() { return _numIcuPrev; }
-        std::vector<size_t> getNumDetectedCasesOnset() { return _numDetectedCasesOnset; }
-        std::vector<size_t> getNumDetectedCasesReport() { return _numDetectedCasesReport; }
-        std::vector<size_t> getNumDetectedHospitalizations() { return _numDetectedHospitalizations; }
+        std::vector<size_t> getNumVaccinatedCases() { return cmty_ledger->_numVaccinatedCases; }
+        std::vector<size_t> getNumSeverePrev() { return cmty_ledger->_numSeverePrev; }
+        std::vector<size_t> getNumHospInc() { return cmty_ledger->_numHospInc; }
+        std::vector<size_t> getNumHospPrev() { return cmty_ledger->_numHospPrev; }
+        std::vector<size_t> getNumIcuInc() { return cmty_ledger->_numIcuInc; }
+        std::vector<size_t> getNumIcuPrev() { return cmty_ledger->_numIcuPrev; }
+        std::vector<size_t> getNumDetectedCasesOnset() { return cmty_ledger->_numDetectedCasesOnset; }
+        std::vector<size_t> getNumDetectedCasesReport() { return cmty_ledger->_numDetectedCasesReport; }
+        std::vector<size_t> getNumDetectedHospitalizations() { return cmty_ledger->_numDetectedHospitalizations; }
         //std::vector<size_t> getNumDetectedDeaths() { return _numDetectedDeaths; }
-        std::vector<size_t> getNumDetectedDeathsOnset() { return _numDetectedDeathsOnset; }
-        std::vector<size_t> getNumDetectedDeathsReport() { return _numDetectedDeathsReport; }
+        std::vector<size_t> getNumDetectedDeathsOnset() { return cmty_ledger->_numDetectedDeathsOnset; }
+        std::vector<size_t> getNumDetectedDeathsReport() { return cmty_ledger->_numDetectedDeathsReport; }
         std::vector<pair<size_t, double>> getMeanNumSecondaryInfections() const ;
-        std::vector<size_t> getCumulIncidenceByOutcome() { return _cumulIncByOutcome; }
-        size_t getCumulIncidenceByOutcome( OutcomeType ot ) { return _cumulIncByOutcome[ot]; }
+        std::vector<size_t> getCumulIncidenceByOutcome() { return cmty_ledger->_cumulIncByOutcome; }
+        size_t getCumulIncidenceByOutcome( OutcomeType ot ) { return cmty_ledger->_cumulIncByOutcome[ot]; }
 
         double doSerosurvey (const ImmuneStateType ist, std::vector<Person*> &pop, int time);
         double getHouseholdSecondaryAttackRate(std::vector<Person*> &pop);
@@ -266,7 +382,7 @@ class Community {
 
         void reportCase(int onsetDate, long int reportDate, bool hospitalized);
         void reportDeath(int eventDate, long int reportDate);
-        void tallyOutcome(OutcomeType ot) { _cumulIncByOutcome[ot]++; }
+        void tallyOutcome(OutcomeType ot) { cmty_ledger->_cumulIncByOutcome[ot]++; }
         vector< set<Person*, PerPtrComp> > traceForwardContacts();
 
 
@@ -275,44 +391,52 @@ class Community {
         void reset();                                                // reset the state of the community
         const std::vector<Location*> getLocations() const { return _location; }
         const std::vector<Person*> getAgeCohort(unsigned int age) const { assert(age<_personAgeCohort.size()); return _personAgeCohort[age]; }
-        std::vector<double> getTimedIntervention(TimedIntervention ti) const { return timedInterventions.at(ti); }
+        std::vector<double> getTimedIntervention(TimedIntervention ti) const { return cmty_ledger->_timedInterventions.at(ti); }
         void updateTimedIntervention(TimedIntervention ti, size_t date, double val) {
-            const size_t current_size = timedInterventions.at(ti).size();
-            timedInterventions.at(ti).resize(date);              // truncate
-            timedInterventions.at(ti).resize(current_size, val); // new values
+            const size_t current_size = cmty_ledger->_timedInterventions.at(ti).size();
+            cmty_ledger->_timedInterventions.at(ti).resize(date);              // truncate
+            cmty_ledger->_timedInterventions.at(ti).resize(current_size, val); // new values
         }
         void setSocialDistancingTimedIntervention(const vector<double> &vec) {
-            timedInterventions[SOCIAL_DISTANCING].clear();
-            timedInterventions[SOCIAL_DISTANCING] = vec;
-            const double last_sd_value = timedInterventions[SOCIAL_DISTANCING].back();
-            timedInterventions[SOCIAL_DISTANCING].resize(_par->runLength, last_sd_value);
+            cmty_ledger->_timedInterventions[SOCIAL_DISTANCING].clear();
+            cmty_ledger->_timedInterventions[SOCIAL_DISTANCING] = vec;
+            const double last_sd_value = cmty_ledger->_timedInterventions[SOCIAL_DISTANCING].back();
+            cmty_ledger->_timedInterventions[SOCIAL_DISTANCING].resize(_par->runLength, last_sd_value);
         }
         void setSocialDistancingTimedIntervention(const vector<TimeSeriesAnchorPoint> &vec) {
-            timedInterventions[SOCIAL_DISTANCING].clear();
-            timedInterventions[SOCIAL_DISTANCING] = Date::linInterpolateTimeSeries(vec, _par->startJulianYear, _par->startDayOfYear);
-            const double last_sd_value = timedInterventions[SOCIAL_DISTANCING].back();
-            timedInterventions[SOCIAL_DISTANCING].resize(_par->runLength, last_sd_value);
+            cmty_ledger->_timedInterventions[SOCIAL_DISTANCING].clear();
+            cmty_ledger->_timedInterventions[SOCIAL_DISTANCING] = Date::linInterpolateTimeSeries(vec, _par->startJulianYear, _par->startDayOfYear);
+            const double last_sd_value = cmty_ledger->_timedInterventions[SOCIAL_DISTANCING].back();
+            cmty_ledger->_timedInterventions[SOCIAL_DISTANCING].resize(_par->runLength, last_sd_value);
         }
         void _clearSocialDistancingTimedIntervention() {
-            timedInterventions[SOCIAL_DISTANCING].clear();
+            cmty_ledger->_timedInterventions[SOCIAL_DISTANCING].clear();
         }
         void _extendSocialDistancingTimedIntervention(double val) {
-            const size_t current_size = timedInterventions.at(SOCIAL_DISTANCING).size();
-            timedInterventions[SOCIAL_DISTANCING].resize(current_size + _par->tuning_window, val);
+            const size_t current_size = cmty_ledger->_timedInterventions.at(SOCIAL_DISTANCING).size();
+            cmty_ledger->_timedInterventions[SOCIAL_DISTANCING].resize(current_size + _par->tuning_window, val);
         }
         void _reviseSocialDistancingTimedIntervention(double val) {
-            const size_t current_size = timedInterventions.at(SOCIAL_DISTANCING).size();
+            const size_t current_size = cmty_ledger->_timedInterventions.at(SOCIAL_DISTANCING).size();
             assert(current_size >= _par->tuning_window);
-            timedInterventions[SOCIAL_DISTANCING].resize(current_size - _par->tuning_window);
+            cmty_ledger->_timedInterventions[SOCIAL_DISTANCING].resize(current_size - _par->tuning_window);
             _extendSocialDistancingTimedIntervention(val);
         }
-        double getTimedIntervention(TimedIntervention ti, size_t day) const { return timedInterventions.at(ti)[day]; }
+        double getTimedIntervention(TimedIntervention ti, size_t day) const { return cmty_ledger->_timedInterventions.at(ti)[day]; }
 
         vector<Location*> locsAtPixel(std::pair<double, double> px) { return _pixelMap[{px.first, px.second}]; }
         vector<Location*> locsAtPixel(double xP, double yP) { return _pixelMap[{xP, yP}]; }
 
         map<std::string, double> calculate_daily_direct_VE();
         vector<size_t> generateOffspringDistribution();
+
+        void revertState(Community_Ledger* cl, Date* d);
+
+        Community_Ledger* cache_ledger() {
+            Community_Ledger* ledger_copy = new Community_Ledger(*cmty_ledger);
+            return ledger_copy;
+        }
+        void load_ledger(Community_Ledger* cl, Date* d);
 
     protected:
         static const Parameters* _par;
@@ -326,34 +450,35 @@ class Community {
         std::map<std::pair<double, double>, std::vector<Location*>> _pixelMap;
         //std::vector< std::vector<Person*> > _exposedQueue;                     // queue of people with n days of latency left
         int _day;                                                              // current day
-        std::vector<size_t> _numNewlyInfected;
-        std::map<StrainType, std::vector<size_t>> _numNewInfectionsByStrain;
-        std::map<std::string, std::vector<size_t>> _numNewlyInfectedByLoc;
-        std::vector<size_t> _numNewlySymptomatic;                              // true cases, no lag due to detection
-        std::vector<size_t> _numNewlySevere;                                   // true cases, no lag due to detection
-        std::vector<size_t> _numNewlyCritical;                                 // true cases, no lag due to detection
-        std::vector<size_t> _numNewlyDead;                                     // true cases, no lag due to detection
-        std::vector<size_t> _numVaccinatedCases;
-        std::vector<size_t> _numSeverePrev;
-        std::vector<size_t> _numHospInc;
-        std::vector<size_t> _numHospPrev;
-        std::vector<size_t> _numIcuInc;
-        std::vector<size_t> _numIcuPrev;
-        std::vector<size_t> _numDetectedCasesOnset;
-        std::vector<size_t> _numDetectedCasesReport;
-        std::vector<size_t> _numDetectedHospitalizations;
-        //std::vector<size_t> _numDetectedDeaths;
-        std::vector<size_t> _numDetectedDeathsOnset;
-        std::vector<size_t> _numDetectedDeathsReport;
-        std::vector<size_t> _cumulIncByOutcome;
+        Community_Ledger* cmty_ledger;
+        // std::vector<size_t> _numNewlyInfected;
+        // std::map<StrainType, std::vector<size_t>> _numNewInfectionsByStrain;
+        // std::map<std::string, std::vector<size_t>> _numNewlyInfectedByLoc;
+        // std::vector<size_t> _numNewlySymptomatic;                              // true cases, no lag due to detection
+        // std::vector<size_t> _numNewlySevere;                                   // true cases, no lag due to detection
+        // std::vector<size_t> _numNewlyCritical;                                 // true cases, no lag due to detection
+        // std::vector<size_t> _numNewlyDead;                                     // true cases, no lag due to detection
+        // std::vector<size_t> _numVaccinatedCases;
+        // std::vector<size_t> _numSeverePrev;
+        // std::vector<size_t> _numHospInc;
+        // std::vector<size_t> _numHospPrev;
+        // std::vector<size_t> _numIcuInc;
+        // std::vector<size_t> _numIcuPrev;
+        // std::vector<size_t> _numDetectedCasesOnset;
+        // std::vector<size_t> _numDetectedCasesReport;
+        // std::vector<size_t> _numDetectedHospitalizations;
+        // //std::vector<size_t> _numDetectedDeaths;
+        // std::vector<size_t> _numDetectedDeathsOnset;
+        // std::vector<size_t> _numDetectedDeathsReport;
+        // std::vector<size_t> _cumulIncByOutcome;
 
         // groups of infectious people: indexed by day, location type, location ptr, and relative infectiousness
-        std::vector< std::map<LocationType, std::map<Location*, std::map<double, std::vector<Person*>>, Location::LocPtrComp>>> _isHot;
+        // std::vector< std::map<LocationType, std::map<Location*, std::map<double, std::vector<Person*>>, Location::LocPtrComp>>> _isHot;
         // std::vector<Person*> _peopleByAge;
         Vac_Campaign* vac_campaign;
         // std::set<Person*> _revaccinate_set;          // not automatically re-vaccinated, just checked for boosting, multiple doses
 
-        std::map<TimedIntervention, std::vector<double>> timedInterventions;
+        // std::map<TimedIntervention, std::vector<double>> timedInterventions;
 
         //bool _uniformSwap;                                            // use original swapping (==true); or parse swap file (==false)
         void _transmission(Location* source_loc, vector<Person*> at_risk_group, const map<double, vector<Person*>> &infectious_groups, const double T); // generic helper function
