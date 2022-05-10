@@ -42,8 +42,7 @@ void Location::dumper() const {
     cerr << "\tneighbors: "; for (auto l: _neighbors) { cerr << l->getID() << " "; } cerr << endl;
 }
 
-void Location::revertState(const Date* date) {
-    const int time = date->day();
+void Location::revertState() {
     // _visitors should be empty before tick() is called because it is cleared after each day
     // _person is only dynamic for hospitals
     if (_type == HOSPITAL) {
