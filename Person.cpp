@@ -597,6 +597,10 @@ void Person::scheduleQuarantine(int time, int quarantineDuration) {
 }
 
 bool Person::isQuarantining(int time) {
-    const pair<int, int> interval = quarantineHistory.back();
-    return quarantineHistory.size() > 0 and (time >= interval.first and time < interval.second);
+    if (quarantineHistory.size() > 0) {
+        const pair<int, int> interval = quarantineHistory.back();
+        return time >= interval.first and time < interval.second;
+    } else {
+        return false;
+    }
 }
