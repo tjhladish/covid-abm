@@ -118,7 +118,7 @@ void Parameters::define_defaults() {
     death_tuning_offset            = 0;
     tuning_window                  = INT_MAX;
     num_preview_windows            = INT_MAX;
-    autotuning_dataset             = "";
+    // autotuning_dataset             = "";
 
     dump_simulation_data           = false;
 }

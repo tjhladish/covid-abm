@@ -660,7 +660,7 @@ public:
     size_t death_tuning_offset;
     size_t tuning_window;
     size_t num_preview_windows;
-    std::string autotuning_dataset;
+    // std::string autotuning_dataset;
 
     std::vector<double> quarantineProbability;
     int quarantineDuration;
