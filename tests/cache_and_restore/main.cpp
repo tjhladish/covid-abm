@@ -42,19 +42,17 @@ const string output_dir("/ufrc/longini/tjhladish/");
 
 const int RESTART_BURNIN          = 0;
 const int FORECAST_DURATION       = 747;
-//const int FORECAST_DURATION       = 456;
+// const int FORECAST_DURATION       = 468;
 const int OVERRUN                 = 14; // to get accurate Rt estimates near the end of the forecast duration
 const bool RUN_FORECAST           = true;
-const int TOTAL_DURATION          = RUN_FORECAST ? RESTART_BURNIN + FORECAST_DURATION + OVERRUN : RESTART_BURNIN;
+int TOTAL_DURATION          = RUN_FORECAST ? RESTART_BURNIN + FORECAST_DURATION + OVERRUN : RESTART_BURNIN;
 //const size_t JULIAN_TALLY_DATE    = 146; // intervention julian date - 1
 const size_t JULIAN_START_YEAR    = 2020;
 //const double DEATH_UNDERREPORTING = 11807.0/20100.0; // FL Mar15-Sep5, https://www.nytimes.com/interactive/2020/05/05/us/coronavirus-death-toll-us.html
-
+bool autotune                     = false;
 const int FL_POP                  = 21538187;   // as of 2020 census
 
 vector<vector<double>> REPORTED_FRACTIONS;
-
-// gsl_rng* VAX_RNG = gsl_rng_alloc(gsl_rng_mt19937);
 
 double calculate_conditional_death_reporting_probability(double RF_death, const vector<double> &rho_vals) {
     const double rho_death  = 1.0 - (1.0 - RF_death)/((1.0 - rho_vals[0])*(1.0 - rho_vals[1])*(1.0 - rho_vals[2])*(1.0 - rho_vals[3]));
@@ -66,10 +64,10 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->define_defaults();
     par->serial = serial;
 
-    const float T = 0.032 * 5.0;//0.022; // 0.0215 for the fl pop, 0.022 for the pseudo 1000k pop
+    const float T = 0.07; //0.022; // 0.0215 for the fl pop, 0.022 for the pseudo 1000k pop
 
     par->household_transmission_haz_mult   = T;
-    par->social_transmission_haz_mult      = T / 10.0; // assumes complete graphs between households
+    par->social_transmission_haz_mult      = T / 2.0; // assumes complete graphs between households
     par->workplace_transmission_haz_mult   = T / 2.0;
     par->school_transmission_haz_mult      = T / 2.0;
     par->hospital_transmission_haz_mult    = T / 10.0;
@@ -83,11 +81,11 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->yearlyOutput            = true;
     par->abcVerbose              = false; // needs to be false to get WHO daily output
     par->startJulianYear         = JULIAN_START_YEAR;
-    par->startDayOfYear          = Date::to_julian_day("2020-02-05");
+    par->startDayOfYear          = Date::to_julian_day("2020-02-10");
     par->runLength               = TOTAL_DURATION;
     //par->annualIntroductionsCoef = 1;
 
-    par->beginContactTracing           = par->runLength;//Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-06-01");
+    par->beginContactTracing           = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-06-01");
     par->contactTracingCoverage        = 0.7;
     par->contactTracingEV[HOME]        = 5.0;
     par->contactTracingEV[WORK]        = 3.0;
@@ -97,7 +95,8 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->contactTracingDepth           = 2;
 
     par->quarantineProbability  = {0.0, 0.0, 0.0};
-    par->selfQuarantineDuration = 10;
+    // par->quarantineProbability  = {0.9, 0.75, 0.5};
+    par->quarantineDuration = 10;
 
     vector<double> seasonality;
     for (size_t day = 0; day < 366; ++day) {
@@ -113,36 +112,39 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
         //par->reportedFraction = {0.0, 0.2, 0.75, 0.75, 0.75};      // fraction of asymptomatic, mild, severe, critical, and deaths reported
         //par->probFirstDetection = {0.0, 0.12, 0.55, 0.1, 0.01};      // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
 
-        const double RF_death_early = 0.8; //0.78; // overall probability of detecting death, at any point
-        const double RF_death_late  = 0.9; //0.78; // overall probability of detecting death, at any point
+        const double RF_death_early = 1.0; //0.8; // overall probability of detecting death, at any point
+        const double RF_death_late  = 1.0; //0.9; // overall probability of detecting death, at any point
 
         // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
-        vector<double> initial_vals    = {0.0, 0.05, 0.7, 0.1};    // Start of sim (Feb 2020) conditional probabilities
+        vector<double> initial_vals    = {0.0, 0.1, 0.7, 0.1};    // Start of sim (Feb 2020) conditional probabilities
         initial_vals.push_back(calculate_conditional_death_reporting_probability(RF_death_early, initial_vals));
-
         const int isd1 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-06-01"); // inflection date 1
 
         vector<double> summer2020_vals = {0.0, 0.7, 0.5, 0.1};
         summer2020_vals.push_back(calculate_conditional_death_reporting_probability(RF_death_late, summer2020_vals));
-
         const int isd2 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-10-01"); // inflection date 2
 
-        vector<double> winter2020_vals = {0.2, 0.7, 0.5, 0.1};
+        vector<double> winter2020_vals = {0.25, 0.9, 0.5, 0.1};
         winter2020_vals.push_back(calculate_conditional_death_reporting_probability(RF_death_late, winter2020_vals));
+        const int isd3 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-06-01"); // inflection date 3
 
-        const int isd3 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-12-01"); // inflection date 3
+        vector<double> summer2021_vals = {0.1, 0.7, 0.5, 0.1};
+        summer2021_vals.push_back(calculate_conditional_death_reporting_probability(RF_death_late, summer2021_vals));
+        const int isd4 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-12-01"); // inflection date 4
 
-        vector<double> winter2021_vals = {0.05, 0.7, 0.5, 0.1};
+        vector<double> winter2021_vals = {0.05, 0.5, 0.5, 0.1};
         winter2021_vals.push_back(calculate_conditional_death_reporting_probability(RF_death_late, winter2021_vals));
 
-        vector<vector<double>> vals = {initial_vals, summer2020_vals, winter2020_vals, winter2021_vals};
-        cerr << "death init, summer2020, winter2020, winter2021: " << initial_vals.back() << " " << summer2020_vals.back() << " " << winter2020_vals.back() << " " << winter2021_vals.back() << endl;
+        vector<vector<double>> vals = {initial_vals, summer2020_vals, winter2020_vals, summer2021_vals, winter2021_vals};
+        cerr << "death init, summer2020, winter2020, summer2021, winter2021: " << initial_vals.back() << " " << summer2020_vals.back() << " " << winter2020_vals.back() << " " << summer2021_vals.back() << " " << winter2021_vals.back() << endl;
 
-        vector<vector<int>> inflection_sim_day = { vector<int>(NUM_OF_OUTCOME_TYPES, isd1),   // first transition
-                                                   vector<int>(NUM_OF_OUTCOME_TYPES, isd2),   // second
-                                                   vector<int>(NUM_OF_OUTCOME_TYPES, isd3) }; // third
+        vector<vector<int>> inflection_sim_day = { vector<int>(NUM_OF_OUTCOME_TYPES, isd1),
+                                                   vector<int>(NUM_OF_OUTCOME_TYPES, isd2),
+                                                   vector<int>(NUM_OF_OUTCOME_TYPES, isd3),
+                                                   vector<int>(NUM_OF_OUTCOME_TYPES, isd4) };
 
         vector<vector<double>> slopes = { vector<double>(NUM_OF_OUTCOME_TYPES, 0.1),
+                                          vector<double>(NUM_OF_OUTCOME_TYPES, 0.1),
                                           vector<double>(NUM_OF_OUTCOME_TYPES, 0.1),
                                           vector<double>(NUM_OF_OUTCOME_TYPES, 0.1) }; // sign is determined based on initial/final values
 
@@ -151,11 +153,13 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
         vector<double> reported_frac_init       = par->toReportedFraction(initial_vals);
         vector<double> reported_frac_summer2020 = par->toReportedFraction(summer2020_vals);
         vector<double> reported_frac_winter2020 = par->toReportedFraction(winter2020_vals);
+        vector<double> reported_frac_summer2021 = par->toReportedFraction(summer2021_vals);
         vector<double> reported_frac_winter2021 = par->toReportedFraction(winter2021_vals);
 
         cerr_vector(reported_frac_init); cerr << endl;  REPORTED_FRACTIONS.push_back(reported_frac_init);
         cerr_vector(reported_frac_summer2020); cerr << endl; REPORTED_FRACTIONS.push_back(reported_frac_summer2020);
         cerr_vector(reported_frac_winter2020); cerr << endl; REPORTED_FRACTIONS.push_back(reported_frac_winter2020);
+        cerr_vector(reported_frac_summer2021); cerr << endl; REPORTED_FRACTIONS.push_back(reported_frac_summer2021);
         cerr_vector(reported_frac_winter2021); cerr << endl; REPORTED_FRACTIONS.push_back(reported_frac_winter2021);
 
         //cerr << "Detection probability by day\n";
@@ -232,11 +236,11 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->symptomToTestLag = 2;
 //    par->meanDeathReportingLag = 9;
 
-    const double max_icu_mortality_reduction = 0.4;         // primarily due to use of dexamethasone
+    const double max_icu_mortality_reduction = 0.35;         // primarily due to use of dexamethasone
     const size_t icu_mortality_inflection_sim_day = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-06-15");
-    const double icu_mortality_reduction_slope = 0.5;       // 0.5 -> change takes ~2 weeks; 0.1 -> ~2 months
+    const double icu_mortality_reduction_slope = 1.0;       // 0.5 -> change takes ~2 weeks; 0.1 -> ~2 months
     par->createIcuMortalityReductionModel(max_icu_mortality_reduction, icu_mortality_inflection_sim_day, icu_mortality_reduction_slope);
-    par->icuMortalityFraction = 0.43;                       // fraction of all deaths that occur in ICUs
+    par->icuMortalityFraction = 0.43;                       // 0.72*0.6; fraction of all deaths that occur in ICUs
                                                             // used for interpreting empirical mortality data, *not within simulation*
                                                             // 0.7229464 = fraction of covid FL deaths that were inpatient (1/2020 through 1/2022)
                                                             // --> https://www.cdc.gov/nchs/nvss/vsrr/covid_weekly/index.htm#PlaceDeath
@@ -252,7 +256,7 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->VES = {{WILDTYPE, {0.0}}};
 
     //par->hospitalizedFraction = 0.25; // fraction of cases assumed to be hospitalized
-    par->probInitialExposure = {4.0e-04};
+    par->probInitialExposure = {1.0e-04};
     //par->probDailyExposure   = vector(120, 2.0e-05);        // introductions are initially lower
     //par->probDailyExposure.resize(par->runLength, 2.0e-04); // and then pick up after ~ 4 months
     par->probDailyExposure   = {1.0e-04};        // introductions are initially lower
@@ -262,13 +266,17 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->locationFilename         = pop_dir    + "/locations-"          + SIM_POP + ".txt";
     par->networkFilename          = pop_dir    + "/network-"            + SIM_POP + ".txt";
     par->publicActivityFilename   = pop_dir    + "/public-activity-"    + SIM_POP + ".txt";
-    par->vaccination_file         = "./counterfactual_doses_v2.txt"; //"./dose_data/fl_vac_v4.txt"; //pop_dir    + "/../fl_vac/fl_vac_v4.txt";
-    // par->dose_file                = "./counterfactual_doses.txt"; //"./dose_data/FL_doses.txt"; //pop_dir    + "/../fl_vac/doses.txt";
+    par->rCaseDeathFilename       = "./rcasedeath-florida.csv";
+    par->vaccinationFilename      = "./state_based_counterfactual_doses.txt"; //"./counterfactual_doses_v2.txt";
+    //par->vaccinationFilename      = "./active_vax_counterfactual_doses.txt"; //"./dose_data/fl_vac_v4.txt"; //pop_dir    + "/../fl_vac/fl_vac_v4.txt";
+    // par->doseFilename            = "./counterfactual_doses.txt"; //"./dose_data/FL_doses.txt"; //pop_dir    + "/../fl_vac/doses.txt";
 
-    par->behavioral_autotuning = false;
+    par->behavioral_autotuning = autotune;
+    par->tune_to_cumul_cases = true;
+    par->death_tuning_offset = 18;
     par->tuning_window = 14;
     par->num_preview_windows = 3;
-    par->autotuning_dataset = "autotuning_dataset_220217.csv";
+    par->behaviorFilename = "autotuning_dataset_220217.csv";
 
     par->dump_simulation_data = false;
 
@@ -340,7 +348,7 @@ void define_strain_parameters(Parameters* par) {
     par->strainPars[OMICRON].immuneEscapeProb  = 0.6;
     par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 2.0 / relInfectiousnessDenom;
     par->strainPars[OMICRON].relPathogenicity  = par->strainPars[ALPHA].relPathogenicity * 0.5;
-    par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.25;
+    par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.75;
     par->strainPars[OMICRON].relIcuMortality   = 2.0;
     par->strainPars[OMICRON].symptomaticInfectiousPeriod = appxNonOmicronInfPd - 1;
     par->strainPars[OMICRON].relSymptomOnset = 0.5;     // roughly based on MMWR Early Release Vol. 70 12/28/2021
@@ -367,8 +375,6 @@ void define_strain_parameters(Parameters* par) {
 
 // REFACTOR parseVaccineFile()
 void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign* vc, const size_t counterfactual_scenario, vector<bool> dose_pooling_flags) {
-    const string vaccinationFilename = par->vaccination_file;
-
     // parses the JSON argument into a form to use in vax file parsing
     string counterfactual_reference_loc;
     switch(counterfactual_scenario) {
@@ -379,12 +385,12 @@ void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign*
     }
 
     // check that vaccinationFilename exists and can be opened
-    ifstream iss(vaccinationFilename);
+    ifstream iss(par->vaccinationFilename);
     string buffer;
     istringstream line;
 
     if (!iss) {
-        cerr << "ERROR: vaccination file " << vaccinationFilename << " not found." << endl;
+        cerr << "ERROR: vaccination file " << par->vaccinationFilename << " not found." << endl;
         exit(-1);
     }
 
@@ -445,7 +451,7 @@ void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign*
                 }
 
                 if (urg_doses_in[day][dose].count(bin)) {
-                    urg_doses_available[day][dose][bin] = 20;//(int)(urg_doses_in[day][dose][bin] * ((double)bin_pops[bin]/1e4));
+                    urg_doses_available[day][dose][bin] = (int)(urg_doses_in[day][dose][bin] * ((double)bin_pops[bin]/1e4));
                 } else {
                     urg_doses_available[day][dose][bin] = 0;
                 }
@@ -555,27 +561,28 @@ vector<double> tally_counts(const Parameters* par, Community* community, int dis
     const size_t num_weeks = (par->runLength - discard_days - OVERRUN)/7;   // number of full weeks of data to be aggregated
 
     //vector<size_t> infected    = community->getNumNewlyInfected();
-    //vector< vector<int> > severe      = community->getNumSevereCases();
     vector<size_t> symptomatic = community->getNumNewlySymptomatic();
+    vector<size_t> severe      = community->getNumNewlySevere();
     vector<size_t> dead        = community->getNumNewlyDead();
 
     // pair of num of primary infections starting this day, and mean num secondary infections they cause
     vector<pair<size_t, double>> R = community->getMeanNumSecondaryInfections();
     vector<size_t> Rt_incidence_tally(num_weeks, 0);
 
-    vector<double> metrics(num_weeks*3, 0.0);
+    vector<double> metrics(num_weeks*4, 0.0);
     for (size_t t = discard_days; t < discard_days + (7*num_weeks); ++t) {
         const size_t w = (t-discard_days)/7; // which reporting week are we in?
         metrics[w]                 += symptomatic[t];
-        metrics[num_weeks + w]     += dead[t];
-        metrics[2 * num_weeks + w] += R[t].first > 0 ? R[t].first*R[t].second : 0;
+        metrics[num_weeks + w]     += severe[t];
+        metrics[2 * num_weeks + w] += dead[t];
+        metrics[3 * num_weeks + w] += R[t].first > 0 ? R[t].first*R[t].second : 0;
         Rt_incidence_tally[w]      += R[t].first;
     }
 
     for (size_t w = 0; w < num_weeks; ++w) {
-        metrics[2 * num_weeks + w] /= Rt_incidence_tally[w] > 0 ? Rt_incidence_tally[w] : 1.0;
+        metrics[3 * num_weeks + w] /= Rt_incidence_tally[w] > 0 ? Rt_incidence_tally[w] : 1.0;
     }
-metrics.resize(300);
+//metrics.resize(300);
     return metrics;
 }
 
@@ -630,10 +637,15 @@ void calculate_reporting_ratios(Community* community) {
 
 vector<double> simulator(vector<double> args, const unsigned long int rng_seed, const unsigned long int serial, const ABC::MPI_par* mp = nullptr) {
     cerr << "rng seed: " << rng_seed << endl;
-    //gsl_rng_set(RNG, rng_seed);
-    //gsl_rng_set(VAX_RNG, rng_seed);
-    gsl_rng_set(RNG, 1);
-    gsl_rng_set(VAX_RNG, 1);
+    gsl_rng_set(RNG, rng_seed);
+    gsl_rng_set(VAX_RNG, rng_seed);
+    gsl_rng_set(REPORTING_RNG, rng_seed);
+
+//for (int i = 0; i < 1e6; ++i) { cerr << "RNG " << setprecision(40) << gsl_rng_uniform(RNG) << endl; } exit(10);
+//for (int i = 0; i < 1e7; ++i) { cerr << "REPORTING_RNG " << gsl_rng_uniform(REPORTING_RNG) << endl; } exit(10);
+
+    //gsl_rng_set(RNG, 1);
+    //gsl_rng_set(VAX_RNG, 1);
     // initialize bookkeeping for run
     time_t start, end;
     time (&start);
@@ -649,9 +661,9 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     cerr << "SCENARIO " << rng_seed;
     for (auto _p: args) { cerr << " " << _p; } cerr << endl;
 
-    const bool vaccine             = (bool) args[0];
-    // const size_t realization    = (size_t) args[1];
-    const bool mutation          = (bool) args[2];
+    // const size_t realization             = (size_t) args[0];
+    const bool vaccine                   = (bool) args[1];
+    const bool mutation                  = (bool) args[2];
     const size_t counterfactual_scenario = (size_t) args[3];
 
     Parameters* par = define_simulator_parameters(args, rng_seed, serial, process_id);
@@ -670,7 +682,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         par->immunityWanes         = false;
         par->numVaccineDoses       = 3;
         par->vaccineDoseInterval   = {21, 240};
-        par->vaccineTargetCoverage = 0.60;  // for healthcare workers only
+//        par->vaccineTargetCoverage = 0.60;  // for healthcare workers only
         par->vaccine_dose_to_protection_lag = 10;
         par->urgent_vax_dose_threshold = 1;
 
@@ -685,6 +697,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         vc->set_flexible_queue_allocation(false);
 
         VacCampaignType selected_strat = NUM_OF_VAC_CAMPAIGN_TYPES;
+        // VacCampaignType selected_strat = RING_VACCINATION;
         vc->set_reactive_vac_strategy(selected_strat);
         vc->set_reactive_vac_dose_allocation(0.0);
 
@@ -700,7 +713,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         vc->set_min_age(min_ages);       // needed for e.g. urgent vaccinations
     }
 
-    seed_epidemic(par, community, WILDTYPE);
+    // seed_epidemic(par, community, WILDTYPE);
     vector<string> plot_log_buffer = simulate_epidemic(par, community, process_id, mutant_intro_dates);//, social_contact_map);
 
     vector<double> cases(par->runLength, 0.0);
@@ -730,24 +743,24 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 //    }
 
 // comment out this block if simvis.R is not needed
-//{
-//    vector<pair<size_t, double>> Rt = community->getMeanNumSecondaryInfections();
-//    vector<double> Rt_ma = calc_Rt_moving_average(Rt, 7);
+// {
+//     vector<pair<size_t, double>> Rt = community->getMeanNumSecondaryInfections();
+//     vector<double> Rt_ma = calc_Rt_moving_average(Rt, 7);
 //
-//    assert(Rt.size()+1 == plot_log_buffer.size()); // there's a header line
-//    for (size_t i = 1; i < plot_log_buffer.size(); ++i) {
-//        //plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt[i-1].second);
-//        plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt_ma[i-1]);
-//    }
-//    bool overwrite = true;
-//    string filename = "plot_log" + to_string(serial) + ".csv";
-//    write_daily_buffer(plot_log_buffer, process_id, filename, overwrite);
-//    stringstream ss;
-//    ss << "Rscript expanded_simvis.R " << serial;
-//    string cmd_str = ss.str();
-//    int retval = system(cmd_str.c_str());
-//    if (retval == -1) { cerr << "System call to `Rscript expanded_simvis.R` failed\n"; }
-//}
+//     assert(Rt.size()+1 == plot_log_buffer.size()); // there's a header line
+//     for (size_t i = 1; i < plot_log_buffer.size(); ++i) {
+//         //plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt[i-1].second);
+//         plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt_ma[i-1]);
+//     }
+//     bool overwrite = true;
+//     string filename = "plot_log" + to_string(serial) + ".csv";
+//     write_daily_buffer(plot_log_buffer, process_id, filename, overwrite);
+//     stringstream ss;
+//     ss << "Rscript expanded_simvis.R " << serial;
+//     string cmd_str = ss.str();
+//     int retval = system(cmd_str.c_str());
+//     if (retval == -1) { cerr << "System call to `Rscript expanded_simvis.R` failed\n"; }
+// }
 
     time (&end);
     double dif = difftime (end,start);
@@ -760,6 +773,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     vector<double> metrics = tally_counts(par, community, 0);
     //calculate_reporting_ratios(community);
 
+
     stringstream ss;
     ss << mp->mpi_rank << " end " << hex << process_id << " " << dec << dif << " ";
 
@@ -770,13 +784,25 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     string output = ss.str();
     fputs(output.c_str(), stderr);
 
-    if (par->dump_simulation_data) { generate_sim_data_db(par, community, serial); }
+    // if (par->dump_simulation_data) {
+    //     vector<string> tables = {
+    //         "infection_history",
+    //         "secondary_infections",
+    //         "infection_detection",
+    //         "vaccination_history",
+    //         "age_bins",
+    //         "doses_available",
+    //         "doses_used"
+    //     };
+    //     generate_sim_data_db(par, community, serial, tables);
+    // }
 
     // if (vc)      { delete vc; }           // should this be here? MOVED INTO COMMUNITY DESTRUCTOR
     if (VAX_RNG) { gsl_rng_free(VAX_RNG); }
     delete par;
     delete community;
 
+metrics = vector<double>(424);
     return metrics;
 }
 
@@ -791,10 +817,10 @@ void usage() {
 
 
 int main(int argc, char* argv[]) {
-    if (not (argc == 3 or argc == 5 or argc == 6) ) {
-        usage();
-        exit(100);
-    }
+//    if (not (argc == 3 or argc == 5 or argc == 6) ) {
+//        usage();
+//        exit(100);
+//    }
 
     bool process_db = false;
     bool simulate_db = false;
@@ -807,15 +833,17 @@ int main(int argc, char* argv[]) {
             process_db = true;
         } else if ( strcmp(argv[i], "--simulate") == 0  ) {
             simulate_db = true;
-            buffer_size = buffer_size == -1 ? 1 : buffer_size;
+//            buffer_size = buffer_size == -1 ? 1 : buffer_size;
         } else if ( strcmp(argv[i], "-n" ) == 0 ) {
             buffer_size = atoi(argv[++i]);
         } else if ( strcmp(argv[i], "--serial" ) == 0 ) {
             requested_serial = atoi(argv[++i]);
         } else if ( strcmp(argv[i], "--posterior" ) == 0 ) {
             requested_posterior_idx = atoi(argv[++i]);
-//        } else if ( strcmp(argv[i], "--runLength" ) == 0 ) {
-//            TOTAL_DURATION = atoi(argv[++i]);
+        } else if ( strcmp(argv[i], "--runLength" ) == 0 ) {
+            TOTAL_DURATION = atoi(argv[++i]);
+        } else if ( strcmp(argv[i], "--autotune" ) == 0 ) {
+            autotune = true;
         } else {
             usage();
             exit(101);
