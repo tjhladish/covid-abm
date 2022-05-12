@@ -77,14 +77,18 @@ void Person::revertState(const Date* date) {
         if (inf->getInfectedTime() >= time) {
             delete inf;
             infectionHistory.pop_back();
+        } else {
+            break;
         }
     }
 
-    if (inHospital(time)) { getHospital()->addPerson(this); }
+    if (inHospital(time-1)) { goToHospital(); }
 
     while (vaccineHistory.size() > 0) {
         if (vaccineHistory.back() >= time) {
             vaccineHistory.pop_back();
+        } else {
+            break;
         }
     }
 
@@ -104,6 +108,8 @@ void Person::revertState(const Date* date) {
     while (quarantineHistory.size() > 0) {
         if (quarantineHistory.back().first >= time) {
             quarantineHistory.pop_back();
+        } else {
+            break;
         }
     }
 }
