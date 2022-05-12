@@ -112,7 +112,7 @@ void seed_epidemic(const Parameters* par, Community* community, StrainType strai
             Infection* inf = community->infect(pid, strain);
             if (inf) { inf_ct++; }
         }
-        cerr << "pop size, sampled size, infected size: " << pop_size << ", " << k << ", " << inf_ct << endl;
+        // cerr << "pop size, sampled size, infected size: " << pop_size << ", " << k << ", " << inf_ct << endl;
     }
 
     if (attempt_initial_infection) {
@@ -281,7 +281,9 @@ public:
 class SimulationCache {
 public:
     SimulationCache() {
-        community     = nullptr;
+        // community     = nullptr;
+        cmty_ledger   = nullptr;
+        date          = nullptr;
         sim_ledger    = nullptr;
         rng           = nullptr;
         reporting_rng = nullptr;
@@ -289,7 +291,9 @@ public:
     };
 
     SimulationCache(Community* o_community, SimulationLedger* o_sim_ledger, gsl_rng* o_rng, gsl_rng* o_reporting_rng, gsl_rng* o_vax_rng) {
-        community     = new Community(*o_community);
+        // community     = new Community(*o_community);
+        cmty_ledger   = new CommunityLedger(*(o_community->get_ledger()));
+        date          = new Date(*(o_community->get_date()));
         sim_ledger    = new SimulationLedger(*o_sim_ledger);
         rng           = gsl_rng_clone(o_rng);
         reporting_rng = gsl_rng_clone(o_reporting_rng);
@@ -297,14 +301,18 @@ public:
     };
 
     ~SimulationCache() {
-        delete community;
+        // delete community;
+        delete cmty_ledger;
+        delete date;
         delete sim_ledger;
         gsl_rng_free(rng);
         gsl_rng_free(reporting_rng);
         gsl_rng_free(vax_rng);
     };
 
-    Community* community;
+    // Community* community;
+    CommunityLedger* cmty_ledger;
+    Date* date;
     SimulationLedger* sim_ledger;
     gsl_rng* rng;
     gsl_rng* reporting_rng;
@@ -709,8 +717,9 @@ bool restore_from_cache(Community* &community, Date* &date, SimulationCache* sim
     if (ledger) { delete ledger; }
     ledger = new SimulationLedger(*(sim_cache->sim_ledger));
 
-    if (community) { delete community; }
-    community = new Community(*(sim_cache->community));
+    // if (community) { delete community; }
+    // community = new Community(*(sim_cache->community));
+    community->load_from_cache(sim_cache->cmty_ledger, sim_cache->date);
     date      = community->get_date();
     community->setSocialDistancingTimedIntervention(social_distancing_anchors);
 
@@ -734,7 +743,7 @@ void behavior_autotuning(const Parameters* par, Community* &community, Date* &da
 
     if (tuner->recache and (day == recaching_day)) {
         // we are at the end of tuning window that was deemed "good"
-        overwrite_sim_cache(sim_cache, community, ledger, tuner);
+        overwrite_sim_cache(sim_cache, community, ledger, tuner);   // TODO: change to quick cache overwrite
     } else if (day == behavior_processing_day) {
         // calculates the proportion of days in the tuning window that has empirical data
         size_t window_start_sim_day = (day + 1) - ((par->num_preview_windows + 1) * par->tuning_window);
@@ -787,14 +796,14 @@ void behavior_autotuning(const Parameters* par, Community* &community, Date* &da
         }
 
         process_behavior_fit(fit_is_good, fit_distance, par, tuner, social_distancing_anchors);
-        restore_occurred = restore_from_cache(community, date, sim_cache, ledger, social_distancing_anchors);
+        restore_occurred = restore_from_cache(community, date, sim_cache, ledger, social_distancing_anchors);   // TODO: change to quick revert
     }
 }
 
 
 // if using previous tuned values, parse that file and save the behavior vals
 void init_behavioral_vals_from_file(const Parameters* par, Community* community) {
-    vector< vector<string> > tuning_data = read_2D_vector_file(par->autotuning_dataset, ',');
+    vector< vector<string> > tuning_data = read_2D_vector_file(par->behaviorFilename, ',');
     vector<double> behavior_vals;
     vector<pair<int,double>> vals_to_interpolate;
     bool interpolating = false;
@@ -823,7 +832,7 @@ void init_behavioral_vals_from_file(const Parameters* par, Community* community)
                 behavior_vals.insert(behavior_vals.end(), interpolated_behavior.begin(), interpolated_behavior.end());
             }
         } else {
-            cerr << "ERROR: to interpolate PPB, more than one anchor point is needed in " << par->autotuning_dataset << endl;
+            cerr << "ERROR: to interpolate PPB, more than one anchor point is needed in " << par->behaviorFilename << endl;
             exit(-2);
         }
     }
@@ -887,23 +896,24 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
     if (par->behavioral_autotuning) {
         // create tuner and initialize first simulation cache
         tuner = initialize_behavior_autotuning(par);
-        sim_cache = new SimulationCache(community, ledger, RNG, REPORTING_RNG, VAX_RNG);
+        sim_cache = new SimulationCache(community, ledger, RNG, REPORTING_RNG, VAX_RNG);    // TODO: change to quick cache
         first_tuning_window_setup(par, community, tuner, social_distancing_anchors);
-    } else if (not par->autotuning_dataset.empty()) {
+    } else if (not par->behaviorFilename.empty()) {
         // filename provided for a dataset with behavioral values to use
         init_behavioral_vals_from_file(par, community);
     }
 
     bool restore_occurred = false; // relevant for behavior autotuning
     for (; date->day() < (signed) par->runLength; date->increment()) {
-       if (par->behavioral_autotuning) {
+        if (par->behavioral_autotuning) {
            behavior_autotuning(par, community, date, ledger, tuner, sim_cache, social_distancing_anchors, restore_occurred);
-       }
+        }
+        const size_t sim_day = date->day();
+if (sim_day == 0) { seed_epidemic(par, community, WILDTYPE); }
 //if (*date == "2021-12-01") { gsl_rng_set(RNG, par->randomseed); // use something like this if we want to only have dynamic uncertainty beyond some date
 
         community->tick();
 
-        const size_t sim_day = date->day();
 
         if ( mutant_intro_dates.size() ) {
             if (*date >= mutant_intro_dates[0] and *date < mutant_intro_dates[1]) {
@@ -954,7 +964,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
         const double trailing_avg = trailing_averages[sim_day];
 
         const size_t rc_ct = accumulate(all_reported_cases.begin(), all_reported_cases.begin()+sim_day+1, 0);
-        map<string, double> VE_data = community->calculate_daily_direct_VE();
+        map<string, double> VE_data = community->calculate_daily_direct_VE(sim_day);
         //vector<string> inf_by_loc_keys = {"home", "social", "work_staff", "patron", "school_staff", "student", "hcw", "patient", "ltcf_staff", "ltcf_resident"};
         //for (string key : inf_by_loc_keys) {
         //    cerr << "infLoc " << date->to_ymd() << ' ' << key << ' ' << community->getNumNewInfectionsByLoc(key)[sim_day] << endl;
@@ -1280,7 +1290,7 @@ void generate_sim_data_db(const Parameters* par, const Community* community, con
 
     string cmd_str = ss.str();
     int retval = system(cmd_str.c_str());
-    if (retval == -1) { cerr << "System call to `sqlite3 sim_data_0.db '.read gen_sim_db.sql'` failed\n"; }
+    if (retval == -1) { cerr << "System call to `sqlite3 " << db.str() << " '.read gen_sim_db.sql'` failed\n"; }
 
     for (size_t i = 0; i < tables.size(); ++i) {
         import_csv_to_db(filenames[i].str(), tables[i], db.str());

@@ -267,7 +267,7 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->networkFilename          = pop_dir    + "/network-"            + SIM_POP + ".txt";
     par->publicActivityFilename   = pop_dir    + "/public-activity-"    + SIM_POP + ".txt";
     par->rCaseDeathFilename       = "./rcasedeath-florida.csv";
-    par->vaccinationFilename      = "./counterfactual_doses_v2.txt";
+    par->vaccinationFilename      = "./state_based_counterfactual_doses.txt"; //"./counterfactual_doses_v2.txt";
     //par->vaccinationFilename      = "./active_vax_counterfactual_doses.txt"; //"./dose_data/fl_vac_v4.txt"; //pop_dir    + "/../fl_vac/fl_vac_v4.txt";
     // par->doseFilename            = "./counterfactual_doses.txt"; //"./dose_data/FL_doses.txt"; //pop_dir    + "/../fl_vac/doses.txt";
 
@@ -277,6 +277,7 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->tuning_window = 14;
     par->num_preview_windows = 3;
     par->behaviorFilename = "autotuning_dataset_dump.csv";
+    par->autotuningFilename = "autotuning_dataset_dump.csv";
 
     par->dump_simulation_data = false;
 
@@ -713,7 +714,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         vc->set_min_age(min_ages);       // needed for e.g. urgent vaccinations
     }
 
-    seed_epidemic(par, community, WILDTYPE);
+    // seed_epidemic(par, community, WILDTYPE);
     vector<string> plot_log_buffer = simulate_epidemic(par, community, process_id, mutant_intro_dates);//, social_contact_map);
 
     vector<double> cases(par->runLength, 0.0);
