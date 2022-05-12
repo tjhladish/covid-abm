@@ -23,6 +23,7 @@ using covid::util::uniform_choice;
 using covid::util::weighted_choice;
 using covid::util::choose_k;
 using covid::util::merge_vectors;
+using covid::util::inspect_next_rng_val;
 
 const Parameters* Community::_par;
 
@@ -52,7 +53,7 @@ Community::Community(const Parameters* parameters, Date* date) //:
     _par = parameters;
     _date = date;
     _day = 0;
-    cmty_ledger = new Community_Ledger(_par);
+    cmty_ledger = new CommunityLedger(_par);
     // for (int strain = 0; strain < (int) NUM_OF_STRAIN_TYPES; ++strain) {
     //     _numNewInfectionsByStrain[(StrainType) strain] = vector<size_t>(_par->runLength);
     // }
@@ -95,7 +96,7 @@ void Community::reset() { // used for r-zero calculations, to reset pop after a 
     // for (auto &e: _isHot) e.clear();
 
     if (cmty_ledger) { delete cmty_ledger; }
-    cmty_ledger = new Community_Ledger(_par);
+    cmty_ledger = new CommunityLedger(_par);
 
     // clear community queues & tallies
 //    _exposedQueue.clear();
@@ -149,13 +150,13 @@ Community::~Community() {
     if (cmty_ledger) { delete cmty_ledger; }
 }
 
-void Community::revertState(Community_Ledger* cl, Date* d) {
-    // overwrite ledger
+void Community::load_from_cache(CommunityLedger* cache_ledger, Date* cache_date) {
     if (cmty_ledger) { delete cmty_ledger; }
-    cmty_ledger = cl;
-    // overwrite date
+    cmty_ledger = new CommunityLedger(*cache_ledger);
+
     if (_date) { delete _date; }
-    _date = d;
+    _date = new Date(*cache_date);
+
     // revert locations
     for (Location* loc : _location) { loc->revertState(); }
     // revert people
@@ -1274,7 +1275,7 @@ double Community::getHouseholdSecondaryAttackRate(std::vector<Person*> &pop) {
     return covid::util::mean(individual_SAR_measurements);
 }
 
-map<string, double> Community::calculate_daily_direct_VE() {
+map<string, double> Community::calculate_daily_direct_VE(int day) {
     map<string, double> VE_map;
     enum  CounterType {
            PPL_FULLY_VAXD,
@@ -1304,30 +1305,30 @@ map<string, double> Community::calculate_daily_direct_VE() {
             default: break;
         }
 
-        bool fully_vaxd_w_protection = p->isVaccinated() and p->getNumVaccinations() > 1 and p->daysSinceVaccination(_day) >= _par->vaccine_dose_to_protection_lag;
+        bool fully_vaxd_w_protection = p->isVaccinated() and p->getNumVaccinations() > 1 and p->daysSinceVaccination(day) >= _par->vaccine_dose_to_protection_lag;
         if (fully_vaxd_w_protection) { ++ct[PPL_FULLY_VAXD]; }
         if (p->hasBeenInfected()) {
-            if (p->getInfectedTime() == _day) {      // for VEs
+            if (p->getInfectedTime() == day) {      // for VEs
                 if (fully_vaxd_w_protection) { ++ct[BREAKTHRU_INFS]; }
                 else { ++ct[UNVAXD_INFS]; }
             }
 
-            if (p->getSymptomTime() == _day) {       // for VEp
+            if (p->getSymptomTime() == day) {       // for VEp
                 if (fully_vaxd_w_protection) { ++ct[BREAKTHRU_DIS]; }
                 else { ++ct[UNVAXD_DIS]; }
             }
 
-            if (p->getHospitalizedTime() == _day) {  // for VEh
+            if (p->getHospitalizedTime() == day) {  // for VEh
                 if (fully_vaxd_w_protection) { ++ct[BREAKTHRU_HOSP]; }
                 else { ++ct[UNVAXD_HOSP]; }
             }
 
-            if (p->getDeathTime() == _day) {         // for VEd
+            if (p->getDeathTime() == day) {         // for VEd
                 if (fully_vaxd_w_protection) { ++ct[BREAKTHRU_DTHS]; }
                 else { ++ct[UNVAXD_DTHS]; }
             }
 
-            if (p->getInfection()->isDetectedOn(_day)) {
+            if (p->getInfection()->isDetectedOn(day)) {
                 if (fully_vaxd_w_protection) { ++ct[BREAKTHRU_REPORTED]; }
                 else { ++ct[UNVAXD_REPORTED]; }
             }

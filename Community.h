@@ -20,10 +20,10 @@ class Person;
 // We use this to created a vector of people, sorted by decreasing age.  Used for aging/immunity swapping.
 //struct PerPtrComp { bool operator()(const Person* A, const Person* B) const { return A->getAge() > B->getAge(); } };
 
-class Community_Ledger {
+class CommunityLedger {
     friend class Community;
 public:
-    Community_Ledger(const Parameters* par) :
+    CommunityLedger(const Parameters* par) :
         _numNewlyInfected(par->runLength, 0), // +1 not needed; runLength is already a valid size
         _numNewlySymptomatic(par->runLength, 0),
         _numNewlySevere(par->runLength, 0),
@@ -61,7 +61,7 @@ public:
         }
     }
 
-    Community_Ledger(const Community_Ledger& o) {
+    CommunityLedger(const CommunityLedger& o) {
         _numNewlyInfected = o._numNewlyInfected;
         _numNewInfectionsByStrain = o._numNewInfectionsByStrain;
         _numNewlyInfectedByLoc = o._numNewlyInfectedByLoc;
@@ -85,7 +85,7 @@ public:
         _timedInterventions = o._timedInterventions;
     }
 
-    ~Community_Ledger() {   // is any of this necessay?
+    ~CommunityLedger() {   // is any of this necessay?
         _numNewlyInfected.clear();
         _numNewInfectionsByStrain.clear();
         _numNewlyInfectedByLoc.clear();
@@ -168,7 +168,7 @@ class Community {
             // _numDetectedDeathsOnset      = o._numDetectedDeathsOnset;
             // _numDetectedDeathsReport     = o._numDetectedDeathsReport;
             // _cumulIncByOutcome           = o._cumulIncByOutcome;
-            cmty_ledger                  = o.cmty_ledger ? new Community_Ledger(*(o.cmty_ledger)) : nullptr;
+            cmty_ledger                  = o.cmty_ledger ? new CommunityLedger(*(o.cmty_ledger)) : nullptr;
             // _isHot                       = std::vector< std::map<LocationType, std::map<Location*, std::map<double, std::vector<Person*>>, Location::LocPtrComp>>>(o._isHot.size());
             for (auto &e: cmty_ledger->_isHot) {
                 for (size_t locType = 0; locType < NUM_OF_LOCATION_TYPES; ++locType) {
@@ -427,16 +427,11 @@ class Community {
         vector<Location*> locsAtPixel(std::pair<double, double> px) { return _pixelMap[{px.first, px.second}]; }
         vector<Location*> locsAtPixel(double xP, double yP) { return _pixelMap[{xP, yP}]; }
 
-        map<std::string, double> calculate_daily_direct_VE();
+        map<std::string, double> calculate_daily_direct_VE(int day);
         vector<size_t> generateOffspringDistribution();
 
-        void revertState(Community_Ledger* cl, Date* d);
-
-        Community_Ledger* cache_ledger() {
-            Community_Ledger* ledger_copy = new Community_Ledger(*cmty_ledger);
-            return ledger_copy;
-        }
-        void load_ledger(Community_Ledger* cl, Date* d);
+        CommunityLedger* get_ledger() const { return cmty_ledger; }
+        void load_from_cache(CommunityLedger* cache_ledger, Date* cache_date);
 
     protected:
         static const Parameters* _par;
@@ -450,7 +445,7 @@ class Community {
         std::map<std::pair<double, double>, std::vector<Location*>> _pixelMap;
         //std::vector< std::vector<Person*> > _exposedQueue;                     // queue of people with n days of latency left
         int _day;                                                              // current day
-        Community_Ledger* cmty_ledger;
+        CommunityLedger* cmty_ledger;
         // std::vector<size_t> _numNewlyInfected;
         // std::map<StrainType, std::vector<size_t>> _numNewInfectionsByStrain;
         // std::map<std::string, std::vector<size_t>> _numNewlyInfectedByLoc;
