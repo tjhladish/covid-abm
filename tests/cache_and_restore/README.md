@@ -9,3 +9,8 @@ However, please update the following in the main file to ensure proper test oper
 * Change cache_and_restore_simulator.h:CACHE_POINT to desired day when cache will be made
 * Turn off simulation database generation
 * Turn off simvis figure generation
+
+Will need symlinks to:
+* vaccine dose file (link name: state_based_counterfactual_doses.txt)
+* makefile (link name: Makefile)
+* json file (link name: abc_covid.json)
