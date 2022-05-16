@@ -150,15 +150,21 @@ Community::~Community() {
     if (cmty_ledger) { delete cmty_ledger; }
 }
 
-void Community::load_from_cache(CommunityLedger* cache_ledger, Date* cache_date) {
+void Community::load_from_cache(CommunityLedger* cache_ledger, Date* cache_date, map<int, vector<Person*>> cache_hosp_ppl, Vac_Campaign* cache_vc) {
     if (cmty_ledger) { delete cmty_ledger; }
     cmty_ledger = new CommunityLedger(*cache_ledger);
+
+    if (vac_campaign) { delete vac_campaign; }
+    // vac_campaign = new Vac_Campaign(*cache_vc);
+    // vac_campaign->copy_doses_available(cache_vc);
+    vac_campaign = cache_vc->quick_cache();
 
     if (_date) { delete _date; }
     _date = new Date(*cache_date);
 
     // revert locations
-    for (Location* loc : _location) { loc->revertState(); }
+    // for (Location* loc : _location) { loc->revertState(); }
+    for (Location* hosp : _location_map[HOSPITAL]) { hosp->setPeople(cache_hosp_ppl[hosp->getID()]); }
     // revert people
     for (Person* p : _people) { p->revertState(_date); }
 }

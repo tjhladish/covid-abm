@@ -390,6 +390,7 @@ class Community {
 
         void reset();                                                // reset the state of the community
         const std::vector<Location*> getLocations() const { return _location; }
+        std::set<Location*, Location::LocPtrComp> getLocationsByType(LocationType lt) const { return _location_map.at(lt); }
         const std::vector<Person*> getAgeCohort(unsigned int age) const { assert(age<_personAgeCohort.size()); return _personAgeCohort[age]; }
         std::vector<double> getTimedIntervention(TimedIntervention ti) const { return cmty_ledger->_timedInterventions.at(ti); }
         void updateTimedIntervention(TimedIntervention ti, size_t date, double val) {
@@ -431,7 +432,7 @@ class Community {
         vector<size_t> generateOffspringDistribution();
 
         CommunityLedger* get_ledger() const { return cmty_ledger; }
-        void load_from_cache(CommunityLedger* cache_ledger, Date* cache_date);
+        void load_from_cache(CommunityLedger* cache_ledger, Date* cache_date, std::map<int, std::vector<Person*>> cache_hosp_ppl, Vac_Campaign* cache_vc);
 
     protected:
         static const Parameters* _par;

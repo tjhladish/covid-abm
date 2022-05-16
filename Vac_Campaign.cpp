@@ -323,3 +323,48 @@ void Vac_Campaign::copy_doses_available(Vac_Campaign* ovc) {
         }
     }
 }
+
+Vac_Campaign* Vac_Campaign::quick_cache() {
+    Vac_Campaign* vc       = new Vac_Campaign(*this);
+    Eligibility_Q other_sq = this->get_std_eligibility_queue();
+    Eligibility_Q other_uq = this->get_urg_eligibility_queue();
+
+    Eligibility_Q sq = vc->get_std_eligibility_queue();
+    Eligibility_Q uq = vc->get_urg_eligibility_queue();
+    sq.clear(); sq.resize(_par->numVaccineDoses);
+    uq.clear(); uq.resize(_par->numVaccineDoses);
+
+    for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
+        while (other_sq[dose].size()) {
+            Eligibility_Group* other_eg = other_sq[dose].top();
+            Eligibility_Group* eg = new Eligibility_Group();
+            eg->eligibility_day = other_eg->eligibility_day;
+            for (int bin : vc->get_unique_age_bins()) {
+                for (Person* p : other_eg->eligible_people[bin]) {
+                    eg->eligible_people[bin].push_back(p);
+                }
+            }
+            sq[dose].push(eg);
+            other_sq[dose].pop();
+        }
+
+        while (other_uq[dose].size()) {
+            Eligibility_Group* other_eg = other_uq[dose].top();
+            Eligibility_Group* eg = new Eligibility_Group();
+            eg->eligibility_day = other_eg->eligibility_day;
+            for (int bin : vc->get_unique_age_bins()) {
+                for (Person* p : other_eg->eligible_people[bin]) {
+                    eg->eligible_people[bin].push_back(p);
+                }
+            }
+            uq[dose].push(eg);
+            other_uq[dose].pop();
+        }
+    }
+
+    vc->copy_doses_available(this);
+    vc->set_std_eligibility_queue(sq);
+    vc->set_urg_eligibility_queue(uq);
+
+    return vc;
+}

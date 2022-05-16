@@ -396,6 +396,9 @@ class Vac_Campaign {
 
         void copy_doses_available(Vac_Campaign* vc);
 
+        // can be used to create a chace and read from cache
+        Vac_Campaign* quick_cache();
+
     private:
         std::vector<int> _doses;                                // doses that other data structures will point to (depending on the pooling set by the user)
         Dose_Ptrs std_doses_available;                           // daily standard dose availability indexed by [day][dose][age bin]
