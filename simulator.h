@@ -283,6 +283,7 @@ public:
     SimulationCache() {
         // community     = nullptr;
         cmty_ledger   = nullptr;
+        vc            = nullptr;
         date          = nullptr;
         sim_ledger    = nullptr;
         rng           = nullptr;
@@ -293,6 +294,10 @@ public:
     SimulationCache(Community* o_community, SimulationLedger* o_sim_ledger, gsl_rng* o_rng, gsl_rng* o_reporting_rng, gsl_rng* o_vax_rng) {
         // community     = new Community(*o_community);
         cmty_ledger   = new CommunityLedger(*(o_community->get_ledger()));
+        for(Location* hosp : o_community->getLocationsByType(HOSPITAL)) { hosp_people[hosp->getID()] = hosp->getPeople(); }
+
+        vc            = o_community->getVac_Campaign()->quick_cache();
+
         date          = new Date(*(o_community->get_date()));
         sim_ledger    = new SimulationLedger(*o_sim_ledger);
         rng           = gsl_rng_clone(o_rng);
@@ -303,6 +308,8 @@ public:
     ~SimulationCache() {
         // delete community;
         delete cmty_ledger;
+        hosp_people.clear();
+        delete vc;
         delete date;
         delete sim_ledger;
         gsl_rng_free(rng);
@@ -312,6 +319,8 @@ public:
 
     // Community* community;
     CommunityLedger* cmty_ledger;
+    map<int, vector<Person*>> hosp_people;
+    Vac_Campaign* vc;
     Date* date;
     SimulationLedger* sim_ledger;
     gsl_rng* rng;
@@ -719,7 +728,7 @@ bool restore_from_cache(Community* &community, Date* &date, SimulationCache* sim
 
     // if (community) { delete community; }
     // community = new Community(*(sim_cache->community));
-    community->load_from_cache(sim_cache->cmty_ledger, sim_cache->date);
+    community->load_from_cache(sim_cache->cmty_ledger, sim_cache->date, sim_cache->hosp_people, sim_cache->vc);
     date      = community->get_date();
     community->setSocialDistancingTimedIntervention(social_distancing_anchors);
 
