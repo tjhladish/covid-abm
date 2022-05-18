@@ -198,6 +198,12 @@ enum CsmhScenario {
     NUM_OF_CSMH_SCENARIOS
 };
 
+enum AutoFittingDataTarget {
+    CASES,
+    DEATHS,
+    NUM_OF_AUTO_FITTING_DATA_TARGETS
+};
+
 /*
 // transmission-related probabilities
 susceptibility -- use fuction wrapper for generality so we can potentially use age in the future, but just a single value in par for now
@@ -656,7 +662,7 @@ public:
 //    CsmhScenario csmhScenario;
 
     bool behavioral_autotuning;
-    bool tune_to_cumul_cases;
+    AutoFittingDataTarget behavior_fitting_data_target;
     size_t death_tuning_offset;
     size_t tuning_window;
     size_t num_preview_windows;

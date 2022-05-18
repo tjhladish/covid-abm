@@ -114,12 +114,11 @@ void Parameters::define_defaults() {
 //    csmhScenario = NUM_OF_CSMH_SCENARIOS; // default to no scenario
 
     behavioral_autotuning          = false;
-    tune_to_cumul_cases            = true;
+    behavior_fitting_data_target   = NUM_OF_AUTO_FITTING_DATA_TARGETS;
     death_tuning_offset            = 0;
     tuning_window                  = INT_MAX;
     num_preview_windows            = INT_MAX;
     // autotuning_dataset             = "";
-
     dump_simulation_data           = false;
 }
 
