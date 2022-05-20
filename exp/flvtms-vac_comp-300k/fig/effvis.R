@@ -59,6 +59,6 @@ eff.p <- ggplot(eff.dt[week > intweek]) + aes(week, eff, color = state, group = 
   )
 
 #' TODO refactor these to independent scripts
-ggsave("eff_obs.png", obs.p, width = 6, height = 8, units = "in", dpi = 600, bg = "white")
-ggsave("eff_ave.png", averted.p, width = 6, height = 8, units = "in", dpi = 600, bg = "white")
-ggsave("eff.png", eff.p, width = 6, height = 8, units = "in", dpi = 600, bg = "white")
+ggsave("incidence.png", obs.p, width = 6, height = 8, units = "in", dpi = 600, bg = "white")
+ggsave("cum_averted.png", averted.p, width = 6, height = 8, units = "in", dpi = 600, bg = "white")
+ggsave("cum_effectiveness.png", eff.p, width = 6, height = 8, units = "in", dpi = 600, bg = "white")
