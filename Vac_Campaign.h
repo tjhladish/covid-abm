@@ -48,8 +48,24 @@ enum VacCampaignType {
     RING_VACCINATION,
     GEO_VACCINATION,
     LOCATION_VACCINATION,
+    GROUPED_RISK_VACCINATION,
     NUM_OF_VAC_CAMPAIGN_TYPES
 };
+
+inline std::ostream& operator<<(std::ostream& out, const VacCampaignType value){
+    const char* s = 0;
+#define PROCESS_VAL(p) case(p): s = #p; break;
+    switch(value){
+        PROCESS_VAL(GENERAL_CAMPAIGN);
+        PROCESS_VAL(RING_VACCINATION);
+        PROCESS_VAL(GEO_VACCINATION);
+        PROCESS_VAL(LOCATION_VACCINATION);
+        PROCESS_VAL(GROUPED_RISK_VACCINATION);
+        PROCESS_VAL(NUM_OF_VAC_CAMPAIGN_TYPES);
+    }
+#undef PROCESS_VAL
+    return out << s;
+}
 
 class Vac_Campaign;
 class Community;
@@ -239,6 +255,16 @@ class Vac_Campaign {
             return tot_doses;
         }
 
+        int get_all_doses_available(Dose_Ptrs doses, int day) {
+            int tot_doses = 0;
+            for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
+                for (int bin : unique_age_bins) {
+                    tot_doses += (*doses[day][dose][bin]);
+                }
+            }
+            return tot_doses;
+        }
+
         void set_urg_doses_available(Dose_Ptrs da) { urg_doses_available = da; }
         void set_std_doses_available(Dose_Ptrs da) { std_doses_available = da; }
 
@@ -252,12 +278,16 @@ class Vac_Campaign {
             int leftover_std_doses = *std_doses_available[day][dose][age_bin];
             int leftover_urg_doses = *urg_doses_available[day][dose][age_bin];
 
-            if (((day + 1) < (int) _par->runLength) and (leftover_std_doses + leftover_urg_doses)) {
-                *std_doses_available[day][dose][age_bin] = 0;
-                *std_doses_available[day+1][dose][age_bin] += leftover_std_doses;
+            if ((day + 1) < (int) _par->runLength) {
+                if (leftover_std_doses) {
+                    *std_doses_available[day][dose][age_bin] = 0;
+                    *std_doses_available[day+1][dose][age_bin] += leftover_std_doses;
+                }
 
-                *urg_doses_available[day][dose][age_bin] = 0;
-                *urg_doses_available[day+1][dose][age_bin] += leftover_urg_doses;
+                if (leftover_urg_doses and (day >= start_of_campaign[reactive_vac_strategy])) {
+                    *urg_doses_available[day][dose][age_bin] = 0;
+                    *urg_doses_available[day+1][dose][age_bin] += leftover_urg_doses;
+                }
             }
         }
 
@@ -277,6 +307,15 @@ class Vac_Campaign {
         void set_potential_urg_vaccinees(Vaccinee_Pool uv) { potential_urg_vaccinees = uv; }
 
         void add_potential_std_vaccinee(int dose, int age_bin, Person* p) { potential_std_vaccinees[dose][age_bin].push_back(p); }
+        int get_pool_size(Vaccinee_Pool vp) {
+            int tot = 0;
+            for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
+                for (int bin : unique_age_bins) {
+                    tot += vp[dose][bin].size();
+                }
+            }
+            return tot;
+        }
 
         // will be called everyday to check if new people need to be added to the pools
         void add_new_eligible_people(int today) {
@@ -290,6 +329,9 @@ class Vac_Campaign {
                 for (int bin : unique_age_bins) {
                     if (std_eg) { _insert_eligible_people(std_eg, potential_std_vaccinees, dose, bin); }
                     if (urg_eg) { _insert_eligible_people(urg_eg, potential_urg_vaccinees, dose, bin); }
+                    if (reactive_vac_strategy == GROUPED_RISK_VACCINATION and (today > start_of_campaign[GROUPED_RISK_VACCINATION])) {
+                        _add_ppl_from_risk_groups(dose, bin);
+                    }
                 }
 
                 // as we sim, Eligibility_Groups will be deleted (some will be left to be cleaned by the dtor)
@@ -381,6 +423,7 @@ class Vac_Campaign {
         void ring_scheduling(int day, vector<set<Person*, PerPtrComp>> tracedContacts);
         void geographic_scheduling(int day, vector<set<Person*, PerPtrComp>> targetedPeople, Community* community);
         void location_scheduling(int day, vector<set<Person*, PerPtrComp>> targetedPeople);
+        void grouped_risk_scheduling(int day, Community* community);
 
         void reactive_strategy(int day, vector<set<Person*, PerPtrComp>> targetedPeople, Community* community);
 
@@ -398,6 +441,8 @@ class Vac_Campaign {
 
         // can be used to create a chace and read from cache
         Vac_Campaign* quick_cache();
+
+        bool contact_tracing_required(VacCampaignType vct) { return reactive_strat_CT_lookup.at(vct); }
 
     private:
         std::vector<int> _doses;                                // doses that other data structures will point to (depending on the pooling set by the user)
@@ -436,11 +481,26 @@ class Vac_Campaign {
         VacCampaignType reactive_vac_strategy;                  // parameter for type of reactive strategy (if one is active)
         double reactive_vac_dose_allocation;                    // what proportion of total daily doses are reserved for reactive strategies
 
+        // lookup whether a certain strategy needs contact tracing
+        std::map<VacCampaignType, bool> reactive_strat_CT_lookup {
+            {GENERAL_CAMPAIGN,          false},
+            {RING_VACCINATION,          true},
+            {GEO_VACCINATION,           true},
+            {LOCATION_VACCINATION,      true},
+            {GROUPED_RISK_VACCINATION,  false},
+            {NUM_OF_VAC_CAMPAIGN_TYPES, false}
+        };
+
         std::vector<int> min_age;
 
         Dose_Ptrs _dose_pool(Dose_Vals doses_in);
         Dose_Ptrs _dose_store(Dose_Vals doses_in);
         // Dose_Ptrs _init_orig_doses();
+
+        // specialty members for risk group vax strategy
+        std::deque< pair<int, vector<Eligibility_Group*>> > _grouped_risk_deque;    // order of groups to be added to the pool
+        int _current_risk_group;                                                    // which group was last added to the pool
+        std::map<int, vector<Person*>> _sch_risk_groups;                            // people in each group
 
         int _deref(int* ptr) { return *ptr; }
 
@@ -459,6 +519,23 @@ class Vac_Campaign {
             assert(eq.size() == new_el_groups.size());
             for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
                 if (new_el_groups[dose]) { eq[dose].push(new_el_groups[dose]); }
+            }
+        }
+
+        // specialty method for group risk strategy
+        // handles evaluating the stopping criteria for when to move from one group to the next
+        bool _ready_to_add_next_group(Vaccinee_Pool vp) {
+            return get_pool_size(vp) <= (_sch_risk_groups[_current_risk_group].size() * 0.1);
+        }
+
+        // specialty method for group risk strategy
+        // adds the next group from the deque if the stopping criteria was met
+        void _add_ppl_from_risk_groups(const int dose, const int bin) {
+            if (_ready_to_add_next_group(potential_urg_vaccinees) and _grouped_risk_deque.size()) {
+                _insert_eligible_people(_grouped_risk_deque.front().second[dose], potential_urg_vaccinees, dose, bin);
+                delete _grouped_risk_deque.front().second[dose];
+                _current_risk_group =  _grouped_risk_deque.front().first;
+                _grouped_risk_deque.pop_front();
             }
         }
 };

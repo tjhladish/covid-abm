@@ -146,12 +146,92 @@ void Vac_Campaign::location_scheduling(int day, vector<set<Person*, PerPtrComp>>
     }
 }
 
+void Vac_Campaign::grouped_risk_scheduling(int day, Community* community) {
+    // this function only needs to be executed once at the start of the strategy
+    // grouping and scheduling is performed here and then the groups will be added by specialty methods
+    if (day == start_of_campaign[GROUPED_RISK_VACCINATION]) {
+        map<int, double> grouped_risk;   // map of group to pair of risk sum and group size (can then calculate per capita risk)
+        map<int, vector<Person*>> grouped_ppl;      // map of group to vector of people in that group
+        ifstream iss(_par->riskGroupsFilename);
+
+        if (!iss) { cerr << "ERROR: " << _par->riskGroupsFilename << " not found." << endl; }
+
+        string buffer;
+        istringstream line;
+        int pid, group;
+
+        // the input file is expected to have two columns: person ID and the group they belong to
+        while ( getline(iss, buffer) ) {
+            line.clear();
+            line.str(buffer);
+
+            // for each line in the file, calculate the individual's risk for their group and add
+            if (line >> pid >> group) {
+                Person* p = community->getPersonByID(pid);
+                grouped_ppl[group].push_back(p);
+
+                // risk of severe outcomes given infection
+                double risk = _par->probSeriousOutcome.at(SEVERE)[p->hasComorbidity()][p->getAge()] * _par->pathogenicityByAge[p->getAge()];
+                if (not grouped_risk.count(group)) {
+                    grouped_risk[group]  = 0.0;
+                }
+
+                grouped_risk[group] += risk;
+            }
+        }
+        iss.close();
+
+        // special comparator to sort the groups by per capita risk
+        struct group_risk_comp {
+            bool operator() (pair<int, double> const& lhs, pair<int, double> const& rhs) const {
+                return lhs.second > rhs.second;
+            }
+        };
+
+        // for each group of people, calculate the per capita risk of the group and sort the groups by per capita risk
+        set< pair<int, double>, group_risk_comp > ordered_groups_by_per_capita_risk;
+        for (const auto [group, totRisk] : grouped_risk) {
+            pair<int, double> tmp(group, (double) totRisk/grouped_ppl[group].size());
+            ordered_groups_by_per_capita_risk.insert(tmp);
+        }
+
+        // for each group create a new eligibility group for the group that can be dumped into the vac_campaign urgent pool
+        _grouped_risk_deque.clear();
+        for (pair<int, double> group : ordered_groups_by_per_capita_risk) {
+            vector<Eligibility_Group*> urgents = init_new_eligible_groups(day);
+            for (Person* p : grouped_ppl[group.first]) {
+                // Parameters must ensure than urgent_vax_dose_threshold <= numVaccineDoses
+                // if (is_age_eligible_on(p->getAge(), day) and not (p->hasBeenInfected() or (p->getNumVaccinations() < _par->urgent_vax_dose_threshold))) {
+                if (is_age_eligible_on(p->getAge(), day) and (p->getNumVaccinations() < _par->urgent_vax_dose_threshold)) {
+                    _sch_risk_groups[group.first].push_back(p);
+                    // getNumVaccinations() used as an index will ensure this person is being scheduled for their next dose
+                    // eg: if getNumVaccinations() returns 1, 1 as an index pushes this person for dose 2
+                    urgents[p->getNumVaccinations()]->eligible_people[age_bin_lookup[p->getAge()]].push_back(p);
+                }
+            };
+            pair<int, vector<Eligibility_Group*>> tmp_risk_group(group.first, urgents);
+            _grouped_risk_deque.push_back(tmp_risk_group);
+        }
+
+        // add first group to pool
+        for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
+            for (int bin : unique_age_bins) {
+                _insert_eligible_people(_grouped_risk_deque.front().second[dose], potential_urg_vaccinees, dose, bin);
+            }
+            delete _grouped_risk_deque.front().second[dose];
+        }
+        _current_risk_group =  _grouped_risk_deque.front().first;
+        _grouped_risk_deque.pop_front();
+    }
+}
+
 void Vac_Campaign::reactive_strategy(int day, vector<set<Person*, PerPtrComp>> targetedPeople, Community* community) {
     // general handler for which campgain shoudl be called from Community::tick()
     switch (reactive_vac_strategy) {
         case RING_VACCINATION:     { ring_scheduling(day, targetedPeople); break; }
         case GEO_VACCINATION:      { geographic_scheduling(day, targetedPeople, community); break; }
         case LOCATION_VACCINATION: { location_scheduling(day, targetedPeople); break; }
+        case GROUPED_RISK_VACCINATION: { grouped_risk_scheduling(day, community); break; }
 
         case GENERAL_CAMPAIGN: break;
         case NUM_OF_VAC_CAMPAIGN_TYPES: break;
