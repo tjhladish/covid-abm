@@ -675,8 +675,9 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     const bool vaccine                   = (bool) args[1];
     const bool mutation                  = (bool) args[2];
     const size_t counterfactual_scenario = (size_t) args[3];
-    const size_t active_vax_strat        = 0; //(size_t) args[4];
-    const bool quarantine_ctrl           = true; //(bool) args[5];
+    const size_t dose_file               = 0; //(size_t) args[4];
+    const size_t active_vax_strat        = 0; //(size_t) args[5];
+    const bool quarantine_ctrl           = false; //(bool) args[6];
 
     Parameters* par = define_simulator_parameters(args, rng_seed, serial, process_id);
     define_strain_parameters(par);
@@ -710,9 +711,11 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         par->vaccine_dose_to_protection_lag = 10;   // number of days from vaccination to protection
         par->urgent_vax_dose_threshold = 1;         // the highest dose in series that will be administered in the active strategy
 
-        par->vaccinationFilename = (selected_strat == NUM_OF_VAC_CAMPAIGN_TYPES) or (selected_strat == GENERAL_CAMPAIGN)
-                                       ? "./state_based_counterfactual_doses.txt"
-                                       : "./active_vax_counterfactual_doses.txt";
+        switch (dose_file) {
+            case 1: par->vaccinationFilename = "./active_vax_counterfactual_doses.txt"; break;
+            case 0:
+            default: par->vaccinationFilename = "./state_based_counterfactual_doses.txt"; break;
+        }
 
         // pooling will accumulate doses across age bins BUT NOT across doses
         bool pool_urg_doses    = true;
