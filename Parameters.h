@@ -565,6 +565,7 @@ public:
     std::string networkFilename;
     std::string vaccinationFilename;
     std::string doseFilename;
+    std::string riskGroupsFilename;
 
     std::string behaviorFilename;                           // for input
     std::string autotuningFilename;                         // for output

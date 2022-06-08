@@ -54,6 +54,7 @@ void Parameters::define_defaults() {
     networkFilename                = "network.txt";
     vaccinationFilename            = "";
     doseFilename                   = "";
+    riskGroupsFilename             = "";
 
     behaviorFilename               = "autotuned-behavior.csv";
     autotuningFilename             = "autotuned-behavior.csv";
