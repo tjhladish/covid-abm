@@ -674,10 +674,10 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     // const size_t realization             = (size_t) args[0];
     const bool vaccine                   = (bool) args[1];
     const bool mutation                  = (bool) args[2];
-    const size_t counterfactual_scenario = (size_t) args[3];
-    const size_t dose_file               = 0; //(size_t) args[4];
-    const size_t active_vax_strat        = 0; //(size_t) args[5];
-    const bool quarantine_ctrl           = false; //(bool) args[6];
+    const size_t counterfactual_scenario = 0; //(size_t) args[3];       // 0 = FL; 1 = VT; 2 = MS
+    const size_t dose_file               = 1; //(size_t) args[4];       // 0 = state_based_counterfactual_doses.txt; 1 = active_vax_counterfactual_doses.txt
+    const size_t active_vax_strat        = 1; //(size_t) args[5];       // 0 = none; 1 = ring vax; 2 = risk group vax
+    const bool quarantine_ctrl           = true; //(bool) args[6];     // 0 = off; 1 = on
 
     Parameters* par = define_simulator_parameters(args, rng_seed, serial, process_id);
     define_strain_parameters(par);
