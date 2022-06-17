@@ -672,12 +672,12 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     for (auto _p: args) { cerr << " " << _p; } cerr << endl;
 
     // const size_t realization             = (size_t) args[0];
-    const bool vaccine                   = (bool) args[1];
+    const bool vaccine                   = 1; //(bool) args[1];
     const bool mutation                  = (bool) args[2];
-    const size_t counterfactual_scenario = 0; //(size_t) args[3];       // 0 = FL; 1 = VT; 2 = MS
-    const size_t dose_file               = 1; //(size_t) args[4];       // 0 = state_based_counterfactual_doses.txt; 1 = active_vax_counterfactual_doses.txt
-    const size_t active_vax_strat        = 1; //(size_t) args[5];       // 0 = none; 1 = ring vax; 2 = risk group vax
-    const bool quarantine_ctrl           = true; //(bool) args[6];     // 0 = off; 1 = on
+    const size_t counterfactual_scenario = 0; //(size_t) args[3];       // 0 = FL; 1 = VT; 2 = MS (should be set to 0 for all active strat work)
+    const size_t dose_file               = 0; //(size_t) args[4];       // 0 = state_based_counterfactual_doses.txt; 1 = active_vax_counterfactual_doses.txt; 2 =ring_vax_deployment_counterfactual_doses.txt
+    const size_t active_vax_strat        = 0; //(size_t) args[5];       // 0 = none; 1 = ring vax; 2 = risk group vax; 3 = risk vax
+    const bool quarantine_ctrl           = false; //(bool) args[6];     // 0 = off; 1 = on
 
     Parameters* par = define_simulator_parameters(args, rng_seed, serial, process_id);
     define_strain_parameters(par);
@@ -690,6 +690,9 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     Vac_Campaign* vc = nullptr;
     community->setVac_Campaign(vc);
 
+    par->immunityLeaky         = true;          // applies to both infection and vaccine immunity
+    par->immunityWanes         = false;         // related to time-dep waning of protection, not waning of Ab levels
+
     // hanlde all vac campaign setup
     if (vaccine) {
         // parse JSON arg for vac campaign strategy type (if there is one)
@@ -697,14 +700,11 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         switch (active_vax_strat) {
             case 1: selected_strat = RING_VACCINATION; break;
             case 2: selected_strat = GROUPED_RISK_VACCINATION; break;
-            case 3: selected_strat = GEO_VACCINATION; break;
-            case 4: selected_strat = LOCATION_VACCINATION; break;
+            case 3: selected_strat = RISK_VACCINATION; break;
             case 0:
             default: selected_strat = NUM_OF_VAC_CAMPAIGN_TYPES; break;
         }
 
-        par->immunityLeaky         = true;          // applies to both infection and vaccine immunity
-        par->immunityWanes         = false;         // related to time-dep waning of protection, not waning of Ab levels
         par->numVaccineDoses       = 3;             // total doses in series
         par->vaccineDoseInterval   = {21, 240};     // intervals between dose 1-->2 and dose 2-->3
         // par->vaccineTargetCoverage = 0.60;          // for healthcare workers only
@@ -713,6 +713,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
         switch (dose_file) {
             case 1: par->vaccinationFilename = "./active_vax_counterfactual_doses.txt"; break;
+            case 2: par->vaccinationFilename = "./ring_vax_deployment_counterfactual_doses.txt"; break;
             case 0:
             default: par->vaccinationFilename = "./state_based_counterfactual_doses.txt"; break;
         }
@@ -724,7 +725,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
         // for urgent doses only, control whether to adjust to bin pops or total pop
         // standard doses will always be adusted to bin pops
-        bool adjust_to_bin_pop = true;
+        bool adjust_to_bin_pop = false;
 
         vc = generateVac_Campaign(par, community, counterfactual_scenario, {pool_urg_doses, pool_std_doses, pool_all_doses}, adjust_to_bin_pop);
 
@@ -750,14 +751,6 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         vector<int> min_ages(par->runLength, 5);
         vc->set_min_age(min_ages);       // needed for e.g. urgent vaccinations
 
-        // probability of self-quarantining for index cases and subsequent contacts
-        if (quarantine_ctrl) {
-            par->quarantineProbability = {0.9, 0.75, 0.5};
-        } else {
-            par->quarantineProbability = {0.0, 0.0, 0.0};
-        }
-        par->quarantineDuration = 10;
-
         cerr << "Vaccination scenario:\n"
              << GENERAL_CAMPAIGN << "\n"
                                  << "\tduration " << vc->get_start_of_campaign(GENERAL_CAMPAIGN) << "--" << vc->get_end_of_campaign(GENERAL_CAMPAIGN) << "\n"
@@ -775,6 +768,13 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
                                  << "\tself quarantining probs "; cerr_vector(par->quarantineProbability); cerr << "\n"
                                  << "\tself quarantining duration " << par->quarantineDuration << "\n" << endl;
     }
+    // probability of self-quarantining for index cases and subsequent contacts
+    if (quarantine_ctrl) {
+        par->quarantineProbability = {0.9, 0.75, 0.5};
+    } else {
+        par->quarantineProbability = {0.0, 0.0, 0.0};
+    }
+    par->quarantineDuration = 10;
 
     // seed_epidemic(par, community, WILDTYPE);
     vector<string> plot_log_buffer = simulate_epidemic(par, community, process_id, mutant_intro_dates);//, social_contact_map);
@@ -862,8 +862,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
     // if (vc)      { delete vc; }           // should this be here? MOVED INTO COMMUNITY DESTRUCTOR
     if (VAX_RNG) { gsl_rng_free(VAX_RNG); }
-    delete par;
     delete community;
+    delete par;
 
 metrics = vector<double>(424);
     return metrics;
