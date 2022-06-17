@@ -996,6 +996,11 @@ if (sim_day == 0) { seed_epidemic(par, community, WILDTYPE); }
         const vector<size_t> severe             = community->getNumNewlySevere();
         const double trailing_avg = trailing_averages[sim_day];
 
+        Vac_Campaign* vc    = community->getVac_Campaign() ? community->getVac_Campaign() : nullptr;
+        const int std_doses = vc ? vc->get_std_doses_used(sim_day) : 0;
+        const int urg_doses = vc ? vc->get_urg_doses_used(sim_day) : 0;
+        const int all_doses = vc ? vc->get_all_doses_used(sim_day) : 0;
+
         const size_t rc_ct = accumulate(all_reported_cases.begin(), all_reported_cases.begin()+sim_day+1, 0);
         map<string, double> VE_data = community->calculate_daily_direct_VE(sim_day);
         //vector<string> inf_by_loc_keys = {"home", "social", "work_staff", "patron", "school_staff", "student", "hcw", "patient", "ltcf_staff", "ltcf_resident"};
@@ -1003,7 +1008,7 @@ if (sim_day == 0) { seed_epidemic(par, community, WILDTYPE); }
         //    cerr << "infLoc " << date->to_ymd() << ' ' << key << ' ' << community->getNumNewInfectionsByLoc(key)[sim_day] << endl;
         //}
         if (not par->behavioral_autotuning) {
-            if (date->dayOfMonth()==1) cerr << "        rep sday        date  infinc  cAR     rcases  rcta7  crcases  rdeath  crdeath  sevprev   crhosp  closed  socdist dose1   dose2   dose3\n";
+            if (date->dayOfMonth()==1) cerr << "        rep sday        date  infinc  cAR     rcases  rcta7  crcases  rdeath  crdeath  sevprev   crhosp  closed  socdist  cov_1  cov_2  cov_3  std_doses  urg_doses  all_doses  quar%\n";
             cerr << right
                 << setw(11) << "NA" //process_id
                 << setw(5)  << sim_day
@@ -1018,10 +1023,14 @@ if (sim_day == 0) { seed_epidemic(par, community, WILDTYPE); }
                 << setw(9)  << severe_prev[sim_day]
                 << setw(9)  << accumulate(rhosp.begin(), rhosp.begin()+sim_day+1, 0)
                 << setw(8)  << community->getTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, sim_day)
-                << "  " << setw(6)     << setprecision(2) << left << community->getTimedIntervention(SOCIAL_DISTANCING, sim_day) << right
-                << "  " << setw(6)     << setprecision(2) << left << VE_data["dose_1"] << right
-                << "  " << setw(6)     << setprecision(2) << left << VE_data["dose_2"] << right
-                << "  " << setw(6)     << setprecision(2) << left << VE_data["dose_3"] << right
+                << "  "     << setw(7) <<          setprecision(2) << left << community->getTimedIntervention(SOCIAL_DISTANCING, sim_day) << right
+                << "  "     << setw(5) << fixed << setprecision(2) << left << VE_data["dose_1"] << right << defaultfloat
+                << "  "     << setw(5) << fixed << setprecision(2) << left << VE_data["dose_2"] << right << defaultfloat
+                << "  "     << setw(5) << fixed << setprecision(2) << left << VE_data["dose_3"] << right << defaultfloat
+                << setw(11) << std_doses
+                << setw(11) << urg_doses
+                << setw(11) << all_doses
+                << "  "     << setw(7) << fixed << setprecision(2) << left << community->getNumPeopleQuarantining(sim_day) << right << defaultfloat
                 << setprecision(6)
                 //             << "  "     << setprecision(2) << (double) severe[sim_day] / reported_cases
                 << endl;
