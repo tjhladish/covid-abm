@@ -434,6 +434,12 @@ class Community {
         CommunityLedger* get_ledger() const { return cmty_ledger; }
         void load_from_cache(CommunityLedger* cache_ledger, Date* cache_date, std::map<int, std::vector<Person*>> cache_hosp_ppl, Vac_Campaign* cache_vc);
 
+        double getNumPeopleQuarantining(int day) {
+            int tot = 0;
+            for (Person* p : _people) { tot += (int) p->isQuarantining(day); }
+            return (double) tot/_people.size();
+        }
+
     protected:
         static const Parameters* _par;
         Date* _date;
