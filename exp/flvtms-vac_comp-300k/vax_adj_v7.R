@@ -218,19 +218,19 @@ active_dosing[, is_urg := 0]
 # tmp[dose != 1 | date < "2021-05-01", n_doses_p10k := 0]
 
 #' the chunk below will allocate a constant amount of first doses for the active campaign after May 1, 2021
-# const_allocation = 50000 * (1e4/pop.dt[location == 'FL' & bin_min == 5 & bin_max == 120, pop])
-# tmp <- prepended_doses.dt[,.(date, ref_location=location, bin_min, bin_max, dose, n_doses_p10k)][ref_location == "FL"]
-# tmp[, `:=` (is_urg = 1, n_doses_p10k = 0)]
-# tmp[dose == 1 & bin_min == 5 & date >= "2021-05-01", n_doses_p10k := const_allocation]
+const_allocation = 1e5 * (1e4/pop.in[location == "FL", `0_17`+`18_120`])
+tmp <- prepended_doses.dt[,.(date, ref_location=location, bin_min, bin_max, dose, n_doses_p10k)][ref_location == "FL"]
+tmp[, `:=` (is_urg = 1, n_doses_p10k = 0)]
+tmp[dose == 1 & bin_min == 5, n_doses_p10k := const_allocation]
 
 #' the chunk below will allocate XX% of VT-scenario doses to the passive and 1-XX% to the active to ensure that the passive reaches the emp coverage endpoint in FL
-tmp <- prepended_doses.dt[,.(date, ref_location=location, bin_min, bin_max, dose, n_doses_p10k)][ref_location == "VT" | ref_location == "FL"]
-tmp_cov <- tmp[, .(tot_doses = sum(n_doses_p10k)), by =.(ref_location, dose, bin_min)]
-adj <- tmp_cov[, .(passive_prop = tot_doses[ref_location == "FL"]/tot_doses[ref_location == "VT"]), by = .(dose, bin_min)][, active_prop := 1 - passive_prop]
-tmp <- tmp[ref_location == "VT"][adj, on = .(dose, bin_min)]
-tmp[, `:=` (passive_doses = n_doses_p10k * passive_prop, active_doses = n_doses_p10k * active_prop, is_urg = 1)]
-active_dosing <- tmp[, .(date, ref_location, bin_min, bin_max, dose, n_doses_p10k = passive_doses, is_urg)][, `:=` (ref_location = "FL", is_urg = 0)]
-tmp <- tmp[, .(date, ref_location, bin_min, bin_max, dose, n_doses_p10k = active_doses, is_urg)][, ref_location := "FL"]
+# tmp <- prepended_doses.dt[,.(date, ref_location=location, bin_min, bin_max, dose, n_doses_p10k)][ref_location == "VT" | ref_location == "FL"]
+# tmp_cov <- tmp[, .(tot_doses = sum(n_doses_p10k)), by =.(ref_location, dose, bin_min)]
+# adj <- tmp_cov[, .(passive_prop = tot_doses[ref_location == "FL"]/tot_doses[ref_location == "VT"]), by = .(dose, bin_min)][, active_prop := 1 - passive_prop]
+# tmp <- tmp[ref_location == "VT"][adj, on = .(dose, bin_min)]
+# tmp[, `:=` (passive_doses = n_doses_p10k * passive_prop, active_doses = n_doses_p10k * active_prop, is_urg = 1)]
+# active_dosing <- tmp[, .(date, ref_location, bin_min, bin_max, dose, n_doses_p10k = passive_doses, is_urg)][, `:=` (ref_location = "FL", is_urg = 0)]
+# tmp <- tmp[, .(date, ref_location, bin_min, bin_max, dose, n_doses_p10k = active_doses, is_urg)][, ref_location := "FL"]
 
 active_dosing <- rbindlist(list(active_dosing, tmp))
 fwrite(active_dosing[,.(date, ref_location, bin_min, bin_max, dose, is_urg, n_doses_p10k)], file = "active_vax_counterfactual_doses.txt", sep = ' ')
