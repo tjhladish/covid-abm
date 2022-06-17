@@ -49,6 +49,7 @@ enum VacCampaignType {
     GEO_VACCINATION,
     LOCATION_VACCINATION,
     GROUPED_RISK_VACCINATION,
+    RISK_VACCINATION,
     NUM_OF_VAC_CAMPAIGN_TYPES
 };
 
@@ -61,6 +62,7 @@ inline std::ostream& operator<<(std::ostream& out, const VacCampaignType value){
         PROCESS_VAL(GEO_VACCINATION);
         PROCESS_VAL(LOCATION_VACCINATION);
         PROCESS_VAL(GROUPED_RISK_VACCINATION);
+        PROCESS_VAL(RISK_VACCINATION);
         PROCESS_VAL(NUM_OF_VAC_CAMPAIGN_TYPES);
     }
 #undef PROCESS_VAL
@@ -134,8 +136,8 @@ class Vac_Campaign {
             pool_std_doses = false;
             pool_all_doses = false;
 
-            start_of_campaign = vector<int>(NUM_OF_VAC_CAMPAIGN_TYPES, 0);
-            end_of_campaign = vector<int>(NUM_OF_VAC_CAMPAIGN_TYPES, 0);
+            start_of_campaign = vector<int>(NUM_OF_VAC_CAMPAIGN_TYPES + 1, 0);  // need to add one because NUM_OF_VAC_CAMPAIGN_TYPES is a potential index
+            end_of_campaign = vector<int>(NUM_OF_VAC_CAMPAIGN_TYPES + 1, 0);    // need to add one because NUM_OF_VAC_CAMPAIGN_TYPES is a potential index
 
             std_doses_available = Dose_Ptrs(par->runLength, std::vector< std::map<int, int*> >(par->numVaccineDoses));
             urg_doses_available = Dose_Ptrs(par->runLength, std::vector< std::map<int, int*> >(par->numVaccineDoses));
@@ -415,7 +417,38 @@ class Vac_Campaign {
         Dose_Vals get_urg_doses_used() { return urg_doses_used; }
 
         int get_std_doses_used(int day, int dose, int age_bin) { return std_doses_used[day][dose][age_bin]; }
+        int get_std_doses_used(int day) {
+            int tot = 0;
+            for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
+                for (int bin : unique_age_bins) {
+                    tot += std_doses_used[day][dose][bin];
+                }
+            }
+            return tot;
+        }
+
         int get_urg_doses_used(int day, int dose, int age_bin) { return urg_doses_used[day][dose][age_bin]; }
+        int get_urg_doses_used(int day) {
+            int tot = 0;
+            for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
+                for (int bin : unique_age_bins) {
+                    tot += urg_doses_used[day][dose][bin];
+                }
+            }
+            return tot;
+        }
+
+        int get_all_doses_used(int day, int dose, int age_bin) { return std_doses_used[day][dose][age_bin] + urg_doses_used[day][dose][age_bin]; }
+        int get_all_doses_used(int day) {
+            int tot = 0;
+            for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
+                for (int bin : unique_age_bins) {
+                    tot += std_doses_used[day][dose][bin] + urg_doses_used[day][dose][bin];
+                }
+            }
+            return tot;
+        }
+
 
         void schedule_revaccinations(vector<Eligibility_Group*> revaccinations) { _add_new_eligibility_groups(std_eligibility_queue, revaccinations); }
         void schedule_urgent_doses(vector<Eligibility_Group*> urgents)          { _add_new_eligibility_groups(urg_eligibility_queue, urgents); }
@@ -424,6 +457,7 @@ class Vac_Campaign {
         void geographic_scheduling(int day, vector<set<Person*, PerPtrComp>> targetedPeople, Community* community);
         void location_scheduling(int day, vector<set<Person*, PerPtrComp>> targetedPeople);
         void grouped_risk_scheduling(int day, Community* community);
+        void risk_vaccination(int day, Community* community);
 
         void reactive_strategy(int day, vector<set<Person*, PerPtrComp>> targetedPeople, Community* community);
 
@@ -488,6 +522,7 @@ class Vac_Campaign {
             {GEO_VACCINATION,           true},
             {LOCATION_VACCINATION,      true},
             {GROUPED_RISK_VACCINATION,  false},
+            {RISK_VACCINATION,          false},
             {NUM_OF_VAC_CAMPAIGN_TYPES, false}
         };
 
