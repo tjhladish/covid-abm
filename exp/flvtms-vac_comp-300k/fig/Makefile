@@ -1,6 +1,7 @@
+-include local.mk
 
-DATADIR ?= ../tmp
-SIMFILES ?= abc_covid_counterfactuals.json covid_counterfactuals_v1.0.sqlite
+DATADIR ?= ../
+SIMFILES ?= abc-flvtms-vac_comp.json covid_counterfactuals_v1.0.sqlite
 
 R = $(strip Rscript $^ $(1) $@)
 
