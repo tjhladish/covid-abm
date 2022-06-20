@@ -150,15 +150,21 @@ Community::~Community() {
     if (cmty_ledger) { delete cmty_ledger; }
 }
 
-void Community::load_from_cache(CommunityLedger* cache_ledger, Date* cache_date) {
+void Community::load_from_cache(CommunityLedger* cache_ledger, Date* cache_date, map<int, vector<Person*>> cache_hosp_ppl, Vac_Campaign* cache_vc) {
     if (cmty_ledger) { delete cmty_ledger; }
     cmty_ledger = new CommunityLedger(*cache_ledger);
+
+    if (vac_campaign) { delete vac_campaign; }
+    // vac_campaign = new Vac_Campaign(*cache_vc);
+    // vac_campaign->copy_doses_available(cache_vc);
+    vac_campaign = cache_vc->quick_cache();
 
     if (_date) { delete _date; }
     _date = new Date(*cache_date);
 
     // revert locations
-    for (Location* loc : _location) { loc->revertState(); }
+    // for (Location* loc : _location) { loc->revertState(); }
+    for (Location* hosp : _location_map[HOSPITAL]) { hosp->setPeople(cache_hosp_ppl[hosp->getID()]); }
     // revert people
     for (Person* p : _people) { p->revertState(_date); }
 }
@@ -559,7 +565,8 @@ void Community::vaccinate() {
         for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
             Vaccinee* v = vac_campaign->next_vaccinee(_day, dose, bin);
             while (v) {
-                if (((v->get_person()->getNumVaccinations() < _par->numVaccineDoses) and v->get_person()->isSeroEligible()) // not completely vaccinated & eligible
+                // if (((v->get_person()->getNumVaccinations() < _par->numVaccineDoses) and v->get_person()->isSeroEligible()) // not completely vaccinated & eligible
+                if (((v->get_person()->getNumVaccinations() == dose) and v->get_person()->isSeroEligible()) // not completely vaccinated & eligible
                   and vac_campaign->vaccinate(v, _day)) {                       // and person isn't dead, so got vaccinated
                     vac_campaign->tally_dose(_day, dose, bin, v);                  // tally dose used
 
@@ -576,12 +583,19 @@ void Community::vaccinate() {
             }
 
             // roll over unused doses to tomorrow
-            vac_campaign->rollover_unused_doses(_day, dose, bin);
+            // vac_campaign->rollover_unused_doses(_day, dose, bin);
             // int remaining_doses = vac_campaign->get_doses_available(_day, dose, bin);
             // if (remaining_doses and ((_day + 1) < (int) _par->runLength)) {
             //     vac_campaign->set_doses_available(_day, dose, bin, 0);
             //     vac_campaign->add_doses_available(_day + 1, dose, bin, remaining_doses);
             // }
+        }
+    }
+
+    for (int bin : vac_campaign->get_unique_age_bins()) {
+        for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
+            // roll over unused doses to tomorrow
+            vac_campaign->rollover_unused_doses(_day, dose, bin);
         }
     }
 
@@ -932,7 +946,8 @@ void Community::nursinghome_transmission() {
 void Community::_transmission(Location* source_loc, vector<Person*> at_risk_group, const map<double, vector<Person*>> &infectious_groups, const double T) {
     const bool check_susceptibility = true;
     for (Person* p: at_risk_group) {
-        if (p->isQuarantining(_date->day())) { continue; }
+        // skip transmission for this person if they are self-quarantining unless it is within their home
+        if (p->isQuarantining(_date->day()) and not (source_loc == p->getHomeLoc())) { continue; }
         if (gsl_rng_uniform(RNG) < T) {
             Person* infecter     = nullptr;
             Infection* source_infection = nullptr;
@@ -1108,10 +1123,7 @@ void Community::tick() {
     _day = _date->day();
 // if (_day == 335) { exit(-1); }
 
-//cerr << endl << "D (u s)    " << vac_campaign->get_doses_available(_day, URGENT_ALLOCATION) << ' ' << vac_campaign->get_doses_available(_day, STANDARD_ALLOCATION) << endl;
-//cerr <<         "Q (u s re) " << vac_campaign->get_urgent_queue_size() << ' ' << vac_campaign->get_standard_queue_size() << ' ' << vac_campaign->get_revaccinate_queue_size(_day) << endl;
     if (vac_campaign) { vaccinate(); }
-//cerr <<         "V (u s re) " << vac_campaign->get_dose_tally(_day, URGENT_QUEUE) << ' ' << vac_campaign->get_dose_tally(_day, STANDARD_QUEUE) << ' ' <<  vac_campaign->get_dose_tally(_day, REVACCINATE_QUEUE) << endl;
 
     within_household_transmission();
     between_household_transmission();

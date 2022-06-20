@@ -283,6 +283,7 @@ public:
     SimulationCache() {
         // community     = nullptr;
         cmty_ledger   = nullptr;
+        vc            = nullptr;
         date          = nullptr;
         sim_ledger    = nullptr;
         rng           = nullptr;
@@ -293,6 +294,10 @@ public:
     SimulationCache(Community* o_community, SimulationLedger* o_sim_ledger, gsl_rng* o_rng, gsl_rng* o_reporting_rng, gsl_rng* o_vax_rng) {
         // community     = new Community(*o_community);
         cmty_ledger   = new CommunityLedger(*(o_community->get_ledger()));
+        for(Location* hosp : o_community->getLocationsByType(HOSPITAL)) { hosp_people[hosp->getID()] = hosp->getPeople(); }
+
+        vc            = o_community->getVac_Campaign()->quick_cache();
+
         date          = new Date(*(o_community->get_date()));
         sim_ledger    = new SimulationLedger(*o_sim_ledger);
         rng           = gsl_rng_clone(o_rng);
@@ -303,6 +308,8 @@ public:
     ~SimulationCache() {
         // delete community;
         delete cmty_ledger;
+        hosp_people.clear();
+        delete vc;
         delete date;
         delete sim_ledger;
         gsl_rng_free(rng);
@@ -312,6 +319,8 @@ public:
 
     // Community* community;
     CommunityLedger* cmty_ledger;
+    map<int, vector<Person*>> hosp_people;
+    Vac_Campaign* vc;
     Date* date;
     SimulationLedger* sim_ledger;
     gsl_rng* rng;
@@ -368,7 +377,15 @@ double score_fit(const Parameters* par, const Community* community, const size_t
     for (size_t day = 0; day <= sim_day; ++day) {
         if (emp_data_map.count(day)) {
             // if tuning to case data, store cases (index 0), otherwise store deaths (index 1)
-            emp_rdata[day] = (par->tune_to_cumul_cases) ? emp_data_map.at(day).at(0) : emp_data_map.at(day).at(1);
+            switch (par->behavior_fitting_data_target) {
+                case CASES:  emp_rdata[day] = emp_data_map.at(day).at(0); break;
+                case DEATHS: emp_rdata[day] = emp_data_map.at(day).at(1); break;
+                case NUM_OF_AUTO_FITTING_DATA_TARGETS: [[fallthrough]];
+                default: {
+                    cerr << "ERROR: no PPB auto fitting data target selected." << endl;
+                    exit(-1);
+                }
+            }
         } else {
             fit_weights[day] = 0.0;             // if there is no empirical data for this day, change the error weight to 0 (ignore the error on this day)
         }
@@ -719,7 +736,7 @@ bool restore_from_cache(Community* &community, Date* &date, SimulationCache* sim
 
     // if (community) { delete community; }
     // community = new Community(*(sim_cache->community));
-    community->load_from_cache(sim_cache->cmty_ledger, sim_cache->date);
+    community->load_from_cache(sim_cache->cmty_ledger, sim_cache->date, sim_cache->hosp_people, sim_cache->vc);
     date      = community->get_date();
     community->setSocialDistancingTimedIntervention(social_distancing_anchors);
 
@@ -736,9 +753,16 @@ bool restore_from_cache(Community* &community, Date* &date, SimulationCache* sim
 void behavior_autotuning(const Parameters* par, Community* &community, Date* &date, SimulationLedger* &ledger, BehaviorAutoTuner* tuner, SimulationCache* &sim_cache, vector<TimeSeriesAnchorPoint> &social_distancing_anchors, bool& restore_occurred) {
     const size_t day = date->day();
     const size_t recaching_day = (tuner->tuning_window_ct * par->tuning_window) - 1;
-    const size_t behavior_processing_day = (par->tune_to_cumul_cases)
-                                               ? ((tuner->tuning_window_ct + par->num_preview_windows) * par->tuning_window) - 1
-                                               : (((tuner->tuning_window_ct + par->num_preview_windows) * par->tuning_window) - 1) + par->death_tuning_offset;
+    size_t behavior_processing_day;
+    switch (par->behavior_fitting_data_target) {
+        case CASES:  behavior_processing_day = ((tuner->tuning_window_ct + par->num_preview_windows) * par->tuning_window) - 1; break;
+        case DEATHS: behavior_processing_day = (((tuner->tuning_window_ct + par->num_preview_windows) * par->tuning_window) - 1) + par->death_tuning_offset; break;
+        case NUM_OF_AUTO_FITTING_DATA_TARGETS: [[fallthrough]];
+        default: {
+            cerr << "ERROR: no PPB auto fitting data target selected." << endl;
+            exit(-1);
+        }
+    }
 
 
     if (tuner->recache and (day == recaching_day)) {
@@ -759,7 +783,16 @@ void behavior_autotuning(const Parameters* par, Community* &community, Date* &da
                              << setw(10) << prop_days_w_emp_data * 100 << "%";
 
         // calculate normalized distance for this tuning window
-        vector<size_t> model_tuning_data = (par->tune_to_cumul_cases) ? community->getNumDetectedCasesReport() : community-> getNumDetectedDeathsReport();
+        vector<size_t> model_tuning_data;
+        switch (par->behavior_fitting_data_target) {
+            case CASES: model_tuning_data = community->getNumDetectedCasesReport(); break;
+            case DEATHS: model_tuning_data = community->getNumDetectedDeathsReport(); break;
+            case NUM_OF_AUTO_FITTING_DATA_TARGETS: [[fallthrough]];
+            default: {
+                cerr << "ERROR: no PPB auto fitting data target selected." << endl;
+                exit(-1);
+            }
+        }
         double fit_distance = score_fit(par, community, day, model_tuning_data, tuner->emp_data);
         //cerr << "current anchor, score: " << tuner->cur_anchor_val << ", " << fit_distance << endl;
         // keep track of the anchor val with the smallest distance for this window
@@ -963,6 +996,11 @@ if (sim_day == 0) { seed_epidemic(par, community, WILDTYPE); }
         const vector<size_t> severe             = community->getNumNewlySevere();
         const double trailing_avg = trailing_averages[sim_day];
 
+        Vac_Campaign* vc    = community->getVac_Campaign() ? community->getVac_Campaign() : nullptr;
+        const int std_doses = vc ? vc->get_std_doses_used(sim_day) : 0;
+        const int urg_doses = vc ? vc->get_urg_doses_used(sim_day) : 0;
+        const int all_doses = vc ? vc->get_all_doses_used(sim_day) : 0;
+
         const size_t rc_ct = accumulate(all_reported_cases.begin(), all_reported_cases.begin()+sim_day+1, 0);
         map<string, double> VE_data = community->calculate_daily_direct_VE(sim_day);
         //vector<string> inf_by_loc_keys = {"home", "social", "work_staff", "patron", "school_staff", "student", "hcw", "patient", "ltcf_staff", "ltcf_resident"};
@@ -970,7 +1008,7 @@ if (sim_day == 0) { seed_epidemic(par, community, WILDTYPE); }
         //    cerr << "infLoc " << date->to_ymd() << ' ' << key << ' ' << community->getNumNewInfectionsByLoc(key)[sim_day] << endl;
         //}
         if (not par->behavioral_autotuning) {
-            if (date->dayOfMonth()==1) cerr << "        rep sday        date  infinc  cAR     rcases  rcta7  crcases  rdeath  crdeath  sevprev   crhosp  closed  socdist dose1   dose2   dose3\n";
+            if (date->dayOfMonth()==1) cerr << "        rep sday        date  infinc  cAR     rcases  rcta7  crcases  rdeath  crdeath  sevprev   crhosp  closed  socdist  cov_1  cov_2  cov_3  std_doses  urg_doses  all_doses  quar%\n";
             cerr << right
                 << setw(11) << "NA" //process_id
                 << setw(5)  << sim_day
@@ -985,10 +1023,14 @@ if (sim_day == 0) { seed_epidemic(par, community, WILDTYPE); }
                 << setw(9)  << severe_prev[sim_day]
                 << setw(9)  << accumulate(rhosp.begin(), rhosp.begin()+sim_day+1, 0)
                 << setw(8)  << community->getTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, sim_day)
-                << "  " << setw(6)     << setprecision(2) << left << community->getTimedIntervention(SOCIAL_DISTANCING, sim_day) << right
-                << "  " << setw(6)     << setprecision(2) << left << VE_data["dose_1"] << right
-                << "  " << setw(6)     << setprecision(2) << left << VE_data["dose_2"] << right
-                << "  " << setw(6)     << setprecision(2) << left << VE_data["dose_3"] << right
+                << "  "     << setw(7) <<          setprecision(2) << left << community->getTimedIntervention(SOCIAL_DISTANCING, sim_day) << right
+                << "  "     << setw(5) << fixed << setprecision(2) << left << VE_data["dose_1"] << right << defaultfloat
+                << "  "     << setw(5) << fixed << setprecision(2) << left << VE_data["dose_2"] << right << defaultfloat
+                << "  "     << setw(5) << fixed << setprecision(2) << left << VE_data["dose_3"] << right << defaultfloat
+                << setw(11) << std_doses
+                << setw(11) << urg_doses
+                << setw(11) << all_doses
+                << "  "     << setw(7) << fixed << setprecision(2) << left << community->getNumPeopleQuarantining(sim_day) << right << defaultfloat
                 << setprecision(6)
                 //             << "  "     << setprecision(2) << (double) severe[sim_day] / reported_cases
                 << endl;

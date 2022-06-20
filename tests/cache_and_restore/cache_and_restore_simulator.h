@@ -295,6 +295,7 @@ public:
     SimulationCache() {
         // community     = nullptr;
         cmty_ledger   = nullptr;
+        vc            = nullptr;
         date          = nullptr;
         sim_ledger    = nullptr;
         rng           = nullptr;
@@ -305,6 +306,10 @@ public:
     SimulationCache(Community* o_community, SimulationLedger* o_sim_ledger, gsl_rng* o_rng, gsl_rng* o_reporting_rng, gsl_rng* o_vax_rng) {
         // community     = new Community(*o_community);
         cmty_ledger   = new CommunityLedger(*(o_community->get_ledger()));
+        for(Location* hosp : o_community->getLocationsByType(HOSPITAL)) { hosp_people[hosp->getID()] = hosp->getPeople(); }
+
+        vc            = o_community->getVac_Campaign()->quick_cache();
+
         date          = new Date(*(o_community->get_date()));
         sim_ledger    = new SimulationLedger(*o_sim_ledger);
         rng           = gsl_rng_clone(o_rng);
@@ -315,6 +320,8 @@ public:
     ~SimulationCache() {
         // delete community;
         delete cmty_ledger;
+        hosp_people.clear();
+        delete vc;
         delete date;
         delete sim_ledger;
         gsl_rng_free(rng);
@@ -324,6 +331,8 @@ public:
 
     // Community* community;
     CommunityLedger* cmty_ledger;
+    map<int, vector<Person*>> hosp_people;
+    Vac_Campaign* vc;
     Date* date;
     SimulationLedger* sim_ledger;
     gsl_rng* rng;
@@ -733,7 +742,7 @@ bool restore_from_cache(Community* &community, Date* &date, SimulationCache* sim
     ledger = new SimulationLedger(*(sim_cache->sim_ledger));
     // if (community) { delete community; }
     // community = new Community(*(sim_cache->community));
-    community->load_from_cache(sim_cache->cmty_ledger, sim_cache->date);
+    community->load_from_cache(sim_cache->cmty_ledger, sim_cache->date, sim_cache->hosp_people, sim_cache->vc);
     date      = community->get_date();
 cerr << "RESTORE DAY " << date->day() << endl;
     community->setSocialDistancingTimedIntervention(social_distancing_anchors);
@@ -889,6 +898,19 @@ void init_behavioral_vals_from_file(const Parameters* par, Community* community)
     community->setSocialDistancingTimedIntervention(behavior_vals);
 }
 
+void debug(Community* community, const SimulationCache* cache) {
+    Vac_Campaign* cmutyVC = community->getVac_Campaign();
+    Vac_Campaign* cacheVC = cache->vc;
+    int today = community->get_date()->day();
+
+    cerr << today << endl;
+    cerr << "all doses                       " << cmutyVC->get_all_doses_available(today) << "|" << cacheVC->get_all_doses_available(today) << endl;
+    cerr << "potential 65 dose 1 vaccinees   " << cmutyVC->get_potential_std_vaccinees(0, 65).size() << "|" << cacheVC->get_potential_std_vaccinees(0, 65).size() << endl;
+    cerr << "65 dose 1 used today            " << cmutyVC->get_std_doses_used(today, 0, 65) << "|" << cacheVC->get_std_doses_used(today, 0, 65) << endl;
+    cerr << "day of next dose 1 vaccinees " << cmutyVC->get_std_eligibility_queue()[0].top()->eligibility_day << "|" << cacheVC->get_std_eligibility_queue()[0].top()->eligibility_day << endl;
+    cerr << "number of next dose 1 vaccinees " << cmutyVC->get_std_eligibility_queue()[0].top()->eligible_people.size() << "|" << cacheVC->get_std_eligibility_queue()[0].top()->eligible_people.size() << endl;
+}
+
 
 vector<string> simulate_epidemic(const Parameters* par, Community* &community, const string process_id, const vector<string> mutant_intro_dates) {
     SimulationLedger* ledger    = new SimulationLedger();
@@ -974,7 +996,6 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
 
             if ( mutant_intro_dates.size() ) {
                 if (*date >= mutant_intro_dates[0] and *date < mutant_intro_dates[1]) {
-                    //const int time_since_intro = date->day() - Date::to_sim_day(par->julian_start_day, par->julian_start_year, mutant_intro_dates[0]);
                     if (ledger->strains[WILDTYPE] > 1) {
                         ledger->strains[WILDTYPE]--;
                         ledger->strains[ALPHA]++;

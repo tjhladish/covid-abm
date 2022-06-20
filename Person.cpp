@@ -82,8 +82,6 @@ void Person::revertState(const Date* date) {
         }
     }
 
-    if (inHospital(time-1)) { goToHospital(); }
-
     while (vaccineHistory.size() > 0) {
         if (vaccineHistory.back() >= time) {
             vaccineHistory.pop_back();
