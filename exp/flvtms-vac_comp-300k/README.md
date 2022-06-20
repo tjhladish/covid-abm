@@ -11,8 +11,44 @@
     - `./sim_test abc_covid_counterfactuals.json --process`
     - `./sim_test abc_covid_counterfactuals.json --simulate --serial 0`
 ---
-# Setting up active vaccination counterfactual simulations
-TBA
+# Counterfactual scenario setups
+* No vaccination
+    - `vaccine = 0`
+* FL empirical vaccination
+    - `vaccine = 1`
+    - `counterfactual_scenario = 0`
+    - `dose_file = 0`
+    - `active_vax_strat = 0`
+VT-like FL vaccination
+    - `vaccine = 1`
+    - `counterfactual_scenario = 1`
+    - `dose_file = 0`
+    - `active_vax_strat = 0`
+MS-like FL vaccination
+    - `vaccine = 1`
+    - `counterfactual_scenario = 2`
+    - `dose_file = 0`
+    - `active_vax_strat = 0`
+Passive vaccination (baseline for active strategy scenarios)
+    - `vaccine = 1`
+    - `counterfactual_scenario = 0`
+    - `dose_file = 1`
+    - `active_vax_strat = 0`
+Passive + ring vaccination
+    - `vaccine = 1`
+    - `counterfactual_scenario = 0`
+    - `dose_file = 1`
+    - `active_vax_strat = 1`
+Passive + grouped-risk vaccination
+    - `vaccine = 1`
+    - `counterfactual_scenario = 0`
+    - `dose_file = ?`
+    - `active_vax_strat = 2`
+Passive + risk-based vaccination
+    - `vaccine = 1`
+    - `counterfactual_scenario = 0`
+    - `dose_file = ?`
+    - `active_vax_strat = 3`
 ---
 # Processing scripts
 * To run simulation diagnostics/data processing:
