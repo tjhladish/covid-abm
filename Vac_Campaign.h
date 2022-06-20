@@ -320,7 +320,8 @@ class Vac_Campaign {
         }
 
         // will be called everyday to check if new people need to be added to the pools
-        void add_new_eligible_people(int today) {
+        bool add_new_eligible_people(int today) {
+            bool group_added = false;
             for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
                 Eligibility_Group* std_eg = nullptr;
                 Eligibility_Group* urg_eg = nullptr;
@@ -339,7 +340,10 @@ class Vac_Campaign {
                 // as we sim, Eligibility_Groups will be deleted (some will be left to be cleaned by the dtor)
                 if (std_eg) { std_eligibility_queue[dose].pop(); delete std_eg; }
                 if (urg_eg) { urg_eligibility_queue[dose].pop(); delete urg_eg; }
+
+                if (std_eg or urg_eg) { group_added = true; }
             }
+            return group_added;
         }
 
         // swap the value at index with the value at the end
@@ -392,10 +396,10 @@ class Vac_Campaign {
 
         void remove_from_pool(int dose, int bin, Vaccinee* v) {
             Person* p = v->get_person();
-            if (v->get_dose_source() == STANDARD_ALLOCATION) {
+            if (v->get_status() == STANDARD_QUEUE) {
                 assert((not potential_std_vaccinees[dose][bin].empty()) and (p == potential_std_vaccinees[dose][bin].back()));
                 potential_std_vaccinees[dose][bin].pop_back();
-            } else if (v->get_dose_source() == URGENT_ALLOCATION) {
+            } else if (v->get_status() == URGENT_QUEUE) {
                 assert((not potential_urg_vaccinees[dose][bin].empty()) and (p == potential_urg_vaccinees[dose][bin].back()));
                 potential_urg_vaccinees[dose][bin].pop_back();
             }
@@ -449,8 +453,22 @@ class Vac_Campaign {
             return tot;
         }
 
+        void assign_vaccinee_for_revaccination(Vaccinee* v, int dose, int bin, vector<Eligibility_Group*> &std_revac, vector<Eligibility_Group*> &urg_revac) {
+            VaccinationQueueType q = v->get_status();
+            if (q == URGENT_QUEUE) {
+                urg_revac[dose + 1]->eligible_people[bin].push_back(v->get_person());
+            } else if (q == STANDARD_QUEUE) {
+                std_revac[dose + 1]->eligible_people[bin].push_back(v->get_person());
+            } else {
+                cerr << "Vacciee not from any queue." << endl;
+                exit(-1);
+            }
+        }
 
-        void schedule_revaccinations(vector<Eligibility_Group*> revaccinations) { _add_new_eligibility_groups(std_eligibility_queue, revaccinations); }
+        void schedule_revaccinations(vector<Eligibility_Group*> urg_revaccinations, vector<Eligibility_Group*> std_revaccinations) {
+            _add_new_eligibility_groups(urg_eligibility_queue, urg_revaccinations);
+            _add_new_eligibility_groups(std_eligibility_queue, std_revaccinations);
+        }
         void schedule_urgent_doses(vector<Eligibility_Group*> urgents)          { _add_new_eligibility_groups(urg_eligibility_queue, urgents); }
 
         void ring_scheduling(int day, vector<set<Person*, PerPtrComp>> tracedContacts);
@@ -542,7 +560,7 @@ class Vac_Campaign {
         void _clear_and_resize_doses();
 
         Eligibility_Group* _if_valid_eligibility_group_today(Eligibility_Q& eq, const int dose, const int day) {
-            return ((eq[dose].size() > 0) and (eq[dose].top()) and (eq[dose].top()->eligibility_day == day)) ? eq[dose].top() : nullptr;
+            return ((eq[dose].size() > 0) and (eq[dose].top()) and (eq[dose].top()->eligibility_day <= day)) ? eq[dose].top() : nullptr;
         }
 
         void _insert_eligible_people(Eligibility_Group*& eg, Vaccinee_Pool& vp, const int dose, const int bin) {

@@ -376,7 +376,7 @@ void define_strain_parameters(Parameters* par) {
 
 // REFACTOR parseVaccineFile()
 void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign* vc, const size_t counterfactual_scenario, vector<bool> dose_pooling_flags,
-                      bool adjust_to_bin_pop) {
+                      bool adjust_std_to_bin_pop, bool adjust_urg_to_bin_pop) {
     // parses the JSON argument into a form to use in vax file parsing
     string counterfactual_reference_loc;
     switch(counterfactual_scenario) {
@@ -452,9 +452,10 @@ void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign*
     for (int day = 0; day < (int) par->runLength; ++day) {
         for (int bin : vc->get_unique_age_bins()) {
             for (int dose = 0; dose < par->numVaccineDoses; ++dose) {
-                const double urg_adj = adjust_to_bin_pop ? (double)bin_pops[bin]/1e4 : (double)community->getNumPeople()/1e4;
+                const double std_adj = adjust_std_to_bin_pop ? (double)bin_pops[bin]/1e4 : (double)community->getNumPeople()/1e4;
+                const double urg_adj = adjust_urg_to_bin_pop ? (double)bin_pops[bin]/1e4 : (double)community->getNumPeople()/1e4;
                 if (std_doses_in[day][dose].count(bin)) {
-                    std_doses_available[day][dose][bin] = (int)(std_doses_in[day][dose][bin] * (double)bin_pops[bin]/1e4);
+                    std_doses_available[day][dose][bin] = (int)(std_doses_in[day][dose][bin] * std_adj);
                 } else {
                     std_doses_available[day][dose][bin] = 0;
                 }
@@ -481,14 +482,14 @@ void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign*
 
 // REFACTOR generateVac_Campaign()
 Vac_Campaign* generateVac_Campaign(const Parameters* par, Community* community, const size_t counterfactual_scenario, vector<bool> dose_pooling_flags,
-                                   bool adjust_to_bin_pop) {
+                                   bool adjust_std_to_bin_pop, bool adjust_urg_to_bin_pop) {
     // create a new Vac_Campaign
     Vac_Campaign* vc = new Vac_Campaign(par);
     vc->set_rng(VAX_RNG);
 
     // parse input file to set daily doses available and generate unique, mutually exclusive age bins for the entire population
     cerr << "Reading vaccinations ... ";
-    parseVaccineFile(par, community, vc, counterfactual_scenario, dose_pooling_flags, adjust_to_bin_pop);
+    parseVaccineFile(par, community, vc, counterfactual_scenario, dose_pooling_flags, adjust_std_to_bin_pop, adjust_urg_to_bin_pop);
     cerr << "done." << endl;
 
     // initialiaze eligibility queue
@@ -713,21 +714,22 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
         switch (dose_file) {
             case 1: par->vaccinationFilename = "./active_vax_counterfactual_doses.txt"; break;
-            case 2: par->vaccinationFilename = "./ring_vax_deployment_counterfactual_doses.txt"; break;
+            case 2: par->vaccinationFilename = "./ring_vax_deployment_active_counterfactual_doses.txt"; break;
+            case 3: par->vaccinationFilename = "./ring_vax_deployment_passive_counterfactual_doses.txt"; break;
             case 0:
             default: par->vaccinationFilename = "./state_based_counterfactual_doses.txt"; break;
         }
 
         // pooling will accumulate doses across age bins BUT NOT across doses
-        bool pool_urg_doses    = true;
         bool pool_std_doses    = false;
+        bool pool_urg_doses    = true;
         bool pool_all_doses    = false;
 
-        // for urgent doses only, control whether to adjust to bin pops or total pop
-        // standard doses will always be adusted to bin pops
-        bool adjust_to_bin_pop = false;
+        // control whether to adjust to bin pops or total pop
+        bool adjust_std_to_bin_pop = true;
+        bool adjust_urg_to_bin_pop = false;
 
-        vc = generateVac_Campaign(par, community, counterfactual_scenario, {pool_urg_doses, pool_std_doses, pool_all_doses}, adjust_to_bin_pop);
+        vc = generateVac_Campaign(par, community, counterfactual_scenario, {pool_urg_doses, pool_std_doses, pool_all_doses}, adjust_std_to_bin_pop, adjust_urg_to_bin_pop);
 
         // parameter handling --- how do we want to handle setting these? I just set them here rather than use par
         vc->set_prioritize_first_doses(false);
@@ -763,7 +765,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
              << "other details"  << "\n"
                                  << "\tdose file " << par->vaccinationFilename << "\n"
                                  << "\tdose pooling (urg,std,all)? " << boolalpha << pool_urg_doses << ' ' << pool_std_doses << ' ' << pool_all_doses << noboolalpha << "\n"
-                                 << "\tadj urg doses to bin pop? " << boolalpha << adjust_to_bin_pop << noboolalpha << "\n"
+                                 << "\tadj std doses to bin pop? " << boolalpha << adjust_std_to_bin_pop << noboolalpha << "\n"
+                                 << "\tadj urg doses to bin pop? " << boolalpha << adjust_urg_to_bin_pop << noboolalpha << "\n"
                                  << "\tcontact tracing start " << par->beginContactTracing << "\n"
                                  << "\tself quarantining probs "; cerr_vector(par->quarantineProbability); cerr << "\n"
                                  << "\tself quarantining duration " << par->quarantineDuration << "\n" << endl;
