@@ -237,6 +237,12 @@ void Parameters::createDetectionModel(const vector<vector<double>>& vals, const 
         }
         probFirstDetection[sim_day] = probs;
     }
+// These next five lines will output the detection probabilities over time
+//    cerr << "day asymp mild severe crit death\n";
+//    for (unsigned int i = 0; probFirstDetection.size(); ++i) {
+//        cerr << i << " "; cerr_vector(toReportedFraction(probFirstDetection[i])); cerr << endl;
+//    }
+//    exit(1);
 }
 
 
