@@ -44,6 +44,7 @@ enum ContactTracingGroupType {
 };
 
 enum VacCampaignType {
+    NO_CAMPAIGN,
     GENERAL_CAMPAIGN,
     RING_VACCINATION,
     GEO_VACCINATION,
@@ -57,6 +58,7 @@ inline std::ostream& operator<<(std::ostream& out, const VacCampaignType value){
     const char* s = 0;
 #define PROCESS_VAL(p) case(p): s = #p; break;
     switch(value){
+        PROCESS_VAL(NO_CAMPAIGN);
         PROCESS_VAL(GENERAL_CAMPAIGN);
         PROCESS_VAL(RING_VACCINATION);
         PROCESS_VAL(GEO_VACCINATION);
@@ -126,18 +128,18 @@ class Vac_Campaign {
         Vac_Campaign(const Parameters* par) {
             _par = par;
 
-            prioritize_first_doses = false;
-            flexible_queue_allocation = false;
-            unlim_urgent_doses = false;
-            reactive_vac_strategy = NUM_OF_VAC_CAMPAIGN_TYPES;
+            prioritize_first_doses       = false;
+            flexible_queue_allocation    = false;
+            unlim_urgent_doses           = false;
+            reactive_vac_strategy        = NO_CAMPAIGN;
             reactive_vac_dose_allocation = 0.0;
 
-            pool_urg_doses = false;
-            pool_std_doses = false;
-            pool_all_doses = false;
+            pool_urg_doses               = false;
+            pool_std_doses               = false;
+            pool_all_doses               = false;
 
-            start_of_campaign = vector<int>(NUM_OF_VAC_CAMPAIGN_TYPES + 1, 0);  // need to add one because NUM_OF_VAC_CAMPAIGN_TYPES is a potential index
-            end_of_campaign = vector<int>(NUM_OF_VAC_CAMPAIGN_TYPES + 1, 0);    // need to add one because NUM_OF_VAC_CAMPAIGN_TYPES is a potential index
+            start_of_campaign = vector<int>(NUM_OF_VAC_CAMPAIGN_TYPES, 0);
+            end_of_campaign = vector<int>(NUM_OF_VAC_CAMPAIGN_TYPES, 0);
 
             std_doses_available = Dose_Ptrs(par->runLength, std::vector< std::map<int, int*> >(par->numVaccineDoses));
             urg_doses_available = Dose_Ptrs(par->runLength, std::vector< std::map<int, int*> >(par->numVaccineDoses));
@@ -535,6 +537,7 @@ class Vac_Campaign {
 
         // lookup whether a certain strategy needs contact tracing
         std::map<VacCampaignType, bool> reactive_strat_CT_lookup {
+            {NO_CAMPAIGN,               false},
             {GENERAL_CAMPAIGN,          false},
             {RING_VACCINATION,          true},
             {GEO_VACCINATION,           true},

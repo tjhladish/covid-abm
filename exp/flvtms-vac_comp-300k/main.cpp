@@ -379,12 +379,8 @@ void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign*
                       bool adjust_std_to_bin_pop, bool adjust_urg_to_bin_pop) {
     // parses the JSON argument into a form to use in vax file parsing
     string counterfactual_reference_loc;
-    switch(counterfactual_scenario) {
-        case 1:  counterfactual_reference_loc = "VT"; break;
-        case 2:  counterfactual_reference_loc = "MS"; break;
-        case 0:
-        default: counterfactual_reference_loc = "FL"; break;
-    }
+    const vector<string> loc_lookup = {"FL", "VT", "MS"};
+    counterfactual_reference_loc = loc_lookup[counterfactual_scenario];
 
     // check that vaccinationFilename exists and can be opened
     ifstream iss(par->vaccinationFilename);
@@ -672,13 +668,13 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     cerr << "SCENARIO " << rng_seed;
     for (auto _p: args) { cerr << " " << _p; } cerr << endl;
 
-    // const size_t realization             = (size_t) args[0];
-    const bool vaccine                   = 1; //(bool) args[1];
-    const bool mutation                  = (bool) args[2];
-    const size_t counterfactual_scenario = 0; //(size_t) args[3];       // 0 = FL; 1 = VT; 2 = MS (should be set to 0 for all active strat work)
-    const size_t dose_file               = 0; //(size_t) args[4];       // 0 = state_based_counterfactual_doses.txt; 1 = active_vax_counterfactual_doses.txt; 2 =ring_vax_deployment_counterfactual_doses.txt
-    const size_t active_vax_strat        = 0; //(size_t) args[5];       // 0 = none; 1 = ring vax; 2 = risk group vax; 3 = risk vax
-    const bool quarantine_ctrl           = false; //(bool) args[6];     // 0 = off; 1 = on
+    // const size_t realization               = (size_t) args[0];
+    const bool vaccine                     = 1; //(bool) args[1];
+    const bool mutation                    = (bool) args[2];
+    const size_t counterfactual_scenario   = 0; //(size_t) args[3];       // 0 = FL; 1 = VT; 2 = MS (should be set to 0 for all active strat work)
+    const size_t dose_file                 = 0; //(size_t) args[4];       // 0 = state_based_counterfactual_doses.txt; 1 = active_vax_counterfactual_doses.txt; 2 =ring_vax_deployment_counterfactual_doses.txt
+    const VacCampaignType active_vax_strat = (VacCampaignType) 0; //(size_t) args[5];       // 0 = none; 1 = ring vax; 2 = risk group vax; 3 = risk vax
+    const bool quarantine_ctrl             = false; //(bool) args[6];     // 0 = off; 1 = on
 
     Parameters* par = define_simulator_parameters(args, rng_seed, serial, process_id);
     define_strain_parameters(par);
@@ -696,29 +692,18 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
     // hanlde all vac campaign setup
     if (vaccine) {
-        // parse JSON arg for vac campaign strategy type (if there is one)
-        VacCampaignType selected_strat = NUM_OF_VAC_CAMPAIGN_TYPES;
-        switch (active_vax_strat) {
-            case 1: selected_strat = RING_VACCINATION; break;
-            case 2: selected_strat = GROUPED_RISK_VACCINATION; break;
-            case 3: selected_strat = RISK_VACCINATION; break;
-            case 0:
-            default: selected_strat = NUM_OF_VAC_CAMPAIGN_TYPES; break;
-        }
-
         par->numVaccineDoses       = 3;             // total doses in series
         par->vaccineDoseInterval   = {21, 240};     // intervals between dose 1-->2 and dose 2-->3
         // par->vaccineTargetCoverage = 0.60;          // for healthcare workers only
         par->vaccine_dose_to_protection_lag = 10;   // number of days from vaccination to protection
         par->urgent_vax_dose_threshold = 1;         // the highest dose in series that will be administered in the active strategy
 
-        switch (dose_file) {
-            case 1: par->vaccinationFilename = "./active_vax_counterfactual_doses.txt"; break;
-            case 2: par->vaccinationFilename = "./ring_vax_deployment_active_counterfactual_doses.txt"; break;
-            case 3: par->vaccinationFilename = "./ring_vax_deployment_passive_counterfactual_doses.txt"; break;
-            case 0:
-            default: par->vaccinationFilename = "./state_based_counterfactual_doses.txt"; break;
-        }
+        const vector<string> vacFilenames = {"./state_based_counterfactual_doses.txt",
+                                             "./active_vax_counterfactual_doses.txt",
+                                             "./ring_vax_deployment_active_counterfactual_doses.txt",
+                                             "./ring_vax_deployment_passive_counterfactual_doses.txt"};
+
+        par->vaccinationFilename = vacFilenames[dose_file];
 
         // pooling will accumulate doses across age bins BUT NOT across doses
         bool pool_std_doses    = false;
@@ -736,19 +721,19 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         vc->set_flexible_queue_allocation(false);
 
 
-        vc->set_reactive_vac_strategy(selected_strat);
+        vc->set_reactive_vac_strategy(active_vax_strat);
         // vc->set_reactive_vac_dose_allocation(0.0);
 
         // the GROUPED_RISK_VACCINATION strategies starts alongside the GENERAL_CAMPAIGN
         // other active strategies start on May 1, 2021 (and if they require contact tracing, the check is called)
-        int active_strat_start = selected_strat == GROUPED_RISK_VACCINATION
+        int active_strat_start = active_vax_strat == GROUPED_RISK_VACCINATION
                                      ? vc->get_start_of_campaign(GENERAL_CAMPAIGN)
                                      : Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-05-01");
-        if (vc->contact_tracing_required(selected_strat)) { assert(active_strat_start >= par->beginContactTracing); }
-        vc->set_start_of_campaign(selected_strat, active_strat_start);
+        if (vc->contact_tracing_required(active_vax_strat)) { assert(active_strat_start >= par->beginContactTracing); }
+        vc->set_start_of_campaign(active_vax_strat, active_strat_start);
 
         vc->set_end_of_campaign(GENERAL_CAMPAIGN, par->runLength);
-        vc->set_end_of_campaign(selected_strat, par->runLength);
+        vc->set_end_of_campaign(active_vax_strat, par->runLength);
 
         vector<int> min_ages(par->runLength, 5);
         vc->set_min_age(min_ages);       // needed for e.g. urgent vaccinations
@@ -759,9 +744,9 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
                                  << "\tnum doses " << par->numVaccineDoses << "\n"
                                  << "\tdose intervals "; cerr_vector(par->vaccineDoseInterval); cerr << "\n"
                                  << "\tdose protection lag " << par->vaccine_dose_to_protection_lag << "\n"
-             << selected_strat   << "\n"
-                                 << "\tduration " << vc->get_start_of_campaign(selected_strat) << "--" << vc->get_end_of_campaign(selected_strat) << "\n"
-                                 << "\trequires contact tracing? " << boolalpha << vc->contact_tracing_required(selected_strat) << noboolalpha << "\n"
+             << active_vax_strat   << "\n"
+                                 << "\tduration " << vc->get_start_of_campaign(active_vax_strat) << "--" << vc->get_end_of_campaign(active_vax_strat) << "\n"
+                                 << "\trequires contact tracing? " << boolalpha << vc->contact_tracing_required(active_vax_strat) << noboolalpha << "\n"
              << "other details"  << "\n"
                                  << "\tdose file " << par->vaccinationFilename << "\n"
                                  << "\tdose pooling (urg,std,all)? " << boolalpha << pool_urg_doses << ' ' << pool_std_doses << ' ' << pool_all_doses << noboolalpha << "\n"
