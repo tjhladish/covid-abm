@@ -4,8 +4,8 @@
 stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 
 .args <- if (interactive()) c(
-  file.path("tmp", c(
-    "abc_covid_counterfactuals.json", "covid_counterfactuals_v1.0.sqlite"
+  file.path("..", c(
+    "abc-flvtms-vac_comp.json", "covid_counterfactuals_v1.0.sqlite"
   )),
   file.path("fig", "digest.rds")
 ) else commandArgs(trailingOnly = TRUE)

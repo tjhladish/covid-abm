@@ -15,7 +15,9 @@ int.dt <- dt[vac != 0, .SD, .SDcols = c("realization", "state", "variable", "wee
 
 eff.dt <- int.dt[non.dt, on=.(realization, variable, week)]
 
-eff.dt[order(week), cv := cumsum(i.value) - cumsum(value), by=.(realization, state, variable)]
+eff.dt[order(week), cv := cumsum(value), by=.(realization, state, variable)]
+
+eff.dt[order(week), ca := cumsum(i.value) - cumsum(value), by=.(realization, state, variable)]
 
 #' TODO decide appropriate week to measure from
 intweek <- 43
@@ -25,6 +27,16 @@ eff.dt[week > intweek, eff := 1 - cumsum(value)/cumsum(i.value), by=.(realizatio
 varkey <- c(c="Symptomatic Infections", s="Severe Infections", d="Deaths")
 
 eff.dt[, varf := factor(varkey[variable], levels = varkey, ordered = TRUE)]
+
+cumul.p <- ggplot(eff.dt) + aes(week, cv/1000, color = state, group = interaction(state, realization)) +
+  facet_grid(varf ~ ., scale = "free_y") +
+  geom_line(alpha = 0.1) +
+  theme_minimal() +
+  scale_y_continuous("Cumulative 1k incidence") +
+  scale_color_discrete(name = NULL, guide = guide_legend(override.aes = list(alpha = 1))) +
+  theme(
+    legend.position = c(0, 1), legend.justification = c(0, 1)
+  )
 
 obs.p <- ggplot(eff.dt) + aes(week, value, color = state, group = interaction(state, realization)) +
   facet_grid(varf ~ ., scale = "free_y") +
@@ -37,7 +49,7 @@ obs.p <- ggplot(eff.dt) + aes(week, value, color = state, group = interaction(st
     legend.position = c(0, 1), legend.justification = c(0, 1)
   )
 
-averted.p <- ggplot(eff.dt) + aes(week, cv/1000, color = state, group = interaction(state, realization)) +
+averted.p <- ggplot(eff.dt) + aes(week, ca/1000, color = state, group = interaction(state, realization)) +
   facet_grid(varf ~ ., scale = "free_y") +
   geom_line(alpha = 0.1) +
   theme_minimal() +
@@ -59,6 +71,7 @@ eff.p <- ggplot(eff.dt[week > intweek]) + aes(week, eff, color = state, group = 
   )
 
 #' TODO refactor these to independent scripts
-ggsave("eff_obs.png", obs.p, width = 6, height = 8, units = "in", dpi = 600, bg = "white")
-ggsave("eff_ave.png", averted.p, width = 6, height = 8, units = "in", dpi = 600, bg = "white")
-ggsave("eff.png", eff.p, width = 6, height = 8, units = "in", dpi = 600, bg = "white")
+ggsave("incidence.png",                obs.p,     width = 6, height = 8, units = "in", dpi = 600, bg = "white")
+ggsave("cumulative_incidence.png",     cumul.p,   width = 6, height = 8, units = "in", dpi = 600, bg = "white")
+ggsave("cumulative_averted.png",       averted.p, width = 6, height = 8, units = "in", dpi = 600, bg = "white")
+ggsave("cumulative_effectiveness.png", eff.p,     width = 6, height = 8, units = "in", dpi = 600, bg = "white")
