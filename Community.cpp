@@ -552,13 +552,17 @@ Infection* Community::infect(int id, StrainType strain) {
 
 void Community::vaccinate() {
     // call vac_campaign function to dump eligible people into respective pools if possible
-    vac_campaign->add_new_eligible_people(_day);
+    bool new_groups_to_add = true;
+    while (new_groups_to_add) {
+        new_groups_to_add = vac_campaign->add_new_eligible_people(_day);
+    }
 
     // only continue if any doses are available today
     if (not vac_campaign->get_all_doses_available(_day)) { return; }
 
     // create empty eligibility group to add new revaccinations to the queue
-    vector<Eligibility_Group*> revaccinations = vac_campaign->init_new_eligible_groups(_day);
+    vector<Eligibility_Group*> urg_revaccinations = vac_campaign->init_new_eligible_groups(_day);
+    vector<Eligibility_Group*> std_revaccinations = vac_campaign->init_new_eligible_groups(_day);
 
     // for each age bin, dose combination, select new vaccinees until there are no more doses available
     for (int bin : vac_campaign->get_unique_age_bins()) {
@@ -572,7 +576,7 @@ void Community::vaccinate() {
 
                     // add people who are not fully vaccinated to proper eligible group for revaccination
                     if ((dose + 1) < _par->numVaccineDoses) {
-                        revaccinations[dose + 1]->eligible_people[bin].push_back(v->get_person());
+                        vac_campaign->assign_vaccinee_for_revaccination(v, dose, bin, std_revaccinations, urg_revaccinations);
                     }
                 }
                 // always remove vaccinee from the pool
@@ -600,7 +604,7 @@ void Community::vaccinate() {
     }
 
     // once all vaccinations complete, reschedule newly filled eligibility group
-    vac_campaign->schedule_revaccinations(revaccinations);
+    vac_campaign->schedule_revaccinations(urg_revaccinations, std_revaccinations);
 }
 
 vector<pair<size_t,double>> Community::getMeanNumSecondaryInfections() const {

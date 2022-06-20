@@ -722,8 +722,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
         // pooling will accumulate doses across age bins BUT NOT across doses
         bool pool_std_doses    = false;
-        bool pool_urg_doses    = false;
-        bool pool_all_doses    = true;
+        bool pool_urg_doses    = true;
+        bool pool_all_doses    = false;
 
         // control whether to adjust to bin pops or total pop
         bool adjust_std_to_bin_pop = true;
