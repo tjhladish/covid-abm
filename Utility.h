@@ -20,6 +20,8 @@ using namespace std;
 
 namespace covid {
     namespace util {
+        inline bool string_matches(const char* str1, const char* str2) { return strcmp(str1, str2) == 0; /* 0 means a match */ }
+
         vector<string> split(const string &s, char delim);
 
         inline vector<string> read_vector_file(string filename, char sep=' ') {
