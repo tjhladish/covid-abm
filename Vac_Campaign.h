@@ -496,7 +496,20 @@ class Vac_Campaign {
         // can be used to create a chace and read from cache
         Vac_Campaign* quick_cache();
 
-        bool contact_tracing_required(VacCampaignType vct) { return reactive_strat_CT_lookup.at(vct); }
+        // lookup whether a certain strategy needs contact tracing
+        bool contact_tracing_required(VacCampaignType vct) {
+            switch (vct) {
+                case RING_VACCINATION:          [[fallthrough]];
+                case GEO_VACCINATION:           [[fallthrough]];
+                case LOCATION_VACCINATION:      return true;
+                case NO_CAMPAIGN:               [[fallthrough]];
+                case GENERAL_CAMPAIGN:          [[fallthrough]];
+                case GROUPED_RISK_VACCINATION:  [[fallthrough]];
+                case RISK_VACCINATION:          return false;
+                case NUM_OF_VAC_CAMPAIGN_TYPES: [[fallthrough]];
+                default:                        cerr << "not valid VacCampaignType" << endl; exit(-1);
+            }
+        }
 
     private:
         std::vector<int> _doses;                                // doses that other data structures will point to (depending on the pooling set by the user)
@@ -534,18 +547,6 @@ class Vac_Campaign {
 
         VacCampaignType reactive_vac_strategy;                  // parameter for type of reactive strategy (if one is active)
         double reactive_vac_dose_allocation;                    // what proportion of total daily doses are reserved for reactive strategies
-
-        // lookup whether a certain strategy needs contact tracing
-        std::map<VacCampaignType, bool> reactive_strat_CT_lookup {
-            {NO_CAMPAIGN,               false},
-            {GENERAL_CAMPAIGN,          false},
-            {RING_VACCINATION,          true},
-            {GEO_VACCINATION,           true},
-            {LOCATION_VACCINATION,      true},
-            {GROUPED_RISK_VACCINATION,  false},
-            {RISK_VACCINATION,          false},
-            {NUM_OF_VAC_CAMPAIGN_TYPES, false}
-        };
 
         std::vector<int> min_age;
 
