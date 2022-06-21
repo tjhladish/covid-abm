@@ -23,6 +23,8 @@ namespace covid {
         inline bool string_matches(const char* str1, const char* str2) { return strcmp(str1, str2) == 0; /* 0 means a match */ }
 
         vector<string> split(const string &s, char delim);
+        istream& safeGetline(istream& is, string& t);
+
 
         inline vector<string> read_vector_file(string filename, char sep=' ') {
             ifstream myfile(filename.c_str());
@@ -34,7 +36,7 @@ namespace covid {
             vector<string> V;
             if (myfile.is_open()) {
                 string line;
-                while ( getline(myfile,line) ) {
+                while ( !safeGetline(myfile,line).eof() ) {
                     vector<string> fields = split(line, sep);
                     if (fields.size() == 0) {
                         cerr << "ERROR: Found line with no values in file: " << filename << " at line: " << V.size() << endl;
@@ -58,16 +60,12 @@ namespace covid {
             if (myfile.is_open()) {
                 string line;
 
-                while ( getline(myfile,line) ) {
-                    vector<string> fields = split(line, sep);
-
-                    vector<string> row(fields.size());
-                    for( unsigned int i=0; i < fields.size(); i++ ) {
-                            row[i] = fields[i];
-                    }
+                while ( !safeGetline(myfile,line).eof() ) {
+                    vector<string> row = split(line, sep);
                     M.push_back(row);
                 }
             }
+
             return M;
         }
 

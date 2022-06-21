@@ -249,7 +249,8 @@ map<size_t, vector<int>> parse_emp_data_file(const Parameters* par) {
     for (vector<string> &v : emp_data) {
         if (v[0] == "Date") { continue; }
         int rcase = stoi(v[1]);
-        int rdeath = v[4] == "NA" ? 0 : stoi(v[4]);
+        // at present our split function doesn't return an empty string element if it's the last element that's missing
+        int rdeath = (v.size() <= 4 or v[4] == "" or v[4] == "NA") ? 0 : stoi(v[4]);
         recast_emp_data[Date::to_sim_day(par->startJulianYear, par->startDayOfYear, v[0])] = {rcase, rdeath};
     }
     return recast_emp_data;
