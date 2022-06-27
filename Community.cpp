@@ -211,6 +211,7 @@ bool Community::loadPopulation(string populationFilename, string comorbidityFile
             p->setStartingNaturalEfficacy(_par->sampleStartingNaturalEfficacy(RNG));
             p->setImmunityQuantile(gsl_rng_uniform(RNG));
             p->setNaturalImmunityDuration(_par->immunityDuration(p->getImmunityQuantile(), p->getStartingNaturalEfficacy()));
+            p->setCrossProtectionProbability(gsl_rng_uniform(RNG));
             //p->setDaysImmune(_par->sampleDaysImmune(RNG));
 
             p->setHomeLoc(_location[hid]);

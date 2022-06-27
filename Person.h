@@ -224,6 +224,9 @@ class Person {
         int getNaturalImmunityDuration() const { return naturalImmunityDuration; }
         void setNaturalImmunityDuration(int nid) { naturalImmunityDuration = nid; }
 
+        float getCrossProtectionProbability() const { return crossProtectionProbability; }
+        void setCrossProtectionProbability(float cpp) { crossProtectionProbability = cpp; }
+
         int getVaccineImmunityDuration(size_t dose, StrainType strain) const { return _par->immunityDuration(immunityQuantile, dose, strain); }
 
         double getImmunityQuantile() const { return immunityQuantile; }
@@ -358,6 +361,7 @@ class Person {
         int naturalImmunityDuration;                                    // number of days this person retains natural immunity (for all-or-none immunity model)
         double startingNaturalEfficacy;                                 // level of protection (Pr{reisting infection}, analogous to VE_S) acquired by person after natural infection
         double immunityQuantile;                                        // represents the individual's immune durability
+        float crossProtectionProbability;                               // probability of having broad cross-protection
 
         std::vector<int> vaccineHistory;                                // vector of days on which vaccinations were received
         void clearInfectionHistory();

@@ -505,6 +505,13 @@ bool Person::isCrossProtected(int time, StrainType strain) const { // assumes bi
                 }
             }
         }
+
+        if (not immune) {
+            // longer-term broad immunity
+            if (crossProtectionProbability < _par->strainPars[strain].immuneEscapeProb) {
+                immune = true;
+            }
+        }
     }
     return immune;
 }
