@@ -304,7 +304,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
     community->setSocialDistancingTimedIntervention(social_distancing_anchors);
 
     //vector<string> plot_log_buffer = {"date,sd,seasonality,vocprev1,vocprev2,cinf,closed,rcase,rdeath,inf,rhosp,Rt"};
-    ledger->plot_log_buffer = {"serial,date,sd,seasonality,vocprev1,vocprev2,vocprev3,cinf,closed,rcase,rdeath,inf,rhosp,VES,brkthruRatio,vaxInfs,unvaxInfs,hospInc,hospPrev,icuInc,icuPrev,vaxHosp,unvaxHosp,Rt"};
+    ledger->plot_log_buffer = {"serial,date,sd,seasonality,vocprev1,vocprev2,vocprev3,cinf,closed,rcase,rdeath,inf,rhosp,VES,brkthruRatio,vaxInfs,unvaxInfs,hospInc,hospPrev,icuInc,icuPrev,vaxHosp,unvaxHosp,std_doses,urg_doses,Rt"};
     //ledger->plot_log_buffer = {"date,sd,seasonality,vocprev1,vocprev2,cinf,closed,rcase,rdeath,inf,rhosp,Rt"};
 
     Date* date = community->get_date();
@@ -445,7 +445,9 @@ if (sim_day == 0) { seed_epidemic(par, community, WILDTYPE); }
            << community->getNumIcuInc()[sim_day]*1e4/pop_at_risk << ","
            << community->getNumIcuPrev()[sim_day]*1e4/pop_at_risk << ","
            << VE_data["vaxHosp"]*1e4/pop_at_risk << ","
-           << VE_data["unvaxHosp"]*1e4/pop_at_risk;
+           << VE_data["unvaxHosp"]*1e4/pop_at_risk << ","
+           << std_doses*1e4/pop_at_risk << ","
+           << urg_doses*1e4/pop_at_risk;
         ledger->plot_log_buffer.push_back(ss.str());
     }
 
