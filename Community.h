@@ -374,7 +374,7 @@ class Community {
         std::vector<size_t> getCumulIncidenceByOutcome() { return cmty_ledger->_cumulIncByOutcome; }
         size_t getCumulIncidenceByOutcome( OutcomeType ot ) { return cmty_ledger->_cumulIncByOutcome[ot]; }
 
-        double doSerosurvey (const ImmuneStateType ist, std::vector<Person*> &pop, int time);
+        double doSerosurvey (const ImmuneStateType ist, const std::vector<Person*> &pop, int time);
         double getHouseholdSecondaryAttackRate(std::vector<Person*> &pop);
 
         void flagInfectedLocation(Person* person, double relInfectiousness, LocationType locType, Location* _pLoc, int day);
@@ -428,7 +428,7 @@ class Community {
         vector<Location*> locsAtPixel(std::pair<double, double> px) { return _pixelMap[{px.first, px.second}]; }
         vector<Location*> locsAtPixel(double xP, double yP) { return _pixelMap[{xP, yP}]; }
 
-        map<std::string, double> calculate_daily_direct_VE(int day);
+        map<std::string, double> calculate_vax_stats(int day);
         vector<size_t> generateOffspringDistribution();
 
         CommunityLedger* get_ledger() const { return cmty_ledger; }

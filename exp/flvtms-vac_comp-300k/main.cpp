@@ -546,8 +546,9 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     Vac_Campaign* vc = nullptr;
     community->setVac_Campaign(vc);
 
-    par->immunityLeaky         = true;          // applies to both infection and vaccine immunity
-    par->immunityWanes         = false;         // related to time-dep waning of protection, not waning of Ab levels
+    par->immunityLeaky           = true;          // applies to both infection and vaccine immunity
+    par->immunityWanes           = false;         // related to time-dep waning of protection, not waning of Ab levels
+    par->seroPositivityThreshold = 0.0;
 
     // hanlde all vac campaign setup
     if (vaccine) {

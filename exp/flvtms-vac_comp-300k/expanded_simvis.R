@@ -49,6 +49,9 @@ vax$first = vax$Daily.Count.People.Receiving.Dose.1*per10k
 vax$second = vax$Daily.Count.of.People.Fully.Vaccinated*per10k
 vax$third = vax$Daily.Count.People.Receiving.a.Booster.Dose*per10k
 vax$totdoses = cumsum(vax$first + vax$second + vax$third)
+vax$cov1 = cumsum(vax$Daily.Count.People.Receiving.Dose.1)/pop_florida
+vax$cov2 = cumsum(vax$Daily.Count.of.People.Fully.Vaccinated)/pop_florida
+vax$cov3 = cumsum(vax$Daily.Count.People.Receiving.a.Booster.Dose)/pop_florida
 
 d$crcase   = cumsum(d$rcase)
 d$crdeath  = cumsum(d$rdeath)
@@ -98,7 +101,6 @@ annotate = function(text) {
 #        {"name" : "mar15sep5_deaths",  "short_name" : "deaths",     "num_type" : "FLOAT", "value" :  9.75},
 #        {"name" : "mar18oct5_hosps",   "short_name" : "hosps",      "num_type" : "FLOAT", "value" :  21.7},
 
-
 png(paste0('simvis', suffix, '.png'), height=1200, width=2400, res=200)
 par(mfrow=c(5,3), mar=c(1,2.1,0.5,0.5), oma=c(2,0.5,1,0.5))
 
@@ -119,28 +121,22 @@ abline(h=1.0, lty=3)
 annotate(expression(R[t]))
 
 # Cumulative infections
-plot(d$date, d$cinf, type='n', xlab='', ylab='', xaxt='n', bty='n')
+ymax = max(d$cinf, d$seroprev, seroprev$upper, 1, na.rm=T)
+plot(d$date, d$cinf, type='n', xlab='', ylab='', xaxt='n', ylim=c(0,ymax), bty='n')
 shading()
+abline(h=1, lty=3)
 arrows(seroprev$date, seroprev$lower, seroprev$date, seroprev$upper, length = 0.05, code=0, col = rgb(0,0,0,0.25))
 points(seroprev$date, seroprev$est, pch = 20, cex = 0.5)
-lines(d$date, d$cinf, col='darkslateblue')
-annotate('Cumulative infections')
+lines(d$date, d$cinf, col='orangered', lty = 3)
+lines(d$date, d$seroprev, col='orangered')
+annotate('Seroprevalence (solid) and cumulative infections (dashed)')
 
 # Seasonality
-# plot(d$date, d$seasonality, type='n', xlab='', ylab='', xaxt='n', bty='n')
-# shading()
-# abline(h=1, lty=3)
-# lines(d$date, d$seasonality, col='purple')
-# annotate('Seasonality')
-
-# Vaccine delivery
-ymax = max(d$tot_std_doses + d$tot_urg_doses, vax$totdoses, na.rm=T)
-plot(d$date, d$std_doses, type='n', xlab='', ylab='', xaxt='n', ylim=c(0,ymax), bty='n')
+plot(d$date, d$seasonality, type='n', xlab='', ylab='', xaxt='n', bty='n')
 shading()
-lines(vax$date, vax$totdoses)
-lines(d$date, d$tot_std_doses, col='purple')
-lines(d$date, d$tot_std_doses + d$tot_urg_doses, col='purple', lty=3)
-annotate('Cumul. vaccine delivery (stacked)')
+abline(h=1, lty=3)
+lines(d$date, d$seasonality, col='purple')
+annotate('Seasonality')
 
 #plot(d$date, d$crcase/max(d$crcase), col='royalblue3', type='l', xlab='', ylab='Sim CRC & CRD', xaxt='n', ylim=c(0,1))
 #lines(d$date, d$crdeath/max(d$crdeath), col='green4')
@@ -179,7 +175,7 @@ plot(d$date, d$rdeath, type='n', xlab='', ylab='', xaxt='n', ylim=c(0,ymax), bty
 shading()
 lines(ed$date, ed$rdeath)
 lines(d$date, d$rdeath, col='green4')
-annotate('Reported deaths')
+annotate('All deaths')
 #axis(1, at=ticks, labels=format(ticks, "%b"))
 
 # cumulative reported deaths
@@ -188,7 +184,7 @@ plot(d$date, d$crdeath, type='n', xlab='', ylab='', xaxt='n', ylim=c(0,ymax), bt
 shading()
 lines(ed$date, ed$crdeath)
 lines(d$date, d$crdeath, col='green4')
-annotate('Cumulative reported deaths')
+annotate('Cumulative (excess) deaths')
 
 # infections by vax status
 ymax = max(d$vaxInfs + d$unvaxInfs, na.rm=T)
@@ -205,13 +201,16 @@ lines(d$date, d$VES, col='dodgerblue1')
 lines(d$date, d$VESAvg, col='dodgerblue4', lwd = 2)
 annotate('Direct VES')
 
-# breakthrough ratio over time
-plot(d$date, d$brkthruRatio, type='n', xlab='', ylab='', xaxt='n', ylim=c(0,1), bty='n')
+# Vaccine delivery
+ymax = max(vax$cov1, d$cov1, 1, na.rm=T)
+plot(d$date, d$std_doses, type='n', xlab='', ylab='', xaxt='n', ylim=c(0,ymax), bty='n')
 shading()
-lines(cdc$date, cdc$brkthruRatio)
-lines(d$date, d$brkthruRatio, col='tan')
-lines(d$date, d$brkthruRatioAvg, col='tan4', lwd = 2)
-annotate('Breakthrough ratio')
+abline(h=1, lty=3)
+lines(vax$date, vax$cov1, lty = 3)
+lines(vax$date, vax$cov2)
+lines(d$date, d$cov1, col='purple', lty=3)
+lines(d$date, d$cov2, col='purple')
+annotate('Vaccination coverage (dose 1 - dashed; dose 2 - solid)')
 
 # hosp by vax status
 ymax = max(d$vaxHosp + d$unvaxHosp, rm.na=T)
@@ -232,12 +231,20 @@ lines(d$date, d$hospInc, col='orange', lty=3)
 annotate('Hosp prev (solid) and inc (dotted)')
 
 # icu inc/prev
-ymax = max(d$icuInc, d$icuPrev, rm.na=T)
-plot(d$date, d$icuPrev, type='n', xlab='', ylab='', xaxt='n', ylim=c(0,ymax), bty='n')
+# ymax = max(d$icuInc, d$icuPrev, rm.na=T)
+# plot(d$date, d$icuPrev, type='n', xlab='', ylab='', xaxt='n', ylim=c(0,ymax), bty='n')
+# shading()
+# lines(d$date, d$icuPrev, col='orangered')
+# lines(d$date, d$icuInc, col='orangered', lty=3)
+# annotate('ICU prev (solid) and inc (dotted)')
+
+# breakthrough ratio over time
+plot(d$date, d$brkthruRatio, type='n', xlab='', ylab='', xaxt='n', ylim=c(0,1), bty='n')
 shading()
-lines(d$date, d$icuPrev, col='orangered')
-lines(d$date, d$icuInc, col='orangered', lty=3)
-annotate('ICU prev (solid) and inc (dotted)')
+lines(cdc$date, cdc$brkthruRatio)
+lines(d$date, d$brkthruRatio, col='tan')
+lines(d$date, d$brkthruRatioAvg, col='tan4', lwd = 2)
+annotate('Breakthrough ratio')
 
 #plot(d$date, d$rcase, col='royalblue3', type='l', xlab='')
 #lines(ed$date), ed$rcase)

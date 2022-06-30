@@ -1196,8 +1196,8 @@ size_t Community::getNumNaive() {
     return count;
 }
 
-double Community::doSerosurvey(const ImmuneStateType ist, vector<Person*> &pop, int time) {
-    if (pop.size() == 0) { pop = _people; }
+double Community::doSerosurvey(const ImmuneStateType ist, const vector<Person*> &pop, int time) {
+    // if (pop.size() == 0) { pop = _people; }
     double seropos = 0;
     double seroneg = 0;
 
@@ -1211,7 +1211,8 @@ double Community::doSerosurvey(const ImmuneStateType ist, vector<Person*> &pop, 
                     const int time_since_last_infection = time - last_infection_end_date;
                     double remaining_natural_efficacy = _par->remainingEfficacy(p->getStartingNaturalEfficacy(), time_since_last_infection);
 
-                    if (remaining_natural_efficacy > _par->seroPositivityThreshold) { ++seropos; }
+                    if ( (_par->immunityLeaky and (remaining_natural_efficacy > _par->seroPositivityThreshold)) or
+                         (not _par->immunityLeaky and (time_since_last_infection < p->getNaturalImmunityDuration())) ) { ++seropos; }
                     else { ++seroneg; }
                 } else {
                     ++seroneg;
@@ -1292,9 +1293,9 @@ double Community::getHouseholdSecondaryAttackRate(std::vector<Person*> &pop) {
     return covid::util::mean(individual_SAR_measurements);
 }
 
-map<string, double> Community::calculate_daily_direct_VE(int day) {
+map<string, double> Community::calculate_vax_stats(int day) {
     map<string, double> VE_map;
-    enum  CounterType {
+    enum CounterType {
            PPL_FULLY_VAXD,
            PPL_UNVAXD,
            DOSE_1,
