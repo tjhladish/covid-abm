@@ -458,14 +458,7 @@ if (sim_day == 0) { seed_epidemic(par, community, WILDTYPE); }
 
     const vector<size_t> sim_reported_cases = community->getNumDetectedCasesReport();
     if (par->behavioral_autotuning) {
-        ofstream ofs(par->autotuningFilename);
-        ofs << "date,sim_rcase,emp_rcase,behavior" << endl;
-        for (size_t i = 0; i < par->runLength; ++i) {
-            int daily_emp_data = tuner->emp_data.count(i) ? tuner->emp_data.at(i)[0] : 0;
-            ofs << Date::to_ymd(i, par) << "," << sim_reported_cases[i] << "," << daily_emp_data << ","
-            << setprecision(20) << community->getTimedIntervention(SOCIAL_DISTANCING, i) << setprecision(6) << endl;
-        }
-        ofs.close();
+        write_anchors_to_file(par, social_distancing_anchors);
     }
 
     if (sim_cache)  { delete sim_cache; }

@@ -587,43 +587,27 @@ void behavior_autotuning(const Parameters* par, Community* &community, Date* &da
 }
 
 
-// if using previous tuned values, parse that file and save the behavior vals
+// if using previous tuned values, parse that file and save the behavior anchors
+// anchor file expected to be csv with columns date, anchor_val
 void init_behavioral_vals_from_file(const Parameters* par, Community* community) {
     vector< vector<string> > tuning_data = read_2D_vector_file(par->behaviorFilename, ',');
-    vector<double> behavior_vals;
-    vector<pair<int,double>> vals_to_interpolate;
-    bool interpolating = false;
+    vector<TimeSeriesAnchorPoint> tuned_anchors;
 
     for (vector<string> &v : tuning_data) {
         if (v[0] == "date") { continue; }
-        if (v[0] == "interpolate") { interpolating = true; continue; }
-
-        if (interpolating) {
-            int sim_day = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, v[0]);
-            double val  = stod(v[3]);
-            vals_to_interpolate.push_back({sim_day, val});
-        } else {
-            double behavior = stod(v[3]);
-            behavior_vals.push_back(behavior);
-        }
+        tuned_anchors.emplace_back(v[0], stod(v[1]));
     }
 
-    if (interpolating) {
-        if (vals_to_interpolate.size() > 1) {
-            for (size_t i = 1; i < vals_to_interpolate.size(); ++i) {
-                int time_delta   = vals_to_interpolate[i].first - vals_to_interpolate[i - 1].first;
-                double start_val = vals_to_interpolate[i - 1].second;
-                double end_val   = vals_to_interpolate[i].second;
-                vector<double> interpolated_behavior = Date::linInterpolate(start_val, end_val, time_delta);
-                behavior_vals.insert(behavior_vals.end(), interpolated_behavior.begin(), interpolated_behavior.end());
-            }
-        } else {
-            cerr << "ERROR: to interpolate PPB, more than one anchor point is needed in " << par->behaviorFilename << endl;
-            exit(-2);
-        }
-    }
+    community->setSocialDistancingTimedIntervention(tuned_anchors);
+}
 
-    community->setSocialDistancingTimedIntervention(behavior_vals);
+void write_anchors_to_file(const Parameters* par, vector<TimeSeriesAnchorPoint> anchors) {
+    ofstream ofs(par->autotuningFilename);
+    ofs << "date,anchor_val" << endl;
+    for (const TimeSeriesAnchorPoint tsap : anchors) {
+        ofs << tsap.date << "," << setprecision(20) << tsap.value << setprecision(6) << endl;
+    }
+    ofs.close();
 }
 
 #endif
