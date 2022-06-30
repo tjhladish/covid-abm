@@ -42,6 +42,7 @@ const string output_dir("/ufrc/longini/tjhladish/");
 //const string vaccination_file = pop_dir + "/../fl_vac/fl_vac_v4.txt";
 
 const int RESTART_BURNIN          = 0;
+// const int FORECAST_DURATION       = 777; // stop 2022-05-30
 const int FORECAST_DURATION       = 747; // stop after omicron
 //const int FORECAST_DURATION       = 468; // stop prior to delta
 const int OVERRUN                 = 14; // to get accurate Rt estimates near the end of the forecast duration
@@ -110,6 +111,7 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
                                                          {0.3, 0.9, 0.5, 0.1}, // up to "2021-02-15"
                                                          {0.1, 0.7, 0.75, 0.1},// up to "2021-10-01"
                                                          {0.1, 0.6, 0.9, 0.1} };
+                                                         // {0.1, 0.7, 0.75, 0.1} };
 
         add_death_probabilities(first_detection_probs, RF_death);
         vector<string> inflection_dates = {"2020-06-01",
@@ -265,19 +267,19 @@ void define_strain_parameters(Parameters* par) {
 
     par->strainPars[DELTA].relInfectiousness   = par->strainPars[ALPHA].relInfectiousness * 1.6;
     par->strainPars[DELTA].relPathogenicity    = par->strainPars[ALPHA].relPathogenicity * 2.83;
-    par->strainPars[DELTA].relSeverity         = 1.3; // relSeverity only applies if not vaccine protected; CABP - may be more like 1.3 based on mortality increase
-    par->strainPars[DELTA].relIcuMortality     = 4.0; // TODO - this is due to icu crowding.  should be represented differently
+    par->strainPars[DELTA].relSeverity         = 1.4; //1.3; // relSeverity only applies if not vaccine protected; CABP - may be more like 1.3 based on mortality increase
+    par->strainPars[DELTA].relIcuMortality     = 3.0; //4.0; // TODO - this is due to icu crowding.  should be represented differently
     par->strainPars[DELTA].immuneEscapeProb    = 0.2;
 
     const double appxNonOmicronInfPd     = 9.0;
     const double appxOmicronInfPd        = 6.0;
     const double relInfectiousnessDenom  = (1.0 - pow(1.0 - par->household_transmission_haz_mult, appxOmicronInfPd/appxNonOmicronInfPd)) / par->household_transmission_haz_mult;
 
-    par->strainPars[OMICRON].immuneEscapeProb  = 0.5;
+    par->strainPars[OMICRON].immuneEscapeProb  = 0.5;   // CABP: should be ~ 0.3-0.5
     par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 2.0 / relInfectiousnessDenom; // CABP: 2.148 would be justified
     par->strainPars[OMICRON].relPathogenicity  = par->strainPars[DELTA].relPathogenicity * 0.5;
-    par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.75;
-    par->strainPars[OMICRON].relIcuMortality   = 2.0;
+    par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.5; //0.75;
+    par->strainPars[OMICRON].relIcuMortality   = 1.5; //2.0;
     par->strainPars[OMICRON].symptomaticInfectiousPeriod = appxNonOmicronInfPd - 1;
     par->strainPars[OMICRON].relSymptomOnset = 0.5;     // roughly based on MMWR Early Release Vol. 70 12/28/2021
 
@@ -553,7 +555,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     // hanlde all vac campaign setup
     if (vaccine) {
         par->numVaccineDoses       = 3;             // total doses in series
-        par->vaccineDoseInterval   = {21, 240};     // intervals between dose 1-->2 and dose 2-->3
+        par->vaccineDoseInterval   = {21, 240};     // intervals between dose 1-->2, dose 2-->3, etc.
         // par->vaccineTargetCoverage = 0.60;          // for healthcare workers only
         par->vaccine_dose_to_protection_lag = 10;   // number of days from vaccination to protection
         par->urgent_vax_dose_threshold = 1;         // the highest dose in series that will be administered in the active strategy
@@ -778,6 +780,6 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    delete abc; 
+    delete abc;
     return 0;
 }
