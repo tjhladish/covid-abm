@@ -715,7 +715,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     delete community;
     delete par;
 
-metrics = vector<double>(424);
+metrics = vector<double>(1, 1.0);
     return metrics;
 }
 
