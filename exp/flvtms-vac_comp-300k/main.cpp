@@ -551,8 +551,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     Vac_Campaign* vc = nullptr;
     community->setVac_Campaign(vc);
 
-    autotune = ppb_fitting_ctrl;
-    par->runLength += autotune ? 30 : 0;          // if auto fitting is on, add 30 days to the runLength
+    par->behavioral_autotuning = ppb_fitting_ctrl;
+    par->runLength += par->behavioral_autotuning ? 30 : 0;          // if auto fitting is on, add 30 days to the runLength
 
     par->immunityLeaky           = true;          // applies to both infection and vaccine immunity
     par->immunityWanes           = false;         // related to time-dep waning of protection, not waning of Ab levels
