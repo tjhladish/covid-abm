@@ -530,9 +530,12 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     for (auto _p: args) { cerr << " " << _p; } cerr << endl;
 
     // const size_t realization               = (size_t) args[0];
-    const bool vaccine                     = 1; //(bool) args[1];
+    const bool vaccine                     = (bool) args[1];
     const bool mutation                    = (bool) args[2];
-    const size_t counterfactual_scenario   = 0; //(size_t) args[3];       // 0 = FL; 1 = VT; 2 = MS (should be set to 0 for all active strat work)
+    const size_t counterfactual_scenario   = (size_t) args[3];       // 0 = FL; 1 = VT; 2 = MS (should be set to 0 for all active strat work)
+    const bool ppb_fitting_ctrl            = (bool) args[4];
+
+    // the params below are not used for the PPB fitting and are not in the JSON
     const size_t dose_file                 = 0; //(size_t) args[4];       // 0 = state_based_counterfactual_doses.txt; 1 = active_vax_counterfactual_doses.txt; 2 =ring_vax_deployment_counterfactual_doses.txt
     const VacCampaignType active_vax_strat = (VacCampaignType) 0; //(size_t) args[5];       // 0 = none; 1 = ring vax; 2 = risk group vax; 3 = risk vax
     const bool quarantine_ctrl             = false; //(bool) args[6];     // 0 = off; 1 = on
@@ -547,6 +550,9 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
     Vac_Campaign* vc = nullptr;
     community->setVac_Campaign(vc);
+
+    autotune = ppb_fitting_ctrl;
+    par->runLength += autotune ? 30 : 0;          // if auto fitting is on, add 30 days to the runLength
 
     par->immunityLeaky           = true;          // applies to both infection and vaccine immunity
     par->immunityWanes           = false;         // related to time-dep waning of protection, not waning of Ab levels
