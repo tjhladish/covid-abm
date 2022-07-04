@@ -20,7 +20,11 @@ using namespace std;
 
 namespace covid {
     namespace util {
+        inline bool string_matches(const char* str1, const char* str2) { return strcmp(str1, str2) == 0; /* 0 means a match */ }
+
         vector<string> split(const string &s, char delim);
+        istream& safeGetline(istream& is, string& t);
+
 
         inline vector<string> read_vector_file(string filename, char sep=' ') {
             ifstream myfile(filename.c_str());
@@ -32,7 +36,7 @@ namespace covid {
             vector<string> V;
             if (myfile.is_open()) {
                 string line;
-                while ( getline(myfile,line) ) {
+                while ( !safeGetline(myfile,line).eof() ) {
                     vector<string> fields = split(line, sep);
                     if (fields.size() == 0) {
                         cerr << "ERROR: Found line with no values in file: " << filename << " at line: " << V.size() << endl;
@@ -56,16 +60,12 @@ namespace covid {
             if (myfile.is_open()) {
                 string line;
 
-                while ( getline(myfile,line) ) {
-                    vector<string> fields = split(line, sep);
-
-                    vector<string> row(fields.size());
-                    for( unsigned int i=0; i < fields.size(); i++ ) {
-                            row[i] = fields[i];
-                    }
+                while ( !safeGetline(myfile,line).eof() ) {
+                    vector<string> row = split(line, sep);
                     M.push_back(row);
                 }
             }
+
             return M;
         }
 
@@ -79,19 +79,33 @@ namespace covid {
         Fit* lin_reg(const std::vector<double> &x, const std::vector<double> &y);
 
         template <typename T>
-        inline void cerr_vector(vector<T> & my_vector, string sep = " ") {
+        inline void cerr_vector(const vector<T> & my_vector, string sep = " ") {
             for (size_t i = 0; i < my_vector.size() - 1; i++ ) cerr << my_vector[i] << sep;
             cerr << my_vector.back();
         }
 
         template <typename T>
-        inline void cout_vector(vector<T> & my_vector, string sep = " ") {
+        inline void cout_vector(const vector<T> & my_vector, string sep = " ") {
             for (size_t i = 0; i < my_vector.size() - 1; i++ ) cout << my_vector[i] << sep;
             cout << my_vector.back();
         }
 
         template <typename T> inline
-        T choice(const gsl_rng* RNG, vector<T> &V) {
+        size_t weighted_choice(const gsl_rng* RNG, const vector<T> &V) {
+            const double sum = accumulate(V.begin(), V.end(), 0.0);
+            double ran = sum*gsl_rng_uniform(RNG);
+            for (size_t i = 0; i < V.size(); ++i) {
+                if (ran < V[i]) {
+                    return i;
+                } else {
+                    ran -= V[i];
+                }
+            }
+            return V.size() - 1;
+        }
+
+        template <typename T> inline
+        T uniform_choice(const gsl_rng* RNG, const vector<T> &V) {
             return V[gsl_rng_uniform_int(RNG, V.size())];
         }
 
@@ -103,6 +117,19 @@ namespace covid {
             vector<T> sample_vec(samples, samples+k);
             delete[] samples;
             return sample_vec;
+        }
+
+        template <typename T> inline
+        vector<T> merge_vectors(vector< vector<T> > &vec) {
+            vector<T> mergedVec;
+            for(auto v : vec) { mergedVec.insert(mergedVec.end(), v.begin(), v.end()); }
+            return mergedVec;
+        }
+
+        template <typename T> inline
+        vector<T> merge_vectors(vector<T> vec1, vector<T> &vec2) {
+            vec1.insert(vec1.end(), vec2.begin(), vec2.end());
+            return vec1;
         }
 
         inline double string2double(const std::string& s){ std::istringstream i(s); double x = 0; i >> x; return x; }
@@ -405,6 +432,13 @@ namespace covid {
                 biting_age_cdf_mesh[i] = cdf_from_pdf( weight_biting_age_pdf(MOSQUITO_AGE_PDF, (double) i / (sample_density-1)) );
             }
             return biting_age_cdf_mesh;
+        }
+
+        inline double inspect_next_rng_val(gsl_rng* rng) {
+            gsl_rng* rng_copy = gsl_rng_clone(rng);
+            double next_val = gsl_rng_uniform(rng_copy);
+            gsl_rng_free(rng_copy);
+            return next_val;
         }
     }
 }

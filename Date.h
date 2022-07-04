@@ -21,6 +21,8 @@ static const std::vector<size_t> LEAP_DAYS_IN_MONTH = {31, 29, 31, 30, 31, 30, 3
 static const std::vector<size_t> LEAP_END_DAY_OF_MONTH = {31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335, 366};
 
 struct TimeSeriesAnchorPoint {
+    TimeSeriesAnchorPoint() {};
+    TimeSeriesAnchorPoint(string d, double v) : date(d), value(v) {};
     string date;
     double value;
 };
@@ -29,9 +31,34 @@ class Date {
   public:
     Date():_simulation_day(0),_month_ct(0),_year_ct(0),_julian_day(1),_julian_year(1) {};
     Date(const Parameters* par):_simulation_day(0),_month_ct(0),_year_ct(0),_julian_day(par->startDayOfYear),_julian_year(par->startJulianYear) {};
+    Date(const Date& o) {
+        _simulation_day = o._simulation_day;
+        _month_ct       = o._month_ct;
+        _year_ct        = o._year_ct;
+        _julian_day     = o._julian_day;
+        _julian_year    = o._julian_year; 
+    };
 
     // for use when needing to pass a historical sim day as a Date object, e.g. to model pre-existing natural immunity.  Note that month and year counts are not set!
     Date(const Parameters* par, int sim_day):_simulation_day(sim_day),_month_ct(0),_year_ct(0),_julian_day(par->startDayOfYear),_julian_year(par->startJulianYear) {};
+
+    template <typename T> friend inline bool operator== (const Date &lhs, const T rhs)  { return lhs.to_ymd().compare(rhs) == 0; }
+    template <typename T> friend inline bool operator== (const T lhs, const Date &rhs)  { return rhs.to_ymd().compare(lhs) == 0; }
+
+    template <typename T> friend inline bool operator!= (const Date &lhs, const T rhs)  { return lhs.to_ymd().compare(rhs) != 0; }
+    template <typename T> friend inline bool operator!= (const T lhs, const Date &rhs)  { return rhs.to_ymd().compare(lhs) != 0; }
+
+    template <typename T> friend inline bool operator<  (const Date &lhs, const T rhs)  { return lhs.to_ymd().compare(rhs) <  0; }
+    template <typename T> friend inline bool operator<  (const T lhs, const Date &rhs)  { return rhs.to_ymd().compare(lhs) >  0; }
+
+    template <typename T> friend inline bool operator>  (const Date &lhs, const T rhs)  { return lhs.to_ymd().compare(rhs) >  0; }
+    template <typename T> friend inline bool operator>  (const T lhs, const Date &rhs)  { return rhs.to_ymd().compare(lhs) <  0; }
+
+    template <typename T> friend inline bool operator<= (const Date &lhs, const T rhs)  { return lhs.to_ymd().compare(rhs) <= 0; }
+    template <typename T> friend inline bool operator<= (const T lhs, const Date &rhs)  { return rhs.to_ymd().compare(lhs) >= 0; }
+
+    template <typename T> friend inline bool operator>= (const Date &lhs, const T rhs)  { return lhs.to_ymd().compare(rhs) >= 0; }
+    template <typename T> friend inline bool operator>= (const T lhs, const Date &rhs)  { return rhs.to_ymd().compare(lhs) <= 0; }
 
     inline int day()            const { return _simulation_day; }                                   // [0, ...]
     size_t julianDay()          const { return _julian_day; }                                       // [1, {365, 366}]
@@ -69,7 +96,8 @@ class Date {
     }
 
     DayOfWeekType dayOfWeek() const { return dayOfWeek(julianYear(), julianMonth(), dayOfMonth()); }
-
+    bool isWeekend() const { return dayOfWeek() == SATURDAY or dayOfWeek() == SUNDAY; }
+    bool isWeekday() const { return not isWeekend(); }
 
     string dayOfWeekName(int y, int m, int d) const { return DAY_NAMES[dayOfWeek(y, m, d)]; }
     string dayOfWeekName()   const { return DAY_NAMES[dayOfWeek()]; }
@@ -78,6 +106,7 @@ class Date {
 
     bool endOfPeriod(int n)  const { return (day()+1) % n == 0; }
     bool endOfWeek()         const { return (day()+1) % 7 == 0; }
+    bool startOfMonth()      const { return dayOfMonth() == 1; }
     bool endOfMonth()        const {
         vector<size_t>::const_iterator it;
         // find out if today corresponds to a month-end
@@ -105,6 +134,17 @@ class Date {
         if (_julian_day > num_days_in_year(_julian_year)) {
             _julian_day = 1;
             _julian_year++;
+        }
+    }
+
+    void decrement() {
+        if(startOfMonth()) _month_ct--;
+        _simulation_day--;
+        if (_julian_day == 1) {
+            _julian_year--;
+            _julian_day = num_days_in_year(_julian_year);
+        } else {
+            _julian_day--;
         }
     }
 
@@ -207,6 +247,20 @@ class Date {
         return ss.str();
     }
 
+    static string to_ymd (int sim_day, const Parameters* par) {
+        size_t julian_year  = par->startJulianYear;
+        long int julian_day = par->startDayOfYear + sim_day;
+
+        while (julian_day > (long int) num_days_in_year(julian_year)) { julian_day -= num_days_in_year(julian_year++); }
+        while (julian_day < 1)                                        { julian_day += num_days_in_year(--julian_year); }
+
+        return to_ymd(julian_year, julian_day);
+    }
+
+    string to_ymd() const {
+        return to_ymd(julianYear(), julianDay());
+    }
+
     static int to_sim_day(size_t julian_start_year, size_t julian_start_day, string date_str) {
         // TODO -- currently assumes that requested date_str does not precede the julian start day/year
         const vector<size_t> parts = to_numeric_parts(date_str);
@@ -225,7 +279,7 @@ class Date {
         // "end" is the value immediately after the sequence produced here
         // e.g. linInterpolate(0.0, 1.0, 5) produces {0.0, 0.2, 0.4, 0.6, 0.8}
         assert(n>=1);
-        cout << "Start: " << start << "; End: " << end << endl;
+//        cout << "Start: " << start << "; End: " << end << endl;
 
         // initialize the n values to the start value
         double step = (end - start)/n;

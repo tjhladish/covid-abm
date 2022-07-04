@@ -1,0 +1,75 @@
+{
+    "smc_iterations"            : 1,
+    "num_samples"               : 1000,
+    "predictive_prior_fraction" : 1.0,
+    "pls_training_fraction"     : 1.0,
+
+    "database_filename"         : "covid-flvtms-1k-ppb.sqlite",
+
+    "parameters" : [
+        {"name"       : "realization",
+         "dist_type"  : "PSEUDO",
+         "num_type"   : "INT",
+         "par1"       : 0,
+         "par2"       : 999},
+
+        {"name"       : "vaccine",
+         "short_name" : "vac",
+         "dist_type"  : "PSEUDO",
+         "num_type"   : "INT",
+         "par1"       : 1,
+         "par2"       : 1,
+         "step"       : 0},
+
+        {"name"       : "mutation",
+         "dist_type"  : "PSEUDO",
+         "num_type"   : "INT",
+         "par1"       : 1,
+         "par2"       : 1,
+         "step"       : 0},
+
+        {"name"       : "state_scenario",
+         "short_name" : "state",
+         "dist_type"  : "PSEUDO",
+         "num_type"   : "INT",
+         "par1"       : 0,
+         "par2"       : 0,
+         "step"       : 0},
+
+         {"name"       : "dose_file_control",
+          "short_name" : "dose_file",
+          "dist_type"  : "PSEUDO",
+          "num_type"   : "INT",
+          "par1"       : 0,
+          "par2"       : 0,
+          "step"       : 0},
+
+        {"name"       : "active_vax_strategy",
+         "short_name" : "active_vax_strat",
+         "dist_type"  : "PSEUDO",
+         "num_type"   : "INT",
+         "par1"       : 0,
+         "par2"       : 0,
+         "step"       : 0},
+
+        {"name"       : "quarantine_control",
+         "short_name" : "quarantine",
+         "dist_type"  : "PSEUDO",
+         "num_type"   : "INT",
+         "par1"       : 0,
+         "par2"       : 0,
+         "step"       : 0},
+
+        {"name"       : "ppb_autofitting_control",
+         "short_name" : "ppq_ctrl",
+         "dist_type"  : "PSEUDO",
+         "num_type"   : "INT",
+         "par1"       : 1,
+         "par2"       : 1,
+         "step"       : 0}
+    ],
+
+    "metrics" : [
+        {"name" : "cleanFinish", "num_type" : "INT", "value" : 0}
+       ]
+}

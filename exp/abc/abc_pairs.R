@@ -56,7 +56,7 @@ plotter = function(abc, fileroot) {
     proto[1,abc_metrics_names] <- abc_metrics_values
     dm = rbind(abc, proto)
     dm$sim = factor(ifelse(is.na(dm$serial), F, T))
-    dm[dm$sim==F, par_cols] = apply(dm[dm$sim==T,par_cols], 2, median)
+    dm[dm$sim==F, par_cols] = apply(dm[dm$sim==T,par_cols,drop=F], 2, median)
 
     #outfile=paste0("pairs-par_v", vers, ".png")
     outfile=paste0(fileroot, vers, ".png")

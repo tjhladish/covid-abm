@@ -14,6 +14,9 @@
 #include "Community.h"
 #include "Utility.h"
 #include "sys/stat.h"
+#include "Vac_Campaign.h"
+#include <utility>
+#include "behavior_tuner.h"
 
 using namespace covid::standard;
 using namespace covid::util;
@@ -47,13 +50,13 @@ enum PrevalenceReportingType {
 };
 
 
-const gsl_rng* RNG = gsl_rng_alloc(gsl_rng_taus2);
-const gsl_rng* REPORTING_RNG = gsl_rng_alloc(gsl_rng_mt19937);
+gsl_rng* RNG = gsl_rng_alloc(gsl_rng_taus2);
+gsl_rng* REPORTING_RNG = gsl_rng_alloc(gsl_rng_mt19937);
+gsl_rng* VAX_RNG = gsl_rng_alloc(gsl_rng_mt19937);
 
 // Predeclare local functions
 Community* build_community(const Parameters* par);
-void seed_epidemic(const Parameters* par, Community* community);
-vector<string> simulate_epidemic(const Parameters* par, Community* community, const string process_id = "0");
+void seed_epidemic(const Parameters* par, Community* community, StrainType strain);
 void write_immunity_file(const Community* community, const string label, string filename, int runLength);
 void write_immunity_by_age_file(const Community* community, const int year, string filename="");
 void write_daily_buffer( vector<string>& buffer, const string process_id, string filename="", bool overwrite=false);
@@ -62,19 +65,19 @@ Community* build_community(const Parameters* par) {
     Date* date = new Date(par);
     Community* community = new Community(par, date);
     Person::setPar(par);
-cerr << "Reading locations ... ";
+    cerr << "Reading locations ... ";
     if (!community->loadLocations(par->locationFilename, par->networkFilename)) {
         cerr << "ERROR: Could not load locations" << endl;
         exit(-1);
     }
-cerr << "done.\n";
-cerr << "Reading population ... ";
-    if (!community->loadPopulation(par->populationFilename, par->comorbidityFilename)) {
+    cerr << "done.\n";
+    cerr << "Reading population ... ";
+    if (!community->loadPopulation(par->populationFilename, par->comorbidityFilename, par->publicActivityFilename)) {
         cerr << "ERROR: Could not load population" << endl;
         exit(-1);
     }
 
-cerr << "done.\n"; //  Now sleeping for 20s so ram usage can be checked.\n";
+    cerr << "done.\n"; //  Now sleeping for 20s so ram usage can be checked.\n";
 //sleep(20);
     if (par->abcVerbose) {
         cerr << community->getNumPeople() << " people" << endl;
@@ -88,7 +91,7 @@ cerr << "done.\n"; //  Now sleeping for 20s so ram usage can be checked.\n";
 }
 
 
-void seed_epidemic(const Parameters* par, Community* community) {
+void seed_epidemic(const Parameters* par, Community* community, StrainType strain) {
     // epidemic may be seeded with initial exposure OR initial infection
     bool attempt_initial_infection = true;
     // Normal usage, to simulate epidemic
@@ -96,7 +99,7 @@ void seed_epidemic(const Parameters* par, Community* community) {
     if (par->numInitialExposed > 0) {
         attempt_initial_infection = false;
         for (size_t i=0; i<par->numInitialExposed; i++) {
-            community->infect(gsl_rng_uniform_int(RNG, pop_size));
+            community->infect(gsl_rng_uniform_int(RNG, pop_size), strain);
         }
     } else if (par->probInitialExposure > 0.0) {
         // determine how many people are exposed
@@ -107,10 +110,10 @@ void seed_epidemic(const Parameters* par, Community* community) {
 
         size_t inf_ct = 0;
         for (auto pid: exposed_group) {
-            Infection* inf = community->infect(pid);
+            Infection* inf = community->infect(pid, strain);
             if (inf) { inf_ct++; }
         }
-        cerr << "pop size, sampled size, infected size: " << pop_size << ", " << k << ", " << inf_ct << endl;
+        // cerr << "pop size, sampled size, infected size: " << pop_size << ", " << k << ", " << inf_ct << endl;
     }
 
     if (attempt_initial_infection) {
@@ -120,7 +123,7 @@ void seed_epidemic(const Parameters* par, Community* community) {
 
             // must infect initialInfected persons -- this bit is mysterious
             while (community->getNumInfected(0) < count + par->numInitialInfected) {
-                community->infect(gsl_rng_uniform_int(RNG, pop_size));
+                community->infect(gsl_rng_uniform_int(RNG, pop_size), strain);
             }
         }
     }
@@ -194,95 +197,26 @@ void periodic_output(const Parameters* par, map<string, vector<int> > &periodic_
     fputs(output.c_str(), stdout);
 }
 
-void update_vaccinations(const Parameters* par, Community* community, const Date* date) {
-    const int doseInterval = par->vaccineDoseInterval;
-    assert(doseInterval > 0); // neg is nonsensical, 0 is disallowed due to mod operation
-    //const int boostInterval = par->vaccineBoostingInterval;
-    for (CatchupVaccinationEvent cve: par->catchupVaccinationEvents) {
-        // Normal, initial vaccination -- boosting, multiple doses handled in Community::tick()
-        if (date->day() >= (signed) cve.campaignStart and date->day() < (signed) (cve.campaignStart + cve.campaignDuration)) {
-            if (par->abcVerbose) cerr << "vaccinating " << cve.coverage*100 << "% of age " << cve.age << " over " << cve.campaignDuration << " days starting on day " << cve.campaignStart << endl;
-            community->vaccinate(cve);
-        }
-    }
-}
 
-
-int seed_epidemic(const Parameters* par, Community* community, const Date* date) {
+int seed_epidemic(const Parameters* par, Community* community, const Date* date, vector<double> strain_weights) {
     int introduced_infection_ct = 0;
     const int numperson = community->getNumPeople();
     const size_t dailyExposedIdx = date->day() % par->probDailyExposure.size();
-    const double expected_num_exposed = par->probDailyExposure[dailyExposedIdx] * numperson;
+    const double intro_rate_multiplier = *date > "2021-06-15" ? 2.0 : 1.0;
+    const double expected_num_exposed = intro_rate_multiplier * par->probDailyExposure[dailyExposedIdx] * numperson;
     if (expected_num_exposed > 0) {
         assert(expected_num_exposed <= numperson);
         const int num_exposed = gsl_ran_poisson(RNG, expected_num_exposed);
         for (int i=0; i<num_exposed; i++) {
             // gsl_rng_uniform_int returns on [0, numperson-1]
             int transmit_to_id = gsl_rng_uniform_int(RNG, numperson);
-            if (community->infect(transmit_to_id)) {
+
+            if (community->infect(transmit_to_id, (StrainType) weighted_choice(RNG, strain_weights))) {
                 introduced_infection_ct++;
             }
         }
     }
     return introduced_infection_ct;
-}
-
-
-void advance_simulator(const Parameters* par, Community* community, Date* date, const string process_id, map<string, vector<int> > &periodic_incidence, vector<int> &periodic_prevalence, vector<int> &epi_sizes) {
-    community->tick();
-
-    seed_epidemic(par, community, date);
-
-    for (Person* p: community->getPeople()) {
-        const int now = date->day();
-
-        if (p->isInfected(now) or p->isSymptomatic(now) or p->isDead(now)) {
-            const Infection* infec = p->getInfection();
-            bool intro  = not infec->isLocallyAcquired();
-
-            // Incidence
-            if (infec->getInfectedTime() == now) {
-                periodic_incidence["daily"][INTRO_INF]      += intro;
-                periodic_incidence["daily"][TOTAL_INF]      += 1;
-            }
-
-            if (infec->getSymptomTime() == now) {
-                periodic_incidence["daily"][INTRO_CASE]     += intro;
-                periodic_incidence["daily"][TOTAL_CASE]     += 1;
-            }
-
-            if (infec->getSevereTime() == now) {
-                periodic_incidence["daily"][INTRO_SEVERE]   += intro;
-                periodic_incidence["daily"][TOTAL_SEVERE]   += 1;
-            }
-
-            if (infec->getCriticalTime() == now) {
-                periodic_incidence["daily"][INTRO_CRITICAL] += intro;
-                periodic_incidence["daily"][TOTAL_CRITICAL] += 1;
-            }
-
-            if (infec->getDeathTime() == now) {
-                periodic_incidence["daily"][INTRO_DEATH]    += intro;
-                periodic_incidence["daily"][TOTAL_DEATH]    += 1;
-            }
-
-            // Prevalence
-            periodic_prevalence[INTRO_INF_PREV]      += intro and infec->isInfected(now);
-            periodic_prevalence[INTRO_CASE_PREV]     += intro and infec->isSymptomatic(now);
-            periodic_prevalence[INTRO_SEVERE_PREV]   += intro and infec->isSevere(now);
-            periodic_prevalence[INTRO_CRITICAL_PREV] += intro and infec->isCritical(now);
-            periodic_prevalence[INTRO_DEATH_PREV]    += intro and infec->isDead(now);
-
-            periodic_prevalence[TOTAL_INF_PREV]      += infec->isInfected(now);
-            periodic_prevalence[TOTAL_CASE_PREV]     += infec->isSymptomatic(now);
-            periodic_prevalence[TOTAL_SEVERE_PREV]   += infec->isSevere(now);
-            periodic_prevalence[TOTAL_CRITICAL_PREV] += infec->isCritical(now);
-            periodic_prevalence[TOTAL_DEATH_PREV]    += infec->isDead(now);
-        }
-    }
-
-    periodic_output(par, periodic_incidence, periodic_prevalence, date, process_id, epi_sizes);
-    return;
 }
 
 
@@ -307,120 +241,227 @@ size_t tally_decreases(const vector<T> &vals) {
 }
 
 
-vector<string> simulate_epidemic(const Parameters* par, Community* community, const string process_id) {
-    vector<int> epi_sizes;
-    vector<string> daily_output_buffer;
+// helper function to call simvis.R when needed
+void gen_simvis(vector<string> &plot_log_buffer) {
+    for (size_t i = 1; i < plot_log_buffer.size(); ++i) {
+        //plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt[i-1].second);
+        if (i >= (plot_log_buffer.size() - 14)) {
+            plot_log_buffer[i] = plot_log_buffer[i] + ",0";// + to_string(Rt_ma[i-1]);
+        } else {
+            plot_log_buffer[i] = plot_log_buffer[i];// + to_string(Rt_ma[i-1]);
+        }
+    }
+    bool overwrite = true;
+    write_daily_buffer(plot_log_buffer, "42", "plot_log.csv", overwrite);
+    //int retval = system("Rscript fitvis.R");
+    int retval = system("Rscript simvis.R");
+    if (retval == -1) { cerr << "System call to `Rscript simvis.R` failed\n"; }
+}
 
-    map<string, vector<int> > periodic_incidence = construct_tally();
-    vector<int> periodic_prevalence(NUM_OF_PREVALENCE_REPORTING_TYPES, 0);
-//    size_t prev_rc_ct = 0;
-//    const float may15_threshold = par->mmodsScenario == NUM_OF_MMODS_SCENARIOS ? 180.0*community->getNumPeople()/1e5 : 180.0;
-//    const int may15 = 135;
-//    const int nov15 = 319;
-//    double peak_height = 0;
-//    size_t peak_time = -1;
+
+vector<string> simulate_epidemic(const Parameters* par, Community* &community, const string process_id, const vector<string> mutant_intro_dates) {
+    SimulationLedger* ledger    = new SimulationLedger();
+    SimulationCache* sim_cache  = nullptr;
+
+    BehaviorAutoTuner* tuner    = nullptr;
+
+    //bool window_fit_is_good = true;
+    //vector<int> epi_sizes;
+    //vector<string> daily_output_buffer;
+
+    //map<string, vector<int> > periodic_incidence = construct_tally();
+    ledger->periodic_incidence = construct_tally();
+    //vector<int> periodic_prevalence(NUM_OF_PREVALENCE_REPORTING_TYPES, 0);
+    ledger->periodic_prevalence = vector<int>(NUM_OF_PREVALENCE_REPORTING_TYPES, 0);
     vector<double> trailing_averages(par->runLength);
-    bool hit_may15_target = false;
-    //bool intervention_trigger = true;
     const double pop_at_risk = min(community->getNumPeople(), par->numSurveilledPeople);
 
-    vector<string> plot_log_buffer = {"date,sd,cinf,closed,rcase,rdeath,Rt"};
+    // default behavioral anchor points
+    vector<TimeSeriesAnchorPoint> social_distancing_anchors = {
+        {"2020-01-01", 0.0},
+        {"2020-03-10", 0.20},
+        {"2020-03-15", 0.8},
+        {"2020-04-01", 0.7},
+        {"2020-05-01", 0.6},
+        {"2020-06-01", 0.05},
+        {"2020-07-01", 0.05},
+        {"2020-08-01", 0.6},
+        {"2020-09-01", 0.5},
+        {"2020-10-01", 0.1},
+        {"2020-11-01", 0.0},
+        {"2020-12-01", 0.1},
+        {"2021-01-01", 0.1},
+        {"2021-02-01", 0.3},
+        {"2021-03-01", 0.4},
+        {"2021-04-01", 0.0},
+        {"2021-05-01", 0.3},
+        {"2021-06-01", 0.2},
+        {"2021-07-01", 0.0},
+        {"2021-08-01", 0.1},
+        {"2021-09-01", 0.25},
+        {"2021-10-01", 0.0}
+    };
+    community->setSocialDistancingTimedIntervention(social_distancing_anchors);
+
+    //vector<string> plot_log_buffer = {"date,sd,seasonality,vocprev1,vocprev2,cinf,closed,rcase,rdeath,inf,rhosp,Rt"};
+    ledger->plot_log_buffer = {"serial,date,sd,seasonality,vocprev1,vocprev2,vocprev3,cinf,closed,rcase,rdeath,inf,rhosp,VES,brkthruRatio,vaxInfs,unvaxInfs,hospInc,hospPrev,icuInc,icuPrev,vaxHosp,unvaxHosp,std_doses,urg_doses,cov1,cov2,cov3,seroprev,Rt"};
+    //ledger->plot_log_buffer = {"date,sd,seasonality,vocprev1,vocprev2,cinf,closed,rcase,rdeath,inf,rhosp,Rt"};
 
     Date* date = community->get_date();
-    for (; date->day() < (signed) par->runLength; date->increment()) {
-//        if (par->mmodsScenario < NUM_OF_MMODS_SCENARIOS and date->julianDay() >= nov15) break;
-        update_vaccinations(par, community, date);
-        //advance_simulator(par, community, date, process_id, periodic_incidence, periodic_prevalence, epi_sizes);
-        community->tick();
-        seed_epidemic(par, community, date);
-        const vector<size_t> infections         = community->getNumNewlyInfected();
-        const vector<size_t> all_reported_cases = community->getNumDetectedCasesReport();
-        const size_t reported_cases             = all_reported_cases[date->day()];
-        trailing_averages[date->day()]          = calc_trailing_avg(all_reported_cases, date->day(), 7); // <= 7-day trailing average
-        const vector<size_t> rhosp              = community->getNumDetectedHospitalizations();
-        const vector<size_t> severe_prev        = community->getNumSeverePrev();
-        const double cinf                       = accumulate(infections.begin(), infections.begin()+date->day()+1, 0.0);
-        const double cAR                        = cinf/pop_at_risk; // cumulative attack rate (I hate this term)
+    ledger->strains = {50.0, 0.0, 0.0, 0.0}; // initially all WILDTYPE
+    assert(ledger->strains.size() == NUM_OF_STRAIN_TYPES);
 
-        const double trailing_avg = trailing_averages[date->day()];
-//        if (trailing_avg > 0 and trailing_avg >= peak_height) {
-//            peak_height = trailing_avg;
-//            peak_time = date->day();
-//        }
-
-        const vector<size_t> rdeaths = community->getNumDetectedDeaths();
-
-        const size_t rc_ct = accumulate(all_reported_cases.begin(), all_reported_cases.begin()+date->day()+1, 0);
-//        if (par->mmodsScenario < NUM_OF_MMODS_SCENARIOS and prev_rc_ct < may15_threshold and rc_ct >= may15_threshold) {
-//            hit_may15_target = true;
-//            date->setJulianDay(may15);
-//            if (par->mmodsScenario == MMODS_OPEN) {
-//                community->updateTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, date->day(), 0.0);
-//                community->updateTimedIntervention(SOCIAL_DISTANCING, date->day(), 0.2);
-//            }
-//        }
-//        prev_rc_ct = rc_ct;
-
-//        if (intervention_trigger and par->mmodsScenario == MMODS_2WEEKS and hit_may15_target and date->day() >= (signed) peak_time + 14) {
-//            // Also need to pass new 2nd criterion: at least 10 of last 14 days are strict decreases, or last 7 days have no cases
-//            const vector<double> last_fortnight(trailing_averages.begin() + date->day() - 13, trailing_averages.begin() + date->day() + 1);
-//            if (trailing_avg == 0 or tally_decreases(last_fortnight) >= 10) {
-//                community->updateTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, date->day(), 0.0);
-//                community->updateTimedIntervention(SOCIAL_DISTANCING, date->day(), 0.2);
-//                intervention_trigger = false;
-//            }
-//        } else if (intervention_trigger and par->mmodsScenario == MMODS_5PERCENT and hit_may15_target and reported_cases <= 0.05*peak_height) {
-//            community->updateTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, date->day(), 0.0);
-//            community->updateTimedIntervention(SOCIAL_DISTANCING, date->day(), 0.2);
-//            intervention_trigger = false;
-//        }
-        if (date->dayOfMonth()==1) cerr << "hit scen rep        sday date        infinc  cAR\trcases\trcta7\tcrcases\trdeath\tcrdeath\tsevprev\tcrhosp\tclosed\tsocdist\n";
-        cerr << left << setw(4) << hit_may15_target
-             << setw(5) << par->mmodsScenario
-             << setw(11) << process_id
-             << setw(4) << date->day()
-             << " " << date->to_string({"yyyy", "mm", "dd"}, "-")
-             << right << setw(8) << infections[date->day()]
-             << "  " << setw(7) << setprecision(2) << left << cAR
-             << "\t" << setprecision(4) << reported_cases
-             << "\t" << trailing_avg
-             << "\t" << rc_ct
-             << "\t" << rdeaths[date->day()]
-             << "\t" << accumulate(rdeaths.begin(), rdeaths.begin()+date->day()+1, 0)
-             << "\t" << severe_prev[date->day()]
-             << "\t" << accumulate(rhosp.begin(), rhosp.begin()+date->day()+1, 0)
-             << "\t" << community->getTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, date->day())
-             //<< "\t" << (date->day() == (signed) peak_time) // new peak observed?
-             << "\t" << par->timedInterventions.at(SOCIAL_DISTANCING).at(date->day())
-             << endl;
-
-        stringstream ss;
-        ss << date->to_string({"yyyy", "mm", "dd"}, "-") << ","
-           << par->timedInterventions.at(SOCIAL_DISTANCING).at(date->day()) << ","
-           << cAR << ","
-           << community->getTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, date->day())<< ","
-           << reported_cases*1e4/pop_at_risk << ","
-           << rdeaths[date->day()]*1e4/pop_at_risk;
-        plot_log_buffer.push_back(ss.str());
+    if (par->behavioral_autotuning) {
+        // create tuner and initialize first simulation cache
+        tuner = initialize_behavior_autotuning(par);
+        sim_cache = new SimulationCache(community, ledger, RNG, REPORTING_RNG, VAX_RNG);    // TODO: change to quick cache
+        first_tuning_window_setup(par, community, tuner, social_distancing_anchors);
+    } else if (not par->behaviorFilename.empty()) {
+        // filename provided for a dataset with behavioral values to use
+        init_behavioral_vals_from_file(par, community);
     }
 
-    // this counts infections/cases/deaths that happen during the simulation,
-    // but not cases and deaths that are scheduled to happen after the last simulated day
-    const double cinf   = sum(community->getNumNewlyInfected());
-    const double ccase  = sum(community->getNumNewlySymptomatic());
-    const double csev   = sum(community->getNumNewlySevere());
-    const double ccrit  = sum(community->getNumNewlyCritical());
-    const double cdeath = sum(community->getNumNewlyDead());
+    bool restore_occurred = false; // relevant for behavior autotuning
+    for (; date->day() < (signed) par->runLength; date->increment()) {
+        if (par->behavioral_autotuning) {
+           behavior_autotuning(par, community, date, ledger, tuner, sim_cache, social_distancing_anchors, restore_occurred);
+        }
+        const size_t sim_day = date->day();
+if (sim_day == 0) { seed_epidemic(par, community, WILDTYPE); }
+//if (*date == "2021-12-01") { gsl_rng_set(RNG, par->randomseed); // use something like this if we want to only have dynamic uncertainty beyond some date
 
-    cerr << "true infections, mild, severe, critical, deaths: " << cinf << ", " << ccase << ", " << csev  << ", " << ccrit << ", " << cdeath << endl;
-    cerr << "IFR, CFR: " << 100*cdeath/cinf << "%, " << 100*cdeath/ccase << "%" << endl;
+        community->tick();
 
-    cerr << "\nIncidence by outcome:\n";
-    cerr << "\t ASYMPTOMATIC :\t" << Community::_cumulIncByOutcome[ASYMPTOMATIC] << endl;
-    cerr << "\t MILD :  \t" << Community::_cumulIncByOutcome[MILD] << endl;
-    cerr << "\t SEVERE :\t" << Community::_cumulIncByOutcome[SEVERE] << endl;
-    cerr << "\t CRITICAL :\t" << Community::_cumulIncByOutcome[CRITICAL] << endl;
-    cerr << "\t DEATH :\t" << Community::_cumulIncByOutcome[DEATH] << endl;
+
+        if ( mutant_intro_dates.size() ) {
+            if (*date >= mutant_intro_dates[0] and *date < mutant_intro_dates[1]) {
+                if (ledger->strains[WILDTYPE] > 1) {
+                    ledger->strains[WILDTYPE]--;
+                    ledger->strains[ALPHA]++;
+                }
+            } else if (*date >= mutant_intro_dates[1] and *date < mutant_intro_dates[2]) {
+                if (ledger->strains[WILDTYPE] > 1) {
+                    ledger->strains[WILDTYPE]--;
+                    ledger->strains[DELTA]++;
+                }
+                if (ledger->strains[ALPHA] > 1) {
+                    ledger->strains[ALPHA]--;
+                    ledger->strains[DELTA]++;
+                }
+            } else if (*date >= mutant_intro_dates[2]) {
+                for (int i = 0; i < 5; ++i) { // faster take-over of omicron
+                    if (ledger->strains[WILDTYPE] > 1) {
+                        ledger->strains[WILDTYPE]--;
+                        ledger->strains[OMICRON]++;
+                    }
+                    if (ledger->strains[ALPHA] > 1) {
+                        ledger->strains[ALPHA]--;
+                        ledger->strains[OMICRON]++;
+                    }
+                    if (ledger->strains[DELTA] > 1) {
+                        ledger->strains[DELTA]--;
+                        ledger->strains[OMICRON]++;
+                    }
+                }
+            }
+        }
+
+        seed_epidemic(par, community, date, ledger->strains);
+
+        const vector<size_t> infections         = community->getNumNewlyInfected();
+        const vector<size_t> all_reported_cases = community->getNumDetectedCasesReport();
+        const size_t reported_cases             = all_reported_cases[sim_day];
+        //const double trailing_avg               = calc_trailing_avg(all_reported_cases, sim_day, 7); // <= 7-day trailing average
+        const vector<size_t> rhosp              = community->getNumDetectedHospitalizations();
+        const vector<size_t> severe_prev        = community->getNumSeverePrev();
+        const double cinf                       = accumulate(infections.begin(), infections.begin()+sim_day+1, 0.0);
+        const double cAR                        = cinf/pop_at_risk; // cumulative attack rate (I hate this term)
+        const vector<size_t> rdeaths            = community->getNumDetectedDeathsOnset();
+
+        const vector<size_t> severe             = community->getNumNewlySevere();
+        const double trailing_avg = trailing_averages[sim_day];
+
+        Vac_Campaign* vc    = community->getVac_Campaign() ? community->getVac_Campaign() : nullptr;
+        const int std_doses = vc ? vc->get_std_doses_used(sim_day) : 0;
+        const int urg_doses = vc ? vc->get_urg_doses_used(sim_day) : 0;
+        const int all_doses = vc ? vc->get_all_doses_used(sim_day) : 0;
+
+        const size_t rc_ct = accumulate(all_reported_cases.begin(), all_reported_cases.begin()+sim_day+1, 0);
+        map<string, double> VE_data = community->calculate_vax_stats(sim_day);
+        const double seroprev = community->doSerosurvey(NATURAL, community->getPeople(), sim_day);
+        //vector<string> inf_by_loc_keys = {"home", "social", "work_staff", "patron", "school_staff", "student", "hcw", "patient", "ltcf_staff", "ltcf_resident"};
+        //for (string key : inf_by_loc_keys) {
+        //    cerr << "infLoc " << date->to_ymd() << ' ' << key << ' ' << community->getNumNewInfectionsByLoc(key)[sim_day] << endl;
+        //}
+        if (not par->behavioral_autotuning) {
+            if (date->dayOfMonth()==1) cerr << "        rep sday        date  infinc  cAR     rcases  rcta7  crcases  rdeath  crdeath  sevprev   crhosp  closed  socdist  cov_1  cov_2  cov_3  std_doses  urg_doses  all_doses  quar%\n";
+            cerr << right
+                << setw(11) << "NA" //process_id
+                << setw(5)  << sim_day
+                << setw(12) << date->to_ymd()
+                << setw(8)  << infections[sim_day]
+                << "  "     << setw(7) << setprecision(2) << left << cAR << right
+                << setw(7)  << reported_cases
+                << "  "     << setw(7) << setprecision(4) << left << trailing_avg << right
+                << setw(7)  << rc_ct
+                << setw(8)  << rdeaths[sim_day]
+                << setw(9)  << accumulate(rdeaths.begin(), rdeaths.begin()+sim_day+1, 0)
+                << setw(9)  << severe_prev[sim_day]
+                << setw(9)  << accumulate(rhosp.begin(), rhosp.begin()+sim_day+1, 0)
+                << setw(8)  << community->getTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, sim_day)
+                << "  "     << setw(7) <<          setprecision(2) << left << community->getTimedIntervention(SOCIAL_DISTANCING, sim_day) << right
+                << "  "     << setw(5) << fixed << setprecision(2) << left << VE_data["dose_1"] << right << defaultfloat
+                << "  "     << setw(5) << fixed << setprecision(2) << left << VE_data["dose_2"] << right << defaultfloat
+                << "  "     << setw(5) << fixed << setprecision(2) << left << VE_data["dose_3"] << right << defaultfloat
+                << setw(11) << std_doses
+                << setw(11) << urg_doses
+                << setw(11) << all_doses
+                << "  "     << setw(7) << fixed << setprecision(2) << left << community->getNumPeopleQuarantining(sim_day) << right << defaultfloat
+                << setprecision(6)
+                //             << "  "     << setprecision(2) << (double) severe[sim_day] / reported_cases
+                << endl;
+        }
+
+        //date,sd,seasonality,vocprev,cinf,closed,rcase,rdeath,Rt
+        stringstream ss;
+        ss << process_id << ","
+           << date->to_string({"yyyy", "mm", "dd"}, "-") << ","
+           << community->social_distancing(sim_day)/*par->timedInterventions.at(SOCIAL_DISTANCING).at(sim_day)*/ << ","
+           << par->seasonality.at(date->julianDay()-1) << ","
+           << (float) community->getNumNewInfections(ALPHA)[sim_day]/infections[sim_day] << ","
+           << (float) community->getNumNewInfections(DELTA)[sim_day]/infections[sim_day] << ","
+           << (float) community->getNumNewInfections(OMICRON)[sim_day]/infections[sim_day] << ","
+           << cAR << ","
+           << community->getTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, sim_day)<< ","
+           << reported_cases*1e4/pop_at_risk << ","
+           << rdeaths[sim_day]*1e4/pop_at_risk << ","
+           << infections[sim_day]*1e4/pop_at_risk << ","
+           << rhosp[sim_day]*1e4/pop_at_risk << ","
+           << VE_data["VES"] << ","
+           << VE_data["breakthruRatio"] << ","
+           << VE_data["vaxInfs"]*1e4/pop_at_risk << ","
+           << VE_data["unvaxInfs"]*1e4/pop_at_risk << ","
+           << community->getNumHospInc()[sim_day]*1e4/pop_at_risk << ","
+           << community->getNumHospPrev()[sim_day]*1e4/pop_at_risk << ","
+           << community->getNumIcuInc()[sim_day]*1e4/pop_at_risk << ","
+           << community->getNumIcuPrev()[sim_day]*1e4/pop_at_risk << ","
+           << VE_data["vaxHosp"]*1e4/pop_at_risk << ","
+           << VE_data["unvaxHosp"]*1e4/pop_at_risk << ","
+           << std_doses*1e4/pop_at_risk << ","
+           << urg_doses*1e4/pop_at_risk << ","
+           << VE_data["dose_1"] << ","
+           << VE_data["dose_2"] << ","
+           << VE_data["dose_3"] << ","
+           << seroprev;
+        ledger->plot_log_buffer.push_back(ss.str());
+    }
+
+    const vector<size_t> sim_reported_cases = community->getNumDetectedCasesReport();
+    if (par->behavioral_autotuning) {
+        write_anchors_to_file(par, social_distancing_anchors);
+    }
+
+    if (sim_cache)  { delete sim_cache; }
 
     double cdeath_icu   = 0.0;
     double cdeath2      = 0.0;
@@ -432,9 +473,35 @@ vector<string> simulate_epidemic(const Parameters* par, Community* community, co
             cdeath_icu += p->getInfection()->icu();
         }
     }
+
+    const vector<size_t> infections         = community->getNumNewlyInfected();
+    const vector<size_t> symptomatic        = community->getNumNewlySymptomatic();
+    const vector<size_t> severe             = community->getNumNewlySevere();
+    const vector<size_t> critical           = community->getNumNewlyCritical();
+    const vector<size_t> dead               = community->getNumNewlyDead();
+        const vector<size_t> all_reported_cases = community->getNumDetectedCasesReport();
+//
+    const double cinf  = accumulate(infections.begin(), infections.end(), 0.0);
+    const double csymp = accumulate(symptomatic.begin(), symptomatic.end(), 0.0);
+    const double csev  = accumulate(symptomatic.begin(), symptomatic.end(), 0.0);
+//    const double ccrit = accumulate(symptomatic.begin(), symptomatic.end(), 0.0);
+//    const double cdead = accumulate(symptomatic.begin(), symptomatic.end(), 0.0);
+        const size_t rc_ct = accumulate(all_reported_cases.begin(), all_reported_cases.end(), 0);
+
+    cerr << "symptomatic infections, total infections, asymptomatic fraction: " << csymp << ", " << cinf << ", " << 1.0 - (csymp/cinf) << endl;
     cerr << "icu deaths, total deaths, ratio: " << cdeath_icu << ", " << cdeath2 << ", " << cdeath_icu/cdeath2 << endl;
-//  write_daily_buffer(plot_log_buffer, process_id, "plot_log.csv");
-    //return epi_sizes;
+    cerr << "severe infections / all reported cases: " << (double) csev / rc_ct << endl;
+
+cerr_vector(community->getTimedIntervention(SOCIAL_DISTANCING)); cerr << endl;
+
+    if (RNG) { gsl_rng_free(RNG); }
+    if (REPORTING_RNG) { gsl_rng_free(REPORTING_RNG); }
+
+    vector<string> plot_log_buffer = ledger->plot_log_buffer;
+    if (ledger) { delete ledger; }
+    if (tuner)  { delete tuner; }
+
+
     return plot_log_buffer;
 }
 
@@ -533,4 +600,134 @@ void daily_detailed_output(Community* community, int t) {
                  << (p->isNewlyInfected(t)?1:0) << endl;
         }
     }
+}
+
+
+void import_csv_to_db(string filename, string table, string db) {
+    stringstream ss;
+    ss << "sqlite3 " << db << " '.mode csv' '.import " << filename << ' ' << table << "'";
+    string cmd_str = ss.str();
+    int retval = system(cmd_str.c_str());
+    if (retval == -1) { cerr << "System failed to import " << table << " data to db\n"; }
+    return;
+}
+
+void generate_sim_data_db(const Parameters* par, const Community* community, const unsigned long int serial, vector<string> tables) {
+    vector<stringstream> filenames(tables.size());
+    for (size_t i = 0; i < tables.size(); ++i) {
+        filenames[i] << "./" << tables[i] << "_" << serial << ".csv";
+    }
+
+    map<string, ofstream> ofiles;
+    for (size_t i = 0; i < tables.size(); ++i) {
+        ofiles[tables[i]] = ofstream(filenames[i].str(), std::ios::trunc);
+    }
+
+    bool all_files_open = true;
+    for (const auto& [table, ofile] : ofiles) {
+        all_files_open = all_files_open and (bool)ofile;
+    }
+    if (not all_files_open) { cerr << "FILES FAILED TO OPEN" << endl; exit(-1); }
+
+    for (Person* p : community->getPeople()) {
+        for (Infection* inf : p->getInfectionHistory()) {
+            if (not inf) { continue; }
+            int inf_place_id = inf->getInfectedPlace() ? inf->getInfectedPlace()->getID() : -1;
+            int inf_by_id    = inf->getInfectedBy() ? inf->getInfectedBy()->getID() : -1;
+            int inf_owner_id = inf->getInfectionOwner() ? inf->getInfectionOwner()->getID() : -1;
+
+            ofiles["infection_history"] << inf << ','
+                                        << inf_place_id << ','
+                                        << inf_by_id << ','
+                                        << inf_owner_id << ','
+                                        << inf->getInfectedTime() << ','
+                                        << inf->getInfectiousTime() << ','
+                                        << inf->getInfectiousEndTime() << ','
+                                        << inf->getSymptomTime() << ','
+                                        << inf->getSymptomEndTime() << ','
+                                        << inf->getSevereTime() << ','
+                                        << inf->getSevereEndTime() << ','
+                                        << inf->getHospitalizedTime() << ','
+                                        << inf->getCriticalTime() << ','
+                                        << inf->getCriticalEndTime() << ','
+                                        << inf->getIcuTime() << ','
+                                        << inf->getDeathTime() << ','
+                                        << inf->getStrain() << ','
+                                        << inf->getRelInfectiousness() << ','
+                                        << inf->getDetection() << ','
+                                        << inf->secondary_infection_tally() << "\n";
+
+            for (Infection* sec_inf : inf->get_infections_caused()) {
+                ofiles["secondary_infections"] << inf << ',' << sec_inf << "\n";
+            }
+
+            if (inf->getDetection()) {
+                Detection* inf_det = inf->getDetection();
+                ofiles["infection_detection"] << inf_det << ','
+                                              << inf << ','
+                                              << inf_det->detected_state << ','
+                                              << inf_det->reported_time << "\n";
+            }
+        }
+
+        for (int vax = 0; vax < (int) p->getVaccinationHistory().size(); ++vax) {
+            ofiles["vaccination_history"] << p->getID() << ','
+                                          << community->getVac_Campaign()->get_age_bin(p->getAge()) << ','
+                                          << vax << ','
+                                          << p->getVaccinationHistory()[vax] << ','
+                                          << Date::to_ymd(p->getVaccinationHistory()[vax], par) << "\n";
+        }
+    }
+
+    map<int, int> bin_pops = community->getVac_Campaign()->get_unique_age_bin_pops();
+    Dose_Ptrs std_doses = community->getVac_Campaign()->get_std_doses_available();
+    Dose_Ptrs urg_doses = community->getVac_Campaign()->get_urg_doses_available();
+
+    Dose_Vals std_doses_used = community->getVac_Campaign()->get_std_doses_used();
+    Dose_Vals urg_doses_used = community->getVac_Campaign()->get_urg_doses_used();
+
+    for (int bin : community->getVac_Campaign()->get_unique_age_bins()) {
+        ofiles["age_bins"] << bin << ','
+                           << bin_pops[bin] << "\n";
+
+        for (int day = 0; day < (int) par->runLength; ++day) {
+            for (int dose = 0; dose < par->numVaccineDoses; ++dose) {
+                ofiles["doses_available"] << day << ','
+                                          << Date::to_ymd(day , par) << ','
+                                          << dose << ','
+                                          << bin << ','
+                                          << *std_doses[day][dose][bin] << ','
+                                          << *urg_doses[day][dose][bin] << "\n";
+
+                ofiles["doses_used"] << day << ','
+                                     << Date::to_ymd(day , par) << ','
+                                     << dose << ','
+                                     << bin << ','
+                                     << std_doses_used[day][dose][bin] << ','
+                                     << urg_doses_used[day][dose][bin] << "\n";
+            }
+        }
+    }
+
+    for (auto& [table, ofile] : ofiles) { ofile.close(); }
+
+    stringstream ss, db;
+    db << "sim_data_" << serial << ".sqlite";
+    ss << "sqlite3 " << db.str() << " '.read gen_sim_db.sql'";
+
+    string cmd_str = ss.str();
+    int retval = system(cmd_str.c_str());
+    if (retval == -1) { cerr << "System call to `sqlite3 " << db.str() << " '.read gen_sim_db.sql'` failed\n"; }
+
+    for (size_t i = 0; i < tables.size(); ++i) {
+        import_csv_to_db(filenames[i].str(), tables[i], db.str());
+    }
+
+    ss.str(string());
+    ss << "rm";
+    for (size_t i = 0; i < filenames.size(); ++i) { ss << ' ' << filenames[i].str(); }
+
+    cmd_str = ss.str();
+    retval = system(cmd_str.c_str());
+    if (retval == -1) { cerr << "System call to delete infection csv files failed\n"; }
 }

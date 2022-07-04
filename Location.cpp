@@ -38,7 +38,20 @@ void Location::dumper() const {
     cerr << "\tessential: " << _essential << endl;
     cerr << "\triskiness: " << _riskiness << endl;
     cerr << "\tpeople: "; /*for (auto p: _person) { cerr << p->getID() << " "; }*/ cerr << _person.size(); cerr << endl;
+    cerr << "\tvisitors: "; /*for (auto p: _visitors) { cerr << p->getID() << " "; }*/ cerr << _visitors.size(); cerr << endl;
     cerr << "\tneighbors: "; for (auto l: _neighbors) { cerr << l->getID() << " "; } cerr << endl;
+}
+
+void Location::revertState() {
+    // _visitors should be empty before tick() is called because it is cleared after each day
+    // _person is only dynamic for hospitals
+    if (_type == HOSPITAL) {
+        for (Person* p : _person) {
+            // remove all patients from this hospital (HCWs will not be removed since that is a static property)
+            // those patients that should be in a hospital will be added back by Person::revertState()
+            if (not (p->getDayLoc() == this)) { removePerson(p); }
+        }
+    }
 }
 
 

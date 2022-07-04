@@ -12,6 +12,20 @@ class Location {
     // TODO -- create derived classes for different types of locations
     public:
         Location();
+        Location(const Location& o) {
+            _ID                       = o._ID;
+            _essential                = o._essential;
+            _riskiness                = o._riskiness;
+            _public_transmission_risk = o._public_transmission_risk;
+            _type                     = o._type;
+            _person                   = o._person;
+            _visitors                 = o._visitors;
+            _visit_durations          = o._visit_durations;
+            _neighbors                = o._neighbors;
+            _hospital                 = o._hospital;
+            _coord                    = o._coord;
+        };
+
         virtual ~Location();
 
         struct LocPtrComp { bool operator()(const Location* A, const Location* B) const { return A->getID() < B->getID(); } };
@@ -19,33 +33,61 @@ class Location {
         int getID() const { return _ID; }
         static void reset_ID_counter() { NEXT_ID = 0; } // for use by community destructor
 
+        LocationType getType() const { return _type; }
         void setType(LocationType t) { _type = t; }
+
         void setEssential(bool e) { _essential = e; }
         bool isEssential() const { return _essential; }
         bool isNonEssential() const { return !_essential; }
-        LocationType getType() const { return _type; }
+
+        int getNumPeople() const { return _person.size(); }             // employees, residents, etc.; not including visitors
+        int getNumVisitors() const { return _visitors.size(); }          // visitors change daily
+
+        std::vector<Person*> getPeople() { return _person; }
+        inline Person* getPerson(int idx) { return _person[idx]; }
+        void setPeople(std::vector<Person*> p) { _person = p; }
+
         void addPerson(Person *p) { _person.push_back(p); }
         bool removePerson(Person *p);
-        int getNumPeople() const { return _person.size(); }
-        std::vector<Person*> getPeople() { return _person; }
-//        Person* findMom();                                            // Try to find a resident female of reproductive age
-        void addNeighbor(Location* loc);
-        int getNumNeighbors() const { return _neighbors.size(); }
+
+        std::vector<Person*> getVisitors() { return _visitors; }
+        void setVisitors(std::vector<Person*> v) { _visitors = v; }
+
+        std::vector<double> getVisitDurations() { return _visit_durations; }
+        void addVisitor(Person *p, double dur) { _visitors.push_back(p); _visit_durations.push_back(dur); }
+        void clearVisitors() { _visitors.clear(); _visit_durations.clear(); }                     // likey don't want to resize
+
         std::set<Location*, LocPtrComp> getNeighbors() { return _neighbors; }
-        void setHospital(Location* hosp) { _hospital = hosp; }
+
+        int getNumNeighbors() const { return _neighbors.size(); }
+        void setNeighbors(std::set<Location*, LocPtrComp> n) { _neighbors = n; }
+        void addNeighbor(Location* loc);
+
         Location* getHospital() const { return _hospital; }
-        inline Person* getPerson(int idx) { return _person[idx]; }
+        void setHospital(Location* hosp) { _hospital = hosp; }
+
         void setCoordinates(std::pair<double, double> c) { _coord = c; }
         std::pair<double, double> getCoordinates() { return _coord; }
-        void setX(double x) { _coord.first = x; }
-        void setY(double y) { _coord.second = y; }
         double getX() const { return _coord.first; }
+        void setX(double x) { _coord.first = x; }
         double getY() const { return _coord.second; }
-        void setRiskiness(float ra) { _riskiness = ra; }
+        void setY(double y) { _coord.second = y; }
+
+        void setPixel(double xP, double yP) { _xPixel = xP; _yPixel = yP; }
+        std::pair<double, double> getPixel() const { return {_xPixel, _yPixel}; }
+        double getXPixel() const { return _xPixel; }
+        double getYPixel() const { return _yPixel; }
+
         float getRiskiness() const { return _riskiness; }
+        void setRiskiness(float ra) { _riskiness = ra; }
+
+        PublicTransmissionType getPublicTransmissionRisk() const { return _public_transmission_risk; }
+        void setPublicTransmissionRisk(PublicTransmissionType pt) { _public_transmission_risk = pt; }
 
         bool operator == ( const Location* other ) const { return _ID == other->_ID; }
         void dumper() const;
+
+        void revertState();
 
         // We use this to make sure that locations are iterated through in a well-defined order (by ID), rather than by mem address
 
@@ -55,12 +97,16 @@ class Location {
         int _ID;                                                      // original identifier in location file
         bool _essential;
         float _riskiness;                                             // score on U(0,1) of household's risk threshold
+        PublicTransmissionType _public_transmission_risk;             // is this a location where there is (high, low, or no) risk of tranmission to e.g. customers
         LocationType _type;
-        std::vector<Person*> _person;                                 // pointers to people who come to this location
+        std::vector<Person*> _person;                                 // people who predictably come to this location
+        std::vector<Person*> _visitors;                               // people who probabilistically visit this location (currently only for businesses)
+        std::vector<double> _visit_durations;                         // people who probabilistically visit this location (currently only for businesses)
         std::set<Location*, LocPtrComp> _neighbors;
         Location* _hospital;                                          // for houses, the associated hospital (nullptr for others)
         static size_t NEXT_ID;                                        // unique ID to assign to the next Location allocated
         std::pair<double, double> _coord;                             // (x,y) coordinates for location
+        double _xPixel, _yPixel;
 };
 
 
