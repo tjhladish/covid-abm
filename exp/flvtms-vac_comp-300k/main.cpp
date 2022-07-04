@@ -533,12 +533,10 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     const bool vaccine                     = (bool) args[1];
     const bool mutation                    = (bool) args[2];
     const size_t counterfactual_scenario   = (size_t) args[3];       // 0 = FL; 1 = VT; 2 = MS (should be set to 0 for all active strat work)
-    const bool ppb_fitting_ctrl            = (bool) args[4];
-
-    // the params below are not used for the PPB fitting and are not in the JSON
-    const size_t dose_file                 = 0; //(size_t) args[4];       // 0 = state_based_counterfactual_doses.txt; 1 = active_vax_counterfactual_doses.txt; 2 =ring_vax_deployment_counterfactual_doses.txt
-    const VacCampaignType active_vax_strat = (VacCampaignType) 0; //(size_t) args[5];       // 0 = none; 1 = ring vax; 2 = risk group vax; 3 = risk vax
-    const bool quarantine_ctrl             = false; //(bool) args[6];     // 0 = off; 1 = on
+    const size_t dose_file                 = (size_t) args[4];       // 0 = state_based_counterfactual_doses.txt; 1 = active_vax_counterfactual_doses.txt; 2 =ring_vax_deployment_counterfactual_doses.txt
+    const VacCampaignType active_vax_strat = (VacCampaignType) args[5];       // 0 = none; 1 = ring vax; 2 = risk group vax; 3 = risk vax
+    const bool quarantine_ctrl             = (bool) args[6];     // 0 = off; 1 = on
+    const bool ppb_fitting_ctrl            = (bool) args[7];
 
     Parameters* par = define_simulator_parameters(args, rng_seed, serial, process_id);
     define_strain_parameters(par);

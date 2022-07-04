@@ -58,8 +58,15 @@
          "num_type"   : "INT",
          "par1"       : 0,
          "par2"       : 1,
-         "step"       : 1}
+         "step"       : 1},
 
+        {"name"       : "ppb_autofitting_control",
+         "short_name" : "ppq_ctrl",
+         "dist_type"  : "PSEUDO",
+         "num_type"   : "INT",
+         "par1"       : 0,
+         "par2"       : 0,
+         "step"       : 0}
     ],
 
     "metrics" : [
