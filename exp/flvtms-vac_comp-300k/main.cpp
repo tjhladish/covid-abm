@@ -54,6 +54,14 @@ const size_t JULIAN_START_YEAR    = 2020;
 bool autotune                     = false;
 const int FL_POP                  = 21538187;   // as of 2020 census
 
+enum CounterfactualScenario {
+    FL_LIKE_FL,
+    VT_LIKE_FL,
+    MS_LIKE_FL,
+    ACTIVE_COUNTERFACTUAL,
+    NUM_OF_COUTNERFACTUAL_SCENARIOS
+};
+
 Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned long int rng_seed, const unsigned long int serial, const string /*process_id*/) {
     Parameters* par = new Parameters();
     par->define_defaults();
@@ -293,12 +301,12 @@ void define_strain_parameters(Parameters* par) {
 
 
 // REFACTOR parseVaccineFile()
-void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign* vc, const size_t counterfactual_scenario, vector<bool> dose_pooling_flags,
-                      bool adjust_std_to_bin_pop, bool adjust_urg_to_bin_pop) {
+void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign* vc, const CounterfactualScenario counterfactual_scenario,
+                      vector<bool> dose_pooling_flags, bool adjust_std_to_bin_pop, bool adjust_urg_to_bin_pop) {
     // parses the JSON argument into a form to use in vax file parsing
     string counterfactual_reference_loc;
-    const vector<string> loc_lookup = {"FL", "VT", "MS"};
-    counterfactual_reference_loc = loc_lookup[counterfactual_scenario];
+    const vector<string> loc_lookup = {"FL", "VT", "MS", "FL"};
+    counterfactual_reference_loc = loc_lookup[(size_t) counterfactual_scenario];
 
     // check that vaccinationFilename exists and can be opened
     ifstream iss(par->vaccinationFilename);
@@ -395,8 +403,8 @@ void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign*
 }
 
 // REFACTOR generateVac_Campaign()
-Vac_Campaign* generateVac_Campaign(const Parameters* par, Community* community, const size_t counterfactual_scenario, vector<bool> dose_pooling_flags,
-                                   bool adjust_std_to_bin_pop, bool adjust_urg_to_bin_pop) {
+Vac_Campaign* generateVac_Campaign(const Parameters* par, Community* community, const CounterfactualScenario counterfactual_scenario,
+                                   vector<bool> dose_pooling_flags, bool adjust_std_to_bin_pop, bool adjust_urg_to_bin_pop) {
     // create a new Vac_Campaign
     Vac_Campaign* vc = new Vac_Campaign(par);
     vc->set_rng(VAX_RNG);
@@ -510,13 +518,13 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     for (auto _p: args) { cerr << " " << _p; } cerr << endl;
 
     // const size_t realization               = (size_t) args[0];
-    const bool vaccine                     = (bool) args[1];
-    const bool mutation                    = (bool) args[2];
-    const size_t counterfactual_scenario   = (size_t) args[3];       // 0 = FL; 1 = VT; 2 = MS (should be set to 0 for all active strat work)
-    const size_t dose_file                 = (size_t) args[4];       // 0 = state_based_counterfactual_doses.txt; 1 = active_vax_counterfactual_doses.txt; 2 =ring_vax_deployment_counterfactual_doses.txt
-    const VacCampaignType active_vax_strat = (VacCampaignType) args[5];       // 0 = none; 1 = ring vax; 2 = risk group vax; 3 = risk vax
-    const bool quarantine_ctrl             = (bool) args[6];     // 0 = off; 1 = on
-    const bool ppb_fitting_ctrl            = (bool) args[7];
+    const bool vaccine                                   = (bool) args[1];
+    const bool mutation                                  = (bool) args[2];
+    const CounterfactualScenario counterfactual_scenario = (CounterfactualScenario) args[3];
+    const size_t dose_file                               = (size_t) args[4];       // 0 = state_based_counterfactual_doses.txt; 1 = active_vax_counterfactual_doses.txt; 2 =ring_vax_deployment_counterfactual_doses.txt
+    const VacCampaignType active_vax_strat               = (VacCampaignType) args[5];       // 0 = none; 1 = ring vax; 2 = risk group vax; 3 = risk vax
+    const bool quarantine_ctrl                           = (bool) args[6];     // 0 = off; 1 = on
+    const bool ppb_fitting_ctrl                          = (bool) args[7];
 
     Parameters* par = define_simulator_parameters(args, rng_seed, serial, process_id);
     define_strain_parameters(par);
