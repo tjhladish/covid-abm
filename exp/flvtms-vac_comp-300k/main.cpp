@@ -415,13 +415,14 @@ Vac_Campaign* generateVac_Campaign(const Parameters* par, Community* community, 
     return vc;
 }
 
-int julian_to_sim_day (const Parameters* par, const size_t julian, const int intervention_year) {
-    int startDate = intervention_year*365 + julian - par->startDayOfYear;
-    if (julian < par->startDayOfYear) { // start intervention in following year
-        startDate += 365;
-    }
-    return startDate;
-}
+// MOVED TO DATE CLASS
+// int julian_to_sim_day (const Parameters* par, const size_t julian, const int intervention_year) {
+//     int startDate = intervention_year*365 + julian - par->startDayOfYear;
+//     if (julian < par->startDayOfYear) { // start intervention in following year
+//         startDate += 365;
+//     }
+//     return startDate;
+// }
 
 
 vector<double> tally_counts(const Parameters* par, Community* community, int discard_days) {
