@@ -98,5 +98,57 @@ void append_if_finite(vector<double> &vec, double val) {
 }
 
 
+vector<double> tally_counts(const Parameters* par, Community* community, int discard_days) {
+    assert((int) par->runLength >= discard_days + OVERRUN);                 // number of sim days for data aggregation must be greater than OVERRUN + days discarded (from the beginning of sim)
+    const size_t num_weeks = (par->runLength - discard_days - OVERRUN)/7;   // number of full weeks of data to be aggregated
+
+    //vector<size_t> infected    = community->getNumNewlyInfected();
+    vector<size_t> symptomatic = community->getNumNewlySymptomatic();
+    vector<size_t> severe      = community->getNumNewlySevere();
+    vector<size_t> dead        = community->getNumNewlyDead();
+
+    // pair of num of primary infections starting this day, and mean num secondary infections they cause
+    vector<pair<size_t, double>> R = community->getMeanNumSecondaryInfections();
+    vector<size_t> Rt_incidence_tally(num_weeks, 0);
+
+    vector<double> metrics(num_weeks*4, 0.0);
+    for (size_t t = discard_days; t < discard_days + (7*num_weeks); ++t) {
+        const size_t w = (t-discard_days)/7; // which reporting week are we in?
+        metrics[w]                 += symptomatic[t];
+        metrics[num_weeks + w]     += severe[t];
+        metrics[2 * num_weeks + w] += dead[t];
+        metrics[3 * num_weeks + w] += R[t].first > 0 ? R[t].first*R[t].second : 0;
+        Rt_incidence_tally[w]      += R[t].first;
+    }
+
+    for (size_t w = 0; w < num_weeks; ++w) {
+        metrics[3 * num_weeks + w] /= Rt_incidence_tally[w] > 0 ? Rt_incidence_tally[w] : 1.0;
+    }
+//metrics.resize(300);
+    return metrics;
+}
+
+vector<double> calc_Rt_moving_average(vector<pair<size_t, double>> Rt_pairs, size_t window) {
+    assert(window % 2 == 1);
+    vector<double> Rt_ma(Rt_pairs.size(), 0.0);
+
+    size_t halfwindow = (window - 1)/2;
+    for (size_t i = 0; i < Rt_ma.size(); ++i) {
+        size_t window_ct = 0;
+        double infections = 0;
+        for (size_t wi = halfwindow >= i ? 0 : i - halfwindow;
+             wi < (i + halfwindow + 1 >= Rt_pairs.size() ? Rt_pairs.size() : i + halfwindow + 1);
+             ++wi) {
+            const size_t ct = Rt_pairs[wi].first;
+            const double Rt = Rt_pairs[wi].second;
+            window_ct += ct;
+            infections += ct*Rt;
+        }
+        Rt_ma[i] = infections / window_ct;
+//        cerr << "day, inf, ct, Rt_ma, Rt_count, Rt_val: " << i << " " << infections << " " << window_ct << " " << Rt_ma[i] << " " << Rt_pairs[i].first << " " << Rt_pairs[i].second << endl;
+    }
+    return Rt_ma;
+}
+
 
 #endif
