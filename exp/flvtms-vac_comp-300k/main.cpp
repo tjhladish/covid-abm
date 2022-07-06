@@ -424,6 +424,37 @@ int julian_to_sim_day (const Parameters* par, const size_t julian, const int int
 }
 
 
+vector<double> tally_counts(const Parameters* par, Community* community, int discard_days) {
+    assert((int) par->runLength >= discard_days + OVERRUN);                 // number of sim days for data aggregation must be greater than OVERRUN + days discarded (from the beginning of sim)
+    const size_t num_weeks = (par->runLength - discard_days - OVERRUN)/7;   // number of full weeks of data to be aggregated
+
+    //vector<size_t> infected    = community->getNumNewlyInfected();
+    vector<size_t> symptomatic = community->getNumNewlySymptomatic();
+    vector<size_t> severe      = community->getNumNewlySevere();
+    vector<size_t> dead        = community->getNumNewlyDead();
+
+    // pair of num of primary infections starting this day, and mean num secondary infections they cause
+    vector<pair<size_t, double>> R = community->getMeanNumSecondaryInfections();
+    vector<size_t> Rt_incidence_tally(num_weeks, 0);
+
+    vector<double> metrics(num_weeks*4, 0.0);
+    for (size_t t = discard_days; t < discard_days + (7*num_weeks); ++t) {
+        const size_t w = (t-discard_days)/7; // which reporting week are we in?
+        metrics[w]                 += symptomatic[t];
+        metrics[num_weeks + w]     += severe[t];
+        metrics[2 * num_weeks + w] += dead[t];
+        metrics[3 * num_weeks + w] += R[t].first > 0 ? R[t].first*R[t].second : 0;
+        Rt_incidence_tally[w]      += R[t].first;
+    }
+
+    for (size_t w = 0; w < num_weeks; ++w) {
+        metrics[3 * num_weeks + w] /= Rt_incidence_tally[w] > 0 ? Rt_incidence_tally[w] : 1.0;
+    }
+//metrics.resize(300);
+    return metrics;
+}
+
+
 //void calculate_reporting_ratios(Community* community) {
 //    // this counts infections/cases/deaths that happen during the simulation,
 //    // but not cases and deaths that are scheduled to happen after the last simulated day
