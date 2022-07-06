@@ -316,7 +316,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
         tuner = initialize_behavior_autotuning(par);
         sim_cache = new SimulationCache(community, ledger, RNG, REPORTING_RNG, VAX_RNG);    // TODO: change to quick cache
         first_tuning_window_setup(par, community, tuner, social_distancing_anchors);
-    } else if (not par->behaviorFilename.empty()) {
+    } else if (not par->behaviorInputFilename.empty()) {
         // filename provided for a dataset with behavioral values to use
         init_behavioral_vals_from_file(par, community);
     }

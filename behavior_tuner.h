@@ -590,7 +590,7 @@ void behavior_autotuning(const Parameters* par, Community* &community, Date* &da
 // if using previous tuned values, parse that file and save the behavior anchors
 // anchor file expected to be csv with columns date, anchor_val
 void init_behavioral_vals_from_file(const Parameters* par, Community* community) {
-    vector< vector<string> > tuning_data = read_2D_vector_file(par->behaviorFilename, ',');
+    vector< vector<string> > tuning_data = read_2D_vector_file(par->behaviorInputFilename, ',');
     vector<TimeSeriesAnchorPoint> tuned_anchors;
 
     for (vector<string> &v : tuning_data) {
@@ -602,7 +602,7 @@ void init_behavioral_vals_from_file(const Parameters* par, Community* community)
 }
 
 void write_anchors_to_file(const Parameters* par, vector<TimeSeriesAnchorPoint> anchors) {
-    ofstream ofs(par->autotuningFilename);
+    ofstream ofs(par->behaviorOutputFilename);
     ofs << "date,anchor_val" << endl;
     for (const TimeSeriesAnchorPoint tsap : anchors) {
         ofs << tsap.date << "," << setprecision(20) << tsap.value << setprecision(6) << endl;
