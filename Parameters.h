@@ -567,8 +567,8 @@ public:
     std::string doseFilename;
     std::string riskGroupsFilename;
 
-    std::string behaviorFilename;                           // for input
-    std::string autotuningFilename;                         // for output
+    std::string behaviorInputFilename;
+    std::string behaviorOutputFilename;
     std::string rCaseDeathFilename;
 
     std::string peopleOutputFilename;

@@ -56,8 +56,8 @@ void Parameters::define_defaults() {
     doseFilename                   = "";
     riskGroupsFilename             = "";
 
-    behaviorFilename               = "autotuned-behavior.csv";
-    autotuningFilename             = "autotuned-behavior.csv";
+    behaviorInputFilename               = "autotuned-behavior.csv";
+    behaviorOutputFilename             = "autotuned-behavior.csv";
     rCaseDeathFilename             = "";
 
     peopleOutputFilename           = "";

@@ -241,8 +241,8 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->death_tuning_offset = 18; // 18 is median lag b/n infection and death; 8 is median lag b/n detection and death
     par->tuning_window = 14;
     par->num_preview_windows = 3;
-    par->behaviorFilename = "autotuning_dataset.csv";   // ALEX: I just create a sym link to whatever anchor file you want to read
-    par->autotuningFilename = to_string(serial) + "_ppb_14day.csv";//"autotuning_dataset_dump.csv";
+    par->behaviorInputFilename = "autotuning_dataset.csv";   // ALEX: I just create a sym link to whatever anchor file you want to read
+    par->behaviorOutputFilename = to_string(serial) + "_ppb_14day.csv";//"autotuning_dataset_dump.csv";
 
     par->dump_simulation_data = false;
 
