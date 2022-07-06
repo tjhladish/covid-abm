@@ -675,7 +675,34 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     ages_by_outcome["hosp"].resize(2*par->runLength/7);
     ages_by_outcome["deaths"].resize(2*par->runLength/7);
 
-    vector<double> metrics = tally_counts(par, community, 0);
+    // vector<double> metrics = tally_counts(par, community, 0);
+    // need to return tot_cumul_infs  tot_cumul_symp_cases  tot_cumul_sev_cases  tot_cumul_crit_cases  tot_cumul_deaths  tot_cumul_doses_used
+    const vector<size_t> infs = community->getNumNewlyInfected();
+    const vector<size_t> symp = community->getNumNewlySymptomatic();
+    const vector<size_t> sevr = community->getNumNewlySevere();
+    const vector<size_t> crit = community->getNumNewlyCritical();
+    const vector<size_t> dths = community->getNumNewlyDead();
+
+    const double tot_infs = accumulate(infs.begin(), infs.end(), 0.0);
+    const double tot_symp = accumulate(symp.begin(), symp.end(), 0.0);
+    const double tot_sevr = accumulate(sevr.begin(), sevr.end(), 0.0);
+    const double tot_crit = accumulate(crit.begin(), crit.end(), 0.0);
+    const double tot_dths = accumulate(dths.begin(), dths.end(), 0.0);
+
+    double tot_doses = 0;
+    if (vc) {
+        const Dose_Vals std_doses  = vc->get_std_doses_used();
+        const Dose_Vals urg_doses  = vc->get_urg_doses_used();
+        for (int day = 0; day < (int) par->runLength; ++day) {
+            for (int dose = 0; dose < (int) par->numVaccineDoses; ++dose) {
+                for (int bin : vc->get_unique_age_bins()) {
+                    tot_doses += (double) std_doses[day][dose].at(bin) + (double) urg_doses[day][dose].at(bin);
+                }
+            }
+        }
+    }
+
+    vector<double> metrics = {tot_infs, tot_symp, tot_sevr, tot_crit, tot_dths, tot_doses};
     //calculate_reporting_ratios(community);
 
 
@@ -707,7 +734,6 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     delete community;
     delete par;
 
-metrics = vector<double>(1, 1.0);
     return metrics;
 }
 
