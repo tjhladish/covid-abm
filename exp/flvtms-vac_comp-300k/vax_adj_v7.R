@@ -235,16 +235,16 @@ tmp[dose == 1 & bin_min == 5, n_doses_p10k := const_allocation]
 active_dosing <- rbindlist(list(active_dosing, tmp))
 fwrite(active_dosing[,.(date, ref_location, bin_min, bin_max, dose, is_urg, n_doses_p10k)], file = "active_vax_counterfactual_doses.txt", sep = ' ')
 
-ggplot() +
-  geom_line(data = prepended_doses.dt[, .(date, cumsum=cumsum(n_doses_p10k)), by=.(location, bin_min, dose)], aes(x = date, y = cumsum, color=location), linetype='dashed') +
-  geom_line(data = exp.dt[, .(date, cumsum=cumsum(value_p10k)), by=.(location=ref_loc, bin_min, dose)], aes(x = date, y = cumsum, color=location)) +
-  geom_line(data = active_dosing[, .(doses=sum(n_doses_p10k)), by = .(date, dose, bin_min, is_urg)][, cumsum := cumsum(doses), by = .(dose, bin_min, is_urg)][is_urg == 0],
-            aes(x = date, y = cumsum), size = 0.5, lty = "dashed", color = "red") +
-  geom_line(data = active_dosing[, .(doses=sum(n_doses_p10k)), by = .(date, dose, bin_min)][, cumsum := cumsum(doses), by = .(dose, bin_min)],
-            aes(x = date, y = cumsum), size = 0.5, color = "black", lty = "dashed") +
-  geom_hline(yintercept = 1e4, linetype = 'dotted') +
-  facet_grid(rows=vars(dose), cols=vars(bin_min)) +
-  xlim(c(as.Date("2020-12-14"), as.Date("2022-03-01")))
+# ggplot() +
+#   geom_line(data = prepended_doses.dt[, .(date, cumsum=cumsum(n_doses_p10k)), by=.(location, bin_min, dose)], aes(x = date, y = cumsum, color=location), linetype='dashed') +
+#   geom_line(data = exp.dt[, .(date, cumsum=cumsum(value_p10k)), by=.(location=ref_loc, bin_min, dose)], aes(x = date, y = cumsum, color=location)) +
+#   geom_line(data = active_dosing[, .(doses=sum(n_doses_p10k)), by = .(date, dose, bin_min, is_urg)][, cumsum := cumsum(doses), by = .(dose, bin_min, is_urg)][is_urg == 0],
+#             aes(x = date, y = cumsum), size = 0.5, lty = "dashed", color = "red") +
+#   geom_line(data = active_dosing[, .(doses=sum(n_doses_p10k)), by = .(date, dose, bin_min)][, cumsum := cumsum(doses), by = .(dose, bin_min)],
+#             aes(x = date, y = cumsum), size = 0.5, color = "black", lty = "dashed") +
+#   geom_hline(yintercept = 1e4, linetype = 'dotted') +
+#   facet_grid(rows=vars(dose), cols=vars(bin_min)) +
+#   xlim(c(as.Date("2020-12-14"), as.Date("2022-03-01")))
 
 #' fancy stuff from CABP
 #' gg.scale.wrapper <- function(
