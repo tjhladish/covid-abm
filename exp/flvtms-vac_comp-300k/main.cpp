@@ -54,6 +54,14 @@ const size_t JULIAN_START_YEAR    = 2020;
 bool autotune                     = false;
 const int FL_POP                  = 21538187;   // as of 2020 census
 
+enum CounterfactualScenario {
+    FL_LIKE_FL,
+    VT_LIKE_FL,
+    MS_LIKE_FL,
+    ACTIVE_COUNTERFACTUAL,
+    NUM_OF_COUTNERFACTUAL_SCENARIOS
+};
+
 Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned long int rng_seed, const unsigned long int serial, const string /*process_id*/) {
     Parameters* par = new Parameters();
     par->define_defaults();
@@ -241,8 +249,8 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->death_tuning_offset = 18; // 18 is median lag b/n infection and death; 8 is median lag b/n detection and death
     par->tuning_window = 14;
     par->num_preview_windows = 3;
-    par->behaviorFilename = "autotuning_dataset.csv";   // ALEX: I just create a sym link to whatever anchor file you want to read
-    par->autotuningFilename = to_string(serial) + "_ppb_14day.csv";//"autotuning_dataset_dump.csv";
+    par->behaviorInputFilename = "autotuning_dataset.csv";   // ALEX: I just create a sym link to whatever anchor file you want to read
+    par->behaviorOutputFilename = to_string(serial) + "_ppb_14day.csv";//"autotuning_dataset_dump.csv";
 
     par->dump_simulation_data = false;
 
@@ -293,12 +301,12 @@ void define_strain_parameters(Parameters* par) {
 
 
 // REFACTOR parseVaccineFile()
-void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign* vc, const size_t counterfactual_scenario, vector<bool> dose_pooling_flags,
-                      bool adjust_std_to_bin_pop, bool adjust_urg_to_bin_pop) {
+void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign* vc, const CounterfactualScenario counterfactual_scenario,
+                      vector<bool> dose_pooling_flags, bool adjust_std_to_bin_pop, bool adjust_urg_to_bin_pop) {
     // parses the JSON argument into a form to use in vax file parsing
     string counterfactual_reference_loc;
-    const vector<string> loc_lookup = {"FL", "VT", "MS"};
-    counterfactual_reference_loc = loc_lookup[counterfactual_scenario];
+    const vector<string> loc_lookup = {"FL", "VT", "MS", "FL"};
+    counterfactual_reference_loc = loc_lookup[(size_t) counterfactual_scenario];
 
     // check that vaccinationFilename exists and can be opened
     ifstream iss(par->vaccinationFilename);
@@ -395,8 +403,8 @@ void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign*
 }
 
 // REFACTOR generateVac_Campaign()
-Vac_Campaign* generateVac_Campaign(const Parameters* par, Community* community, const size_t counterfactual_scenario, vector<bool> dose_pooling_flags,
-                                   bool adjust_std_to_bin_pop, bool adjust_urg_to_bin_pop) {
+Vac_Campaign* generateVac_Campaign(const Parameters* par, Community* community, const CounterfactualScenario counterfactual_scenario,
+                                   vector<bool> dose_pooling_flags, bool adjust_std_to_bin_pop, bool adjust_urg_to_bin_pop) {
     // create a new Vac_Campaign
     Vac_Campaign* vc = new Vac_Campaign(par);
     vc->set_rng(VAX_RNG);
@@ -415,13 +423,14 @@ Vac_Campaign* generateVac_Campaign(const Parameters* par, Community* community, 
     return vc;
 }
 
-int julian_to_sim_day (const Parameters* par, const size_t julian, const int intervention_year) {
-    int startDate = intervention_year*365 + julian - par->startDayOfYear;
-    if (julian < par->startDayOfYear) { // start intervention in following year
-        startDate += 365;
-    }
-    return startDate;
-}
+// MOVED TO DATE CLASS
+// int julian_to_sim_day (const Parameters* par, const size_t julian, const int intervention_year) {
+//     int startDate = intervention_year*365 + julian - par->startDayOfYear;
+//     if (julian < par->startDayOfYear) { // start intervention in following year
+//         startDate += 365;
+//     }
+//     return startDate;
+// }
 
 
 vector<double> tally_counts(const Parameters* par, Community* community, int discard_days) {
@@ -454,27 +463,6 @@ vector<double> tally_counts(const Parameters* par, Community* community, int dis
     return metrics;
 }
 
-vector<double> calc_Rt_moving_average(vector<pair<size_t, double>> Rt_pairs, size_t window) {
-    assert(window % 2 == 1);
-    vector<double> Rt_ma(Rt_pairs.size(), 0.0);
-
-    size_t halfwindow = (window - 1)/2;
-    for (size_t i = 0; i < Rt_ma.size(); ++i) {
-        size_t window_ct = 0;
-        double infections = 0;
-        for (size_t wi = halfwindow >= i ? 0 : i - halfwindow;
-             wi < (i + halfwindow + 1 >= Rt_pairs.size() ? Rt_pairs.size() : i + halfwindow + 1);
-             ++wi) {
-            const size_t ct = Rt_pairs[wi].first;
-            const double Rt = Rt_pairs[wi].second;
-            window_ct += ct;
-            infections += ct*Rt;
-        }
-        Rt_ma[i] = infections / window_ct;
-//        cerr << "day, inf, ct, Rt_ma, Rt_count, Rt_val: " << i << " " << infections << " " << window_ct << " " << Rt_ma[i] << " " << Rt_pairs[i].first << " " << Rt_pairs[i].second << endl;
-    }
-    return Rt_ma;
-}
 
 //void calculate_reporting_ratios(Community* community) {
 //    // this counts infections/cases/deaths that happen during the simulation,
@@ -530,13 +518,13 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     for (auto _p: args) { cerr << " " << _p; } cerr << endl;
 
     // const size_t realization               = (size_t) args[0];
-    const bool vaccine                     = (bool) args[1];
-    const bool mutation                    = (bool) args[2];
-    const size_t counterfactual_scenario   = (size_t) args[3];       // 0 = FL; 1 = VT; 2 = MS (should be set to 0 for all active strat work)
-    const size_t dose_file                 = (size_t) args[4];       // 0 = state_based_counterfactual_doses.txt; 1 = active_vax_counterfactual_doses.txt; 2 =ring_vax_deployment_counterfactual_doses.txt
-    const VacCampaignType active_vax_strat = (VacCampaignType) args[5];       // 0 = none; 1 = ring vax; 2 = risk group vax; 3 = risk vax
-    const bool quarantine_ctrl             = (bool) args[6];     // 0 = off; 1 = on
-    const bool ppb_fitting_ctrl            = (bool) args[7];
+    const bool vaccine                                   = (bool) args[1];
+    const bool mutation                                  = (bool) args[2];
+    const CounterfactualScenario counterfactual_scenario = (CounterfactualScenario) args[3];
+    const size_t dose_file                               = (size_t) args[4];       // 0 = state_based_counterfactual_doses.txt; 1 = active_vax_counterfactual_doses.txt; 2 =ring_vax_deployment_counterfactual_doses.txt
+    const VacCampaignType active_vax_strat               = (VacCampaignType) args[5];       // 0 = none; 1 = ring vax; 2 = risk group vax; 3 = risk vax
+    const bool quarantine_ctrl                           = (bool) args[6];     // 0 = off; 1 = on
+    const bool ppb_fitting_ctrl                          = (bool) args[7];
 
     Parameters* par = define_simulator_parameters(args, rng_seed, serial, process_id);
     define_strain_parameters(par);
@@ -687,7 +675,34 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     ages_by_outcome["hosp"].resize(2*par->runLength/7);
     ages_by_outcome["deaths"].resize(2*par->runLength/7);
 
-    vector<double> metrics = tally_counts(par, community, 0);
+    // vector<double> metrics = tally_counts(par, community, 0);
+    // need to return tot_cumul_infs  tot_cumul_symp_cases  tot_cumul_sev_cases  tot_cumul_crit_cases  tot_cumul_deaths  tot_cumul_doses_used
+    const vector<size_t> infs = community->getNumNewlyInfected();
+    const vector<size_t> symp = community->getNumNewlySymptomatic();
+    const vector<size_t> sevr = community->getNumNewlySevere();
+    const vector<size_t> crit = community->getNumNewlyCritical();
+    const vector<size_t> dths = community->getNumNewlyDead();
+
+    const double tot_infs = accumulate(infs.begin(), infs.end(), 0.0);
+    const double tot_symp = accumulate(symp.begin(), symp.end(), 0.0);
+    const double tot_sevr = accumulate(sevr.begin(), sevr.end(), 0.0);
+    const double tot_crit = accumulate(crit.begin(), crit.end(), 0.0);
+    const double tot_dths = accumulate(dths.begin(), dths.end(), 0.0);
+
+    double tot_doses = 0;
+    if (vc) {
+        const Dose_Vals std_doses  = vc->get_std_doses_used();
+        const Dose_Vals urg_doses  = vc->get_urg_doses_used();
+        for (int day = 0; day < (int) par->runLength; ++day) {
+            for (int dose = 0; dose < (int) par->numVaccineDoses; ++dose) {
+                for (int bin : vc->get_unique_age_bins()) {
+                    tot_doses += (double) std_doses[day][dose].at(bin) + (double) urg_doses[day][dose].at(bin);
+                }
+            }
+        }
+    }
+
+    vector<double> metrics = {tot_infs, tot_symp, tot_sevr, tot_crit, tot_dths, tot_doses};
     //calculate_reporting_ratios(community);
 
 
@@ -719,7 +734,6 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     delete community;
     delete par;
 
-metrics = vector<double>(1, 1.0);
     return metrics;
 }
 

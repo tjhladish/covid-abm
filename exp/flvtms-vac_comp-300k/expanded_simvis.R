@@ -47,11 +47,11 @@ vax = read.csv("./dose_data/trends_in_number_of_covid19_vaccinations_in_fl.csv",
 vax$date = as.Date(vax$Date)
 vax$first = vax$Daily.Count.People.Receiving.Dose.1*per10k
 vax$second = vax$Daily.Count.of.People.Fully.Vaccinated*per10k
-vax$third = vax$Daily.Count.People.Receiving.a.Booster.Dose*per10k
+vax$third = vax$Daily.Count.People.Receiving.a.First.Booster.Dose*per10k
 vax$totdoses = cumsum(vax$first + vax$second + vax$third)
 vax$cov1 = cumsum(vax$Daily.Count.People.Receiving.Dose.1)/pop_florida
 vax$cov2 = cumsum(vax$Daily.Count.of.People.Fully.Vaccinated)/pop_florida
-vax$cov3 = cumsum(vax$Daily.Count.People.Receiving.a.Booster.Dose)/pop_florida
+vax$cov3 = cumsum(vax$Daily.Count.People.Receiving.a.First.Booster.Dose)/pop_florida
 
 d$crcase   = cumsum(d$rcase)
 d$crdeath  = cumsum(d$rdeath)
