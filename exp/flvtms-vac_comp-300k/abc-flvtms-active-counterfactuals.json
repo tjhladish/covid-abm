@@ -49,8 +49,8 @@
          "dist_type"  : "PSEUDO",
          "num_type"   : "INT",
          "par1"       : 0,
-         "par2"       : 1,
-         "step"       : 1},
+         "par2"       : 2,
+         "step"       : 2},
 
         {"name"       : "quarantine_control",
          "short_name" : "quarantine",
@@ -70,11 +70,11 @@
     ],
 
     "metrics" : [
-        {"name" : "tot_cumul_infs", "num_type" : "INT", "value" : 0},
+        {"name" : "tot_cumul_infs",       "num_type" : "INT", "value" : 0},
         {"name" : "tot_cumul_symp_cases", "num_type" : "INT", "value" : 0},
-        {"name" : "tot_cumul_sev_cases", "num_type" : "INT", "value" : 0},
+        {"name" : "tot_cumul_sev_cases",  "num_type" : "INT", "value" : 0},
         {"name" : "tot_cumul_crit_cases", "num_type" : "INT", "value" : 0},
-        {"name" : "tot_cumul_deaths", "num_type" : "INT", "value" : 0},
+        {"name" : "tot_cumul_deaths",     "num_type" : "INT", "value" : 0},
         {"name" : "tot_cumul_doses_used", "num_type" : "INT", "value" : 0}
        ]
 }
