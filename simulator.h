@@ -304,7 +304,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
     community->setSocialDistancingTimedIntervention(social_distancing_anchors);
 
     //vector<string> plot_log_buffer = {"date,sd,seasonality,vocprev1,vocprev2,cinf,closed,rcase,rdeath,inf,rhosp,Rt"};
-    ledger->plot_log_buffer = {"serial,date,sd,seasonality,vocprev1,vocprev2,vocprev3,cinf,closed,rcase,rdeath,inf,rhosp,VES,brkthruRatio,vaxInfs,unvaxInfs,hospInc,hospPrev,icuInc,icuPrev,vaxHosp,unvaxHosp,std_doses,urg_doses,cov1,cov2,cov3,seroprev,Rt"};
+    ledger->plot_log_buffer = {"serial,date,sd,seasonality,vocprev1,vocprev2,vocprev3,cinf,closed,rcase,rdeath,inf,rhosp,VES,brkthruRatio,vaxInfs,unvaxInfs,hospInc,hospPrev,icuInc,icuPrev,vaxHosp,unvaxHosp,std_doses,urg_doses,cov1,cov2,cov3,seroprev,symp_infs,sevr_infs,crit_infs,all_deaths,Rt"};
     //ledger->plot_log_buffer = {"date,sd,seasonality,vocprev1,vocprev2,cinf,closed,rcase,rdeath,inf,rhosp,Rt"};
 
     Date* date = community->get_date();
@@ -369,6 +369,10 @@ if (sim_day == 0) { seed_epidemic(par, community, WILDTYPE); }
         seed_epidemic(par, community, date, ledger->strains);
 
         const vector<size_t> infections         = community->getNumNewlyInfected();
+        const vector<size_t> symp_infs          = community->getNumNewlySymptomatic();
+        const vector<size_t> sevr_infs          = community->getNumNewlySevere();
+        const vector<size_t> crit_infs          = community->getNumNewlyCritical();
+        const vector<size_t> deaths             = community->getNumNewlyDead();
         const vector<size_t> all_reported_cases = community->getNumDetectedCasesReport();
         const size_t reported_cases             = all_reported_cases[sim_day];
         //const double trailing_avg               = calc_trailing_avg(all_reported_cases, sim_day, 7); // <= 7-day trailing average
@@ -452,7 +456,11 @@ if (sim_day == 0) { seed_epidemic(par, community, WILDTYPE); }
            << VE_data["dose_1"] << ","
            << VE_data["dose_2"] << ","
            << VE_data["dose_3"] << ","
-           << seroprev;
+           << seroprev << ","
+           << symp_infs*1e4/pop_at_risk << ","
+           << sevr_infs*1e4/pop_at_risk << ","
+           << crit_infs*1e4/pop_at_risk << ","
+           << deaths*1e4/pop_at_risk;
         ledger->plot_log_buffer.push_back(ss.str());
     }
 
