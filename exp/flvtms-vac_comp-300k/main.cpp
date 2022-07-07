@@ -554,7 +554,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         par->urgent_vax_dose_threshold = 1;         // the highest dose in series that will be administered in the active strategy
 
         const vector<string> vacFilenames = {"./state_based_counterfactual_doses.txt",
-                                             "./active_vax_counterfactual_doses.txt",
+                                             "./active_vax_counterfactual_doses_50k.txt",
+                                             "./active_vax_counterfactual_doses_100k.txt",
                                              "./ring_vax_deployment_active_counterfactual_doses.txt",
                                              "./ring_vax_deployment_passive_counterfactual_doses.txt"};
 

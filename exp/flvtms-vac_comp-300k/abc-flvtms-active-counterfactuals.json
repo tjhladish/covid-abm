@@ -41,8 +41,8 @@
           "dist_type"  : "PSEUDO",
           "num_type"   : "INT",
           "par1"       : 1,
-          "par2"       : 1,
-          "step"       : 0},
+          "par2"       : 2,
+          "step"       : 1},
 
         {"name"       : "active_vax_strategy",
          "short_name" : "active_vax_strat",
