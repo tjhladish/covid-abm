@@ -54,15 +54,15 @@ const size_t JULIAN_START_YEAR    = 2020;
 bool autotune                     = false;
 const int FL_POP                  = 21538187;   // as of 2020 census
 
-enum CounterfactualScenario {
+enum VacCampaignScenario {
     FL_LIKE_FL,
     VT_LIKE_FL,
     MS_LIKE_FL,
-    ACTIVE_COUNTERFACTUAL,
-    NUM_OF_COUTNERFACTUAL_SCENARIOS
+    ACTIVE_VAC_CAMPAIGN,
+    NUM_OF_VAC_CAMPAIGN_SCENARIOS
 };
 
-Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned long int rng_seed, const unsigned long int serial, const string /*process_id*/) {
+Parameters* define_simulator_parameters(vector<double> args, const unsigned long int rng_seed, const unsigned long int serial, const string /*process_id*/) {
     Parameters* par = new Parameters();
     par->define_defaults();
     par->serial = serial;
@@ -86,6 +86,12 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     par->startJulianYear         = JULIAN_START_YEAR;
     par->startDayOfYear          = Date::to_julian_day("2020-02-10");
     par->runLength               = TOTAL_DURATION;
+    
+    par->behavioral_autotuning = (bool) args[7];
+    par->tuning_window = 14;
+    par->num_preview_windows = 3;
+    par->runLength += par->behavioral_autotuning ? par->tuning_window * par->num_preview_windows : 0;          // if auto fitting is on, add 30 days to the runLength
+
     //par->annualIntroductionsCoef = 1;
 
     par->beginContactTracing           = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-05-01");
@@ -244,13 +250,10 @@ Parameters* define_simulator_parameters(vector<double> /*args*/, const unsigned 
     // par->doseFilename            = "./counterfactual_doses.txt"; //"./dose_data/FL_doses.txt"; //pop_dir    + "/../fl_vac/doses.txt";
     par->riskGroupsFilename       = "./300K_sample_pop_groups.txt";
 
-    par->behavioral_autotuning = autotune;
     par->behavior_fitting_data_target = CASES;
     par->death_tuning_offset = 18; // 18 is median lag b/n infection and death; 8 is median lag b/n detection and death
-    par->tuning_window = 14;
-    par->num_preview_windows = 3;
-    par->behaviorInputFilename = "autotuning_dataset.csv";   // ALEX: I just create a sym link to whatever anchor file you want to read
-    par->behaviorOutputFilename = to_string(serial) + "_ppb_14day.csv";//"autotuning_dataset_dump.csv";
+    par->behaviorInputFilename  = "autotuning_dataset.csv";   // ALEX: I just create a sym link to whatever anchor file you want to read
+    par->behaviorOutputFilename = "/blue/longini/tjhladish/covid-abm/exp/flvtms-vac_comp-300k/behavior_" + to_string(serial) + ".csv";
 
     par->dump_simulation_data = false;
 
@@ -301,12 +304,14 @@ void define_strain_parameters(Parameters* par) {
 
 
 // REFACTOR parseVaccineFile()
-void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign* vc, const CounterfactualScenario counterfactual_scenario,
+void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign* vc, const VacCampaignScenario vac_campaign_scenario,
                       vector<bool> dose_pooling_flags, bool adjust_std_to_bin_pop, bool adjust_urg_to_bin_pop) {
     // parses the JSON argument into a form to use in vax file parsing
-    string counterfactual_reference_loc;
-    const vector<string> loc_lookup = {"FL", "VT", "MS", "FL"};
-    counterfactual_reference_loc = loc_lookup[(size_t) counterfactual_scenario];
+    vector<string> loc_lookup(NUM_OF_VAC_CAMPAIGN_SCENARIOS);
+    loc_lookup[FL_LIKE_FL] = "FL";
+    loc_lookup[VT_LIKE_FL] = "VT";
+    loc_lookup[MS_LIKE_FL] = "MS";
+    loc_lookup[ACTIVE_VAC_CAMPAIGN] = "FL";
 
     // check that vaccinationFilename exists and can be opened
     ifstream iss(par->vaccinationFilename);
@@ -340,8 +345,8 @@ void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign*
             const size_t sim_day = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, date);
             if (sim_day < first_vac_day) { first_vac_day = sim_day; }
 
-            // skip lines of data not pertaining to this counterfactual_reference_loc or are beyond runLength
-            if (not ((ref_loc == counterfactual_reference_loc) and (sim_day < par->runLength))) { continue; }
+            // skip lines of data not pertaining to this vac_campaign_scenario or are beyond runLength
+            if (not ((ref_loc == loc_lookup[vac_campaign_scenario]) and (sim_day < par->runLength))) { continue; }
 
             // will only insert values not encountered before
             unique_bin_mins.insert(bin_min);
@@ -403,7 +408,7 @@ void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign*
 }
 
 // REFACTOR generateVac_Campaign()
-Vac_Campaign* generateVac_Campaign(const Parameters* par, Community* community, const CounterfactualScenario counterfactual_scenario,
+Vac_Campaign* generateVac_Campaign(const Parameters* par, Community* community, const VacCampaignScenario vac_campaign_scenario,
                                    vector<bool> dose_pooling_flags, bool adjust_std_to_bin_pop, bool adjust_urg_to_bin_pop) {
     // create a new Vac_Campaign
     Vac_Campaign* vc = new Vac_Campaign(par);
@@ -411,7 +416,7 @@ Vac_Campaign* generateVac_Campaign(const Parameters* par, Community* community, 
 
     // parse input file to set daily doses available and generate unique, mutually exclusive age bins for the entire population
     cerr << "Reading vaccinations ... ";
-    parseVaccineFile(par, community, vc, counterfactual_scenario, dose_pooling_flags, adjust_std_to_bin_pop, adjust_urg_to_bin_pop);
+    parseVaccineFile(par, community, vc, vac_campaign_scenario, dose_pooling_flags, adjust_std_to_bin_pop, adjust_urg_to_bin_pop);
     cerr << "done." << endl;
 
     // initialiaze eligibility queue
@@ -507,7 +512,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     time (&start);
     //const string process_id = report_process_id(args, serial, mp, start);
     //vector<double> abc_args(&args[0], &args[8]);
-    vector<double> abc_args(args);
+    //vector<double> abc_args(args);
     //const size_t realization = 0; //(int) args[9];
 
     //const string process_id = report_process_id(abc_args, serial, start) + "." + to_string(realization);
@@ -518,13 +523,12 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     for (auto _p: args) { cerr << " " << _p; } cerr << endl;
 
     // const size_t realization               = (size_t) args[0];
-    const bool vaccine                                   = (bool) args[1];
-    const bool mutation                                  = (bool) args[2];
-    const CounterfactualScenario counterfactual_scenario = (CounterfactualScenario) args[3];
-    const size_t dose_file                               = (size_t) args[4];       // 0 = state_based_counterfactual_doses.txt; 1 = active_vax_counterfactual_doses.txt; 2 =ring_vax_deployment_counterfactual_doses.txt
-    const VacCampaignType active_vax_strat               = (VacCampaignType) args[5];       // 0 = none; 1 = ring vax; 2 = risk group vax; 3 = risk vax
-    const bool quarantine_ctrl                           = (bool) args[6];     // 0 = off; 1 = on
-    const bool ppb_fitting_ctrl                          = (bool) args[7];
+    const bool vaccine                              = (bool) args[1];
+    const bool mutation                             = (bool) args[2];
+    const VacCampaignScenario vac_campaign_scenario = (VacCampaignScenario) args[3];
+    const size_t dose_file                          = (size_t) args[4];       // 0 = state_based_counterfactual_doses.txt; 1 = active_vax_counterfactual_doses.txt; 2 =ring_vax_deployment_counterfactual_doses.txt
+    const VacCampaignType active_vax_strat          = (VacCampaignType) args[5];       // 0 = none; 1 = ring vax; 2 = risk group vax; 3 = risk vax
+    const bool quarantine_ctrl                      = (bool) args[6];     // 0 = off; 1 = on
 
     Parameters* par = define_simulator_parameters(args, rng_seed, serial, process_id);
     define_strain_parameters(par);
@@ -536,9 +540,6 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
     Vac_Campaign* vc = nullptr;
     community->setVac_Campaign(vc);
-
-    par->behavioral_autotuning = ppb_fitting_ctrl;
-    par->runLength += par->behavioral_autotuning ? 30 : 0;          // if auto fitting is on, add 30 days to the runLength
 
     par->immunityLeaky           = true;          // applies to both infection and vaccine immunity
     par->immunityWanes           = false;         // related to time-dep waning of protection, not waning of Ab levels
@@ -568,7 +569,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         bool adjust_std_to_bin_pop = true;
         bool adjust_urg_to_bin_pop = false;
 
-        vc = generateVac_Campaign(par, community, counterfactual_scenario, {pool_urg_doses, pool_std_doses, pool_all_doses}, adjust_std_to_bin_pop, adjust_urg_to_bin_pop);
+        vc = generateVac_Campaign(par, community, vac_campaign_scenario, {pool_urg_doses, pool_std_doses, pool_all_doses}, adjust_std_to_bin_pop, adjust_urg_to_bin_pop);
 
         // parameter handling --- how do we want to handle setting these? I just set them here rather than use par
         vc->set_prioritize_first_doses(false);
@@ -648,24 +649,24 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 //    }
 
 // comment out this block if simvis.R is not needed
-{
-    vector<pair<size_t, double>> Rt = community->getMeanNumSecondaryInfections();
-    vector<double> Rt_ma = calc_Rt_moving_average(Rt, 7);
-
-    assert(Rt.size()+1 == plot_log_buffer.size()); // there's a header line
-    for (size_t i = 1; i < plot_log_buffer.size(); ++i) {
-        //plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt[i-1].second);
-        plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt_ma[i-1]);
-    }
-    bool overwrite = true;
-    string filename = "plot_log" + to_string(serial) + ".csv";
-    write_daily_buffer(plot_log_buffer, process_id, filename, overwrite);
-    stringstream ss;
-    ss << "Rscript expanded_simvis.R " << serial;
-    string cmd_str = ss.str();
-    int retval = system(cmd_str.c_str());
-    if (retval == -1) { cerr << "System call to `Rscript expanded_simvis.R` failed\n"; }
-}
+//{
+//    vector<pair<size_t, double>> Rt = community->getMeanNumSecondaryInfections();
+//    vector<double> Rt_ma = calc_Rt_moving_average(Rt, 7);
+//
+//    assert(Rt.size()+1 == plot_log_buffer.size()); // there's a header line
+//    for (size_t i = 1; i < plot_log_buffer.size(); ++i) {
+//        //plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt[i-1].second);
+//        plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt_ma[i-1]);
+//    }
+//    bool overwrite = true;
+//    string filename = "plot_log" + to_string(serial) + ".csv";
+//    write_daily_buffer(plot_log_buffer, process_id, filename, overwrite);
+//    stringstream ss;
+//    ss << "Rscript expanded_simvis.R " << serial;
+//    string cmd_str = ss.str();
+//    int retval = system(cmd_str.c_str());
+//    if (retval == -1) { cerr << "System call to `Rscript expanded_simvis.R` failed\n"; }
+//}
 
     time (&end);
     double dif = difftime (end,start);
