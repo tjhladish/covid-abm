@@ -1,10 +1,10 @@
 {
     "smc_iterations"            : 1,
-    "num_samples"               : 8000,
+    "num_samples"               : 16000,
     "predictive_prior_fraction" : 1.0,
     "pls_training_fraction"     : 1.0,
 
-    "database_filename"         : "covid-flvtms-active-counterfactuals.sqlite",
+    "database_filename"         : "/blue/longini/tjhladish/covid-abm/exp/flvtms-vac_comp-300k/covid-active-vac.sqlite",
 
     "parameters" : [
         {"name"       : "realization",
