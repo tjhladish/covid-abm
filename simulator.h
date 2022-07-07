@@ -457,10 +457,10 @@ if (sim_day == 0) { seed_epidemic(par, community, WILDTYPE); }
            << VE_data["dose_2"] << ","
            << VE_data["dose_3"] << ","
            << seroprev << ","
-           << symp_infs*1e4/pop_at_risk << ","
-           << sevr_infs*1e4/pop_at_risk << ","
-           << crit_infs*1e4/pop_at_risk << ","
-           << deaths*1e4/pop_at_risk;
+           << symp_infs[sim_day]*1e4/pop_at_risk << ","
+           << sevr_infs[sim_day]*1e4/pop_at_risk << ","
+           << crit_infs[sim_day]*1e4/pop_at_risk << ","
+           << deaths[sim_day]*1e4/pop_at_risk;
         ledger->plot_log_buffer.push_back(ss.str());
     }
 
