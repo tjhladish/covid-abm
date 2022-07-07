@@ -560,7 +560,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
         par->vaccinationFilename = vacFilenames[dose_file];
 
-        // pooling will accumulate doses across age bins BUT NOT across doses
+        // pooling will accumulate doses across age bins and doses BUT NOT across days
         bool pool_std_doses    = false;
         bool pool_urg_doses    = true;
         bool pool_all_doses    = false;
@@ -574,6 +574,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         // parameter handling --- how do we want to handle setting these? I just set them here rather than use par
         vc->set_prioritize_first_doses(false);
         vc->set_flexible_queue_allocation(false);
+        vc->set_unlim_urg_revaccinations(true);
+        vc->set_unlim_std_revaccinations(false);
 
 
         vc->set_reactive_vac_strategy(active_vax_strat);

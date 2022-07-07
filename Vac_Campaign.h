@@ -134,6 +134,9 @@ class Vac_Campaign {
             reactive_vac_strategy        = NO_CAMPAIGN;
             reactive_vac_dose_allocation = 0.0;
 
+            unlim_urg_revaccinations     = false;
+            unlim_std_revaccinations     = false;
+
             pool_urg_doses               = false;
             pool_std_doses               = false;
             pool_all_doses               = false;
@@ -186,6 +189,9 @@ class Vac_Campaign {
             flexible_queue_allocation = o.flexible_queue_allocation;
             unlim_urgent_doses = o.unlim_urgent_doses;
 
+            unlim_urg_revaccinations = o.unlim_urg_revaccinations;
+            unlim_std_revaccinations = o.unlim_std_revaccinations;
+
             pool_urg_doses = o.pool_urg_doses;
             pool_std_doses = o.pool_std_doses;
             pool_all_doses = o.pool_all_doses;
@@ -224,6 +230,8 @@ class Vac_Campaign {
         void set_prioritize_first_doses(bool val)    { prioritize_first_doses = val; }
         void set_flexible_queue_allocation(bool val) { flexible_queue_allocation = val; }
         void set_unlim_urgent_doses(bool val)        { unlim_urgent_doses = val; }
+        void set_unlim_urg_revaccinations(bool val)  { unlim_urg_revaccinations = val; }
+        void set_unlim_std_revaccinations(bool val)  { unlim_std_revaccinations = val; }
         void set_pool_urg_doses(bool val)            { pool_urg_doses = val; }
         void set_pool_std_doses(bool val)            { pool_std_doses = val; }
         void set_pool_all_doses(bool val)            { pool_all_doses = val; }
@@ -373,13 +381,15 @@ class Vac_Campaign {
             std::vector<Person*>& std_pool = potential_std_vaccinees[dose][age_bin];
 
             // only continue if there are any doses available for this day, dose, bin combination
-            if (std_doses + urg_doses) {
+            // or need to check if there are people to revaccinate and we allow for unlim revaccinations
+            const bool is_revaccination = dose > 0;
+            if ((std_doses + urg_doses) or (is_revaccination and (unlim_urg_revaccinations or unlim_std_revaccinations))) {
                 std::vector<Person*>* pool = nullptr;
-                if (urg_doses and urg_pool.size()) {
+                if ((urg_doses or (is_revaccination and unlim_urg_revaccinations)) and urg_pool.size()) {
                     pool = &urg_pool;
                     source_of_dose = URGENT_ALLOCATION;
                     vaccinee_queue = URGENT_QUEUE;
-                } else if (std_doses and std_pool.size()) {
+                } else if ((std_doses or (is_revaccination and unlim_std_revaccinations)) and std_pool.size()) {
                     pool = &std_pool;
                     source_of_dose = STANDARD_ALLOCATION;
                     vaccinee_queue = STANDARD_QUEUE;
@@ -410,11 +420,12 @@ class Vac_Campaign {
         bool vaccinate(Vaccinee* v, int day) { return is_age_eligible_on(v->get_person()->getAge(), day) and v->vaccinate(day); }
 
         void tally_dose(int day, int dose, int age_bin, Vaccinee* v) {
+            const bool is_revaccination = dose > 0;
             if (v->get_dose_source() == STANDARD_ALLOCATION) {
-                --(*std_doses_available[day][dose][age_bin]);
+                if (not (is_revaccination and unlim_std_revaccinations)) { --(*std_doses_available[day][dose][age_bin]); }
                 ++std_doses_used[day][dose][age_bin];
             } else if (v->get_dose_source() == URGENT_ALLOCATION) {
-                --(*urg_doses_available[day][dose][age_bin]);
+                if (not (is_revaccination and unlim_urg_revaccinations)) { --(*urg_doses_available[day][dose][age_bin]); }
                 ++urg_doses_used[day][dose][age_bin];
             }
         }
@@ -540,6 +551,9 @@ class Vac_Campaign {
         bool prioritize_first_doses;                            // do we prioritize first doses, or completing vac schedules? --> possibly move to _par?
         bool flexible_queue_allocation;                         // can doses be used from any allocation, or only as intended?
         bool unlim_urgent_doses;                                // should an unlimited number of doses be used for the urgent queue (i.e. reactive strategy)?
+
+        bool unlim_urg_revaccinations;                          // urgent vaccinees do not consume doses beyond the first dose (100% revaccination coverage)
+        bool unlim_std_revaccinations;                          // standard vaccinees do not consume doses beyond the first dose (100% revaccination coverage)
 
         bool pool_urg_doses;                                    // urgent doses are pooled and used for any urgent vaccinee (regardless of age or dose)
         bool pool_std_doses;                                    // standard doses are pooled and used for any standard vaccinee (regardless of age or dose)
