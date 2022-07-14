@@ -1138,7 +1138,7 @@ void Community::tick() {
     workplace_transmission();
     clear_public_activity();
 
-    if (_date->isWeekday() and (cmty_ledger->_timedInterventions[SCHOOL_CLOSURE][_day] < 1)) {
+    if (_date->isWeekday() and (cmty_ledger->_timedInterventions[SCHOOL_CLOSURE][_day] < 1)) { // need to use .at()
         school_transmission();
     }
     nursinghome_transmission();

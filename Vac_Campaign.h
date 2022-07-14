@@ -43,7 +43,7 @@ enum ContactTracingGroupType {
     NUM_OF_CONTACT_TRACING_GROUP_TYPES
 };
 
-enum VacCampaignType {
+enum VacCampaignType { // VacStrategyType
     NO_CAMPAIGN,
     GENERAL_CAMPAIGN,
     RING_VACCINATION,
