@@ -86,7 +86,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->startJulianYear         = JULIAN_START_YEAR;
     par->startDayOfYear          = Date::to_julian_day("2020-02-10");
     par->runLength               = TOTAL_DURATION;
-    
+
     par->behavioral_autotuning = (bool) args[7];
     par->tuning_window = 14;
     par->num_preview_windows = 3;
@@ -561,14 +561,23 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
         par->vaccinationFilename = vacFilenames[dose_file];
 
+        // control whether to adjust to bin pops or total pop
+        // pop adjustment occurs before any dose pooling
+        bool adjust_std_to_bin_pop = true;
+        bool adjust_urg_to_bin_pop = false;
+
         // pooling will accumulate doses across age bins BUT NOT across doses
+        /* allowed settings (std, urg, all):
+            - FFF: don't pool any doses
+            - TFF: only pool std doses
+            - FTF: only pool urg doses
+            - TTF: pool std and urg independently
+            - FFT: pool std and urg together
+        */
         bool pool_std_doses    = false;
         bool pool_urg_doses    = true;
         bool pool_all_doses    = false;
-
-        // control whether to adjust to bin pops or total pop
-        bool adjust_std_to_bin_pop = true;
-        bool adjust_urg_to_bin_pop = false;
+        if ((pool_std_doses or pool_urg_doses) and pool_all_doses) { cerr << "Cannot set std or urg dose pooling AND all dose pooling"; exit(-1); }
 
         vc = generateVac_Campaign(par, community, vac_campaign_scenario, {pool_urg_doses, pool_std_doses, pool_all_doses}, adjust_std_to_bin_pop, adjust_urg_to_bin_pop);
 
