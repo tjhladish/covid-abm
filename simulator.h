@@ -275,6 +275,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
     ledger->periodic_prevalence = vector<int>(NUM_OF_PREVALENCE_REPORTING_TYPES, 0);
     vector<double> trailing_averages(par->runLength);
     const double pop_at_risk = min(community->getNumPeople(), par->numSurveilledPeople);
+    const double per_10k     = 1e4/pop_at_risk;
 
     // default behavioral anchor points
     vector<TimeSeriesAnchorPoint> social_distancing_anchors = {
@@ -437,30 +438,30 @@ if (sim_day == 0) { seed_epidemic(par, community, WILDTYPE); }
            << (float) community->getNumNewInfections(OMICRON)[sim_day]/infections[sim_day] << ","
            << cAR << ","
            << community->getTimedIntervention(NONESSENTIAL_BUSINESS_CLOSURE, sim_day)<< ","
-           << reported_cases*1e4/pop_at_risk << ","
-           << rdeaths[sim_day]*1e4/pop_at_risk << ","
-           << infections[sim_day]*1e4/pop_at_risk << ","
-           << rhosp[sim_day]*1e4/pop_at_risk << ","
+           << reported_cases*per_10k << ","
+           << rdeaths[sim_day]*per_10k << ","
+           << infections[sim_day]*per_10k << ","
+           << rhosp[sim_day]*per_10k << ","
            << VE_data["VES"] << ","
            << VE_data["breakthruRatio"] << ","
-           << VE_data["vaxInfs"]*1e4/pop_at_risk << ","
-           << VE_data["unvaxInfs"]*1e4/pop_at_risk << ","
-           << community->getNumHospInc()[sim_day]*1e4/pop_at_risk << ","
-           << community->getNumHospPrev()[sim_day]*1e4/pop_at_risk << ","
-           << community->getNumIcuInc()[sim_day]*1e4/pop_at_risk << ","
-           << community->getNumIcuPrev()[sim_day]*1e4/pop_at_risk << ","
-           << VE_data["vaxHosp"]*1e4/pop_at_risk << ","
-           << VE_data["unvaxHosp"]*1e4/pop_at_risk << ","
-           << std_doses*1e4/pop_at_risk << ","
-           << urg_doses*1e4/pop_at_risk << ","
+           << VE_data["vaxInfs"]*per_10k << ","
+           << VE_data["unvaxInfs"]*per_10k << ","
+           << community->getNumHospInc()[sim_day]*per_10k << ","
+           << community->getNumHospPrev()[sim_day]*per_10k << ","
+           << community->getNumIcuInc()[sim_day]*per_10k << ","
+           << community->getNumIcuPrev()[sim_day]*per_10k << ","
+           << VE_data["vaxHosp"]*per_10k << ","
+           << VE_data["unvaxHosp"]*per_10k << ","
+           << std_doses*per_10k << ","
+           << urg_doses*per_10k << ","
            << VE_data["dose_1"] << ","
            << VE_data["dose_2"] << ","
            << VE_data["dose_3"] << ","
            << seroprev << ","
-           << symp_infs*1e4/pop_at_risk << ","
-           << sevr_infs*1e4/pop_at_risk << ","
-           << crit_infs*1e4/pop_at_risk << ","
-           << deaths*1e4/pop_at_risk;
+           << symp_infs[sim_day]*per_10k << ","
+           << sevr_infs[sim_day]*per_10k << ","
+           << crit_infs[sim_day]*per_10k << ","
+           << deaths[sim_day]*per_10k;
         ledger->plot_log_buffer.push_back(ss.str());
     }
 
