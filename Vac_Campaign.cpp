@@ -353,6 +353,23 @@ Dose_Ptrs Vac_Campaign::_dose_pool(Dose_Vals doses_in) {
     return doses_available;
 }
 
+// doses pooled across std and urg
+void Vac_Campaign::_dose_pool_all(Dose_Ptrs &urg_out, Dose_Ptrs &std_out, Dose_Vals urg_in, Dose_Vals std_in) {
+    Dose_Ptrs doses_available(_par->runLength, std::vector< std::map<int, int*> >(_par->numVaccineDoses));
+    for (int day = 0; day < (int) _par->runLength; ++day) {
+        _doses.push_back(0);
+        int* daily_pooled_dose_ptr = &(_doses.back());
+        for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
+            for (int bin : unique_age_bins) {
+                *daily_pooled_dose_ptr += urg_in.at(day).at(dose).at(bin) + std_in.at(day).at(dose).at(bin);
+                doses_available.at(day).at(dose)[bin] = daily_pooled_dose_ptr;
+            }
+        }
+    }
+    urg_out = doses_available;
+    std_out = doses_available;
+}
+
 // stores doses as read in the input file
 // each day, dose, bin combinations will point to a unique int in _doses representing that combination's doses available
 Dose_Ptrs Vac_Campaign::_dose_store(Dose_Vals doses_in) {
@@ -378,16 +395,19 @@ void Vac_Campaign::_clear_and_resize_doses() {
 
 void Vac_Campaign::init_doses_available(Dose_Vals urg_in, Dose_Vals std_in) {
     _clear_and_resize_doses();
-    if (pool_urg_doses) {
+    if (pool_urg_doses and not pool_std_doses) {
         urg_doses_available = _dose_pool(urg_in);   // pool urgent doses regardless of age or dose
         std_doses_available = _dose_store(std_in);  // store standard doses normally
-    } else if (pool_std_doses) {
+    } else if (pool_std_doses and not pool_urg_doses) {
         urg_doses_available = _dose_store(urg_in);  // store urgent doses normally
         std_doses_available = _dose_pool(std_in);   // pool standard doses regardless of age or dose
-    } else if (pool_all_doses) {
+    } else if (pool_urg_doses and pool_std_doses) {
         // pool all doses regardless of age or dose
         urg_doses_available = _dose_pool(urg_in);
         std_doses_available = _dose_pool(std_in);
+    } else if (pool_all_doses) {
+        // need a new function to pool across std and urg
+        _dose_pool_all(urg_doses_available, std_doses_available, urg_in, std_in);
     } else {
         // store all doses normally
         urg_doses_available = _dose_store(urg_in);
