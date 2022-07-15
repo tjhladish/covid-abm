@@ -1,12 +1,25 @@
 -include local.mk
 
-DATADIR ?= ../
-SIMFILES ?= abc-flvtms-vac_comp.json covid_counterfactuals_v1.0.sqlite
+DATADIR ?= ..
+SIMFILES ?= abc-active-vac.json covid-active-vac_w-meta.sqlite
 
 R = $(strip Rscript $^ $(1) $@)
 
-${DATADIR}/digest.rds: digest.R $(addprefix ${DATADIR}/,${SIMFILES})
+digest.rds: digest.R $(addprefix ${DATADIR}/,${SIMFILES})
 	$(call R)
 
-effectiveness.png: effvis.R ${DATADIR}/digest.rds
+digest-key.rds: digest.rds
+
+vis_support.rda: vis_support.R
 	$(call R)
+
+effectiveness.png: effvis.R digest.rds digest-key.rds vis_support.rda
+	$(call R)
+
+averted.png: avertvis.R digest.rds digest-key.rds vis_support.rda
+	$(call R)
+
+incidence.png: incvis.R digest.rds digest-key.rds vis_support.rda
+	$(call R)
+
+figs: effectiveness.png averted.png incidence.png
