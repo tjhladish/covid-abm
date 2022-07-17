@@ -5,7 +5,7 @@
 #' TODO: do via creating and saving an environment, rather than everything
 rm(list = ls())
 
-.pkgs <- c("data.table", "ggplot2")
+.pkgs <- c("data.table", "ggplot2", "ggrepel")
 
 stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 
@@ -41,8 +41,7 @@ scale_y_effectiveness <- gg_scale_wrapper(
 
 scale_y_incidence <- gg_scale_wrapper(
   scale_y_continuous,
-  name = "Per 10k (log2 scale), Incidence of ...",
-  trans = "log2"
+  name = "Per 10k, Incidence of ..."
 )
 
 scale_y_averted <- gg_scale_wrapper(
@@ -101,10 +100,22 @@ scale_color_scenario <- gg_scale_wrapper(
 #'  - the upper bound month
 tsref.dt <- function(
     dt,
+    value.col = "value",
+    by = setdiff(key(dt), c("realization", "date")),
+    #' TODO by doesn't currently handle nested facets
     date.col = "date",
-    mcycle = c("off", "on")
+    mcycle = c("off", "on"),
+    ymax = NA
 ) {
-  as.data.table(dt)[, {
+  dt <- as.data.table(dt)
+  if ("col" %in% names(by)) {
+    #' need to consider ymax across rows if by["col"] exists
+    ymref <- dt[, c(max(get(value.col), ymax, na.rm = TRUE)), by = eval(unname(by["row"]))]
+    dt[ymref, ym := V1, on=unname(by["row"])]
+  } else {
+    dt[, ym := max(get(value.col), ymax, na.rm = TRUE), by = eval(unname(by)) ]
+  }
+  dt[!is.na(get(by["col"]))][, {
     # assert: guarantees YYYY-MMM-01 to YYYY-MMM-01
     date.range <- trunc(range(as.Date(get(date.col))), "months")
     date.min <- date.range[1]
@@ -117,12 +128,13 @@ tsref.dt <- function(
       start = starts,
       end = ends,
       mid = as.numeric(ends - starts)/2 + starts,
-      mtype = mcycle,
+      mtype = rep(mcycle, length.out = length(starts)),
       mon = month(starts),
       yr = year(starts),
-      yshow = c(TRUE, month(starts[-1])==1)
+      yshow = c(TRUE, month(starts[-1])==1),
+      ymax = ym[1]
     )
-  }]
+  }, by = eval(unname(by))]
 }
 
 m.abb <- gsub("^(.).+$","\\1", month.abb)
@@ -133,16 +145,17 @@ m.abb <- gsub("^(.).+$","\\1", month.abb)
 #'  - label first fully enclosed month
 geom_month_background <- function(
     data,
-    facet.mul,
     col.cycle = c(off = NA, on = alpha("lightgrey", 0.75)),
     m.labels = m.abb,
     font.size = 5,
-    ylog = FALSE
+    ylog = FALSE,
+    datafn = tsref.dt,
+    ...
 ) {
   text.col <- alpha(col.cycle, 1)
   names(text.col) <- c(tail(names(col.cycle), -1), names(col.cycle)[1])
   text.col[is.na(text.col)] <- "white"
-  dt <- tsref.dt(data)
+  dt <- datafn(data, ...)
   dt[, fill := col.cycle[mtype] ]
   dt[, col := text.col[mtype] ]
   # ggplot isn't great on replicating these across facets
@@ -151,17 +164,17 @@ geom_month_background <- function(
   list(
     geom_rect(
       mapping = aes(xmin = start - 0.5, xmax = end + 0.5, ymin = if (ylog) 0 else -Inf, ymax = Inf),
-      data = dt, inherit.aes = FALSE, show.legend = FALSE, fill = rep(dt$fill, facet.mul)
+      data = dt, inherit.aes = FALSE, show.legend = FALSE, fill = dt$fill
     ),
     geom_text(
-      mapping = aes(x = mid, y = 0.5, label = m.abb[mon]),
-      data = dt, inherit.aes = FALSE, show.legend = FALSE, color = rep(dt$col, facet.mul),
+      mapping = aes(x = mid, y = ymax*.9, label = m.abb[mon]),
+      data = dt, inherit.aes = FALSE, show.legend = FALSE, color = dt$col,
       size = font.size, vjust = "bottom"
     ),
     geom_text(
-      mapping = aes(x = mid, y = 0.5-0.05, label = yr),
+      mapping = aes(x = mid, y = ymax*.85, label = yr),
       data = dt[yshow == TRUE], angle = -90,
-      inherit.aes = FALSE, show.legend = FALSE, color = rep(dt[yshow == TRUE]$col, facet.mul),
+      inherit.aes = FALSE, show.legend = FALSE, color = dt[yshow == TRUE]$col,
       size = font.size, hjust = "left"
     )
     # ,
@@ -184,16 +197,32 @@ med.dt <- function(dt) {
 
 geom_spaghetti <- function(
   mapping, data,
-  alpha = 0.02
+  alpha = 0.02,
+  show.end = FALSE,
+  ...
 ) {
   aesmany <- mapping
   aesmany$linetype <- NULL
   aesone <- mapping
   aesone$group <- quote(scenario)
-  list(
-    geom_line(aesmany, size = 0.05, data = data, alpha = alpha),
-    geom_line(aesone, data = med.dt(data))
+  ret <- list(
+    geom_line(aesmany, size = 0.05, data = data, alpha = alpha, ...),
+    geom_line(aesone, data = med.dt(data), ...)
   )
+  if (show.end) {
+    aesend <- aesmany
+    aesend$group <- aesone$group
+#    ret[[length(ret)+1]] <- geom_point(aesend, data = med.dt(data)[date == max(date)])
+    aeslab <- aesend
+    aeslab$label <- str2lang(paste0("sprintf('%.2f',", rlang::as_name(aesend$y),")"))
+    ret[[length(ret)+1]] <- geom_text_repel(
+      aeslab, data = med.dt(data)[date == max(date)],
+      hjust = "left", direction = "y", nudge_x = 7,
+      size = 2, segment.size = 0.1, min.segment.length = 0,
+      show.legend = FALSE
+    )
+  }
+  ret
 }
 
 gg_facet_wrapper <- function(

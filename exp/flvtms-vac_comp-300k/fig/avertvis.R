@@ -35,8 +35,8 @@ p <- ggplot() + aes(
 ) +
   geom_month_background(
     plt.dt[eval(filt)],
-    plt.dt[!(is.na(outcome) | is.na(stockpile))][eval(filt), length(unique(outcome))*length(unique(stockpile)) ],
-    font.size = 3
+    font.size = 3,
+    by = c(row = "outcome", col = "stockpile"), value.col = "averted"
   ) +
   geom_spaghetti(
     mapping = aes(linetype = action, group = interaction(scenario, realization)),

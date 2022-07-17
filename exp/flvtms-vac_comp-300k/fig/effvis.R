@@ -1,5 +1,5 @@
 
-.pkgs <- c("data.table", "ggplot2")
+.pkgs <- c("data.table", "ggplot2", "ggrepel")
 
 stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 
@@ -26,8 +26,14 @@ plt.dt <- setkeyv(
 )
 
 filt <- if (interactive()) {
-  expression(realization < 50)
-} else expression(realization < 100)
+  expression(realization < 10)
+} else expression(realization < 750)
+
+aesspag <- aes(
+  y = c.effectiveness,
+  linetype = action,
+  group = interaction(scenario, realization)
+)
 
 p <- ggplot() + aes(
   x = date, y = c.effectiveness,
@@ -35,17 +41,19 @@ p <- ggplot() + aes(
 ) +
   geom_month_background(
     plt.dt[eval(filt)],
-    plt.dt[!(is.na(outcome) | is.na(stockpile))][eval(filt), length(unique(outcome))*length(unique(stockpile)) ],
-    font.size = 3
+    font.size = 3,
+    by = c(row = "outcome", col = "stockpile"), value.col = "c.effectiveness", ymax = 1
   ) +
   coord_cartesian(ylim = c(0, 1)) +
   geom_spaghetti(
-    mapping = aes(linetype = action, group = interaction(scenario, realization)),
+    mapping = aesspag,
     data = plt.dt[eval(filt)][!is.na(stockpile)]
+    , show.end = TRUE
   ) +
   geom_spaghetti(
-    mapping = aes(linetype = action, group = interaction(scenario, realization)),
+    mapping = aesspag,
     data = plt.dt[eval(filt)][is.na(stockpile), .SD, .SDcol = -c("stockpile")]
+    , show.end = TRUE
   ) +
   facet_typical() +
   scale_y_effectiveness() +

@@ -13,13 +13,18 @@ digest-key.rds: digest.rds
 vis_support.rda: vis_support.R
 	$(call R)
 
-effectiveness.png: effvis.R digest.rds digest-key.rds vis_support.rda
+PLOTINS := digest.rds digest-key.rds vis_support.rda
+
+effectiveness.png: effvis.R $(PLOTINS)
 	$(call R)
 
-averted.png: avertvis.R digest.rds digest-key.rds vis_support.rda
+averted.png: avertvis.R $(PLOTINS)
 	$(call R)
 
-incidence.png: incvis.R digest.rds digest-key.rds vis_support.rda
+incidence.png: incvis.R $(PLOTINS)
 	$(call R)
 
-figs: effectiveness.png averted.png incidence.png
+combo-low.png: combovis.R $(PLOTINS)
+	$(call R)
+
+figs: effectiveness.png averted.png incidence.png combo-low.png

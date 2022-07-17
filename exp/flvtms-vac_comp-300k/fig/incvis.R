@@ -35,8 +35,8 @@ p <- ggplot() + aes(
 ) +
   geom_month_background(
     plt.dt[eval(filt)],
-    plt.dt[!(is.na(outcome) | is.na(stockpile))][eval(filt), length(unique(outcome))*length(unique(stockpile)) ],
-    font.size = 3, ylog = TRUE
+    font.size = 3,
+    by = c(row = "outcome", col = "stockpile")
   ) +
   geom_spaghetti(
     mapping = aes(linetype = action, group = interaction(scenario, realization)),
@@ -46,8 +46,10 @@ p <- ggplot() + aes(
     mapping = aes(linetype = action, group = interaction(scenario, realization)),
     data = plt.dt[eval(filt)][is.na(stockpile), .SD, .SDcol = -c("stockpile")]
   ) +
-  facet_typical(scales = "fixed") +
-  scale_y_incidence() +
+  facet_typical(scales = "free_y") +
+  scale_y_incidence(
+    name = "Per 10k, Incidence of ...", trans = "identity"
+  ) +
   scale_x_null() +
   scale_color_scenario() +
   scale_linetype_scenario() +
