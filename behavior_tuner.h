@@ -411,8 +411,8 @@ void process_behavior_fit(int fit_is_good, double fit_distance, const Parameters
             tuner->output_buffer << right << setw(10) << tuner->cur_anchor_val;
             cerr << right << tuner->output_buffer.str() << endl;
             tuner->clear_output_buffer();
-            cerr << endl << endl;
-            tuner->print_header();
+//            cerr << endl << endl;
+//            tuner->print_header();
         }
 
         // need to overwrite the previously changing anchor with the best performing value
@@ -477,7 +477,7 @@ void process_behavior_fit(int fit_is_good, double fit_distance, const Parameters
         if (not tuner->manual_control and tuner->slow_auto) { cin.ignore(); }
 
         // output tuning data to the screen
-        cerr << right << tuner->output_buffer.str() << endl;
+//        cerr << right << tuner->output_buffer.str() << endl;
         tuner->clear_output_buffer();
      }
 }
@@ -551,7 +551,7 @@ void behavior_autotuning(const Parameters* par, Community* &community, Date* &da
         // keep track of the anchor val with the smallest distance for this window
         tuner->update_best_distance(fit_distance);
 
-        gen_simvis(ledger->plot_log_buffer);
+//        gen_simvis(ledger->plot_log_buffer);
 
         int fit_is_good = 0;
         if (tuner->manual_control) {

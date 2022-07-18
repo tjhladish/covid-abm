@@ -55,10 +55,10 @@ bool autotune                     = false;
 const int FL_POP                  = 21538187;   // as of 2020 census
 
 enum VacCampaignScenario {
-    FL_LIKE_FL,
-    VT_LIKE_FL,
-    MS_LIKE_FL,
-    ACTIVE_VAC_CAMPAIGN,
+    FL_LIKE_FL,          // FL_ROLLOUT
+    VT_LIKE_FL,          // VT_ROLLOUT
+    MS_LIKE_FL,          // MS_ROLLOUT
+    ACTIVE_VAC_CAMPAIGN, // remove
     NUM_OF_VAC_CAMPAIGN_SCENARIOS
 };
 
@@ -659,24 +659,25 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 //    }
 
 // comment out this block if simvis.R is not needed
-//{
-//    vector<pair<size_t, double>> Rt = community->getMeanNumSecondaryInfections();
-//    vector<double> Rt_ma = calc_Rt_moving_average(Rt, 7);
-//
-//    assert(Rt.size()+1 == plot_log_buffer.size()); // there's a header line
-//    for (size_t i = 1; i < plot_log_buffer.size(); ++i) {
-//        //plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt[i-1].second);
-//        plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt_ma[i-1]);
-//    }
-//    bool overwrite = true;
-//    string filename = "plot_log" + to_string(serial) + ".csv";
-//    write_daily_buffer(plot_log_buffer, process_id, filename, overwrite);
+{
+    vector<pair<size_t, double>> Rt = community->getMeanNumSecondaryInfections();
+    vector<double> Rt_ma = calc_Rt_moving_average(Rt, 7);
+
+    assert(Rt.size()+1 == plot_log_buffer.size()); // there's a header line
+    for (size_t i = 1; i < plot_log_buffer.size(); ++i) {
+        //plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt[i-1].second);
+        plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt_ma[i-1]);
+    }
+    bool overwrite = true;
+    //string filename = "plot_log" + to_string(serial) + ".csv";
+    string filename = "/blue/longini/tjhladish/covid-abm/exp/flvtms-vac_comp-300k/plot_log" + to_string(serial) + ".csv";
+    write_daily_buffer(plot_log_buffer, process_id, filename, overwrite);
 //    stringstream ss;
 //    ss << "Rscript expanded_simvis.R " << serial;
 //    string cmd_str = ss.str();
 //    int retval = system(cmd_str.c_str());
 //    if (retval == -1) { cerr << "System call to `Rscript expanded_simvis.R` failed\n"; }
-//}
+}
 
     time (&end);
     double dif = difftime (end,start);
