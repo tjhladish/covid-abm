@@ -35,7 +35,7 @@ gg_scale_wrapper <- function(
 
 scale_y_effectiveness <- gg_scale_wrapper(
   scale_y_continuous,
-  name = "Cumulative Effectiveness Against...",
+  name = "Cumulative Effectiveness Against ...",
   breaks = seq(0, 1, by=0.25)
 )
 
@@ -51,7 +51,10 @@ scale_y_averted <- gg_scale_wrapper(
 
 scale_x_null <- gg_scale_wrapper(
   scale_x_continuous,
-  name = NULL, breaks = NULL, minor_breaks = NULL
+  name = NULL, breaks = NULL, minor_breaks = NULL,
+  expand = expansion(
+    mult = c(0, 0), add = c(0, 0)
+  )
 )
 
 scale_linetype_scenario <- gg_scale_wrapper(
@@ -69,7 +72,7 @@ scale_color_scenario <- gg_scale_wrapper(
   name = "Vaccine Distr.",
   breaks = c("none", "passive", "ring"),
   labels = c(none = "None", passive = "Mass Only", ring = "Mass+Ring"),
-  values = c(none = "black", passive = "blue",  ring = "green"),
+  values = c(none = "black", passive = "#fb6502",  ring = "#00529b"),
   drop = TRUE, limits = force
 )
 
@@ -112,10 +115,11 @@ tsref.dt <- function(
     #' need to consider ymax across rows if by["col"] exists
     ymref <- dt[, c(max(get(value.col), ymax, na.rm = TRUE)), by = eval(unname(by["row"]))]
     dt[ymref, ym := V1, on=unname(by["row"])]
+    dt <- dt[!is.na(get(by["col"]))]
   } else {
     dt[, ym := max(get(value.col), ymax, na.rm = TRUE), by = eval(unname(by)) ]
   }
-  dt[!is.na(get(by["col"]))][, {
+  dt[, {
     # assert: guarantees YYYY-MMM-01 to YYYY-MMM-01
     date.range <- trunc(range(as.Date(get(date.col))), "months")
     date.min <- date.range[1]
@@ -199,6 +203,7 @@ geom_spaghetti <- function(
   mapping, data,
   alpha = 0.02,
   show.end = FALSE,
+  spag.size = 0.1,
   ...
 ) {
   aesmany <- mapping
@@ -206,7 +211,7 @@ geom_spaghetti <- function(
   aesone <- mapping
   aesone$group <- quote(scenario)
   ret <- list(
-    geom_line(aesmany, size = 0.05, data = data, alpha = alpha, ...),
+    geom_line(aesmany, size = spag.size, data = data, alpha = alpha, ...),
     geom_line(aesone, data = med.dt(data), ...)
   )
   if (show.end) {

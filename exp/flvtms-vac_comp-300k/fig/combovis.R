@@ -34,7 +34,7 @@ aesbase <- aes(
 
 p.gen <- function(
   dt, yvar, aesbase, ytitle, scale_y,
-  count = if (interactive()) 10 else 100,
+  count = if (interactive()) 10 else 250,
   ymax = NA, show.end = FALSE
 ) {
   aesbase$y <-str2lang(yvar)
@@ -46,26 +46,29 @@ p.gen <- function(
     geom_month_background(
       loc.dt,
       font.size = 3,
-      by = c(row = "outcome", col = "stockpile"), value.col = yvar, ymax = ymax
+      by = c(row = "outcome"), value.col = yvar, ymax = ymax
     ) +
     geom_spaghetti(
       mapping = aesbase,
-      data = loc.dt[!is.na(stockpile)],
+      data = loc.dt, #[!is.na(stockpile)],
       show.end = show.end
     ) +
-    geom_spaghetti(
-      mapping = aesbase,
-      data = loc.dt[is.na(stockpile), .SD, .SDcol = -c("stockpile")],
-      show.end = show.end
-    ) +
-    facet_typical() +
+    # geom_spaghetti(
+    #   mapping = aesbase,
+    #   data = loc.dt[is.na(stockpile), .SD, .SDcol = -c("stockpile")],
+    #   show.end = show.end
+    # ) +
+    facet_typical(cols = NULL) +
     scale_y() +
     scale_x_null() +
     scale_color_scenario() +
     scale_linetype_scenario() +
     theme_minimal() +
     theme(
-      legend.position = "bottom", strip.placement = "outside"
+      strip.placement = "outside",
+      strip.text = element_text(size = 8, margin = margin(b = 0.1, unit = "line")), # facet
+      axis.text = element_text(size = 8), # ticks
+      axis.title = element_text(size = 8, margin = margin(b = 0.1, unit = "line")) # axis label
     ))
 }
 
@@ -80,10 +83,18 @@ p.ave <- p.gen(
 
 p.inc = p.gen(
   plt.dt, "value", aesbase, "Test", scale_y_incidence
+) + theme(
+  legend.position = "bottom",
+  legend.margin = margin(),
+  legend.spacing = unit(0.5, "line")
 )
 
 p.fin <- p.inc + p.ave + p.eff + guide_area() + plot_layout(
   design = "
+  ABC
+  ABC
+  ABC
+  ABC
   ABC
   ABC
   ABC
