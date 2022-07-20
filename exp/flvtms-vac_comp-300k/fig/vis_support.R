@@ -70,10 +70,44 @@ scale_linetype_scenario <- gg_scale_wrapper(
 scale_color_scenario <- gg_scale_wrapper(
   scale_color_manual,
   name = "Vaccine Distr.",
-  breaks = c("none", "passive", "ring"),
-  labels = c(none = "None", passive = "Mass Only", ring = "Mass+Ring"),
-  values = c(none = "black", passive = "#fb6502",  ring = "#00529b"),
+  breaks = c("none", "passive", "ring", "risk"),
+  labels = c(none = "None", passive = "Mass Only", ring = "Mass+Ring", risk = "Mass+High Risk"),
+  values = c(none = "black", passive = "#fb6502",  ring = "#00529b", risk = "#006b35"),
   drop = TRUE, limits = force
+)
+
+scale_linetype_fullscenario <- gg_scale_wrapper(
+  scale_linetype_manual,
+  name = "Intervention",
+  breaks = c("none", "qonly", "vonly_passive", "vandq_passive", "vonly_ring", "vandq_ring"),
+  labels = c(
+    vandq_passive ="Mass Vac. & Con. Tracing => Quar.",
+    vonly_passive = "Mass Vac. Only",
+    vandq_ring="Mass + Ring Vac. & Contact Tracing => Quar.",
+    vonly_ring = "Mass + Ring Vac. Only",
+    qonly = "Contact Tracing => Quar. Only",
+    none = "None"
+  ),
+  values = c(vandq_ring="solid", vandq_passive = "solid", vonly_ring = "dashed", vonly_passive = "dashed", qonly = "dotted", none = "solid"),
+  drop = TRUE, limits = force
+#  , guide = guide_legend(override.aes = list(color = "grey"))
+)
+
+scale_color_fullscenario <- gg_scale_wrapper(
+  scale_color_manual,
+  name = "Intervention",
+  breaks = c("none", "qonly", "vonly_passive", "vandq_passive", "vonly_ring", "vandq_ring"),
+  labels = c(
+    vandq_passive ="Mass Vac. & Con. Tracing => Quar.",
+    vonly_passive = "Mass Vac. Only",
+    vandq_ring="Mass + Ring Vac. & Contact Tracing => Quar.",
+    vonly_ring = "Mass + Ring Vac. Only",
+    qonly = "Contact Tracing => Quar. Only",
+    none = "None"
+  ),
+  values = c(vandq_ring="#00529b", vandq_passive="#fb6502", vonly_ring = "#00529b", vonly_passive = "#fb6502", qonly = "black", none = "black"),
+  drop = TRUE, limits = force
+  #  , guide = guide_legend(override.aes = list(color = "grey"))
 )
 
 #' @title extract month bounds
@@ -177,9 +211,9 @@ geom_month_background <- function(
     ),
     geom_text(
       mapping = aes(x = mid, y = ymax*.85, label = yr),
-      data = dt[yshow == TRUE], angle = -90,
+      data = dt[yshow == TRUE], angle = 90,
       inherit.aes = FALSE, show.legend = FALSE, color = dt[yshow == TRUE]$col,
-      size = font.size, hjust = "left"
+      size = font.size, hjust = "right"
     )
     # ,
     # geom_text(
@@ -201,7 +235,7 @@ med.dt <- function(dt) {
 
 geom_spaghetti <- function(
   mapping, data,
-  alpha = 0.02,
+  alpha = 0.01,
   show.end = FALSE,
   spag.size = 0.1,
   ...

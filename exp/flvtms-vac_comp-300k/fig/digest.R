@@ -1,39 +1,59 @@
 
-.pkgs <- c("data.table", "RSQLite", "jsonlite")
+.pkgs <- c("data.table", "RSQLite")
 
 stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 
 #' assumes R project at the experiment root level
 .args <- if (interactive()) c(
   file.path(c(
-    "abc-active-vac.json", "covid-active-vac_w-meta.sqlite"
+    "covid-active-vac_w-meta.sqlite",
+    "covid-active-vac_ring-vac-alternatives_w-meta.sqlite"
   )),
   file.path("fig", "digest.rds")
 ) else commandArgs(trailingOnly = TRUE)
 
-js <- read_json(.args[1])
+abcreader <- function(pth) {
+  db <- dbConnect(SQLite(), pth)
+  stmt <- paste0("SELECT * FROM par AS P JOIN met AS M USING(serial) ORDER BY serial;")
+  dt <- as.data.table(dbGetQuery(db, stmt))[, .(serial, realization, vac, mutation, dose_file, active_vax_strat, quarantine) ]
+  meta.dt <- as.data.table(dbGetQuery(db, "SELECT * FROM meta ORDER BY serial, date;"))[, date := as.Date(date) ]
+  dbDisconnect(db)
+  return(list(dt, meta.dt))
+}
 
-db <- dbConnect(SQLite(), .args[2])
-stmt <- paste0("SELECT P.*, M.* FROM par AS P JOIN met AS M USING(serial);")
-dt <- as.data.table(dbGetQuery(db, stmt))
-meta.dt <- as.data.table(dbGetQuery(db, "SELECT * FROM meta;"))
-dbDisconnect(db)
+dt.base <- abcreader(.args[1])
+dt.alt <- abcreader(.args[2])
 
-#' assign scenarios; assert: abc inputs stable orderings of
-#' the other pseudo parameter settings when viewing table per realization
-dt[, scenario := 1:.N, by=.(realization)]
+reserialize <- function(dt, offset = 0) {
+  dt[[1]][, serial := offset + .GRP, by=serial]
+  dt[[2]][, serial := offset + .GRP, by=serial]
+}
 
-serial.dt <- dt[,.(serial, scenario, realization, vac, mutation, dose_file, active_vax_strat, quarantine)]
+scenarize <- function(dt, offset = 0) {
+  dt[[1]][, scenario := offset + 1:.N, by=.(realization)]
+  dt[[2]][
+    dt[[1]], on =.(serial),
+    c("scenario", "realization") := .(scenario, realization)
+  ]
+}
 
-meta.dt[, date := as.Date(date) ]
-meta.dt[
+reserialize(dt.base)
+reserialize(dt.alt, offset = dt.base[[1]][, max(serial)])
+scenarize(dt.base)
+scenarize(dt.alt, offset = dt.base[[1]][, max(scenario)])
+
+serial.dt <- rbind(dt.base[[1]], dt.alt[[1]])[,.(
+  serial, scenario, realization, vac, mutation, dose_file, active_vax_strat, quarantine)
+]
+
+meta.dt <- rbind(dt.base[[2]], dt.alt[[2]][, .SD, .SDcols = -c("std_doses", "urg_doses")])[
   serial.dt, on =.(serial),
   c("scenario", "realization") := .(scenario, realization)
 ]
 
 #' no longer need serial numbers
 meta.dt$serial <- NULL
-serial.dt$serial <- NULL
+rm(serial.dt)
 
 longmeta.dt <- setkey(
   melt(meta.dt, id.vars = c("scenario", "realization", "date"), variable.name = "outcome"),
@@ -41,6 +61,9 @@ longmeta.dt <- setkey(
 )
 #' n.b.: this works because key'ed (ordered) by date
 longmeta.dt[, c.value := cumsum(value), by=.(scenario, realization, outcome)]
+
+#' no longer need meta.dt
+rm(meta.dt)
 
 #' non-intervention; remove scenario column, so it doesn't appear in joins
 #' n.b. this will need to change if there are multiple non-interventions
@@ -56,10 +79,10 @@ int.dt[, c("averted", "c.averted") := .(i.value-value, i.c.value-c.value) ]
 int.dt[, c.effectiveness := c.averted/i.c.value ]
 
 #' translate serial into meaningful values
-scn.dt <- serial.dt[realization == 0, .(
+scn.dt.base <- dt.base[[1]][realization == 0, .(
   scenario,
   stockpile = factor(
-    c("low", "high")[dose_file], levels = c("low", "high"), ordered = TRUE
+    c("low", "high")[dose_file], levels = c("low", "high", "low-matched", "high-matched"), ordered = TRUE
   ),
   action = fifelse(vac & quarantine, "vandq",
            fifelse(vac == 1, "vonly",
@@ -72,10 +95,31 @@ scn.dt <- serial.dt[realization == 0, .(
   ))
 )]
 
+scn.dt.alt <- dt.alt[[1]][realization == 0, .(
+  scenario,
+  stockpile = factor(
+    c("low-matched")[dose_file], levels = c("low", "high", "low-matched", "high-matched"), ordered = TRUE
+  ),
+  action = fifelse(vac & quarantine, "vandq",
+                   fifelse(vac == 1, "vonly",
+                           fifelse(quarantine == 1, "qonly",
+                                   "none"
+                           ))),
+  active = fifelse(active_vax_strat > 0, "risk",
+                   fifelse(vac == 1, "passive",
+                           "none"
+                   ))
+)]
+
 # no intervention
-scn.dt[scenario == 1, stockpile := NA ]
+scn.dt.base[scenario == 1, stockpile := NA ]
 # no vaccination, but contact tracing => quarantine
-scn.dt[scenario == 5, stockpile := NA ]
+scn.dt.base[scenario == 5, stockpile := NA ]
+
+scn.dt <- rbind(
+  scn.dt.base,
+  scn.dt.alt
+)
 
 saveRDS(int.dt, tail(.args, 1))
 saveRDS(scn.dt, gsub("\\.rds","-key.rds", tail(.args, 1)))

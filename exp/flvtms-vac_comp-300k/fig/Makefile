@@ -1,7 +1,7 @@
 -include local.mk
 
 DATADIR ?= ..
-SIMFILES ?= abc-active-vac.json covid-active-vac_w-meta.sqlite
+SIMFILES ?= covid-active-vac_w-meta.sqlite covid-active-vac_ring-vac-alternatives_w-meta.sqlite
 
 R = $(strip Rscript $^ $(1) $@)
 
@@ -27,4 +27,12 @@ incidence.png: incvis.R $(PLOTINS)
 combo-low.png: combovis.R $(PLOTINS)
 	$(call R)
 
-figs: effectiveness.png averted.png incidence.png combo-low.png
+combo-low-mt.png: combovis_mt.R $(PLOTINS)
+	$(call R)
+
+combo-low-matched.png: combovis_matched.R $(PLOTINS)
+	$(call R)
+
+figs: effectiveness.png averted.png incidence.png combo-low.png combo-low-mt.png combo-low-matched.png
+
+thefig: combo-low-matched.png
