@@ -39,6 +39,16 @@ scale_y_effectiveness <- gg_scale_wrapper(
   breaks = seq(0, 1, by=0.25)
 )
 
+scale_y_doses <- gg_scale_wrapper(
+  scale_y_continuous,
+  name = "Per 10k, Daily Doses Administered"
+)
+
+scale_y_cdoses <- gg_scale_wrapper(
+  scale_y_continuous,
+  name = "Per 10k, Cumulative Doses Administered"
+)
+
 scale_y_incidence <- gg_scale_wrapper(
   scale_y_continuous,
   name = "Per 10k, Incidence of ..."
@@ -258,12 +268,11 @@ geom_month_background <- function(
 
 med.dt <- function(
   dt,
-  yvar = intersect(colnames(dt),c("value", "averted", "c.averted", "c.effectiveness", "c0.effectiveness"))[1],
-  ...
+  yvar
 ) {
   bynames <- setdiff(
     colnames(dt),
-    c("realization", "value", "averted", "c.averted", "c.effectiveness", "c0.effectiveness")
+    c("realization", yvar, "value", "averted", "c.averted", "c.effectiveness", "c0.effectiveness")
   )
   setnames(dt[,.(median(get(yvar))), keyby = bynames ], "V1", yvar)
 }
@@ -281,7 +290,7 @@ geom_spaghetti <- function(
   aesmany$linetype <- NULL
   aesone <- mapping
   aesone$group <- quote(scenario)
-  mdt <- med.dt(data, ...)
+  mdt <- med.dt(data, rlang::as_name(aesmany$y))
   ret <- list(
     geom_line(aesmany, size = spag.size, data = data[get(sample.var) < max.lines], alpha = alpha, ...),
     geom_line(aesone, data = mdt, ...)

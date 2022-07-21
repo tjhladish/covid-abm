@@ -18,6 +18,9 @@ PLOTINS := digest.rds digest-key.rds digest-ref.rds vis_support.rda
 effectiveness.png: effvis.R $(filter-out digest-ref.rds,$(PLOTINS))
 	$(call R)
 
+doses.png: dosevis.R digest-doses.rds digest-key.rds vis_support.rda
+	$(call R)
+
 averted.png: avertvis.R $(filter-out digest-ref.rds,$(PLOTINS))
 	$(call R)
 
@@ -33,6 +36,6 @@ combo-low-mt.png: combovis_mt.R $(PLOTINS)
 combo-low-matched.png: combovis_matched.R $(PLOTINS)
 	$(call R)
 
-figs: effectiveness.png averted.png incidence.png combo-low.png combo-low-mt.png combo-low-matched.png
+figs: doses.png effectiveness.png averted.png incidence.png combo-low.png combo-low-mt.png combo-low-matched.png
 
-thefig: combo-low-matched.png
+thefig: doses.png
