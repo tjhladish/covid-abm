@@ -76,19 +76,58 @@ scale_color_scenario <- gg_scale_wrapper(
   drop = TRUE, limits = force
 )
 
+fullscnbreaks <- c(
+  "none", "qonly",
+  "vonly_passive", "vandq_passive",
+  "vonly_passive+", "vandq_passive+",
+  "vonly_risk", "vandq_risk",
+  "vonly_ring", "vandq_ring"
+)
+
+fullscnlabels <- c(
+  vandq_passive ="Mass Vac. & Con. Tracing => Quar.",
+  vonly_passive = "Mass Vaccination",
+  "vandq_passive+" ="Expanded Mass Vac. & Con. Tracing => Quar.",
+  "vonly_passive+" = "Expanded Mass Vac.",
+  vandq_risk = "Mass + High Risk Vac. & Con. Tracing => Quar.",
+  vonly_risk = "Mass + High Risk Vac.",
+  vandq_ring="Mass Vac. & Con. Tracing => Ring Vac. + Quar.",
+  vonly_ring = "Mass Vac. & Con. Tracing => Ring Vac.",
+  qonly = "Contact Tracing => Quarantine",
+  none = "None"
+)
+
+fullscnlines <- c(
+  vandq_ring="solid",
+  vandq_passive = "solid",
+  "vandq_passive+" = "solid",
+  vandq_risk = "solid",
+  vonly_ring = "dashed",
+  vonly_risk = "dashed",
+  vonly_passive = "dashed",
+  "vonly_passive+" = "dashed",
+  qonly = "dotted", none = "solid"
+)
+
+fullscncolors <- c(
+  vandq_ring = "#00529b",
+  vonly_ring = "#00529b",
+  vandq_passive="#fb6502",
+  vonly_passive = "#fb6502",
+  "vandq_passive+" = "#fb6502",
+  "vonly_passive+" = "#fb6502",
+  vandq_risk = "#006b35",
+  vandq_risk = "#006b35",
+  qonly = "black",
+  none = "black"
+)
+
 scale_linetype_fullscenario <- gg_scale_wrapper(
   scale_linetype_manual,
   name = "Intervention",
-  breaks = c("none", "qonly", "vonly_passive", "vandq_passive", "vonly_ring", "vandq_ring"),
-  labels = c(
-    vandq_passive ="Mass Vac. & Con. Tracing => Quar.",
-    vonly_passive = "Mass Vac. Only",
-    vandq_ring="Mass + Ring Vac. & Contact Tracing => Quar.",
-    vonly_ring = "Mass + Ring Vac. Only",
-    qonly = "Contact Tracing => Quar. Only",
-    none = "None"
-  ),
-  values = c(vandq_ring="solid", vandq_passive = "solid", vonly_ring = "dashed", vonly_passive = "dashed", qonly = "dotted", none = "solid"),
+  breaks = fullscnbreaks,
+  labels = fullscnlabels,
+  values = fullscnlines,
   drop = TRUE, limits = force
 #  , guide = guide_legend(override.aes = list(color = "grey"))
 )
@@ -96,16 +135,9 @@ scale_linetype_fullscenario <- gg_scale_wrapper(
 scale_color_fullscenario <- gg_scale_wrapper(
   scale_color_manual,
   name = "Intervention",
-  breaks = c("none", "qonly", "vonly_passive", "vandq_passive", "vonly_ring", "vandq_ring"),
-  labels = c(
-    vandq_passive ="Mass Vac. & Con. Tracing => Quar.",
-    vonly_passive = "Mass Vac. Only",
-    vandq_ring="Mass + Ring Vac. & Contact Tracing => Quar.",
-    vonly_ring = "Mass + Ring Vac. Only",
-    qonly = "Contact Tracing => Quar. Only",
-    none = "None"
-  ),
-  values = c(vandq_ring="#00529b", vandq_passive="#fb6502", vonly_ring = "#00529b", vonly_passive = "#fb6502", qonly = "black", none = "black"),
+  breaks = fullscnbreaks,
+  labels = fullscnlabels,
+  values = fullscncolors,
   drop = TRUE, limits = force
   #  , guide = guide_legend(override.aes = list(color = "grey"))
 )
@@ -224,13 +256,16 @@ geom_month_background <- function(
   )
 }
 
-med.dt <- function(dt) {
+med.dt <- function(
+  dt,
+  yvar = intersect(colnames(dt),c("value", "averted", "c.averted", "c.effectiveness", "c0.effectiveness"))[1],
+  ...
+) {
   bynames <- setdiff(
     colnames(dt),
-    c("realization", "value", "averted", "c.averted", "c.effectiveness")
+    c("realization", "value", "averted", "c.averted", "c.effectiveness", "c0.effectiveness")
   )
-  tar <- intersect(colnames(dt),c("value", "averted", "c.averted", "c.effectiveness"))[1]
-  setnames(dt[,.(median(get(tar))), keyby = bynames ], "V1", tar)
+  setnames(dt[,.(median(get(yvar))), keyby = bynames ], "V1", yvar)
 }
 
 geom_spaghetti <- function(
@@ -238,24 +273,25 @@ geom_spaghetti <- function(
   alpha = 0.01,
   show.end = FALSE,
   spag.size = 0.1,
+  max.lines = if (interactive()) 10 else 150,
+  sample.var = "realization",
   ...
 ) {
   aesmany <- mapping
   aesmany$linetype <- NULL
   aesone <- mapping
   aesone$group <- quote(scenario)
+  mdt <- med.dt(data, ...)
   ret <- list(
-    geom_line(aesmany, size = spag.size, data = data, alpha = alpha, ...),
-    geom_line(aesone, data = med.dt(data), ...)
+    geom_line(aesmany, size = spag.size, data = data[get(sample.var) < max.lines], alpha = alpha, ...),
+    geom_line(aesone, data = mdt, ...)
   )
   if (show.end) {
     aesend <- aesmany
     aesend$group <- aesone$group
-#    ret[[length(ret)+1]] <- geom_point(aesend, data = med.dt(data)[date == max(date)])
-    aeslab <- aesend
-    aeslab$label <- str2lang(paste0("sprintf('%.2f',", rlang::as_name(aesend$y),")"))
+    aesend$label <- str2lang(paste0("sprintf('%.2f',", rlang::as_name(aesend$y),")"))
     ret[[length(ret)+1]] <- geom_text_repel(
-      aeslab, data = med.dt(data)[date == max(date)],
+      aesend, data = mdt[date == max(date)],
       hjust = "left", direction = "y", nudge_x = 7,
       size = 2, segment.size = 0.1, min.segment.length = 0,
       show.legend = FALSE
@@ -293,7 +329,10 @@ facet_typical <- gg_facet_wrapper(
   switch = "y",
   labeller = labeller(
     outcome = c(inf = "Infection", symp = "Symptoms", sev = "Severe Disease", crit = "Critical Disease", deaths = "Death"),
-    stockpile = c(low = "(low) XXk per 10k-day", high = "(high) YYk per 10k-day")
+    stockpile = c(
+      low = "(low) XXk per 10k-day", high = "(high) YYk per 10k-day",
+      "low-matched" = "XXk per 10k-day\nExpanded Mass Vac.",
+      "high-matched" = "YYk per 10k-day\nExpanded Mass Vac.")
   )
 )
 

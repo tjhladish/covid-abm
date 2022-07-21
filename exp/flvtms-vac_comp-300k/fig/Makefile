@@ -8,17 +8,17 @@ R = $(strip Rscript $^ $(1) $@)
 digest.rds: digest.R $(addprefix ${DATADIR}/,${SIMFILES})
 	$(call R)
 
-digest-key.rds: digest.rds
+digest-key.rds digest-doses.rds digest-ref.rds: digest.rds
 
 vis_support.rda: vis_support.R
 	$(call R)
 
-PLOTINS := digest.rds digest-key.rds vis_support.rda
+PLOTINS := digest.rds digest-key.rds digest-ref.rds vis_support.rda
 
-effectiveness.png: effvis.R $(PLOTINS)
+effectiveness.png: effvis.R $(filter-out digest-ref.rds,$(PLOTINS))
 	$(call R)
 
-averted.png: avertvis.R $(PLOTINS)
+averted.png: avertvis.R $(filter-out digest-ref.rds,$(PLOTINS))
 	$(call R)
 
 incidence.png: incvis.R $(PLOTINS)
