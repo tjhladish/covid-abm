@@ -5,7 +5,7 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 
 #' assumes R project at the experiment root level
 .args <- if (interactive()) c(
-  file.path("fig", c("digest.rds", "digest-key.rds", "vis_support.rda")),
+  file.path("fig", c("digest.rds", "digest-key.rds", "digest-ref.rds", "vis_support.rda")),
   file.path("fig", "combo-low-matched.png")
 ) else commandArgs(trailingOnly = TRUE)
 
@@ -17,8 +17,13 @@ eff.dt <- readRDS(.args[1])[
 )][outcome %in% c("inf", "sev", "deaths")]
 
 scn.dt <- readRDS(.args[2])
+ref.dt <- readRDS(.args[3])[
+  date > "2020-12-01"
+][outcome %in% c("inf", "sev", "deaths")][,
+  .SD, .SDcols = -c("c.value")
+][, c("action", "active", "active_full", "action_full") := "none"]
 
-load(.args[3])
+load(.args[4])
 
 plt.dt <- setkeyv(
   { ret <- eff.dt[scn.dt, on=.(scenario)][
@@ -35,7 +40,7 @@ rm(eff.dt)
 gc()
 
 plt.dt[,
-  action_full := fifelse(action != "none", fifelse(active == "none", action, paste(action,active,sep="_")), action)
+  action_full := fifelse(action != "none", fifelse(active == "none", as.character(action), paste(action,active,sep="_")), as.character(action))
 ][,
   active_full := action_full
 ]
@@ -64,7 +69,7 @@ p.gen <- function(
     geom_spaghetti(
       mapping = aesbase,
       data = loc.dt, #[!is.na(stockpile)],
-      show.end = show.end
+      show.end = show.end, alpha = 0.025
     ) +
     # geom_spaghetti(
     #   mapping = aesbase,
@@ -82,6 +87,9 @@ p.gen <- function(
       strip.text = element_text(size = 8, margin = margin(b = 0.1, unit = "line")), # facet
       axis.text = element_text(size = 8), # ticks
       axis.title = element_text(size = 8, margin = margin(b = 0.1, unit = "line")) # axis label
+    ) + guides(
+      color = guide_legend(nrow=2, byrow=TRUE, override.aes = list(size = 2)),
+      linetype = guide_legend(nrow=2, byrow=TRUE, override.aes = list(size = 2))
     ))
 }
 
@@ -99,7 +107,8 @@ p.ave <- p.gen(
 ) + theme(legend.position = "none")
 
 p.inc = p.gen(
-  plt.dt[eval(notq)], "value", aesbase, "Test", scale_y_incidence
+  setkeyv(rbind(plt.dt[eval(notq)][scenario != 1], ref.dt, fill = TRUE), key(plt.dt)),
+  "value", aesbase, "Test", scale_y_incidence
 ) + theme(
   legend.position = "bottom",
   legend.margin = margin(),
@@ -119,7 +128,7 @@ p.fin <- p.inc + p.ave + p.eff + guide_area() + plot_layout(
   DDD
 ", guides = 'collect')
 
-ggsave(gsub("\\.","-noq.",tail(.args, 1)), p.fin, height = 4*1.5, width = 3.25*4, bg = "white")
+ggsave(gsub("-(\\w+)\\.","-noq.",tail(.args, 1)), p.fin, height = 4*1.5, width = 3.25*4, bg = "white")
 
 isq <- expression((action %like% "q") | (action == "none"))
 
@@ -133,7 +142,8 @@ p.ave <- p.gen(
 ) + theme(legend.position = "none")
 
 p.inc = p.gen(
-  plt.dt[eval(isq)], "value", aesbase, "Test", scale_y_incidence
+  setkeyv(rbind(plt.dt[eval(isq)][scenario != 1], ref.dt, fill = TRUE), key(plt.dt)),
+  "value", aesbase, "Test", scale_y_incidence
 ) + theme(
   legend.position = "bottom",
   legend.margin = margin(),
@@ -153,4 +163,4 @@ p.fin <- p.inc + p.ave + p.eff + guide_area() + plot_layout(
   DDD
 ", guides = 'collect')
 
-ggsave(gsub("\\.","-isq.",tail(.args, 1)), p.fin, height = 4*1.5, width = 3.25*4, bg = "white")
+ggsave(gsub("-(\\w+)\\.","-isq.",tail(.args, 1)), p.fin, height = 4*1.5, width = 3.25*4, bg = "white")

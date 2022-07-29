@@ -67,6 +67,16 @@ scale_x_null <- gg_scale_wrapper(
   )
 )
 
+scale_y_fraction <- gg_scale_wrapper(
+  scale_y_continuous,
+  name = "Fraction of Population",
+  breaks = (0:4)/4,
+  limits = c(0, 1),
+  expand = expansion(
+    mult = c(0, 0), add = c(0, 0)
+  )
+)
+
 scale_linetype_scenario <- gg_scale_wrapper(
   scale_linetype_manual,
   name = "Intervention",
@@ -127,7 +137,7 @@ fullscncolors <- c(
   "vandq_passive+" = "#fb6502",
   "vonly_passive+" = "#fb6502",
   vandq_risk = "#006b35",
-  vandq_risk = "#006b35",
+  vonly_risk = "#006b35",
   qonly = "black",
   none = "black"
 )
@@ -150,6 +160,46 @@ scale_color_fullscenario <- gg_scale_wrapper(
   values = fullscncolors,
   drop = TRUE, limits = force
   #  , guide = guide_legend(override.aes = list(color = "grey"))
+)
+
+scale_color_measure <- gg_scale_wrapper(
+  scale_color_manual,
+  name = NULL,
+  values = c(
+    case = "royalblue3", death = "green4", infection = "orangered",
+    hospPrev = "orange", hospInc = "orange", vaxHosp = 'dodgerblue4'
+  ),
+  guide = "none"
+)
+
+scale_alpha_measure <- gg_scale_wrapper(
+  scale_alpha_manual,
+  name = NULL,
+  breaks = c("observed", "sample", "central"),
+  labels = c(observed = "Data", sample = "Simulated\nReplicates", central = "Median\nSimulation"),
+  values = c(observed = 0.4, sample = 0.05, central = 1),
+  guide = guide_legend(
+    override.aes = list(linetype = c("blank", "solid", "solid"))
+  )
+)
+
+scale_shape_measure <- gg_scale_wrapper(
+  scale_shape_manual,
+  name = NULL,
+  breaks = c("observed", "sample", "central"),
+  labels = c(observed = "Data", sample = "Simulated\nReplicates", central = "Median\nSimulation"),
+  values = c(observed = 20, sample = NA, central = NA),
+  guide = guide_legend(
+    override.aes = list(linetype = c("blank", "solid", "solid"))
+  )
+)
+
+geom_observation <- gg_scale_wrapper(
+  geom_point,
+  mapping = aes(alpha = "observed", shape = "observed"),
+  data = function(dt) subset(dt, is.na(realization)),
+  size = 2.5,
+  stroke = 0
 )
 
 #' @title extract month bounds
@@ -184,16 +234,26 @@ tsref.dt <- function(
     #' TODO by doesn't currently handle nested facets
     date.col = "date",
     mcycle = c("off", "on"),
-    ymax = NA
+    ymax = NA, ymin = NA
 ) {
   dt <- as.data.table(dt)
-  if ("col" %in% names(by)) {
+  maxer <- function(x) min(max(x, ymax, na.rm = TRUE), ymax, na.rm = TRUE)
+  miner <- function(x) max(min(x, ymin, na.rm = TRUE), ymin, na.rm = TRUE)
+  if(!is.null(by)) { if ("col" %in% names(by)) {
     #' need to consider ymax across rows if by["col"] exists
-    ymref <- dt[, c(max(get(value.col), ymax, na.rm = TRUE)), by = eval(unname(by["row"]))]
-    dt[ymref, ym := V1, on=unname(by["row"])]
+    ymref <- dt[, .(mx = maxer(get(value.col)), mn = miner(get(value.col))), by = eval(unname(by["row"]))]
+    dt[ymref, c("ym", "yn") := .(mx, mn), on=unname(by["row"])]
     dt <- dt[!is.na(get(by["col"]))]
   } else {
-    dt[, ym := max(get(value.col), ymax, na.rm = TRUE), by = eval(unname(by)) ]
+    dt[, c("ym","yn") := .(
+      maxer(get(value.col)),
+      miner(get(value.col))
+    ), by = eval(unname(by)) ]
+  } } else {
+    dt[, c("ym","yn") := .(
+      maxer(get(value.col)),
+      miner(get(value.col))
+    ) ]
   }
   dt[, {
     # assert: guarantees YYYY-MMM-01 to YYYY-MMM-01
@@ -212,7 +272,7 @@ tsref.dt <- function(
       mon = month(starts),
       yr = year(starts),
       yshow = c(TRUE, month(starts[-1])==1),
-      ymax = ym[1]
+      ymax = ym[1], ymin = yn[1]
     )
   }, by = eval(unname(by))]
 }
@@ -241,18 +301,23 @@ geom_month_background <- function(
   # ggplot isn't great on replicating these across facets
   # would be preferrable to use `annotate`, and let backend recycle fills, but
   # it won't, so have to tell this how many facets there will be
+  xform <- if (ylog) {
+    function(hi, lo, dropto) lo*(hi/lo)^dropto
+  } else {
+    function(hi, lo, dropto) lo+(hi-lo)*dropto
+  }
   list(
     geom_rect(
       mapping = aes(xmin = start - 0.5, xmax = end + 0.5, ymin = if (ylog) 0 else -Inf, ymax = Inf),
       data = dt, inherit.aes = FALSE, show.legend = FALSE, fill = dt$fill
     ),
     geom_text(
-      mapping = aes(x = mid, y = ymax*.9, label = m.abb[mon]),
+      mapping = aes(x = mid, y = xform(ymax, ymin, .9), label = m.abb[mon]),
       data = dt, inherit.aes = FALSE, show.legend = FALSE, color = dt$col,
       size = font.size, vjust = "bottom"
     ),
     geom_text(
-      mapping = aes(x = mid, y = ymax*.85, label = yr),
+      mapping = aes(x = mid, y = xform(ymax, ymin, .85), label = yr),
       data = dt[yshow == TRUE], angle = 90,
       inherit.aes = FALSE, show.legend = FALSE, color = dt[yshow == TRUE]$col,
       size = font.size, hjust = "right"
@@ -268,32 +333,49 @@ geom_month_background <- function(
 
 med.dt <- function(
   dt,
-  yvar
+  yvar,
+  midfun = median,
+  ...
 ) {
   bynames <- setdiff(
     colnames(dt),
     c("realization", yvar, "value", "averted", "c.averted", "c.effectiveness", "c0.effectiveness")
   )
-  setnames(dt[,.(median(get(yvar))), keyby = bynames ], "V1", yvar)
+  setnames(dt[,.(midfun(get(yvar))), keyby = bynames ], "V1", yvar)
 }
 
 geom_spaghetti <- function(
   mapping, data,
-  alpha = 0.01,
   show.end = FALSE,
   spag.size = 0.1,
   max.lines = if (interactive()) 10 else 150,
   sample.var = "realization",
+  geom = geom_line,
   ...
 ) {
   aesmany <- mapping
   aesmany$linetype <- NULL
+  #' TODO check ... for alpha
+  aesmany$alpha <- "sample"
   aesone <- mapping
-  aesone$group <- quote(scenario)
-  mdt <- med.dt(data, rlang::as_name(aesmany$y))
+  aesone$alpha <- "central"
+  #' assert: spaghetti geoms always have a group
+  grouptree <- as.character(rlang::get_expr(aesmany$group))
+  if (grouptree[1] == "interaction") { # most typical case
+    newcombo <- grep(sample.var, grouptree[-1], invert = TRUE, value = TRUE)
+    if (length(newcombo) == 1) {
+      aesone$group <- rlang::parse_expr(newcombo)
+    } else {
+      aesone$group <- rlang::parse_expr(sprintf("interaction(%s)", paste(newcombo, collapse = ", ")))
+    }
+  } else { # assert: group == sample.var
+    aesone$group <- NULL
+  }
+
+  mdt <- med.dt(data, rlang::as_name(aesmany$y), ...)
   ret <- list(
-    geom_line(aesmany, size = spag.size, data = data[get(sample.var) < max.lines], alpha = alpha, ...),
-    geom_line(aesone, data = mdt, ...)
+    geom(aesmany, size = spag.size, data = data[get(sample.var) < max.lines], ...),
+    geom(aesone, data = mdt, ...)
   )
   if (show.end) {
     aesend <- aesmany
@@ -344,5 +426,66 @@ facet_typical <- gg_facet_wrapper(
       "high-matched" = "YYk per 10k-day\nExpanded Mass Vac.")
   )
 )
+
+geom_crosshair <- function(mapping, data, ...) {
+  #'
+  mapv <- mapping
+  mapv$xmax <- NULL; mapv$xmin <- NULL
+  mapv$shape <- NULL
+  maph <- mapping
+  maph$ymax <- NULL; maph$ymin <- NULL
+  maph$shape <- NULL
+  showpoint <- !is.null(mapping$shape)
+  res <- list(
+    geom_linerange(mapv, data = data, show.legend = FALSE),
+    geom_linerange(maph, data = data, show.legend = FALSE)
+  )
+  if (showpoint) {
+    mapp <- mapping
+    mapp$xmax <- NULL
+    mapp$xmin <- NULL
+    mapp$ymax <- NULL
+    mapp$ymin <- NULL
+    mapp$alpha <- mapp$shape
+    res[[length(res)+1]] <- geom_observation(mapping = mapp, data = seroprev)
+  }
+  return(res)
+}
+
+# TODO figure out if this could work?
+# geom_month_background_alt <- function(
+#     data,
+#     col.cycle = c(off = NA, on = alpha("lightgrey", 0.75)),
+#     labels = m.abb,
+#     font.size = 5,
+#     ylog = FALSE,
+#     datafn = tsref.dt,
+#     ...
+# ) {
+#   text.col <- alpha(col.cycle, 1)
+#   names(text.col) <- c(tail(names(col.cycle), -1), names(col.cycle)[1])
+#   text.col[is.na(text.col)] <- "white"
+#   dt <- datafn(data, ...)
+#   dt[, fill := col.cycle[mtype] ]
+#   dt[, col := text.col[mtype] ]
+#
+#   list(
+#     geom_rect(
+#       mapping = aes(xmin = start - 0.5, xmax = end + 0.5, ymin = after_scale(0), ymax = after_scale(1)),
+#       data = dt, inherit.aes = FALSE, show.legend = FALSE, fill = dt$fill
+#     ),
+#     geom_text(
+#       mapping = aes(x = mid, y = after_scale(.9), label = labels[mon]),
+#       data = dt, inherit.aes = FALSE, show.legend = FALSE, color = dt$col,
+#       size = font.size, vjust = "bottom"
+#     ),
+#     geom_text(
+#       mapping = aes(x = mid, y = after_scale(.85), label = yr),
+#       data = dt[yshow == TRUE], angle = 90,
+#       inherit.aes = FALSE, show.legend = FALSE, color = dt[yshow == TRUE]$col,
+#       size = font.size, hjust = "right"
+#     )
+#   )
+# }
 
 save(list=ls(), file = tail(.args, 1))
