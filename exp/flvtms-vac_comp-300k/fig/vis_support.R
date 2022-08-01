@@ -167,19 +167,37 @@ scale_color_measure <- gg_scale_wrapper(
   name = NULL,
   values = c(
     case = "royalblue3", death = "green4", infection = "orangered",
-    hospPrev = "orange", hospInc = "orange", vaxHosp = 'dodgerblue4'
+    hospPrev = "orange", hospInc = "orange", vaxHosp = 'dodgerblue4',
+    brkthru = "tan4"
   ),
   guide = "none"
 )
+
+scale_color_inputs <- gg_scale_wrapper(
+  scale_color_manual,
+  name = NULL,
+  values = c(
+    socialdist = "darkorange3", seasonality = "purple",
+    vocprev1 = 'royalblue3', vocprev2 = 'turquoise4', vocprev3 = 'darkorchid3',
+    coverage = 'purple'
+  ),
+  guide = "none",
+  aesthetics = c("color", "fill")
+)
+
+measlbls <- c(observed = "Observed", sample = "Simulated Replicates", central = "Median Simulation")
 
 scale_alpha_measure <- gg_scale_wrapper(
   scale_alpha_manual,
   name = NULL,
   breaks = c("observed", "sample", "central"),
-  labels = c(observed = "Data", sample = "Simulated\nReplicates", central = "Median\nSimulation"),
-  values = c(observed = 0.4, sample = 0.05, central = 1),
+  labels = measlbls,
+  values = c(observed = 0.6, sample = 0.05, central = 1),
   guide = guide_legend(
-    override.aes = list(linetype = c("blank", "solid", "solid"))
+    override.aes = list(
+      linetype = c("blank", "solid", "solid"),
+      size = c(10, 1, 3)
+    )
   )
 )
 
@@ -187,7 +205,7 @@ scale_shape_measure <- gg_scale_wrapper(
   scale_shape_manual,
   name = NULL,
   breaks = c("observed", "sample", "central"),
-  labels = c(observed = "Data", sample = "Simulated\nReplicates", central = "Median\nSimulation"),
+  labels = measlbls,
   values = c(observed = 20, sample = NA, central = NA),
   guide = guide_legend(
     override.aes = list(linetype = c("blank", "solid", "solid"))
@@ -287,7 +305,7 @@ geom_month_background <- function(
     data,
     col.cycle = c(off = NA, on = alpha("lightgrey", 0.75)),
     m.labels = m.abb,
-    font.size = 5,
+    font.size = 8, font.face = "bold",
     ylog = FALSE,
     datafn = tsref.dt,
     ...
@@ -312,15 +330,15 @@ geom_month_background <- function(
       data = dt, inherit.aes = FALSE, show.legend = FALSE, fill = dt$fill
     ),
     geom_text(
-      mapping = aes(x = mid, y = xform(ymax, ymin, .9), label = m.abb[mon]),
+      mapping = aes(x = mid, y = xform(ymax, ymin, .87), label = m.abb[mon]),
       data = dt, inherit.aes = FALSE, show.legend = FALSE, color = dt$col,
-      size = font.size, vjust = "bottom"
+      size = font.size, vjust = "bottom", fontface = font.face
     ),
     geom_text(
-      mapping = aes(x = mid, y = xform(ymax, ymin, .85), label = yr),
+      mapping = aes(x = mid, y = xform(ymax, ymin, .83), label = yr),
       data = dt[yshow == TRUE], angle = 90,
       inherit.aes = FALSE, show.legend = FALSE, color = dt[yshow == TRUE]$col,
-      size = font.size, hjust = "right"
+      size = font.size, hjust = "right", fontface = font.face
     )
     # ,
     # geom_text(
@@ -347,7 +365,7 @@ med.dt <- function(
 geom_spaghetti <- function(
   mapping, data,
   show.end = FALSE,
-  spag.size = 0.1,
+  spag.size = 0.1, c.size = 3*spag.size,
   max.lines = if (interactive()) 10 else 150,
   sample.var = "realization",
   geom = geom_line,
@@ -375,7 +393,7 @@ geom_spaghetti <- function(
   mdt <- med.dt(data, rlang::as_name(aesmany$y), ...)
   ret <- list(
     geom(aesmany, size = spag.size, data = data[get(sample.var) < max.lines], ...),
-    geom(aesone, data = mdt, ...)
+    geom(aesone, data = mdt, size = c.size, ...)
   )
   if (show.end) {
     aesend <- aesmany
@@ -452,9 +470,17 @@ geom_crosshair <- function(mapping, data, ...) {
   return(res)
 }
 
+prepare <- function(...) setkey(melt(
+  rbind(..., fill = TRUE),
+  id.vars = c("realization", "date"),
+  variable.name = "measure", variable.factor = FALSE
+), measure, realization, date)
+
+save(list=ls(), file = tail(.args, 1))
+
 # TODO figure out if this could work?
 # geom_month_background_alt <- function(
-#     data,
+    #     data,
 #     col.cycle = c(off = NA, on = alpha("lightgrey", 0.75)),
 #     labels = m.abb,
 #     font.size = 5,
@@ -487,5 +513,3 @@ geom_crosshair <- function(mapping, data, ...) {
 #     )
 #   )
 # }
-
-save(list=ls(), file = tail(.args, 1))

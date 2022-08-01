@@ -47,7 +47,13 @@ EXTDATA := rcasedeath-florida Rates_of_COVID-19_Cases_or_Deaths_by_Age_Group_and
 COVID-19_Reported_Patient_Impact_and_Hospital_Capacity_by_State_Timeseries\
 CDC_seroprev_long dose_data/trends_in_number_of_covid19_vaccinations_in_fl
 
+validation.rds: validation_ingest.R plotlog
+	$(call R)
+
 validation.png: expanded_simvis.R validation.rds $(patsubst %,${DATADIR}/%.csv,${EXTDATA}) vis_support.rda
+	$(call R)
+
+modelinputs.png: model_inputs.R validation.rds $(patsubst %,${DATADIR}/%.csv,${EXTDATA} reporting_dump) vis_support.rda
 	$(call R)
 
 mtfigs: combo-low.png combo-low-mt.png combo-low-matched.png

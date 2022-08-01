@@ -22,9 +22,25 @@ extractor <- function(fl) {
     c("tot_std_doses", "tot_urg_doses") := .(cumsum(std_doses), cumsum(urg_doses))
   ], "serial", "realization")
 
+  # aggregate deaths to week => empirical data is by week
   ret[wday(date) != 7, crdeath := NA]
   ret[, rdeath := NA ]
   ret[wday(date) == 7, rdeath := c(crdeath[1], diff(crdeath)) ]
+
+  # breakthru ratio also on weekly basis, though apparently different wday?
+  ret[, brkthru := {
+    rel <- (brkthruRatio * rcase)
+    rel[is.na(rel)] <- 0
+    rel <- cumsum(rel)[wday(date) == 1]
+    # breakthrough incidence
+    rel <- c(rel[1], diff(rel))
+    allinc <- crcase[wday(date) == 1]
+    allinc <- c(allinc[1], diff(allinc))
+    tmp <- rep(NA, .N)
+    tmp[wday(date) == 1] <- rel/allinc
+    tmp
+  } ]
+
   ret
 }
 
