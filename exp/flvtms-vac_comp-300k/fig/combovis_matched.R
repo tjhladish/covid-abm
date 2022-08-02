@@ -52,11 +52,10 @@ aesbase <- aes(
 
 p.gen <- function(
   dt, yvar, aesbase, ytitle, scale_y,
-  count = if (interactive()) 10 else 250,
   ymax = NA, show.end = FALSE
 ) {
   aesbase$y <-str2lang(yvar)
-  loc.dt <- dt[realization < count][, c(key(dt), "action_full", "active_full", yvar), with = FALSE]
+  loc.dt <- dt[, c(key(dt), "action_full", "active_full", yvar), with = FALSE]
   return(ggplot() + aes_string(
     x = "date", y = yvar,
     color = "active_full"
@@ -69,18 +68,14 @@ p.gen <- function(
     geom_spaghetti(
       mapping = aesbase,
       data = loc.dt, #[!is.na(stockpile)],
-      show.end = show.end, alpha = 0.025
+      show.end = show.end
     ) +
-    # geom_spaghetti(
-    #   mapping = aesbase,
-    #   data = loc.dt[is.na(stockpile), .SD, .SDcol = -c("stockpile")],
-    #   show.end = show.end
-    # ) +
     facet_typical(cols = NULL) +
     scale_y() +
     scale_x_null() +
     scale_color_fullscenario() +
     scale_linetype_fullscenario() +
+    scale_alpha_measure(guide = "none") +
     theme_minimal() +
     theme(
       strip.placement = "outside",

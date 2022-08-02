@@ -398,6 +398,7 @@ geom_spaghetti <- function(
   if (show.end) {
     aesend <- aesmany
     aesend$group <- aesone$group
+    aesend$alpha <- aesone$alpha
     aesend$label <- str2lang(paste0("sprintf('%.2f',", rlang::as_name(aesend$y),")"))
     ret[[length(ret)+1]] <- geom_text_repel(
       aesend, data = mdt[date == max(date)],
