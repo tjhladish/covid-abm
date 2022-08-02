@@ -109,6 +109,7 @@ void Parameters::define_defaults() {
 
     // WHO vaccine mechanism variables
     vaccineSeroConstraint = VACCINATE_ALL_SERO_STATUSES;
+    vaccineInfConstraint = VACCINATE_ALL_INF_STATUSES;
     seroTestFalsePos = 0.0;
     seroTestFalseNeg = 0.0;
 
