@@ -565,6 +565,31 @@ bool Person::isSeroEligible() const {
 }
 
 
+bool Person::isInfEligible(int today) const {
+    const VaccineInfConstraint vic = _par->vaccineInfConstraint;
+
+    if (vic == VACCINATE_ALL_INF_STATUSES) return true;
+
+    const bool prior_inf = infectionHistory.size() ? true : false;
+    bool prior_case = false;
+    for (Infection* inf : infectionHistory) {
+        if (inf->isDetected() and inf->getDetection()->reported_time <= today) { prior_case = true; break; }
+    }
+
+    bool eligible = true;
+
+    switch (vic) {
+        case VACCINATE_NAIVE_ONLY:       { eligible = not prior_inf; break; } // no prior infections
+        case VACCINATE_INF_ONLY:         { eligible = prior_inf; break; }  // any prior infections
+        case VACCINATE_NON_CASE_ONLY:    { eligible = not prior_case; break;} // no prior detected infections
+        case VACCINATE_CASE_ONLY:        { eligible = prior_case; break; } // any prior detected infections
+        default:                         { /*should never be here*/ break; }
+    }
+
+    return eligible;
+}
+
+
 bool Person::vaccinate(int time) {
     if (isAlive(time)) {
         const size_t dose = vaccineHistory.size(); // this one isn't size() - 1, because it's the dose they're about to receive
