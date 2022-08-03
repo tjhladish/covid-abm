@@ -54,7 +54,7 @@ p.gen <- function(
   dt, yvar, aesbase, ytitle, scale_y,
   ymax = NA, show.end = FALSE
 ) {
-  aesbase$y <-str2lang(yvar)
+  aesbase$y <- str2lang(yvar)
   loc.dt <- dt[, c(key(dt), "action_full", "active_full", yvar), with = FALSE]
   return(ggplot() + aes_string(
     x = "date", y = yvar,
@@ -65,7 +65,7 @@ p.gen <- function(
       font.size = 3,
       by = c(row = "outcome"), value.col = yvar, ymax = ymax
     ) +
-    geom_spaghetti(
+    geom_river(
       mapping = aesbase,
       data = loc.dt, #[!is.na(stockpile)],
       show.end = show.end

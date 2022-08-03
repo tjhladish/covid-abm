@@ -362,6 +362,22 @@ med.dt <- function(
   setnames(dt[,.(midfun(get(yvar))), keyby = bynames ], "V1", yvar)
 }
 
+span.dt <- function(
+    dt,
+    yvar,
+    spanfun = function(x) quantile(x, probs = c(0.025, 0.975)),
+    ...
+) {
+  bynames <- setdiff(
+    colnames(dt),
+    c("realization", yvar, "value", "averted", "c.averted", "c.effectiveness", "c0.effectiveness")
+  )
+  dt[,{
+    qs <- setNames(spanfun(get(yvar)), c("lo", "hi"))
+    as.list(qs)
+  }, keyby = bynames ]
+}
+
 geom_spaghetti <- function(
   mapping, data,
   show.end = FALSE,
@@ -399,6 +415,56 @@ geom_spaghetti <- function(
     aesend <- aesmany
     aesend$group <- aesone$group
     aesend$alpha <- aesone$alpha
+    aesend$label <- str2lang(paste0("sprintf('%.2f',", rlang::as_name(aesend$y),")"))
+    ret[[length(ret)+1]] <- geom_text_repel(
+      aesend, data = mdt[date == max(date)],
+      hjust = "left", direction = "y", nudge_x = 7,
+      size = 2, segment.size = 0.1, min.segment.length = 0,
+      show.legend = FALSE
+    )
+  }
+  ret
+}
+
+geom_river <- function(
+    mapping, data,
+    show.end = FALSE,
+    sample.var = "realization",
+    geom = geom_line,
+    ...
+) {
+  aesmany <- mapping
+  aesmany$ymax <- rlang::parse_expr("hi")
+  aesmany$ymin <- rlang::parse_expr("lo")
+  aesmany$y <- NULL
+  aesone <- mapping
+  #' TODO check ... for alpha
+  aesmany$alpha <- "sample"
+  aesone$alpha <- "central"
+  #' assert: spaghetti geoms always have a group
+  grouptree <- as.character(rlang::get_expr(aesmany$group))
+  if (grouptree[1] == "interaction") { # most typical case
+    newcombo <- grep(sample.var, grouptree[-1], invert = TRUE, value = TRUE)
+    if (length(newcombo) == 1) {
+      aesone$group <- rlang::parse_expr(newcombo)
+    } else {
+      aesone$group <- rlang::parse_expr(sprintf("interaction(%s)", paste(newcombo, collapse = ", ")))
+    }
+  } else { # assert: group == sample.var
+    aesone$group <- NULL
+  }
+  aesmany$group <- aesone$group
+
+  mdt <- med.dt(data, rlang::as_name(aesone$y), ...)
+  ldt <- span.dt(data, rlang::as_name(aesone$y), ...)
+  ret <- list(
+    geom_ribbon(aesmany, data = ldt, ...),
+    geom(aesone, data = mdt, ...)
+  )
+  browser()
+  if (show.end) {
+    aesend <- aesone
+    aesend$linetype <- NULL
     aesend$label <- str2lang(paste0("sprintf('%.2f',", rlang::as_name(aesend$y),")"))
     ret[[length(ret)+1]] <- geom_text_repel(
       aesend, data = mdt[date == max(date)],
