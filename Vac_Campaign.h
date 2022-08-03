@@ -43,7 +43,7 @@ enum ContactTracingGroupType {
     NUM_OF_CONTACT_TRACING_GROUP_TYPES
 };
 
-enum VacCampaignType {
+enum VacCampaignType { // VacStrategyType
     NO_CAMPAIGN,
     GENERAL_CAMPAIGN,
     RING_VACCINATION,
@@ -552,6 +552,7 @@ class Vac_Campaign {
 
         Dose_Ptrs _dose_pool(Dose_Vals doses_in);
         Dose_Ptrs _dose_store(Dose_Vals doses_in);
+        void _dose_pool_all(Dose_Ptrs &urg_out, Dose_Ptrs &std_out, Dose_Vals urg_in, Dose_Vals std_in);
         // Dose_Ptrs _init_orig_doses();
 
         // specialty members for risk group vax strategy

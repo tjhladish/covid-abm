@@ -151,7 +151,7 @@ dose.in = data.table()
 for (loc in locs_of_interest) {
   tmp <- fread(paste0(.args[3], "/trends_in_number_of_covid19_vaccinations_in_", tolower(loc), ".csv"))
   dose_table <- tmp[, .(location = loc, date = Date, first = `Daily Count People Receiving Dose 1`,
-                       second = `Daily Count of People Fully Vaccinated`, third = `Daily Count People Receiving a Booster Dose`)]
+                       second = `Daily Count of People Fully Vaccinated`, third = `Daily Count People Receiving a First Booster Dose`)]
   dose.in <- rbindlist(list(dose.in, dose_table))
 }
 dose.in[pop.dt[bin_min == 5 & bin_max == 120, .(location, pop)], on = .(location), tot_pop := pop][, tot_doses := sum(first+second+third), by = .(location, date)]
@@ -218,6 +218,7 @@ active_dosing[, is_urg := 0]
 # tmp[dose != 1 | date < "2021-05-01", n_doses_p10k := 0]
 
 #' the chunk below will allocate a constant amount of first doses for the active campaign after May 1, 2021
+#const_allocation = 5e4 * (1e4/pop.in[location == "FL", `0_17`+`18_120`])
 const_allocation = 1e5 * (1e4/pop.in[location == "FL", `0_17`+`18_120`])
 tmp <- prepended_doses.dt[,.(date, ref_location=location, bin_min, bin_max, dose, n_doses_p10k)][ref_location == "FL"]
 tmp[, `:=` (is_urg = 1, n_doses_p10k = 0)]

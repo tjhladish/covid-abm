@@ -1,77 +1,83 @@
 
-.pkgs <- c("data.table", "ggplot2")
+.pkgs <- c("data.table", "ggplot2", "ggrepel")
 
 stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 
+#' assumes R project at the experiment root level
 .args <- if (interactive()) c(
-  file.path("tmp", "digest.rds"),
+  file.path("fig", c("digest.rds", "digest-key.rds", "vis_support.rda")),
   file.path("fig", "effectiveness.png")
 ) else commandArgs(trailingOnly = TRUE)
 
-dt <- readRDS(.args[1])
+#' comes key'd
+#' TODO: identify proper reference point?
+eff.dt <- readRDS(.args[1])[
+  date > "2020-12-01"
+][, .(
+  scenario, realization, date, outcome, c.effectiveness, c.averted, i.c.value
+)]
 
-non.dt <- dt[vac == 0, .SD, .SDcols = c("realization", "variable", "week", "value")]
-int.dt <- dt[vac != 0, .SD, .SDcols = c("realization", "state", "variable", "week", "value")]
+eff.dt[,
+  c0.effectiveness := c.averted/(i.c.value-i.c.value[1]),
+  by = .(scenario, realization, outcome)
+]
 
-eff.dt <- int.dt[non.dt, on=.(realization, variable, week)]
+eff.dt$c.averted <- eff.dt$i.c.value <- NULL
 
-eff.dt[order(week), cv := cumsum(value), by=.(realization, state, variable)]
+scn.dt <- readRDS(.args[2])
 
-eff.dt[order(week), ca := cumsum(i.value) - cumsum(value), by=.(realization, state, variable)]
+load(.args[3])
 
-#' TODO decide appropriate week to measure from
-intweek <- 43
+plt.dt <- setkeyv(
+  eff.dt[scn.dt[scenario != 1], on=.(scenario)],
+  union(key(eff.dt), colnames(scn.dt))
+)
 
-eff.dt[week > intweek, eff := 1 - cumsum(value)/cumsum(i.value), by=.(realization, state, variable) ]
-
-varkey <- c(c="Symptomatic Infections", s="Severe Infections", d="Deaths")
-
-eff.dt[, varf := factor(varkey[variable], levels = varkey, ordered = TRUE)]
-
-cumul.p <- ggplot(eff.dt) + aes(week, cv/1000, color = state, group = interaction(state, realization)) +
-  facet_grid(varf ~ ., scale = "free_y") +
-  geom_line(alpha = 0.1) +
-  theme_minimal() +
-  scale_y_continuous("Cumulative 1k incidence") +
-  scale_color_discrete(name = NULL, guide = guide_legend(override.aes = list(alpha = 1))) +
-  theme(
-    legend.position = c(0, 1), legend.justification = c(0, 1)
-  )
-
-obs.p <- ggplot(eff.dt) + aes(week, value, color = state, group = interaction(state, realization)) +
-  facet_grid(varf ~ ., scale = "free_y") +
-  geom_line(alpha = 0.1) +
-  geom_line(mapping = aes(y=i.value, color = "NONE"), data = function(dt) dt[state == "FL"], alpha = 0.1) +
-  theme_minimal() +
-  scale_y_continuous("Incidence") +
-  scale_color_discrete(name = NULL, guide = guide_legend(override.aes = list(alpha = 1))) +
-  theme(
-    legend.position = c(0, 1), legend.justification = c(0, 1)
-  )
-
-averted.p <- ggplot(eff.dt) + aes(week, ca/1000, color = state, group = interaction(state, realization)) +
-  facet_grid(varf ~ ., scale = "free_y") +
-  geom_line(alpha = 0.1) +
-  theme_minimal() +
-  scale_y_continuous("Cumulative 1K averted") +
-  scale_color_discrete(name = NULL, guide = guide_legend(override.aes = list(alpha = 1))) +
-  theme(
-    legend.position = c(0, 1), legend.justification = c(0, 1)
-  )
-
-eff.p <- ggplot(eff.dt[week > intweek]) + aes(week, eff, color = state, group = interaction(state, realization)) +
-  facet_grid(varf ~ .) +
-  geom_line(alpha = 0.1) +
-  theme_minimal() +
-  scale_y_continuous("Cumulative Fraction Averted") +
-  scale_color_discrete(name = NULL, guide = guide_legend(override.aes = list(alpha = 1))) +
+p.gen <- function(
+  yvar = "c.effectiveness",
+  yname = "Cumulative Effectiveness Against ...",
+  aesspag = {
+    tmp <- aes(
+      linetype = action,
+      group = interaction(scenario, realization)
+    )
+    tmp$y <- str2lang(yvar)
+    tmp
+  }
+) ggplot() + aes_string(
+  x = "date", y = yvar,
+  color = "active"
+) +
+  geom_month_background(
+    plt.dt,
+    font.size = 3,
+    by = c(row = "outcome", col = "stockpile"), value.col = yvar, ymax = 1
+  ) +
   coord_cartesian(ylim = c(0, 1)) +
+  geom_spaghetti(
+    mapping = aesspag,
+    data = plt.dt[!is.na(stockpile)],
+    yvar = yvar
+    , show.end = TRUE
+  ) +
+  geom_spaghetti(
+    mapping = aesspag,
+    data = plt.dt[is.na(stockpile), .SD, .SDcol = -c("stockpile")],
+    yvar = yvar
+    , show.end = TRUE
+  ) +
+  facet_typical() +
+  scale_y_effectiveness(name = yname) +
+  scale_x_null() +
+  scale_color_scenario() +
+  scale_linetype_scenario() +
+  theme_minimal() +
   theme(
-    legend.position = c(0, 1), legend.justification = c(0, 1)
+    legend.position = "bottom", strip.placement = "outside"
   )
 
-#' TODO refactor these to independent scripts
-ggsave("incidence.png",                obs.p,     width = 6, height = 8, units = "in", dpi = 600, bg = "white")
-ggsave("cumulative_incidence.png",     cumul.p,   width = 6, height = 8, units = "in", dpi = 600, bg = "white")
-ggsave("cumulative_averted.png",       averted.p, width = 6, height = 8, units = "in", dpi = 600, bg = "white")
-ggsave("cumulative_effectiveness.png", eff.p,     width = 6, height = 8, units = "in", dpi = 600, bg = "white")
+peff <- p.gen()
+ggsave(tail(.args, 1), peff, height = 5*1.5, width = 2.25*4, bg = "white")
+
+peff0 <- p.gen(yvar = "c0.effectiveness", yname = "0-Baselined Cumulative Effectiveness Against ...")
+ggsave(gsub("\\.","-b0.", tail(.args, 1)), peff0, height = 5*1.5, width = 2.25*4, bg = "white")
