@@ -101,7 +101,9 @@ fullscnbreaks <- c(
   "vonly_passive", "vandq_passive",
   "vonly_passive+", "vandq_passive+",
   "vonly_risk", "vandq_risk",
-  "vonly_ring", "vandq_ring"
+  "vonly_ring", "vandq_ring",
+  "vonly_risk-only", "vandq_risk-only",
+  "vonly_ring-only", "vandq_ring-only"
 )
 
 fullscnlabels <- c(
@@ -114,7 +116,11 @@ fullscnlabels <- c(
   vandq_ring="Mass Vac. & Con. Tracing => Ring Vac. + Quar.",
   vonly_ring = "Mass Vac. & Con. Tracing => Ring Vac.",
   qonly = "Contact Tracing => Quarantine",
-  none = "None"
+  none = "None",
+  "vandq_risk-only" = "High Risk Vac. & Con. Tracing => Quar.",
+  "vonly_risk-only" = "High Risk Vac.",
+  "vandq_ring-only" = "Con. Tracing => Ring Vac. + Quar.",
+  "vonly_ring-only" = "Con. Tracing => Ring Vac."
 )
 
 fullscnlines <- c(
@@ -124,6 +130,12 @@ fullscnlines <- c(
   vandq_risk = "solid",
   vonly_ring = "dashed",
   vonly_risk = "dashed",
+
+  "vandq_ring-only" = "solid",
+  "vandq_risk-only" = "solid",
+  "vonly_ring-only" = "dashed",
+  "vonly_risk-only" = "dashed",
+
   vonly_passive = "dashed",
   "vonly_passive+" = "dashed",
   qonly = "dotted", none = "solid"
@@ -132,6 +144,11 @@ fullscnlines <- c(
 fullscncolors <- c(
   vandq_ring = "#00529b",
   vonly_ring = "#00529b",
+  "vandq_ring-only" = "firebrick",
+  "vonly_ring-only" = "firebrick",
+  "vandq_risk-only" = "dodgerblue",
+  "vonly_risk-only" = "dodgerblue",
+
   vandq_passive="#fb6502",
   vonly_passive = "#fb6502",
   "vandq_passive+" = "#fb6502",

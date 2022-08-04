@@ -25,12 +25,25 @@ plotlog: ${DATADIR}/active_vac_raw_output.tgz
 	mkdir $@
 	tar -tf $< | grep -E "log1[0-9]{3}\." | xargs tar -xf $< -C $@
 
+plotlog_ao: ${DATADIR}/active_vac_only_raw_output.tgz
+	mkdir $@
+	tar -xf $< --strip-components=1 -C $@
+
+validation_ao.rds: validation_ingest.R plotlog_ao
+	$(call R)
+
+digest-ext.rds: digest-ext.R ${DATADIR}/covid-active-only.sqlite digest-key.rds digest-ref.rds
+	$(call R)
+
 cleanplotlog:
-	rm -rf plotlog
+	rm -rf plotlog plotlog_ao
 
 PLOTINS := digest.rds digest-key.rds digest-ref.rds vis_support.rda
 
 # main text figures
+
+active-only.png: onlyvis.R digest-ext.rds digest-ext-key.rds digest-ref.rds vis_support.rda
+	$(call R)
 
 combo-low.png: combovis.R $(PLOTINS)
 	$(call R)
