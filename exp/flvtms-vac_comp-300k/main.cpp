@@ -529,6 +529,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     const size_t dose_file                          = (size_t) args[4];       // 0 = state_based_counterfactual_doses.txt; 1 = active_vax_counterfactual_doses.txt; 2 =ring_vax_deployment_counterfactual_doses.txt
     const VacCampaignType active_vax_strat          = (VacCampaignType) args[5];       // 0 = none; 1 = ring vax; 2 = risk group vax; 3 = risk vax
     const bool quarantine_ctrl                      = (bool) args[6];     // 0 = off; 1 = on
+  //const bool ppb_fitting                          = (bool) args[7];
+    const VaccineInfConstraint vac_constraint       = (VaccineInfConstraint) args[8];
 
     Parameters* par = define_simulator_parameters(args, rng_seed, serial, process_id);
     define_strain_parameters(par);
@@ -557,7 +559,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
                                              "./active_vax_counterfactual_doses_50k.txt",
                                              "./active_vax_counterfactual_doses_100k.txt",
                                              "./ring_vax_deployment_active_counterfactual_doses.txt",
-                                             "./ring_vax_deployment_passive_counterfactual_doses.txt"};
+                                             "./ring_vax_deployment_passive_counterfactual_doses.txt",
+                                             "./ring_vax_deployment_active_only_doses.txt"};
 
         par->vaccinationFilename = vacFilenames[dose_file];
 
@@ -585,7 +588,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         vc->set_prioritize_first_doses(false);
         vc->set_flexible_queue_allocation(false);
 
-
+        par->vaccineInfConstraint = vac_constraint;
         vc->set_reactive_vac_strategy(active_vax_strat);
         // vc->set_reactive_vac_dose_allocation(0.0);
 
@@ -669,8 +672,10 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt_ma[i-1]);
     }
     bool overwrite = true;
+    // this output filename needs to be adjusted for each experiment, so as to not overwrite files
     //string filename = "plot_log" + to_string(serial) + ".csv";
-    string filename = "/blue/longini/tjhladish/covid-abm/exp/flvtms-vac_comp-300k/plot_log" + to_string(serial) + ".csv";
+    //string filename = "/blue/longini/tjhladish/covid-abm/exp/flvtms-vac_comp-300k/plot_log" + to_string(serial) + ".csv";
+    string filename = "/blue/longini/tjhladish/covid-abm/exp/flvtms-vac_comp-300k/active_vac_only/plot_log" + to_string(serial) + ".csv";
     write_daily_buffer(plot_log_buffer, process_id, filename, overwrite);
 //    stringstream ss;
 //    ss << "Rscript expanded_simvis.R " << serial;
