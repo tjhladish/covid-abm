@@ -107,10 +107,10 @@ void Parameters::define_defaults() {
     yearlyOutput                   = false;
     abcVerbose                     = false;
 
-    // WHO vaccine mechanism variables
-    vaccineSeroConstraint = VACCINATE_ALL_SERO_STATUSES;
-    seroTestFalsePos = 0.0;
-    seroTestFalseNeg = 0.0;
+    vaccineInfConstraint           = VACCINATE_ALL_INF_STATUSES;
+    vaccineSeroConstraint          = VACCINATE_ALL_SERO_STATUSES;
+    seroTestFalsePos               = 0.0;
+    seroTestFalseNeg               = 0.0;
 
 //    csmhScenario = NUM_OF_CSMH_SCENARIOS; // default to no scenario
 

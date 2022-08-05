@@ -55,10 +55,10 @@ bool autotune                     = false;
 const int FL_POP                  = 21538187;   // as of 2020 census
 
 enum VacCampaignScenario {
-    FL_LIKE_FL,
-    VT_LIKE_FL,
-    MS_LIKE_FL,
-    ACTIVE_VAC_CAMPAIGN,
+    FL_LIKE_FL,          // FL_ROLLOUT
+    VT_LIKE_FL,          // VT_ROLLOUT
+    MS_LIKE_FL,          // MS_ROLLOUT
+    ACTIVE_VAC_CAMPAIGN, // remove
     NUM_OF_VAC_CAMPAIGN_SCENARIOS
 };
 
@@ -529,6 +529,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     const size_t dose_file                          = (size_t) args[4];       // 0 = state_based_counterfactual_doses.txt; 1 = active_vax_counterfactual_doses.txt; 2 =ring_vax_deployment_counterfactual_doses.txt
     const VacCampaignType active_vax_strat          = (VacCampaignType) args[5];       // 0 = none; 1 = ring vax; 2 = risk group vax; 3 = risk vax
     const bool quarantine_ctrl                      = (bool) args[6];     // 0 = off; 1 = on
+  //const bool ppb_fitting                          = (bool) args[7];
+    const VaccineInfConstraint vac_constraint       = (VaccineInfConstraint) args[8];
 
     Parameters* par = define_simulator_parameters(args, rng_seed, serial, process_id);
     define_strain_parameters(par);
@@ -557,7 +559,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
                                              "./active_vax_counterfactual_doses_50k.txt",
                                              "./active_vax_counterfactual_doses_100k.txt",
                                              "./ring_vax_deployment_active_counterfactual_doses.txt",
-                                             "./ring_vax_deployment_passive_counterfactual_doses.txt"};
+                                             "./ring_vax_deployment_passive_counterfactual_doses.txt",
+                                             "./ring_vax_deployment_active_only_doses.txt"};
 
         par->vaccinationFilename = vacFilenames[dose_file];
 
@@ -585,7 +588,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         vc->set_prioritize_first_doses(false);
         vc->set_flexible_queue_allocation(false);
 
-
+        par->vaccineInfConstraint = vac_constraint;
         vc->set_reactive_vac_strategy(active_vax_strat);
         // vc->set_reactive_vac_dose_allocation(0.0);
 
@@ -659,24 +662,27 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 //    }
 
 // comment out this block if simvis.R is not needed
-//{
-//    vector<pair<size_t, double>> Rt = community->getMeanNumSecondaryInfections();
-//    vector<double> Rt_ma = calc_Rt_moving_average(Rt, 7);
-//
-//    assert(Rt.size()+1 == plot_log_buffer.size()); // there's a header line
-//    for (size_t i = 1; i < plot_log_buffer.size(); ++i) {
-//        //plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt[i-1].second);
-//        plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt_ma[i-1]);
-//    }
-//    bool overwrite = true;
-//    string filename = "plot_log" + to_string(serial) + ".csv";
-//    write_daily_buffer(plot_log_buffer, process_id, filename, overwrite);
+{
+    vector<pair<size_t, double>> Rt = community->getMeanNumSecondaryInfections();
+    vector<double> Rt_ma = calc_Rt_moving_average(Rt, 7);
+
+    assert(Rt.size()+1 == plot_log_buffer.size()); // there's a header line
+    for (size_t i = 1; i < plot_log_buffer.size(); ++i) {
+        //plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt[i-1].second);
+        plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt_ma[i-1]);
+    }
+    bool overwrite = true;
+    // this output filename needs to be adjusted for each experiment, so as to not overwrite files
+    //string filename = "plot_log" + to_string(serial) + ".csv";
+    //string filename = "/blue/longini/tjhladish/covid-abm/exp/flvtms-vac_comp-300k/plot_log" + to_string(serial) + ".csv";
+    string filename = "/blue/longini/tjhladish/covid-abm/exp/flvtms-vac_comp-300k/active_vac_only/plot_log" + to_string(serial) + ".csv";
+    write_daily_buffer(plot_log_buffer, process_id, filename, overwrite);
 //    stringstream ss;
 //    ss << "Rscript expanded_simvis.R " << serial;
 //    string cmd_str = ss.str();
 //    int retval = system(cmd_str.c_str());
 //    if (retval == -1) { cerr << "System call to `Rscript expanded_simvis.R` failed\n"; }
-//}
+}
 
     time (&end);
     double dif = difftime (end,start);
