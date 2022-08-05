@@ -21,24 +21,17 @@ covax_participation_fraction = covax_participants/total_num_countries
 global_pop <- 7.8e9
 est_covax_pop <- global_pop * covax_participation_fraction
 
-q2_2021_dates <- seq.Date(from = ymd("2021-04-01"), to = ymd("2021-06-30"), by = "days")
-q3_2021_dates <- seq.Date(from = ymd("2021-07-01"), to = ymd("2021-09-30"), by = "days")
-q4_2021_dates <- seq.Date(from = ymd("2021-10-01"), to = ymd("2021-12-31"), by = "days")
-q1_2022_dates <- seq.Date(from = ymd("2022-01-01"), to = ymd("2022-03-31"), by = "days")
+qtr_dates = c(seq.Date(from = ymd("2021-04-01"), to = ymd("2021-06-30"), by = "days"),
+              seq.Date(from = ymd("2021-07-01"), to = ymd("2021-09-30"), by = "days"),
+              seq.Date(from = ymd("2021-10-01"), to = ymd("2021-12-31"), by = "days"),
+              seq.Date(from = ymd("2022-01-01"), to = ymd("2022-03-31"), by = "days"))
 
-q2_2021_total_doses <- 1e8
-q3_2021_total_doses <- 4e8
-q4_2021_total_doses <- 6e8
-q1_2022_total_doses <- 8e8
+qtr_total_doses = c(1e8, 4e8, 6e8, 8e8)
 
-q2_2021_doses_p10k <- q2_2021_total_doses * (1e4/ est_covax_pop)
-q3_2021_doses_p10k <- q3_2021_total_doses * (1e4/ est_covax_pop)
-q4_2021_doses_p10k <- q4_2021_total_doses * (1e4/ est_covax_pop)
-q1_2022_doses_p10k <- q1_2022_total_doses * (1e4/ est_covax_pop)
+qtr_doses_p10k = qtr_total_doses * 1e4 / est_covax_pop
 
-dose_file[is_urg == 1 & bin_min == 5 & date %in% q2_2021_dates, n_doses_p10k := q2_2021_doses_p10k]
-dose_file[is_urg == 1 & bin_min == 5 & date %in% q3_2021_dates, n_doses_p10k := q3_2021_doses_p10k]
-dose_file[is_urg == 1 & bin_min == 5 & date %in% q4_2021_dates, n_doses_p10k := q4_2021_doses_p10k]
-dose_file[is_urg == 1 & bin_min == 5 & date %in% q1_2022_dates, n_doses_p10k := q1_2022_doses_p10k]
+for i in 1:length(qtr_dates) {
+    dose_file[is_urg == 1 & bin_min == 5 & date %in% qtr_dates[i], n_doses_p10k := qtr_doses_p10k[i]/length(qtr_dates[i])]
+}
 
 fwrite(dose_file[,.(date, ref_location, bin_min, bin_max, dose, is_urg, n_doses_p10k)], file = "covax_doses.txt", sep = " ")
