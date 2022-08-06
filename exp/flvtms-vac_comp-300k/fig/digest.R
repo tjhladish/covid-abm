@@ -83,103 +83,72 @@ merge.dt <- head(.args, -1) |> lapply(abcreader) |> (\(alldts) Reduce(
   return(list(meta = meta, scn = scn))
 })()
 
-caststockpile <- function(x) factor(
-  x, levels = c("low", "low-matched", "high", "high-matched"), ordered = TRUE
-)
+# WARNING: MAGIC NUMBER
+basescnid <- 1
 
-castaction <- function(x) factor(
-  x, levels = c("none", "qonly", "vonly", "vandq"), ordered = TRUE
-)
-
-castactive <- function(x) factor(
-  x, levels = c("none", "passive", "risk", "ring"), ordered = TRUE
-)
-
-#' translate serial into meaningful values
-scn.dt.base <- dt.base[[1]][realization == 0, .(
-  scenario,
-  stockpile = caststockpile(c("low", "high")[dose_file]),
-  action = castaction(fifelse(
-    vac & quarantine, "vandq",
-    fifelse(vac == 1, "vonly",
-    fifelse(quarantine == 1, "qonly",
-      "none"
-  )))),
-  active = castactive(fifelse(
-    active_vax_strat > 0, "ring",
-    fifelse(vac == 1, "passive",
-    "none"
-  )))
-)]
-
-scn.dt.alt <- dt.alt[[1]][realization == 0, .(
-  scenario,
-  stockpile = caststockpile(c("low-matched")),
-  action = castaction(fifelse(
-    vac & quarantine, "vandq",
-    fifelse(vac == 1, "vonly",
-    fifelse(quarantine == 1, "qonly",
-      "none"
-  )))),
-  active = castactive(
-    fifelse(active_vax_strat > 0, "risk",
-    fifelse(vac == 1, "passive",
-      "none"
-  )))
-)]
-
-# no intervention
-scn.dt.base[scenario == 1, stockpile := NA ]
-# no vaccination, but contact tracing => quarantine
-scn.dt.base[scenario == 5, stockpile := NA ]
-
-scn.dt <- rbind(
-  scn.dt.base,
-  scn.dt.alt
-)
-
-
-gc()
-
-longmeta.dt <- setkey(
-  melt(meta.dt, id.vars = c("scenario", "realization", "date"), variable.name = "outcome"),
-  scenario, realization, outcome, date
-)
-#' n.b.: this works because key'ed (ordered) by date
-longmeta.dt[,
-  c.value := cumsum(value),
-  by=.(scenario, realization, outcome)
+ref.dt <- merge.dt$meta[(scenario == basescnid) & (outcome != "doses")]
+int.dt <- merge.dt$meta[
+  (scenario != basescnid) & (outcome != "doses")
+][
+  ref.dt[, .SD, .SDcols = -c("scenario")], on=.(realization, date, outcome)
 ]
 
-#' no longer need meta.dt
-rm(meta.dt)
-gc()
+scn.dt <- merge.dt$scn
+doses.dt <- merge.dt$meta[outcome == "doses"]
 
-#' non-intervention; remove scenario column, so it doesn't appear in joins
-#' n.b. this will need to change if there are multiple non-interventions
-ref.dt <- longmeta.dt[(scenario == 1) & (outcome != "doses")]
-doses.dt <- longmeta.dt[outcome == "doses"]
+rm(merge.dt)
 
-saveRDS(scn.dt, gsub("\\.rds","-key.rds", tail(.args, 1)))
 saveRDS(ref.dt, gsub("\\.rds","-ref.rds", tail(.args, 1)))
 saveRDS(doses.dt, gsub("\\.rds","-doses.rds", tail(.args, 1)))
 
-rm(scn.dt, doses.dt)
+rm(ref.dt, doses.dt)
+
 gc()
 
-#' interventions
-int.dt <- setkeyv(
-  longmeta.dt[(scenario != 1) & (outcome != "doses")][ref.dt[, .SD, .SDcols = -c("scenario")], on=.(realization, date, outcome)],
-  key(longmeta.dt)
-)
 int.dt[,
   c("averted", "c.averted") := .(i.value-value, i.c.value-c.value)
+][,
+  c.effectiveness := c.averted/i.c.value
 ]
-
-rm(longmeta.dt)
-gc()
-
-int.dt[, c.effectiveness := c.averted/i.c.value ]
 
 saveRDS(int.dt, tail(.args, 1))
 
+rm(int.dt)
+gc()
+
+caststockpile <- function(df, v) factor(
+  fifelse(v == 0, "none", fifelse(
+    df == 1, "low", fifelse(
+    df == 1.5, "low-matched", fifelse(
+    df == 2, "high", fifelse(
+    df == 5, "covax", "ERROR"
+  ))))), levels = c(
+    "none", "low", "low-matched", "high", "covax"
+  ), ordered = TRUE
+)
+
+castaction <- function(v,q) factor(
+  fifelse(
+    v == q, fifelse(v==1,"vandq", "none"), fifelse(v==1, "vonly", "qonly")
+  ), levels = c("none", "qonly", "vonly", "vandq"), ordered = TRUE
+)
+
+castactive <- function(strat, v) factor(
+  fifelse(
+    strat == 0, fifelse(v==0, "none", "passive"), fifelse(
+    strat == 2, "ring", fifelse(
+    strat == 6, "risk", "ERROR"
+  ))), levels = c("none", "passive", "risk", "ring"), ordered = TRUE
+)
+
+# WARNING: SERIOUS MAGIC HERE
+# TODO refactor when updated scenario runs
+scn.dt[,
+  c("stockpile", "action", "active") := .(
+    caststockpile(dose_file, vac),
+    castaction(vac, quarantine),
+    castactive(active_vax_strat, vac)
+  )
+]
+
+saveRDS(scn.dt, gsub("\\.rds","-key.rds", tail(.args, 1)))
