@@ -6,7 +6,7 @@ default: doses.png
 # setup definitions
 
 DATADIR ?= ..
-SIMFILES ?= $(patsubst %,covid-active-%_w-meta.sqlite,vac vac_ring-vac-alternatives)
+SIMFILES ?= $(patsubst %,covid-active-%.sqlite,vac_w-meta vac_ring-vac-alternatives_w-meta covid-active-only)
 
 R = $(strip Rscript $^ $(1) $@)
 
@@ -14,6 +14,9 @@ R = $(strip Rscript $^ $(1) $@)
 # note: these are big files
 
 digest.rds: digest.R $(addprefix ${DATADIR}/,${SIMFILES})
+	$(call R)
+
+digest-other.rds: digest.R $(addprefix ${DATADIR}/,${SIMFILES})
 	$(call R)
 
 digest-key.rds digest-doses.rds digest-ref.rds: digest.rds

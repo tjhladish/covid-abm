@@ -7,46 +7,81 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 .args <- if (interactive()) c(
   file.path(c(
     "covid-active-vac_w-meta.sqlite",
-    "covid-active-vac_ring-vac-alternatives_w-meta.sqlite"
+    "covid-active-vac_ring-vac-alternatives_w-meta.sqlite",
+    "covid-active-only.sqlite"
   )),
   file.path("fig", "digest.rds")
 ) else commandArgs(trailingOnly = TRUE)
 
 abcreader <- function(
   pth,
-  pmcols = c("serial", "realization", "vac", "dose_file", "active_vax_strat", "quarantine")
+  pmcols = c("serial", "realization", "vac", "dose_file", "active_vax_strat", "quarantine"),
+  metacols = c("serial", "date", "inf", "sev", "deaths", "std_doses + urg_doses AS doses")
 ) {
+
   db <- dbConnect(SQLite(), pth)
-  stmt <- sprintf("SELECT %s FROM par AS P JOIN met AS M USING(serial) ORDER BY serial;", paste(pmcols, collapse = ", "))
-  dt <- as.data.table(dbGetQuery(db, stmt))
+  stmt <- pmcols |> paste(collapse=", ") |> sprintf(
+    fmt = "SELECT %s FROM par JOIN met USING(serial) ORDER BY serial;"
+  )
+  dt <- db |> dbGetQuery(stmt) |> as.data.table()
   dt[, realization := as.integer(realization) ]
-  meta.dt <- as.data.table(dbGetQuery(db, "SELECT * FROM meta ORDER BY serial, date;"))[, date := as.Date(date) ]
-  meta.dt[, doses := std_doses + urg_doses ]
-  meta.dt$std_doses <- meta.dt$urg_doses <- NULL
+
+  mstmt <- metacols |> paste(collapse=", ") |> sprintf(
+    fmt = "SELECT %s FROM meta ORDER BY serial, date;"
+  )
+  meta.dt <- db |> dbGetQuery(mstmt) |> as.data.table()
+  meta.dt[, date := as.Date(date) ]
+
   dbDisconnect(db)
-  return(list(dt, meta.dt))
+  return(list(pars = dt, meta = meta.dt))
 }
 
-dt.base <- abcreader(.args[1])
-dt.alt <- abcreader(.args[2])
-
 reserialize <- function(dt, offset = 0L) {
-  dt[[1]][, serial := offset + .GRP, by=serial]
-  dt[[2]][, serial := offset + .GRP, by=serial]
+  dt$pars[, serial := offset + .GRP, by=serial]
+  dt$meta[, serial := offset + .GRP, by=serial]
+  dt
 }
 
 scenarize <- function(dt, offset = 0L) {
-  dt[[1]][, scenario := offset + 1L:.N, by=.(realization)]
-  dt[[2]][
-    dt[[1]], on =.(serial),
+  dt$pars[, scenario := offset + 1L:.N, by=.(realization)]
+  dt$meta[
+    dt$pars, on =.(serial),
     c("scenario", "realization") := .(scenario, realization)
   ]
+  dt
 }
 
-reserialize(dt.base)
-reserialize(dt.alt, offset = dt.base[[1]][, max(serial)])
-scenarize(dt.base)
-scenarize(dt.alt, offset = dt.base[[1]][, max(scenario)])
+metakeys <- c("scenario", "realization", "outcome", "date")
+
+merge.dt <- head(.args, -1) |> lapply(abcreader) |> (\(alldts) Reduce(
+  f = \(ldts, rdts) {
+    serialoffset <- ldts[[1]]$pars[, max(serial)]
+    scenaroffset <- ldts[[1]]$pars[, max(scenario)]
+    return(
+      rdts |>
+      reserialize(offset = serialoffset) |>
+      scenarize(offset = scenaroffset) |> list()
+    )
+  }, x = alldts[-1], init = alldts[[1]] |> reserialize() |> scenarize() |> list(),
+  accumulate = TRUE
+))() |> (\(alldt) {
+  meta <- alldt |>
+    lapply(\(pair) pair$meta[
+      pair$pars, on=.(serial), c("scenario", "realization") := .(scenario, realization)
+    ][, .SD, .SDcols = -c("serial")]) |>
+    rbindlist() |>
+    melt(
+      id.vars = setdiff(metakeys, "outcome"), variable.name = "outcome"
+    ) |>
+    setkeyv(cols = metakeys)
+  meta[, c.value := cumsum(value), by=c(setdiff(metakeys, "date"))]
+
+  scn <- alldt |> lapply(
+    \(pair) pair$pars[realization == 0, .SD, .SDcols = -c("serial", "realization")]
+  ) |> rbindlist()
+
+  return(list(meta = meta, scn = scn))
+})()
 
 caststockpile <- function(x) factor(
   x, levels = c("low", "low-matched", "high", "high-matched"), ordered = TRUE
@@ -103,18 +138,7 @@ scn.dt <- rbind(
   scn.dt.alt
 )
 
-serial.dt <- rbind(dt.base[[1]], dt.alt[[1]])[,.(
-  serial, scenario, realization
-)]
 
-meta.dt <- rbind(dt.base[[2]], dt.alt[[2]])[
-  serial.dt, on =.(serial),
-  c("scenario", "realization") := .(scenario, realization)
-]
-
-#' no longer need serial numbers
-meta.dt$serial <- NULL
-rm(serial.dt, dt.alt, dt.base, scn.dt.base, scn.dt.alt)
 gc()
 
 longmeta.dt <- setkey(
