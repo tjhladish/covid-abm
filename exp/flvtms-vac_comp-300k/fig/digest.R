@@ -111,7 +111,20 @@ int.dt[,
   c.effectiveness := c.averted/i.c.value
 ]
 
-saveRDS(int.dt, tail(.args, 1))
+#' in general, plotting value, averted, & c.eff
+#' potential also want c0.eff = c.eff, but
+#' calculated from a later baseline. to compute that, need
+#' need c.averted + c.i.value, from new baseline
+#' c.i.value = cumsum(value + averted)
+#' so, data to store:
+#'  * keying values (scenario, realization, date, outcome)
+#'  * values (value, averted, [can easily reconstitute c.value, c.averted])
+#'  * c.effectiveness
+#'  ... then can as necessary reconstitute:
+#'  c.value = cumsum(value), c.averted = cumsum(averted)
+#'  c0.effectiveness = c.averted (rebased) / cumsum(value + averted) (also rebased)
+
+saveRDS(int.dt[,.(value, averted, c.effectiveness), keyby=.(scenario, realization, outcome, date)], tail(.args, 1))
 
 rm(int.dt)
 gc()
