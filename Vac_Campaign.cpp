@@ -12,7 +12,7 @@ vector<Eligibility_Group*> Vac_Campaign::init_new_eligible_groups(int day) {
     vector<Eligibility_Group*> eligibles(_par->numVaccineDoses);
     for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
         Eligibility_Group* eg = new Eligibility_Group();
-        eg->eligibility_day = (dose == 0) ? day + 1 : day + _par->vaccineDoseInterval.at(dose - 1);
+        eg->eligibility_day = (dose == 0) ? day : day + _par->vaccineDoseInterval.at(dose - 1);
         eligibles[dose] = eg;
     }
 

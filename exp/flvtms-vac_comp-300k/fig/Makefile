@@ -1,12 +1,12 @@
 
-default: doses.png
+default: res_fig1.png
 
 -include local.mk
 
 # setup definitions
 
 DATADIR ?= ..
-SIMFILES ?= $(patsubst %,covid-active-%_w-meta.sqlite,vac vac_ring-vac-alternatives)
+SIMFILES ?= $(patsubst %,covid-active-%.sqlite,vac_w-meta vac_ring-vac-alternatives_w-meta only)
 
 R = $(strip Rscript $^ $(1) $@)
 
@@ -51,7 +51,7 @@ combo-low.png: combovis.R $(PLOTINS)
 combo-low-mt.png: combovis_mt.R $(PLOTINS)
 	$(call R)
 
-combo-low-matched-noq.png: combovis_matched.R $(PLOTINS)
+res_fig1.png: combovis_matched.R $(PLOTINS)
 	$(call R)
 
 combo-low-matched-isq.png: combo-low-matched-noq.png

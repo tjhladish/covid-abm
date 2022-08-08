@@ -7,155 +7,161 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 .args <- if (interactive()) c(
   file.path(c(
     "covid-active-vac_w-meta.sqlite",
-    "covid-active-vac_ring-vac-alternatives_w-meta.sqlite"
+    "covid-active-vac_ring-vac-alternatives_w-meta.sqlite",
+    "covid-active-only.sqlite"
   )),
   file.path("fig", "digest.rds")
 ) else commandArgs(trailingOnly = TRUE)
 
 abcreader <- function(
   pth,
-  pmcols = c("serial", "realization", "vac", "dose_file", "active_vax_strat", "quarantine")
+  pmcols = c("serial", "realization", "vac", "dose_file", "active_vax_strat", "quarantine"),
+  metacols = c("serial", "date", "inf", "sev", "deaths", "std_doses + urg_doses AS doses")
 ) {
+
   db <- dbConnect(SQLite(), pth)
-  stmt <- sprintf("SELECT %s FROM par AS P JOIN met AS M USING(serial) ORDER BY serial;", paste(pmcols, collapse = ", "))
-  dt <- as.data.table(dbGetQuery(db, stmt))
+  stmt <- pmcols |> paste(collapse=", ") |> sprintf(
+    fmt = "SELECT %s FROM par JOIN met USING(serial) ORDER BY serial;"
+  )
+  dt <- db |> dbGetQuery(stmt) |> as.data.table()
   dt[, realization := as.integer(realization) ]
-  meta.dt <- as.data.table(dbGetQuery(db, "SELECT * FROM meta ORDER BY serial, date;"))[, date := as.Date(date) ]
-  meta.dt[, doses := std_doses + urg_doses ]
-  meta.dt$std_doses <- meta.dt$urg_doses <- NULL
+
+  mstmt <- metacols |> paste(collapse=", ") |> sprintf(
+    fmt = "SELECT %s FROM meta ORDER BY serial, date;"
+  )
+  meta.dt <- db |> dbGetQuery(mstmt) |> as.data.table()
+  meta.dt[, date := as.Date(date) ]
+
   dbDisconnect(db)
-  return(list(dt, meta.dt))
+  return(list(pars = dt, meta = meta.dt))
 }
 
-dt.base <- abcreader(.args[1])
-dt.alt <- abcreader(.args[2])
-
 reserialize <- function(dt, offset = 0L) {
-  dt[[1]][, serial := offset + .GRP, by=serial]
-  dt[[2]][, serial := offset + .GRP, by=serial]
+  dt$pars[, serial := offset + .GRP, by=serial]
+  dt$meta[, serial := offset + .GRP, by=serial]
+  dt
 }
 
 scenarize <- function(dt, offset = 0L) {
-  dt[[1]][, scenario := offset + 1L:.N, by=.(realization)]
-  dt[[2]][
-    dt[[1]], on =.(serial),
+  dt$pars[, scenario := offset + 1L:.N, by=.(realization)]
+  dt$meta[
+    dt$pars, on =.(serial),
     c("scenario", "realization") := .(scenario, realization)
   ]
+  dt
 }
 
-reserialize(dt.base)
-reserialize(dt.alt, offset = dt.base[[1]][, max(serial)])
-scenarize(dt.base)
-scenarize(dt.alt, offset = dt.base[[1]][, max(scenario)])
+metakeys <- c("scenario", "realization", "outcome", "date")
 
-caststockpile <- function(x) factor(
-  x, levels = c("low", "low-matched", "high", "high-matched"), ordered = TRUE
-)
+merge.dt <- head(.args, -1) |> lapply(abcreader) |> (\(alldts) Reduce(
+  f = \(ldts, rdts) {
+    serialoffset <- ldts[[1]]$pars[, max(serial)]
+    scenaroffset <- ldts[[1]]$pars[, max(scenario)]
+    return(
+      rdts |>
+      reserialize(offset = serialoffset) |>
+      scenarize(offset = scenaroffset) |> list()
+    )
+  }, x = alldts[-1], init = alldts[[1]] |> reserialize() |> scenarize() |> list(),
+  accumulate = TRUE
+))() |> (\(alldt) {
+  meta <- alldt |>
+    lapply(\(pair) pair$meta[
+      pair$pars, on=.(serial), c("scenario", "realization") := .(scenario, realization)
+    ][, .SD, .SDcols = -c("serial")]) |>
+    rbindlist() |>
+    melt(
+      id.vars = setdiff(metakeys, "outcome"), variable.name = "outcome"
+    ) |>
+    setkeyv(cols = metakeys)
+  meta[, c.value := cumsum(value), by=c(setdiff(metakeys, "date"))]
 
-castaction <- function(x) factor(
-  x, levels = c("none", "qonly", "vonly", "vandq"), ordered = TRUE
-)
+  scn <- alldt |> lapply(
+    \(pair) pair$pars[realization == 0, .SD, .SDcols = -c("serial", "realization")]
+  ) |> rbindlist()
 
-castactive <- function(x) factor(
-  x, levels = c("none", "passive", "risk", "ring"), ordered = TRUE
-)
+  return(list(meta = meta, scn = scn))
+})()
 
-#' translate serial into meaningful values
-scn.dt.base <- dt.base[[1]][realization == 0, .(
-  scenario,
-  stockpile = caststockpile(c("low", "high")[dose_file]),
-  action = castaction(fifelse(
-    vac & quarantine, "vandq",
-    fifelse(vac == 1, "vonly",
-    fifelse(quarantine == 1, "qonly",
-      "none"
-  )))),
-  active = castactive(fifelse(
-    active_vax_strat > 0, "ring",
-    fifelse(vac == 1, "passive",
-    "none"
-  )))
-)]
+# WARNING: MAGIC NUMBER
+basescnid <- 1
 
-scn.dt.alt <- dt.alt[[1]][realization == 0, .(
-  scenario,
-  stockpile = caststockpile(c("low-matched")),
-  action = castaction(fifelse(
-    vac & quarantine, "vandq",
-    fifelse(vac == 1, "vonly",
-    fifelse(quarantine == 1, "qonly",
-      "none"
-  )))),
-  active = castactive(
-    fifelse(active_vax_strat > 0, "risk",
-    fifelse(vac == 1, "passive",
-      "none"
-  )))
-)]
-
-# no intervention
-scn.dt.base[scenario == 1, stockpile := NA ]
-# no vaccination, but contact tracing => quarantine
-scn.dt.base[scenario == 5, stockpile := NA ]
-
-scn.dt <- rbind(
-  scn.dt.base,
-  scn.dt.alt
-)
-
-serial.dt <- rbind(dt.base[[1]], dt.alt[[1]])[,.(
-  serial, scenario, realization
-)]
-
-meta.dt <- rbind(dt.base[[2]], dt.alt[[2]])[
-  serial.dt, on =.(serial),
-  c("scenario", "realization") := .(scenario, realization)
+ref.dt <- merge.dt$meta[(scenario == basescnid) & (outcome != "doses")]
+int.dt <- merge.dt$meta[
+  (scenario != basescnid) & (outcome != "doses")
+][
+  ref.dt[, .SD, .SDcols = -c("scenario")], on=.(realization, date, outcome)
 ]
 
-#' no longer need serial numbers
-meta.dt$serial <- NULL
-rm(serial.dt, dt.alt, dt.base, scn.dt.base, scn.dt.alt)
-gc()
+scn.dt <- merge.dt$scn
+doses.dt <- merge.dt$meta[outcome == "doses"]
 
-longmeta.dt <- setkey(
-  melt(meta.dt, id.vars = c("scenario", "realization", "date"), variable.name = "outcome"),
-  scenario, realization, outcome, date
-)
-#' n.b.: this works because key'ed (ordered) by date
-longmeta.dt[,
-  c.value := cumsum(value),
-  by=.(scenario, realization, outcome)
-]
+rm(merge.dt)
 
-#' no longer need meta.dt
-rm(meta.dt)
-gc()
-
-#' non-intervention; remove scenario column, so it doesn't appear in joins
-#' n.b. this will need to change if there are multiple non-interventions
-ref.dt <- longmeta.dt[(scenario == 1) & (outcome != "doses")]
-doses.dt <- longmeta.dt[outcome == "doses"]
-
-saveRDS(scn.dt, gsub("\\.rds","-key.rds", tail(.args, 1)))
 saveRDS(ref.dt, gsub("\\.rds","-ref.rds", tail(.args, 1)))
 saveRDS(doses.dt, gsub("\\.rds","-doses.rds", tail(.args, 1)))
 
-rm(scn.dt, doses.dt)
+rm(ref.dt, doses.dt)
+
 gc()
 
-#' interventions
-int.dt <- setkeyv(
-  longmeta.dt[(scenario != 1) & (outcome != "doses")][ref.dt[, .SD, .SDcols = -c("scenario")], on=.(realization, date, outcome)],
-  key(longmeta.dt)
-)
 int.dt[,
   c("averted", "c.averted") := .(i.value-value, i.c.value-c.value)
+][,
+  c.effectiveness := c.averted/i.c.value
 ]
 
-rm(longmeta.dt)
+#' in general, plotting value, averted, & c.eff
+#' potential also want c0.eff = c.eff, but
+#' calculated from a later baseline. to compute that, need
+#' need c.averted + c.i.value, from new baseline
+#' c.i.value = cumsum(value + averted)
+#' so, data to store:
+#'  * keying values (scenario, realization, date, outcome)
+#'  * values (value, averted, [can easily reconstitute c.value, c.averted])
+#'  * c.effectiveness
+#'  ... then can as necessary reconstitute:
+#'  c.value = cumsum(value), c.averted = cumsum(averted)
+#'  c0.effectiveness = c.averted (rebased) / cumsum(value + averted) (also rebased)
+
+saveRDS(int.dt[,.(value, averted, c.effectiveness), keyby=.(scenario, realization, outcome, date)], tail(.args, 1))
+
+rm(int.dt)
 gc()
 
-int.dt[, c.effectiveness := c.averted/i.c.value ]
+caststockpile <- function(df, v) factor(
+  fifelse(v == 0, "none", fifelse(
+    df == 1, "low", fifelse(
+    df == 1.5, "low-matched", fifelse(
+    df == 2, "high", fifelse(
+    df == 5, "covax", "ERROR"
+  ))))), levels = c(
+    "none", "low", "low-matched", "high", "covax"
+  ), ordered = TRUE
+)
 
-saveRDS(int.dt, tail(.args, 1))
+castaction <- function(v,q) factor(
+  fifelse(
+    v == q, fifelse(v==1,"vandq", "none"), fifelse(v==1, "vonly", "qonly")
+  ), levels = c("none", "qonly", "vonly", "vandq"), ordered = TRUE
+)
 
+castactive <- function(strat, v) factor(
+  fifelse(
+    strat == 0, fifelse(v==0, "none", "passive"), fifelse(
+    strat == 2, "ring", fifelse(
+    strat == 6, "risk", "ERROR"
+  ))), levels = c("none", "passive", "risk", "ring"), ordered = TRUE
+)
+
+# WARNING: SERIOUS MAGIC HERE
+# TODO refactor when updated scenario runs
+scn.dt[,
+  c("stockpile", "action", "active") := .(
+    caststockpile(dose_file, vac),
+    castaction(vac, quarantine),
+    castactive(active_vax_strat, vac)
+  )
+]
+
+saveRDS(scn.dt, gsub("\\.rds","-key.rds", tail(.args, 1)))

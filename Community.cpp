@@ -1130,8 +1130,6 @@ void Community::tick() {
     _day = _date->day();
 // if (_day == 335) { exit(-1); }
 
-    if (vac_campaign) { vaccinate(); }
-
     within_household_transmission();
     between_household_transmission();
 
@@ -1158,7 +1156,14 @@ void Community::tick() {
     // do contact tracing to a given depth using reported cases from today if _day is at or after the start of contact tracing
     vector<set<Person*, PerPtrComp>> tracedContactsByDepth = traceForwardContacts();
 
-    if(vac_campaign) { vac_campaign->reactive_strategy(_day, tracedContactsByDepth, this); } // if there is no reactive strategy, nothing happens
+    if (vac_campaign) {
+        // this only schedules people for urgent vaccination if eligible
+        // if there is no reactive strategy, nothing happens
+        vac_campaign->reactive_strategy(_day, tracedContactsByDepth, this);
+
+        // this is the actual vaccination step
+        vaccinate();
+    }
 
     // output transmission type data
     //if (_day == (int) _par->runLength -1) {
