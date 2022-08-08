@@ -403,7 +403,7 @@ quantile.data.table <- function(
   ...
 ) {
 
-  if (length(intersect(col, colnames(dt))) != length(col)) {
+  if (!all(col %in% colnames(dt))) {
     stop("`colnames(dt)` and `col` mismatch")
   }
 
