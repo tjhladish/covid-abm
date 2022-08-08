@@ -1,12 +1,12 @@
 
-default: doses.png
+default: res_fig1.png
 
 -include local.mk
 
 # setup definitions
 
 DATADIR ?= ..
-SIMFILES ?= $(patsubst %,covid-active-%_w-meta.sqlite,vac vac_ring-vac-alternatives)
+SIMFILES ?= $(patsubst %,covid-active-%.sqlite,vac_w-meta vac_ring-vac-alternatives_w-meta only)
 
 R = $(strip Rscript $^ $(1) $@)
 
@@ -25,12 +25,25 @@ plotlog: ${DATADIR}/active_vac_raw_output.tgz
 	mkdir $@
 	tar -tf $< | grep -E "log1[0-9]{3}\." | xargs tar -xf $< -C $@
 
+plotlog_ao: ${DATADIR}/active_vac_only_raw_output.tgz
+	mkdir $@
+	tar -xf $< --strip-components=1 -C $@
+
+validation_ao.rds: validation_ingest.R plotlog_ao
+	$(call R)
+
+digest-ext.rds: digest-ext.R ${DATADIR}/covid-active-only.sqlite digest-key.rds digest-ref.rds
+	$(call R)
+
 cleanplotlog:
-	rm -rf plotlog
+	rm -rf plotlog plotlog_ao
 
 PLOTINS := digest.rds digest-key.rds digest-ref.rds vis_support.rda
 
 # main text figures
+
+active-only.png: onlyvis.R digest-ext.rds digest-ext-key.rds digest-ref.rds vis_support.rda
+	$(call R)
 
 combo-low.png: combovis.R $(PLOTINS)
 	$(call R)
@@ -38,7 +51,7 @@ combo-low.png: combovis.R $(PLOTINS)
 combo-low-mt.png: combovis_mt.R $(PLOTINS)
 	$(call R)
 
-combo-low-matched-noq.png: combovis_matched.R $(PLOTINS)
+res_fig1.png: combovis_matched.R $(PLOTINS)
 	$(call R)
 
 combo-low-matched-isq.png: combo-low-matched-noq.png
