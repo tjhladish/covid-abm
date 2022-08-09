@@ -242,21 +242,21 @@ size_t tally_decreases(const vector<T> &vals) {
 
 
 // helper function to call simvis.R when needed
-void gen_simvis(vector<string> &plot_log_buffer) {
-    for (size_t i = 1; i < plot_log_buffer.size(); ++i) {
-        //plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt[i-1].second);
-        if (i >= (plot_log_buffer.size() - 14)) {
-            plot_log_buffer[i] = plot_log_buffer[i] + ",0";// + to_string(Rt_ma[i-1]);
-        } else {
-            plot_log_buffer[i] = plot_log_buffer[i];// + to_string(Rt_ma[i-1]);
-        }
-    }
-    bool overwrite = true;
-    write_daily_buffer(plot_log_buffer, "42", "plot_log.csv", overwrite);
-    //int retval = system("Rscript fitvis.R");
-    int retval = system("Rscript simvis.R");
-    if (retval == -1) { cerr << "System call to `Rscript simvis.R` failed\n"; }
-}
+//void gen_simvis(vector<string> &plot_log_buffer) {
+//    for (size_t i = 1; i < plot_log_buffer.size(); ++i) {
+//        //plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt[i-1].second);
+//        if (i >= (plot_log_buffer.size() - 14)) {
+//            plot_log_buffer[i] = plot_log_buffer[i] + ",0";// + to_string(Rt_ma[i-1]);
+//        } else {
+//            plot_log_buffer[i] = plot_log_buffer[i];// + to_string(Rt_ma[i-1]);
+//        }
+//    }
+//    bool overwrite = true;
+//    write_daily_buffer(plot_log_buffer, "42", "plot_log.csv", overwrite);
+//    //int retval = system("Rscript fitvis.R");
+//    int retval = system("Rscript simvis.R");
+//    if (retval == -1) { cerr << "System call to `Rscript simvis.R` failed\n"; }
+//}
 
 
 vector<string> simulate_epidemic(const Parameters* par, Community* &community, const string process_id, const vector<string> mutant_intro_dates) {
@@ -387,9 +387,9 @@ if (sim_day == 0) { seed_epidemic(par, community, WILDTYPE); }
         const double trailing_avg = trailing_averages[sim_day];
 
         Vac_Campaign* vc    = community->getVac_Campaign() ? community->getVac_Campaign() : nullptr;
-        const int std_doses = vc ? vc->get_std_doses_used(sim_day) : 0;
-        const int urg_doses = vc ? vc->get_urg_doses_used(sim_day) : 0;
-        const int all_doses = vc ? vc->get_all_doses_used(sim_day) : 0;
+        const int std_doses = vc ? vc->get_doses_used(sim_day, STANDARD_ALLOCATION) : 0;
+        const int urg_doses = vc ? vc->get_doses_used(sim_day, URGENT_ALLOCATION) : 0;
+        const int all_doses = std_doses + urg_doses;
 
         const size_t rc_ct = accumulate(all_reported_cases.begin(), all_reported_cases.begin()+sim_day+1, 0);
         map<string, double> VE_data = community->calculate_vax_stats(sim_day);
@@ -688,14 +688,15 @@ void generate_sim_data_db(const Parameters* par, const Community* community, con
         }
     }
 
-    map<int, int> bin_pops = community->getVac_Campaign()->get_unique_age_bin_pops();
-    Dose_Ptrs std_doses = community->getVac_Campaign()->get_std_doses_available();
-    Dose_Ptrs urg_doses = community->getVac_Campaign()->get_urg_doses_available();
+    Vac_Campaign* vc         = community->getVac_Campaign();
+    map<int, int> bin_pops   = vc->get_unique_age_bin_pops();
+    Dose_Ptrs std_doses      = vc->get_doses_available(STANDARD_ALLOCATION);
+    Dose_Ptrs urg_doses      = vc->get_doses_available(URGENT_ALLOCATION);
 
-    Dose_Vals std_doses_used = community->getVac_Campaign()->get_std_doses_used();
-    Dose_Vals urg_doses_used = community->getVac_Campaign()->get_urg_doses_used();
+    Dose_Vals std_doses_used = vc->get_doses_used(STANDARD_ALLOCATION);
+    Dose_Vals urg_doses_used = vc->get_doses_used(URGENT_ALLOCATION);
 
-    for (int bin : community->getVac_Campaign()->get_unique_age_bins()) {
+    for (int bin : vc->get_unique_age_bins()) {
         ofiles["age_bins"] << bin << ','
                            << bin_pops[bin] << "\n";
 

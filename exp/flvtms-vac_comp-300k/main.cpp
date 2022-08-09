@@ -55,10 +55,10 @@ bool autotune                     = false;
 const int FL_POP                  = 21538187;   // as of 2020 census
 
 enum VacCampaignScenario {
-    FL_LIKE_FL,
-    VT_LIKE_FL,
-    MS_LIKE_FL,
-    ACTIVE_VAC_CAMPAIGN,
+    FL_LIKE_FL,          // FL_ROLLOUT
+    VT_LIKE_FL,          // VT_ROLLOUT
+    MS_LIKE_FL,          // MS_ROLLOUT
+    ACTIVE_VAC_CAMPAIGN, // remove
     NUM_OF_VAC_CAMPAIGN_SCENARIOS
 };
 
@@ -246,7 +246,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->networkFilename          = pop_dir    + "/network-"            + SIM_POP + ".txt";
     par->publicActivityFilename   = pop_dir    + "/public-activity-"    + SIM_POP + ".txt";
     par->rCaseDeathFilename       = "./rcasedeath-florida.csv";
-    par->vaccinationFilename      = "./state_based_counterfactual_doses.txt"; //"./counterfactual_doses_v2.txt";
+//    par->vaccinationFilename      = "./state_based_counterfactual_doses.txt"; //"./counterfactual_doses_v2.txt";
     // par->doseFilename            = "./counterfactual_doses.txt"; //"./dose_data/FL_doses.txt"; //pop_dir    + "/../fl_vac/doses.txt";
     par->riskGroupsFilename       = "./300K_sample_pop_groups.txt";
 
@@ -529,6 +529,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     const size_t dose_file                          = (size_t) args[4];       // 0 = state_based_counterfactual_doses.txt; 1 = active_vax_counterfactual_doses.txt; 2 =ring_vax_deployment_counterfactual_doses.txt
     const VacCampaignType active_vax_strat          = (VacCampaignType) args[5];       // 0 = none; 1 = ring vax; 2 = risk group vax; 3 = risk vax
     const bool quarantine_ctrl                      = (bool) args[6];     // 0 = off; 1 = on
+  //const bool ppb_fitting                          = (bool) args[7];
 
     Parameters* par = define_simulator_parameters(args, rng_seed, serial, process_id);
     define_strain_parameters(par);
@@ -557,7 +558,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
                                              "./active_vax_counterfactual_doses_50k.txt",
                                              "./active_vax_counterfactual_doses_100k.txt",
                                              "./ring_vax_deployment_active_counterfactual_doses.txt",
-                                             "./ring_vax_deployment_passive_counterfactual_doses.txt"};
+                                             "./ring_vax_deployment_passive_counterfactual_doses.txt",
+                                             "./ring_vax_deployment_active_only_doses.txt"};
 
         par->vaccinationFilename = vacFilenames[dose_file];
 
@@ -702,14 +704,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
     double tot_doses = 0;
     if (vc) {
-        const Dose_Vals std_doses  = vc->get_std_doses_used();
-        const Dose_Vals urg_doses  = vc->get_urg_doses_used();
         for (int day = 0; day < (int) par->runLength; ++day) {
-            for (int dose = 0; dose < (int) par->numVaccineDoses; ++dose) {
-                for (int bin : vc->get_unique_age_bins()) {
-                    tot_doses += (double) std_doses[day][dose].at(bin) + (double) urg_doses[day][dose].at(bin);
-                }
-            }
+            tot_doses += vc->get_doses_used(day, STANDARD_ALLOCATION) + vc->get_doses_used(day, URGENT_ALLOCATION);
         }
     }
 
