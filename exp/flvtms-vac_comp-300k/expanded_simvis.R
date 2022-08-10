@@ -43,15 +43,23 @@ hhsHosp = hhsHosp[order(hhsHosp$date),]
 seroprev = read.csv("CDC_seroprev_long.csv", stringsAsFactors = F, header = T)
 seroprev$date = as.Date(seroprev$date)
 
-vax = read.csv("./dose_data/trends_in_number_of_covid19_vaccinations_in_fl.csv", stringsAsFactors=F, header=T, skip=2)
-vax$date = as.Date(vax$Date)
-vax$first = vax$Daily.Count.People.Receiving.Dose.1*per10k
-vax$second = vax$Daily.Count.of.People.Fully.Vaccinated*per10k
-vax$third = vax$Daily.Count.People.Receiving.a.First.Booster.Dose*per10k
-vax$totdoses = cumsum(vax$first + vax$second + vax$third)
-vax$cov1 = cumsum(vax$Daily.Count.People.Receiving.Dose.1)/pop_florida
-vax$cov2 = cumsum(vax$Daily.Count.of.People.Fully.Vaccinated)/pop_florida
-vax$cov3 = cumsum(vax$Daily.Count.People.Receiving.a.First.Booster.Dose)/pop_florida
+vax = read.table("./state_based_counterfactual_doses.txt", stringsAsFactors = F, header = T, sep = ' ')
+pop = read.table("../../pop/pseudo-300K/population-pseudo-300K.txt", stringsAsFactors = F, header = T, sep = ' ')
+bin_pops = as.integer(table(cut(pop$age, breaks = c(0, 5, 12, 18, 65, 120), right = F)))
+
+vax = vax[vax$is_urg == 0 & vax$ref_location == "FL",]
+vax$ndoses = 0
+vax[vax$bin_min == 5,]$ndoses = vax[vax$bin_min == 5,]$n_doses_p10k * (bin_pops[2]/1e4)
+vax[vax$bin_min == 12,]$ndoses = vax[vax$bin_min == 12,]$n_doses_p10k * (bin_pops[3]/1e4)
+vax[vax$bin_min == 18,]$ndoses = vax[vax$bin_min == 18,]$n_doses_p10k * (bin_pops[4]/1e4)
+vax[vax$bin_min == 65,]$ndoses = vax[vax$bin_min == 65,]$n_doses_p10k * (bin_pops[5]/1e4)
+agg_vax = aggregate(x = list(doses = vax$ndoses), by = list(date=vax$date, dose=vax$dose), FUN = sum)
+agg_vax$date = as.Date(agg_vax$date)
+agg_vax$cov = agg_vax$doses/375474
+cov_dates = unique(agg_vax$date)
+cov1 = cumsum(agg_vax$cov[agg_vax$dose == 1])
+cov2 = cumsum(agg_vax$cov[agg_vax$dose == 2])
+cov3 = cumsum(agg_vax$cov[agg_vax$dose == 3])
 
 d$crcase   = cumsum(d$rcase)
 d$crdeath  = cumsum(d$rdeath)
@@ -202,15 +210,17 @@ lines(d$date, d$VESAvg, col='dodgerblue4', lwd = 2)
 annotate('Direct VES')
 
 # Vaccine delivery
-ymax = max(vax$cov1, d$cov1, 1, na.rm=T)
+ymax = max(cov1, d$cov1, 1, na.rm=T)
 plot(d$date, d$std_doses, type='n', xlab='', ylab='', xaxt='n', ylim=c(0,ymax), bty='n')
 shading()
 abline(h=1, lty=3)
-lines(vax$date, vax$cov1, lty = 3)
-lines(vax$date, vax$cov2)
+lines(cov_dates, cov1, lty = 3)
+lines(cov_dates, cov2, lty = 2)
+lines(cov_dates, cov3, lty = 1)
 lines(d$date, d$cov1, col='purple', lty=3)
-lines(d$date, d$cov2, col='purple')
-annotate('Vaccination coverage (dose 1 - dashed; dose 2 - solid)')
+lines(d$date, d$cov2, col='purple', lty=2)
+lines(d$date, d$cov3, col='purple', lty=1)
+annotate('Vaccination coverage (dose 1 - dotted; dose 2 - dashed; dose 3 = solid)')
 
 # hosp by vax status
 ymax = max(d$vaxHosp + d$unvaxHosp, rm.na=T)
