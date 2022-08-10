@@ -151,7 +151,7 @@ dose.in = data.table()
 for (loc in locs_of_interest) {
   tmp <- fread(paste0(.args[3], "/trends_in_number_of_covid19_vaccinations_in_", tolower(loc), ".csv"))
   dose_table <- tmp[, .(location = loc, date = Date, first = `Daily Count People Receiving Dose 1`,
-                       second = `Daily Count of People Fully Vaccinated`, third = `Daily Count People Receiving a First Booster Dose`)]
+                       second = `Daily Count of People Fully Vaccinated`, third = `Daily Count People Receiving a Booster Dose`)]
   dose.in <- rbindlist(list(dose.in, dose_table))
 }
 dose.in[pop.dt[bin_min == 5 & bin_max == 120, .(location, pop)], on = .(location), tot_pop := pop][, tot_doses := sum(first+second+third), by = .(location, date)]
@@ -166,33 +166,35 @@ dose.in[, dose := tstrsplit(dose, "_", keep=1)][, dose := as.integer(dose)]
 
 dose.dt <- exp.dt[, .(date, location = ref_loc, bin_min, bin_max, dose, value_p10k)][dose.in, on = .(location, date, dose)]
 
-prepend_vax_doses <- function(SD, orig_ts) {
+prepend_vax_doses <- function(SD, orig_ts, join_day) {
   tmp_ts <- cumsum(orig_ts)
   if (max(tmp_ts) == 0) {
     tmp_ts <- rep(0, length(tmp_ts))
   } else {
-    tmp_ts <- (tmp_ts / max(tmp_ts)) * SD[date == min(date[!is.na(value_p10k)]), value_p10k]
+    tmp_ts <- (tmp_ts / max(tmp_ts)) * SD[date == join_day, value_p10k]
   }
-  tmp_ts <- c(tmp_ts[1], diff(tmp_ts), SD[date > min(date[!is.na(value_p10k)]), value_p10k])
+  tmp_ts <- c(tmp_ts[1], diff(tmp_ts), SD[date > join_day, value_p10k])
   return(tmp_ts)
 }
 
 prepended_doses.dt = data.table()
 for (loc in locs_of_interest) {
   for (d in 1:3) {
-    orig_prepend_ts = dose.dt[location == loc & dose == d & is.na(value_p10k), emp_value_p10k]
-    orig_prepend_ts = c(orig_prepend_ts, dose.dt[location == loc & dose == d & date == min(date[!is.na(value_p10k)]), unique(emp_value_p10k)])
     for (bin in unique(dose.dt[!is.na(bin_min), bin_min])) {
       if (bin == 5 & d == 3) { next }
+      earliest_bin_data_day = ymd(dose.dt[location == loc & dose == d & bin_min == bin & value_p10k > 0, min(date)])
+      orig_prepend_ts = dose.dt[location == loc & dose == d & is.na(value_p10k), emp_value_p10k]
+      orig_prepend_ts = c(orig_prepend_ts, dose.dt[location == loc & dose == d & bin_min == bin & date <= earliest_bin_data_day, emp_value_p10k])
+
       tmp = dose.dt[location == loc & dose == d & bin_min == bin][
-        data.table(date = seq.Date(as.Date("2020-12-14"), as.Date("2022-03-07"), by = "day")), on = "date"]
+        data.table(date = seq.Date(ymd("2020-12-14"), ymd(dose.dt[location == loc & dose == d & bin_min == bin, max(date)]), by = "day")), on = "date"]
       tmp[, `:=` (
         location = unique(location[!is.na(location)]),
         bin_min = unique(bin_min[!is.na(bin_min)]),
         bin_max = unique(bin_max[!is.na(bin_max)]),
         dose = unique(dose[!is.na(dose)])
       )]
-      tmp[, adj_value_p10k := prepend_vax_doses(.SD, orig_prepend_ts)]
+      tmp[, adj_value_p10k := prepend_vax_doses(.SD, orig_prepend_ts, earliest_bin_data_day)]
       prepended_doses.dt = rbindlist(list(prepended_doses.dt, tmp[, .(date, location, bin_min, bin_max, dose, n_doses_p10k=adj_value_p10k)]))
     }
   }
