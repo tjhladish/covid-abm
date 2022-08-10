@@ -84,7 +84,7 @@ class Eligibility_Group {
     }
 
     int eligibility_day;                                        // when these people become eligible for vaccination
-    std::map<int, std::vector<Person*>> eligible_people;        // people to become eligible index by [age bin]
+    std::map<int, std::vector<Person*>> eligible_people;        // people to become eligible indexed by [age bin]
 
     // comparator to use to rank Eligibility_Groups by eligibility_day in a priority queue
     struct comparator { bool operator()(const Eligibility_Group* A, const Eligibility_Group* B) const { return A->eligibility_day > B->eligibility_day; } };
@@ -477,7 +477,7 @@ class Vac_Campaign {
         void geographic_scheduling(int day, vector<set<Person*, PerPtrComp>> targetedPeople, Community* community);
         void location_scheduling(int day, vector<set<Person*, PerPtrComp>> targetedPeople);
         void grouped_risk_scheduling(int day, Community* community);
-        void risk_vaccination(int day, Community* community);
+        void risk_scheduling(int day, Community* community, double hosp_risk_threshold = 0.1); // hrt is Pr{hospitalization|infection} @ pandemic start
 
         void reactive_strategy(int day, vector<set<Person*, PerPtrComp>> targetedPeople, Community* community);
 
