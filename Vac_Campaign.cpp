@@ -220,43 +220,38 @@ void Vac_Campaign::grouped_risk_scheduling(int day, Community* community) {
             }
             delete _grouped_risk_deque.front().second[dose];
         }
-        _current_risk_group =  _grouped_risk_deque.front().first;
+        _current_risk_group = _grouped_risk_deque.front().first;
         _grouped_risk_deque.pop_front();
     }
 }
 
-void Vac_Campaign::risk_vaccination(int day, Community* community) {
+void Vac_Campaign::risk_scheduling(int day, Community* community, double hosp_risk_threshold) {
     // this function only needs to be executed once at the start of the strategy
-    if (day == start_of_campaign[GROUPED_RISK_VACCINATION]) {
-        vector<Person*> people_to_sch;
+    if (day == start_of_campaign[RISK_VACCINATION]) {
+        vector<Eligibility_Group*> urgents = init_new_eligible_groups(day);
 
         for (Person* p : community->getPeople()) {
             // risk of severe outcomes given infection
             double risk = _par->probSeriousOutcome.at(SEVERE)[p->hasComorbidity()][p->getAge()] * _par->pathogenicityByAge[p->getAge()];
-            if (risk >= 0.1) { people_to_sch.push_back(p); }
-        }
-
-        vector<Eligibility_Group*> urgents = init_new_eligible_groups(day);
-        for (Person* p : people_to_sch) {
-            // Parameters must ensure than urgent_vax_dose_threshold <= numVaccineDoses
-            if (is_age_eligible_on(p->getAge(), day) and (p->getNumVaccinations() < _par->urgent_vax_dose_threshold)) {
+            if (risk >= hosp_risk_threshold and is_age_eligible_on(p->getAge(), day) and (p->getNumVaccinations() < _par->urgent_vax_dose_threshold)) {
                 // getNumVaccinations() used as an index will ensure this person is being scheduled for their next dose
                 // eg: if getNumVaccinations() returns 1, 1 as an index pushes this person for dose 2
                 urgents[p->getNumVaccinations()]->eligible_people[age_bin_lookup[p->getAge()]].push_back(p);
             }
         }
+
         schedule_urgent_doses(urgents);
     }
 }
 
 void Vac_Campaign::reactive_strategy(int day, vector<set<Person*, PerPtrComp>> targetedPeople, Community* community) {
-    // general handler for which campgain shoudl be called from Community::tick()
+    // general handler for which campaign should be called from Community::tick()
     switch (reactive_vac_strategy) {
         case RING_VACCINATION:         { ring_scheduling(day, targetedPeople); break; }
         case GEO_VACCINATION:          { geographic_scheduling(day, targetedPeople, community); break; }
         case LOCATION_VACCINATION:     { location_scheduling(day, targetedPeople); break; }
         case GROUPED_RISK_VACCINATION: { grouped_risk_scheduling(day, community); break; }
-        case RISK_VACCINATION:         { risk_vaccination(day, community); break; }
+        case RISK_VACCINATION:         { risk_scheduling(day, community); break; }
 
         case GENERAL_CAMPAIGN: break;
         case NUM_OF_VAC_CAMPAIGN_TYPES: break;
