@@ -25,50 +25,64 @@ ref.dt <- readRDS(.args[3])[
 
 load(.args[4])
 
+mtscns <- scn.dt[
+  (stockpile == "none") | # nothing & q-only
+  (stockpile == "low" & active == "passive" & action == "vonly") | # as implemented
+  (stockpile == "low-matched" & active == "passive" & action == "vandq") | # extra vaccine
+  (stockpile == "low-matched" & active == "risk" & action == "vandq") | # risk-targetted
+  (stockpile == "low" & active == "ring" & action == "vandq") | # ring targetted
+  (stockpile == "covax" & action == "vandq") # LMIC, risk and ring
+]
+
 plt.dt <- setkeyv(
-  { ret <- eff.dt[scn.dt, on=.(scenario)][
-      is.na(stockpile) | (stockpile %in% c("low", "low-matched"))
-    ][(active != "passive") | ((active == "passive") & (stockpile == "low-matched"))]
-    ret[stockpile == "low-matched", stockpile := "low" ]
-    ret[active == "passive", active := "passive+" ]
+  {
+    ret <- eff.dt[mtscns, on=.(scenario), nomatch = 0]
+    ret[
+      stockpile == "low-matched" & active == "passive", active := "passive+"
+    ]
+    ret[, stockpile := gsub("-matched", "", stockpile) ]
     ret
   },
-  union(key(eff.dt), colnames(scn.dt))
+  union(key(eff.dt), colnames(mtscns))
 )
 
 rm(eff.dt)
 gc()
 
 plt.dt[,
-  action_full := fifelse(action != "none", fifelse(active == "none", as.character(action), paste(action,active,sep="_")), as.character(action))
+  action_full := fifelse(
+    action == "none", as.character(action), fifelse(
+    stockpile == "covax", paste(action, active, "only", sep="_"), fifelse(
+    active == "none", as.character(action), paste(action, active, sep="_")
+  )))
 ][,
   active_full := action_full
 ]
 
+setkeyv(plt.dt, union(key(plt.dt), c("action_full", "active_full")))
+
 aesbase <- aes(
-  linetype = action_full,
+  linetype = action_full, color = active_full,
   group = interaction(scenario, realization)
 )
 
 p.gen <- function(
-  dt, yvar, aesbase, ytitle, scale_y,
-  ymax = NA, show.end = FALSE
+  dt, yvar, aesbase, scale_y,
+  ymax = NA, geom = geom_river
 ) {
   aesbase$y <- str2lang(yvar)
-  loc.dt <- dt[, c(key(dt), "action_full", "active_full", yvar), with = FALSE]
-  return(ggplot() + aes_string(
-    x = "date", y = yvar,
-    color = "active_full"
+  aesbase$x <- quo(date)
+  loc.dt <- dt[, c(key(dt), yvar), with = FALSE]
+  return(ggplot(loc.dt) + aes_string(
+    y = yvar
   ) +
     geom_month_background(
       loc.dt,
       font.size = 3,
       by = c(row = "outcome"), value.col = yvar, ymax = ymax
     ) +
-    geom_river(
-      mapping = aesbase,
-      data = loc.dt, #[!is.na(stockpile)],
-      show.end = show.end
+    geom(
+      mapping = aesbase
     ) +
     facet_typical(cols = NULL) +
     scale_y() +
@@ -88,22 +102,24 @@ p.gen <- function(
     ))
 }
 
-#' not Q
-
-notq <- expression(!(action %like% "q"))
+aeseff <- aesbase
+aeseff$label <- quo(sprintf('%.2f', c.effectiveness))
 
 p.eff <- p.gen(
-  plt.dt[scenario != 1][eval(notq)], "c.effectiveness", aesbase, "Test", scale_y_effectiveness,
-  ymax = 1, show.end = TRUE
+  plt.dt[scenario != 1],
+  "c.effectiveness",
+  aeseff,
+  scale_y_effectiveness,
+  ymax = 1
 ) + coord_cartesian(ylim = c(0, 1)) + theme(legend.position = "none")
 
 p.ave <- p.gen(
-  plt.dt[scenario != 1][eval(notq)], "averted", aesbase, "Test", scale_y_averted
+  plt.dt[scenario != 1], "averted", aesbase, scale_y_averted
 ) + theme(legend.position = "none")
 
 p.inc = p.gen(
-  setkeyv(rbind(plt.dt[eval(notq)][scenario != 1], ref.dt, fill = TRUE), key(plt.dt)),
-  "value", aesbase, "Test", scale_y_incidence
+  setkeyv(rbind(plt.dt[scenario != 1], ref.dt, fill = TRUE), key(plt.dt)),
+  "value", aesbase, scale_y_incidence
 ) + theme(
   legend.position = "bottom",
   legend.margin = margin(),
@@ -124,6 +140,8 @@ p.fin <- p.inc + p.ave + p.eff + guide_area() + plot_layout(
 ", guides = 'collect')
 
 ggsave(gsub("-(\\w+)\\.","-noq.",tail(.args, 1)), p.fin, height = 4*1.5, width = 3.25*4, bg = "white")
+
+quit()
 
 isq <- expression((action %like% "q") | (action == "none"))
 
