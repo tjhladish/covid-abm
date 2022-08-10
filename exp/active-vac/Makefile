@@ -8,7 +8,7 @@ COVDIR = $(HOME)/work/covid-abm
 GSL_PATH = $(HOME)/work/AbcSmc/gsl_local
 COVOBJ = $(COVDIR)/Person.o $(COVDIR)/Location.o $(COVDIR)/Community.o $(COVDIR)/Parameters.o $(COVDIR)/Utility.o $(COVDIR)/Vac_Campaign.o
 SQLDIR = $(ABCDIR)/sqdb
-DOSEDIR = $(COVDIR)/exp/flvtms-vac_comp-300k/dose_data
+DOSEDIR = $(COVDIR)/exp/active-vac/dose_data
 DOSEDATA = $(DOSEDIR)/trends_in_number_of_covid19_vaccinations_in_fl.csv $(DOSEDIR)/trends_in_number_of_covid19_vaccinations_in_vt.csv $(DOSEDIR)/trends_in_number_of_covid19_vaccinations_in_ms.csv
 
 INCLUDE = -I$(ABCDIR) -I$(COVDIR) -I$(GSL_PATH)/include/ -I$(ABCDIR)/jsoncpp/include

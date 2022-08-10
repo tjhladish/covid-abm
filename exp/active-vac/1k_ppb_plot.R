@@ -3,7 +3,7 @@ library(lubridate)
 library(ggplot2)
 library(dplyr)
 
-if (interactive()) { setwd("~/documents/work/covid-abm/exp/flvtms-vac_comp-300k/") }
+if (interactive()) { setwd("~/documents/work/covid-abm/exp/active-vac/") }
 
 .args <- if (interactive()) c(
   "ppb_fits.csv"

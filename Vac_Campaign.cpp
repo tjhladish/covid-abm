@@ -349,7 +349,7 @@ Dose_Ptrs Vac_Campaign::_dose_pool(Dose_Vals doses_in) {
 }
 
 // doses pooled across std and urg
-void Vac_Campaign::_dose_pool_all(Dose_Ptrs &urg_out, Dose_Ptrs &std_out, Dose_Vals urg_in, Dose_Vals std_in) {
+void Vac_Campaign::_dose_pool_all(vector<Dose_Ptrs> &doses_out, /*Dose_Ptrs &std_out, */Dose_Vals urg_in, Dose_Vals std_in) {
     Dose_Ptrs doses_available(_par->runLength, std::vector< std::map<int, int*> >(_par->numVaccineDoses));
     for (int day = 0; day < (int) _par->runLength; ++day) {
         _doses.push_back(0);
@@ -361,8 +361,8 @@ void Vac_Campaign::_dose_pool_all(Dose_Ptrs &urg_out, Dose_Ptrs &std_out, Dose_V
             }
         }
     }
-    urg_out = doses_available;
-    std_out = doses_available;
+    doses_out[URGENT_ALLOCATION]   = doses_available;
+    doses_out[STANDARD_ALLOCATION] = doses_available;
 }
 
 // stores doses as read in the input file
@@ -391,22 +391,22 @@ void Vac_Campaign::_clear_and_resize_doses() {
 void Vac_Campaign::init_doses_available(Dose_Vals urg_in, Dose_Vals std_in) {
     _clear_and_resize_doses();
     if (pool_urg_doses and not pool_std_doses) {
-        urg_doses_available = _dose_pool(urg_in);   // pool urgent doses regardless of age or dose
-        std_doses_available = _dose_store(std_in);  // store standard doses normally
+        doses_available[URGENT_ALLOCATION]   = _dose_pool(urg_in);   // pool urgent doses regardless of age or dose
+        doses_available[STANDARD_ALLOCATION] = _dose_store(std_in);  // store standard doses normally
     } else if (pool_std_doses and not pool_urg_doses) {
-        urg_doses_available = _dose_store(urg_in);  // store urgent doses normally
-        std_doses_available = _dose_pool(std_in);   // pool standard doses regardless of age or dose
+        doses_available[URGENT_ALLOCATION]   = _dose_store(urg_in);  // store urgent doses normally
+        doses_available[STANDARD_ALLOCATION] = _dose_pool(std_in);   // pool standard doses regardless of age or dose
     } else if (pool_urg_doses and pool_std_doses) {
         // pool all doses regardless of age or dose
-        urg_doses_available = _dose_pool(urg_in);
-        std_doses_available = _dose_pool(std_in);
+        doses_available[URGENT_ALLOCATION]   = _dose_pool(urg_in);
+        doses_available[STANDARD_ALLOCATION] = _dose_pool(std_in);
     } else if (pool_all_doses) {
         // need a new function to pool across std and urg
-        _dose_pool_all(urg_doses_available, std_doses_available, urg_in, std_in);
+        _dose_pool_all(doses_available, urg_in, std_in);
     } else {
         // store all doses normally
-        urg_doses_available = _dose_store(urg_in);
-        std_doses_available = _dose_store(std_in);
+        doses_available[URGENT_ALLOCATION]   = _dose_store(urg_in);
+        doses_available[STANDARD_ALLOCATION] = _dose_store(std_in);
     }
 }
 
@@ -417,26 +417,26 @@ void Vac_Campaign::copy_doses_available(Vac_Campaign* ovc) {
     for (int day = 0; day < (int) _par->runLength; ++day) {
         for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
             for (int bin : unique_age_bins) {
-                int* other_urg_ptr = ovc->urg_doses_available[day][dose][bin];
-                int* other_std_ptr = ovc->std_doses_available[day][dose][bin];
+                int* other_urg_ptr = ovc->doses_available[URGENT_ALLOCATION][day][dose][bin];
+                int* other_std_ptr = ovc->doses_available[STANDARD_ALLOCATION][day][dose][bin];
 
-                if (dose_ptr_map.count(other_urg_ptr)) {
+                if (dose_ptr_map.count(other_urg_ptr)) { // TODO - this can be refactored to be simpler
                     // ptr has already been seen; use the same new ptr to maintain pooled relationships
-                    urg_doses_available[day][dose][bin] = dose_ptr_map[other_urg_ptr];
+                    doses_available[URGENT_ALLOCATION][day][dose][bin] = dose_ptr_map[other_urg_ptr];
                 } else {
                     // this is a new ptr; push back value and create new ptr
                     _doses.push_back(*other_urg_ptr);
-                    urg_doses_available[day][dose][bin] = &(_doses.back());
+                    doses_available[URGENT_ALLOCATION][day][dose][bin] = &(_doses.back());
                     dose_ptr_map[other_urg_ptr] = &(_doses.back());
                 }
 
                 if (dose_ptr_map.count(other_std_ptr)) {
                     // ptr has already been seen; use the same new ptr to maintain pooled relationships
-                    std_doses_available[day][dose][bin] = dose_ptr_map[other_std_ptr];
+                    doses_available[STANDARD_ALLOCATION][day][dose][bin] = dose_ptr_map[other_std_ptr];
                 } else {
                     // this is a new ptr; push back value and create new ptr
                     _doses.push_back(*other_std_ptr);
-                    std_doses_available[day][dose][bin] = &(_doses.back());
+                    doses_available[STANDARD_ALLOCATION][day][dose][bin] = &(_doses.back());
                     dose_ptr_map[other_std_ptr] = &(_doses.back());
                 }
             }

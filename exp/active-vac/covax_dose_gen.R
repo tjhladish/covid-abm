@@ -5,7 +5,7 @@
 library(data.table)
 library(lubridate)
 
-#if (interactive()) { setwd("~/documents/work/covid-abm/exp/flvtms-vac_comp-300k/") }
+if (interactive()) { setwd("~/documents/work/covid-abm/exp/active-vac/") }
 
 .args <- if (interactive()) c(
   "active_vax_counterfactual_doses_50k.txt"

@@ -246,14 +246,14 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->networkFilename          = pop_dir    + "/network-"            + SIM_POP + ".txt";
     par->publicActivityFilename   = pop_dir    + "/public-activity-"    + SIM_POP + ".txt";
     par->rCaseDeathFilename       = "./rcasedeath-florida.csv";
-    par->vaccinationFilename      = "./state_based_counterfactual_doses.txt"; //"./counterfactual_doses_v2.txt";
+//    par->vaccinationFilename      = "./state_based_counterfactual_doses.txt"; //"./counterfactual_doses_v2.txt";
     // par->doseFilename            = "./counterfactual_doses.txt"; //"./dose_data/FL_doses.txt"; //pop_dir    + "/../fl_vac/doses.txt";
     par->riskGroupsFilename       = "./300K_sample_pop_groups.txt";
 
     par->behavior_fitting_data_target = CASES;
     par->death_tuning_offset = 18; // 18 is median lag b/n infection and death; 8 is median lag b/n detection and death
     par->behaviorInputFilename  = "autotuning_dataset.csv";   // ALEX: I just create a sym link to whatever anchor file you want to read
-    par->behaviorOutputFilename = "/blue/longini/tjhladish/covid-abm/exp/flvtms-vac_comp-300k/behavior_" + to_string(serial) + ".csv";
+    par->behaviorOutputFilename = "/blue/longini/tjhladish/covid-abm/exp/active-vac/behavior_" + to_string(serial) + ".csv";
 
     par->dump_simulation_data = false;
 
@@ -405,6 +405,17 @@ void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign*
     // vc->set_doses_available(doses_available);
     // vc->set_urg_doses_available(urg_doses_available);
     // vc->init_orig_doses_available();
+
+//    for (size_t day = 0; day < std_doses_available.size(); ++day) {
+//        for (size_t dose = 0; dose < std_doses_available[day].size(); ++dose) {
+//            for (auto const &[age_bin, dose_ct] : std_doses_available[day][dose]) {
+//                cerr << "d,dose,age,ct: " << day << " " << dose << " " << age_bin << " " << dose_ct << endl; 
+//            }
+//        }
+//    }
+//    exit(1);
+
+
 }
 
 // REFACTOR generateVac_Campaign()
@@ -696,8 +707,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     bool overwrite = true;
     // this output filename needs to be adjusted for each experiment, so as to not overwrite files
     //string filename = "plot_log" + to_string(serial) + ".csv";
-    //string filename = "/blue/longini/tjhladish/covid-abm/exp/flvtms-vac_comp-300k/plot_log" + to_string(serial) + ".csv";
-    string filename = "/blue/longini/tjhladish/covid-abm/exp/flvtms-vac_comp-300k/v2.0/plot_log" + to_string(serial) + ".csv";
+    //string filename = "/blue/longini/tjhladish/covid-abm/exp/active-vac/plot_log" + to_string(serial) + ".csv";
+    string filename = "/blue/longini/tjhladish/covid-abm/exp/active-vac/v2.0/plot_log" + to_string(serial) + ".csv";
     write_daily_buffer(plot_log_buffer, process_id, filename, overwrite);
 //    stringstream ss;
 //    ss << "Rscript expanded_simvis.R " << serial;
@@ -730,14 +741,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
     double tot_doses = 0;
     if (vc) {
-        const Dose_Vals std_doses  = vc->get_std_doses_used();
-        const Dose_Vals urg_doses  = vc->get_urg_doses_used();
         for (int day = 0; day < (int) par->runLength; ++day) {
-            for (int dose = 0; dose < (int) par->numVaccineDoses; ++dose) {
-                for (int bin : vc->get_unique_age_bins()) {
-                    tot_doses += (double) std_doses[day][dose].at(bin) + (double) urg_doses[day][dose].at(bin);
-                }
-            }
+            tot_doses += vc->get_doses_used(day, STANDARD_ALLOCATION) + vc->get_doses_used(day, URGENT_ALLOCATION);
         }
     }
 
