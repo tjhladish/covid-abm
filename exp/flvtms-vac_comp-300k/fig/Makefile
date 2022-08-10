@@ -1,5 +1,5 @@
 
-default: res_fig1.png
+default: res_fig1.png res_fig1_noq.png
 
 -include local.mk
 
@@ -52,6 +52,9 @@ combo-low-mt.png: combovis_mt.R $(PLOTINS)
 	$(call R)
 
 res_fig1.png: combovis_matched.R $(PLOTINS)
+	$(call R)
+
+res_fig1_noq.png: combovis_matched_noq.R $(PLOTINS)
 	$(call R)
 
 combo-low-matched-isq.png: combo-low-matched-noq.png
