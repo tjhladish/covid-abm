@@ -191,30 +191,35 @@ class BehaviorAutoTuner {
 
     double fit_threshold;           // set value to determine if a window's fit is "good"
 
-    map<size_t, vector<int>> emp_data;
+    vector<vector<double>> emp_data;
 
     stringstream output_buffer;     // buffer to store data to output to the screen during auto tuning
 };
 
 // parse empirical data file and store in a map with key of sim_day and value of a vector of cases and deaths
 // new req: empty values need to be filled with "NA"
-map<size_t, vector<int>> parse_emp_data_file(const Parameters* par) {
-    vector< vector<string> > emp_data = read_2D_vector_file(par->rCaseDeathFilename, ',');
-    map<size_t, vector<int>> recast_emp_data;
+vector<vector<double>> parse_emp_data_file(const Parameters* par) {
+    vector<vector<string>> emp_data = read_2D_vector_file(par->rCaseDeathFilename, ',');
+    vector<vector<double>> recast_emp_data(2, vector<double>(par->runLength, 0.0));
 
     for (vector<string> &v : emp_data) {
         if (v[0] == "Date") { continue; }
-        int rcase = stoi(v[1]);
+        const int sim_day = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, v[0]);
+        const double rcase = (double) stoi(v[1]);
         // at present our split function doesn't return an empty string element if it's the last element that's missing
-        int rdeath = (v.size() <= 4 or v[4] == "" or v[4] == "NA") ? 0 : stoi(v[4]);
-        recast_emp_data[Date::to_sim_day(par->startJulianYear, par->startDayOfYear, v[0])] = {rcase, rdeath};
+        const double rdeath = (v.size() <= 4 or v[4] == "" or v[4] == "NA") ? 0 : (double) stoi(v[4]);
+
+        if (sim_day >= 0 and sim_day < (int) par->runLength) {
+            recast_emp_data[0][sim_day] = rcase;
+            recast_emp_data[1][sim_day] = rdeath;
+        }
     }
     return recast_emp_data;
 }
 
 // helper function to handle score the fit in a tuning window
 // NOTE: USING DEATHS BY DAY OF DEATH NOT DAY OF REPORTING
-double score_fit(const Parameters* par, const Community* community, const size_t sim_day, vector<size_t> sim_rdata_szt, const map<size_t, vector<int>> &emp_data_map) {
+double score_fit(const Parameters* par, const Community* community, const size_t sim_day, vector<size_t> sim_rdata_szt, const vector<vector<double>> &emp_data_map) {
     const int fit_window_size = (par->num_preview_windows + 1) * par->tuning_window;    // size of the tuning window
     const int window_start = ((int) sim_day + 1) - fit_window_size;                     // sim_day at the start of the window
 
@@ -241,19 +246,15 @@ double score_fit(const Parameters* par, const Community* community, const size_t
     // cuts reported cases or deaths from the parsed empirical data
     vector<double> emp_rdata(sim_day + 1, 0.0); // default to 0 if data is missing, for purposes of calculating cumulative sum
     for (size_t day = 0; day <= sim_day; ++day) {
-        if (emp_data_map.count(day)) {
-            // if tuning to case data, store cases (index 0), otherwise store deaths (index 1)
-            switch (par->behavior_fitting_data_target) {
-                case CASES:  emp_rdata[day] = emp_data_map.at(day).at(0); break;
-                case DEATHS: emp_rdata[day] = emp_data_map.at(day).at(1); break;
-                case NUM_OF_AUTO_FITTING_DATA_TARGETS: [[fallthrough]];
-                default: {
-                    cerr << "ERROR: no PPB auto fitting data target selected." << endl;
-                    exit(-1);
-                }
+        // if tuning to case data, store cases (index 0), otherwise store deaths (index 1)
+        switch (par->behavior_fitting_data_target) {
+            case CASES:  emp_rdata[day] = emp_data_map.at(0).at(day); break;
+            case DEATHS: emp_rdata[day] = emp_data_map.at(1).at(day); break;
+            case NUM_OF_AUTO_FITTING_DATA_TARGETS: [[fallthrough]];
+            default: {
+                cerr << "ERROR: no PPB auto fitting data target selected." << endl;
+                exit(-1);
             }
-        } else {
-            fit_weights[day] = 0.0;             // if there is no empirical data for this day, change the error weight to 0 (ignore the error on this day)
         }
     }
 
@@ -349,7 +350,10 @@ BehaviorAutoTuner* initialize_behavior_autotuning(const Parameters* par) {
     tuner->init_defaults();
     tuner->user_sim_setup();
 
-    tuner->emp_data = parse_emp_data_file(par);
+    vector<vector<double>> parsed_data = parse_emp_data_file(par);
+    vector<double> case_ma  = calc_centered_avg(parsed_data[0], 7);
+    vector<double> death_ma = calc_centered_avg(parsed_data[1], 7);
+    tuner->emp_data = {case_ma, death_ma};
 
     return tuner;
 }
@@ -524,9 +528,9 @@ void behavior_autotuning(const Parameters* par, Community* &community, Date* &da
     } else if (day == behavior_processing_day) {
         // calculates the proportion of days in the tuning window that has empirical data
         size_t window_start_sim_day = (day + 1) - ((par->num_preview_windows + 1) * par->tuning_window);
-        size_t num_days_w_emp_data = 0;
-        for (size_t d = window_start_sim_day; d <= day; ++d) { if (tuner->emp_data.count(d)) { ++num_days_w_emp_data; } }
-        double prop_days_w_emp_data = (((double) num_days_w_emp_data) / (day - window_start_sim_day + 1));
+        //size_t num_days_w_emp_data = 0;
+        //for (size_t d = window_start_sim_day; d <= day; ++d) { if (tuner->emp_data.count(d)) { ++num_days_w_emp_data; } }
+        double prop_days_w_emp_data = 1.0;//(((double) num_days_w_emp_data) / (day - window_start_sim_day + 1));
 
         // begin adding tuning data to print to screen
         tuner->output_buffer << right
