@@ -3,7 +3,7 @@ library(lubridate)
 library(ggplot2)
 library(viridis)
 
-if (interactive()) { setwd("~/documents/work/covid-abm/exp/flvtms-vac_comp-300k/") }
+if (interactive()) { setwd("~/documents/work/covid-abm/exp/active-vac/") }
 
 .args <- if (interactive()) c(
   "ACS_2019_pop_data.csv",

@@ -253,7 +253,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->behavior_fitting_data_target = CASES;
     par->death_tuning_offset = 18; // 18 is median lag b/n infection and death; 8 is median lag b/n detection and death
     par->behaviorInputFilename  = "autotuning_dataset.csv";   // ALEX: I just create a sym link to whatever anchor file you want to read
-    par->behaviorOutputFilename = "/blue/longini/tjhladish/covid-abm/exp/flvtms-vac_comp-300k/behavior_" + to_string(serial) + ".csv";
+    par->behaviorOutputFilename = "/blue/longini/tjhladish/covid-abm/exp/active-vac/behavior_" + to_string(serial) + ".csv";
 
     par->dump_simulation_data = false;
 
@@ -707,8 +707,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     bool overwrite = true;
     // this output filename needs to be adjusted for each experiment, so as to not overwrite files
     //string filename = "plot_log" + to_string(serial) + ".csv";
-    //string filename = "/blue/longini/tjhladish/covid-abm/exp/flvtms-vac_comp-300k/plot_log" + to_string(serial) + ".csv";
-    string filename = "/blue/longini/tjhladish/covid-abm/exp/flvtms-vac_comp-300k/v2.0/plot_log" + to_string(serial) + ".csv";
+    //string filename = "/blue/longini/tjhladish/covid-abm/exp/active-vac/plot_log" + to_string(serial) + ".csv";
+    string filename = "/blue/longini/tjhladish/covid-abm/exp/active-vac/v2.0/plot_log" + to_string(serial) + ".csv";
     write_daily_buffer(plot_log_buffer, process_id, filename, overwrite);
 //    stringstream ss;
 //    ss << "Rscript expanded_simvis.R " << serial;
