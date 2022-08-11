@@ -19,13 +19,17 @@ p <- ggplot(dt) + aes(
   labeller = labeller(measure = c(value = "Incident", cvalue = "Cumulative"))
 ) +
   geom_step(data = \(dt) dt |> subset(variable != "provisioned")) +
-  geom_point(data = \(dt) dt |> subset(variable == "provisioned"), alpha = 0.2) +
+  geom_point(
+    data = \(dt) dt |>
+      subset(variable == "provisioned") |>
+      subset((measure == "cvalue" & mday(date) == 1) | (measure == "value")),
+  alpha = 0.2) +
   theme_minimal() +
   theme(
     legend.position = c(0.1, .9), legend.justification = c(0, 1),
     strip.placement = "outside"
   ) +
-  scale_x_date(name = NULL, date_breaks = "months", date_labels = "%b %C", minor_breaks = NULL) +
+  scale_x_date(name = NULL, date_breaks = "months", date_labels = "%b %y", minor_breaks = NULL) +
   scale_y_continuous("Per 10k, age 5+") +
   scale_color_manual(
     name = NULL, breaks = c(
