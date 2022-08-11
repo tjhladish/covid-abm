@@ -56,12 +56,17 @@ sindh10k <- 4444.124
 sindhcpd <- 4000 # courses per day, so doses x 2
 sindhapprox <- data.table(
   date = seq(as.Date("2021-04-01"), length.out = 12, by="month"),
-  assumed = c(rep(1, 3), rep(4, 3), rep(6, 3), rep(8, 3))*2*sindhcpd/sindh10k
+  assumed = c(rep(1, 3), rep(4, 3), rep(6, 3), rep(8, 3))*sindhcpd/sindh10k
 )[CJ(
   date = seq(min(date), as.Date("2022-03-31"), by="day")
-), on=.(date), .(date, assumed = nafill(assumed, "locf"))]
+), on=.(date), .(date, assumedcourses = nafill(assumed, "locf")*2, assumeddoses = nafill(assumed, "locf"))]
 
-res.dt[sindhapprox, on=.(date), assumed := assumed ][, assumed := nafill(assumed, fill = 0)]
+res.dt[
+  sindhapprox, on=.(date), c("assumedcourses","assumeddoses") := .(assumedcourses, assumeddoses)
+][,
+  assumedcourses := nafill(assumedcourses, fill = 0)][,
+  assumeddoses := nafill(assumeddoses, fill = 0)
+]
 
 fwrite(res.dt, file = tail(.args, 1), sep = " ")
 
