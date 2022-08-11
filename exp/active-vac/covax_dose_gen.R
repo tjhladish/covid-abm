@@ -10,6 +10,7 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 #' assumed to accessed via Rproj file, which puts at exp/active-vac
 .args <- if (interactive()) c(
   "covax_raw.csv",
+  "active_vax_counterfactual_doses.txt",
   "covax_doses.txt"
 ) else commandArgs(trailingOnly = TRUE)
 
@@ -69,6 +70,15 @@ res.dt[
 ]
 
 fwrite(res.dt, file = tail(.args, 1), sep = " ")
+
+dose_file_overwrite <- fread(.args[2])
+dose_file_overwrite[, n_doses_p10k := 0]
+covax_assumed = copy(res.dt[dose_file_overwrite, on = .(date)][is_urg == 1 & bin_min == 5 & dose == 1, n_doses_p10k := assumedcourses])
+covax_provisioned = copy(res.dt[dose_file_overwrite, on = .(date)][is_urg == 1 & bin_min == 5 & dose == 1, n_doses_p10k := provisioned])
+fwrite(covax_assumed[,.(date, ref_location, bin_min, bin_max, dose, is_urg, n_doses_p10k)],
+       file = paste0(base::strsplit(tail(.args, 1), split = '\\.')[[1]][1], "_assumed.txt"), sep = " ")
+fwrite(covax_provisioned[,.(date, ref_location, bin_min, bin_max, dose, is_urg, n_doses_p10k)],
+       file = paste0(base::strsplit(tail(.args, 1), split = '\\.')[[1]][1], "_provisioned.txt"), sep = " ")
 
 
 # total_num_countries = 195
