@@ -312,19 +312,40 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
     ledger->strains = {50.0, 0.0, 0.0, 0.0}; // initially all WILDTYPE
     assert(ledger->strains.size() == NUM_OF_STRAIN_TYPES);
 
+    // fit start must be set to a valid anchor day (first anchor to start fitting)
+    // read behavior file if exists (first window swtup will clear it anyways if needed)
+    if (not par->behaviorInputFilename.empty()) {
+        // filename provided for a dataset with behavioral values to use
+        init_behavioral_vals_from_file(par, community, social_distancing_anchors);
+    }
+
     if (par->behavioral_autotuning) {
         // create tuner and initialize first simulation cache
         tuner = initialize_behavior_autotuning(par);
-        sim_cache = new SimulationCache(community, ledger, RNG, REPORTING_RNG, VAX_RNG);    // TODO: change to quick cache
-        first_tuning_window_setup(par, community, tuner, social_distancing_anchors);
-    } else if (not par->behaviorInputFilename.empty()) {
-        // filename provided for a dataset with behavioral values to use
-        init_behavioral_vals_from_file(par, community);
+        sim_cache = new SimulationCache(community, ledger, RNG, REPORTING_RNG, VAX_RNG);
+        if (par->behavior_fit_start == 0) {
+            // only set up first window if starting fit at the start of sim
+            first_tuning_window_setup(par, community, tuner, social_distancing_anchors);
+        } else {
+            // otherwise, we must save the anchors from the input file up to the anchor will will start fitting at
+            community->setSocialDistancingTimedIntervention(social_distancing_anchors);
+        }
     }
 
-    bool restore_occurred = false; // relevant for behavior autotuning
+    bool restore_occurred = false; // relevant for behavior autotuning (maybe move into tuner)
+    if (par->behavioral_autotuning and (par->behavior_fit_start > 0)) { tuner->pause_fit = true;}
     for (; date->day() < (signed) par->runLength; date->increment()) {
         if (par->behavioral_autotuning) {
+            // if starting fit midsim and today is the start of the window for the desired anchor, start fitting
+            if ((par->behavior_fit_start > 0) and (date->day() == (par->behavior_fit_start - par->tuning_window))) {
+                tuner->pause_fit = false;
+                tuner->cur_anchor_val = social_distancing_anchors.back().value;     // this ensures we start the anchor search using the previous anchor value
+                cerr << "switching from simulating to fitting on day " << date->day() << endl;
+            }
+            // this ensures that the sim cache is overwritten during the non-fitting portion of the simulation
+            if (tuner->pause_fit) {
+                tuner->recache = true;
+            }
            behavior_autotuning(par, community, date, ledger, tuner, sim_cache, social_distancing_anchors, restore_occurred);
         }
         const size_t sim_day = date->day();
@@ -401,7 +422,7 @@ if (sim_day == 0) { seed_epidemic(par, community, WILDTYPE); }
         //for (string key : inf_by_loc_keys) {
         //    cerr << "infLoc " << date->to_ymd() << ' ' << key << ' ' << community->getNumNewInfectionsByLoc(key)[sim_day] << endl;
         //}
-        if (not par->behavioral_autotuning) {
+        if ((not par->behavioral_autotuning) or (par->behavioral_autotuning and tuner->pause_fit)) {
             if (date->dayOfMonth()==1) cerr << "        rep sday        date  infinc  cAR     rcases  rcta7  crcases  rdeath  crdeath  sevprev   crhosp  closed  socdist  cov_1  cov_2  cov_3  std_doses  urg_doses  all_doses  quar%\n";
             cerr << right
                 << setw(11) << "NA" //process_id
