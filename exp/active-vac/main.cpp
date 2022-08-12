@@ -52,6 +52,7 @@ int TOTAL_DURATION          = RUN_FORECAST ? RESTART_BURNIN + FORECAST_DURATION 
 const size_t JULIAN_START_YEAR    = 2020;
 //const double DEATH_UNDERREPORTING = 11807.0/20100.0; // FL Mar15-Sep5, https://www.nytimes.com/interactive/2020/05/05/us/coronavirus-death-toll-us.html
 bool autotune                     = false;
+bool print_anchors                = false;
 const int FL_POP                  = 21538187;   // as of 2020 census
 
 enum VacCampaignScenario {
@@ -545,6 +546,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     Parameters* par = define_simulator_parameters(args, rng_seed, serial, process_id);
     define_strain_parameters(par);
 
+    if (print_anchors) { print_valid_anchor_dates(par); exit(1); }
+
     vector<string> mutant_intro_dates = {};
     mutant_intro_dates = {"2021-02-01", "2021-05-27", "2021-11-26"};
 
@@ -817,6 +820,8 @@ int main(int argc, char* argv[]) {
             TOTAL_DURATION = atoi(argv[++i]);
         } else if ( strcmp(argv[i], "--autotune" ) == 0 ) {
             autotune = true;
+        } else if ( strcmp(argv[i], "--anchors" ) == 0 ) {
+            print_anchors = true;
         } else {
             usage();
             exit(101);
