@@ -126,6 +126,8 @@ class BehaviorAutoTuner {
         fit_threshold = 20.0;
 
         output_buffer.str("");
+
+        pause_fit = false;
     }
 
     void user_sim_setup() {
@@ -173,6 +175,8 @@ class BehaviorAutoTuner {
         cerr << right << output_buffer.str() << endl;
         clear_output_buffer();
     }
+
+    bool pause_fit;                 // if true, fitting is paused until reaching behavior_fit_start
 
     Range* bin_search_range;        // points to the range used for this tuner's binary searches
     double cur_anchor_val;          // keeps track of the current anchor val being tested
