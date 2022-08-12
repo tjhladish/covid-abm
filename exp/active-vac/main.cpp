@@ -89,7 +89,19 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->runLength               = TOTAL_DURATION;
 
     par->behavioral_autotuning = (bool) args[7];
+    par->behavior_fit_start = 0;
     par->tuning_window = 14;
+    bool valid_fit_start = false;
+    for (int day = 0; day < (int) par->runLength; ++day) {
+        if ((par->behavior_fit_start + 1) % par->tuning_window == 0) {
+            valid_fit_start = true;
+        }
+    }
+    if (par->behavioral_autotuning and not (valid_fit_start or par->behavior_fit_start == 0)) {
+        cerr << "ERROR: behavior_fit_start must be a valid anchor point sim day (--anchors)" << endl;
+        exit(-1);
+    }
+
     par->num_preview_windows = 3;
     par->runLength += par->behavioral_autotuning ? par->tuning_window * par->num_preview_windows : 0;          // if auto fitting is on, add 30 days to the runLength
 
