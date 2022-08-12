@@ -623,4 +623,13 @@ void write_anchors_to_file(const Parameters* par, vector<TimeSeriesAnchorPoint> 
     ofs.close();
 }
 
+void print_valid_anchor_dates(const Parameters* par) {
+    cerr << "sim day\tdate" << endl;
+    for (int day = 0; day < (int) par->runLength; ++day) {
+        if ((day + 1) % par->tuning_window == 0) {
+            cerr << day << "\t" << Date::to_ymd(day, par) << endl;
+        }
+    }
+}
+
 #endif
