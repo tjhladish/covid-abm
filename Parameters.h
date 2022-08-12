@@ -673,6 +673,7 @@ public:
 //    CsmhScenario csmhScenario;
 
     bool behavioral_autotuning;
+    int behavior_fit_start;
     AutoFittingDataTarget behavior_fitting_data_target;
     size_t death_tuning_offset;
     size_t tuning_window;
