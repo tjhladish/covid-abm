@@ -597,13 +597,18 @@ void behavior_autotuning(const Parameters* par, Community* &community, Date* &da
 
 // if using previous tuned values, parse that file and save the behavior anchors
 // anchor file expected to be csv with columns date, anchor_val
-void init_behavioral_vals_from_file(const Parameters* par, Community* community) {
+void init_behavioral_vals_from_file(const Parameters* par, Community* community, vector<TimeSeriesAnchorPoint> &social_distancing_anchors) {
     vector< vector<string> > tuning_data = read_2D_vector_file(par->behaviorInputFilename, ',');
     vector<TimeSeriesAnchorPoint> tuned_anchors;
+    social_distancing_anchors.clear();
 
     for (vector<string> &v : tuning_data) {
         if (v[0] == "date") { continue; }
         tuned_anchors.emplace_back(v[0], stod(v[1]));
+
+        if (Date::to_sim_day(par->startJulianYear, par->startDayOfYear, v[0]) < par->behavior_fit_start) {
+            social_distancing_anchors.emplace_back(v[0], stod(v[1]));
+        }
     }
 
     community->setSocialDistancingTimedIntervention(tuned_anchors);
