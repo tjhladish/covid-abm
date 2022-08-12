@@ -313,6 +313,7 @@ class Person {
                                                                         // NB: inaccurate test results are possible
         //bool isSeroEligible(VaccineSeroConstraint vsc, double falsePos, double falseNeg) const;
         bool isSeroEligible() const;
+        bool isInfEligible(int today) const;
         static void setPar(const Parameters* par) { _par = par; }
 
         Infection& initializeNewInfection();

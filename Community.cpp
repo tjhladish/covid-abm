@@ -571,8 +571,9 @@ void Community::vaccinate() {
         for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
             Vaccinee* v = vac_campaign->next_vaccinee(_day, dose, bin);
             while (v) {
+                const Person* p = v->get_person();
                 // if (((v->get_person()->getNumVaccinations() < _par->numVaccineDoses) and v->get_person()->isSeroEligible()) // not completely vaccinated & eligible
-                if (((v->get_person()->getNumVaccinations() == dose) and v->get_person()->isSeroEligible()) // not completely vaccinated & eligible
+                if (((p->getNumVaccinations() == dose) and p->isSeroEligible() and p->isInfEligible(_day)) // not completely vaccinated & eligible
                   and vac_campaign->vaccinate(v, _day)) {                       // and person isn't dead, so got vaccinated
                     vac_campaign->tally_dose(_day, dose, bin, v);                  // tally dose used
 

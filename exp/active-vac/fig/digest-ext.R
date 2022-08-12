@@ -5,11 +5,10 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 
 #' assumes R project at the experiment root level
 .args <- if (interactive()) c(
-  file.path(c(
-    "covid-active-vac_w-meta.sqlite",
-    "covid-active-vac_ring-vac-alternatives_w-meta.sqlite"
-  )),
-  file.path("fig", "digest.rds")
+  file.path("covid-active-only.sqlite"),
+  file.path("fig", "digest-key.rds"),
+  file.path("fig", "digest-ref.rds"),
+  file.path("fig", "digest-ext.rds")
 ) else commandArgs(trailingOnly = TRUE)
 
 abcreader <- function(
@@ -27,8 +26,8 @@ abcreader <- function(
   return(list(dt, meta.dt))
 }
 
-dt.base <- abcreader(.args[1])
-dt.alt <- abcreader(.args[2])
+dt.only <- abcreader(.args[1])
+dt.key <- readRDS(.args[2])
 
 reserialize <- function(dt, offset = 0L) {
   dt[[1]][, serial := offset + .GRP, by=serial]
@@ -43,13 +42,11 @@ scenarize <- function(dt, offset = 0L) {
   ]
 }
 
-reserialize(dt.base)
-reserialize(dt.alt, offset = dt.base[[1]][, max(serial)])
-scenarize(dt.base)
-scenarize(dt.alt, offset = dt.base[[1]][, max(scenario)])
+reserialize(dt.only)
+scenarize(dt.only, offset = dt.key[, max(scenario)])
 
 caststockpile <- function(x) factor(
-  x, levels = c("low", "low-matched", "high", "high-matched"), ordered = TRUE
+  x, levels = c("low", "low-matched", "high", "high-matched", "nomass"), ordered = TRUE
 )
 
 castaction <- function(x) factor(
@@ -61,9 +58,9 @@ castactive <- function(x) factor(
 )
 
 #' translate serial into meaningful values
-scn.dt.base <- dt.base[[1]][realization == 0, .(
+scn.dt <- dt.only[[1]][realization == 0, .(
   scenario,
-  stockpile = caststockpile(c("low", "high")[dose_file]),
+  stockpile = caststockpile(c("low", "high", "", "", "low")[dose_file]),
   action = castaction(fifelse(
     vac & quarantine, "vandq",
     fifelse(vac == 1, "vonly",
@@ -71,50 +68,24 @@ scn.dt.base <- dt.base[[1]][realization == 0, .(
       "none"
   )))),
   active = castactive(fifelse(
-    active_vax_strat > 0, "ring",
-    fifelse(vac == 1, "passive",
+    active_vax_strat == 2, "ring",
+    fifelse(vac == 1, "risk",
     "none"
   )))
 )]
 
-scn.dt.alt <- dt.alt[[1]][realization == 0, .(
-  scenario,
-  stockpile = caststockpile(c("low-matched")),
-  action = castaction(fifelse(
-    vac & quarantine, "vandq",
-    fifelse(vac == 1, "vonly",
-    fifelse(quarantine == 1, "qonly",
-      "none"
-  )))),
-  active = castactive(
-    fifelse(active_vax_strat > 0, "risk",
-    fifelse(vac == 1, "passive",
-      "none"
-  )))
-)]
-
-# no intervention
-scn.dt.base[scenario == 1, stockpile := NA ]
-# no vaccination, but contact tracing => quarantine
-scn.dt.base[scenario == 5, stockpile := NA ]
-
-scn.dt <- rbind(
-  scn.dt.base,
-  scn.dt.alt
-)
-
-serial.dt <- rbind(dt.base[[1]], dt.alt[[1]])[,.(
+serial.dt <- rbind(dt.only[[1]])[,.(
   serial, scenario, realization
 )]
 
-meta.dt <- rbind(dt.base[[2]], dt.alt[[2]])[
+meta.dt <- rbind(dt.only[[2]])[
   serial.dt, on =.(serial),
   c("scenario", "realization") := .(scenario, realization)
 ]
 
 #' no longer need serial numbers
 meta.dt$serial <- NULL
-rm(serial.dt, dt.alt, dt.base, scn.dt.base, scn.dt.alt)
+rm(serial.dt, dt.only)
 gc()
 
 longmeta.dt <- setkey(
@@ -133,15 +104,15 @@ gc()
 
 #' non-intervention; remove scenario column, so it doesn't appear in joins
 #' n.b. this will need to change if there are multiple non-interventions
-ref.dt <- longmeta.dt[(scenario == 1) & (outcome != "doses")]
 doses.dt <- longmeta.dt[outcome == "doses"]
 
-saveRDS(scn.dt, gsub("\\.rds","-key.rds", tail(.args, 1)))
-saveRDS(ref.dt, gsub("\\.rds","-ref.rds", tail(.args, 1)))
 saveRDS(doses.dt, gsub("\\.rds","-doses.rds", tail(.args, 1)))
+saveRDS(scn.dt, gsub("\\.rds","-key.rds", tail(.args, 1)))
 
 rm(scn.dt, doses.dt)
 gc()
+
+ref.dt <- readRDS(.args[3])
 
 #' interventions
 int.dt <- setkeyv(

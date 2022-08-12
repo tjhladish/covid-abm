@@ -1,4 +1,4 @@
-if (interactive()) { setwd("~/documents/work/covid-abm/exp/flvtms-vac_comp-300k/") }
+if (interactive()) { setwd("~/documents/work/covid-abm/exp/active-vac/") }
 
 .args <- if (interactive()) c(
   "rcasedeath-florida.csv"

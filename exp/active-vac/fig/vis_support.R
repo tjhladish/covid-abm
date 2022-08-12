@@ -93,7 +93,8 @@ scale_color_scenario <- gg_scale_wrapper(
   breaks = c("none", "passive", "ring", "risk"),
   labels = c(none = "None", passive = "Mass Only", ring = "Mass+Ring", risk = "Mass+High Risk"),
   values = c(none = "black", passive = "#fb6502",  ring = "#00529b", risk = "#006b35"),
-  drop = TRUE, limits = force
+  drop = TRUE, limits = force,
+  aesthetics = c("color", "fill")
 )
 
 fullscnbreaks <- c(
@@ -101,20 +102,26 @@ fullscnbreaks <- c(
   "vonly_passive", "vandq_passive",
   "vonly_passive+", "vandq_passive+",
   "vonly_risk", "vandq_risk",
-  "vonly_ring", "vandq_ring"
+  "vonly_ring", "vandq_ring",
+  "vonly_risk_only", "vandq_risk_only",
+  "vonly_ring_only", "vandq_ring_only"
 )
 
 fullscnlabels <- c(
-  vandq_passive ="Mass Vac. & Con. Tracing => Quar.",
-  vonly_passive = "Mass Vaccination",
-  "vandq_passive+" ="Expanded Mass Vac. & Con. Tracing => Quar.",
-  "vonly_passive+" = "Expanded Mass Vac.",
-  vandq_risk = "Mass + High Risk Vac. & Con. Tracing => Quar.",
-  vonly_risk = "Mass + High Risk Vac.",
-  vandq_ring="Mass Vac. & Con. Tracing => Ring Vac. + Quar.",
-  vonly_ring = "Mass Vac. & Con. Tracing => Ring Vac.",
+  vandq_passive ="Vac. & Con. Tracing => Quar.",
+  vonly_passive = "Vaccination",
+  "vandq_passive+" ="Expanded Vac. & Con. Tracing => Quar.",
+  "vonly_passive+" = "Expanded Vac.",
+  vandq_risk = "Vac + High Risk & Con. Tracing => Quar.",
+  vonly_risk = "Vac + High Risk",
+  vandq_ring="Vac. & Con. Tracing => Ring Vac. + Quar.",
+  vonly_ring = "Vac. & Con. Tracing => Ring Vac.",
   qonly = "Contact Tracing => Quarantine",
-  none = "None"
+  none = "None",
+  "vandq_risk_only" = "High Risk Vac. & Con. Tracing => Quar.",
+  "vonly_risk_only" = "High Risk Vac.",
+  "vandq_ring_only" = "Con. Tracing => Ring Vac. + Quar.",
+  "vonly_ring_only" = "Con. Tracing => Ring Vac."
 )
 
 fullscnlines <- c(
@@ -124,6 +131,12 @@ fullscnlines <- c(
   vandq_risk = "solid",
   vonly_ring = "dashed",
   vonly_risk = "dashed",
+
+  "vandq_ring_only" = "solid",
+  "vandq_risk_only" = "solid",
+  "vonly_ring_only" = "dashed",
+  "vonly_risk_only" = "dashed",
+
   vonly_passive = "dashed",
   "vonly_passive+" = "dashed",
   qonly = "dotted", none = "solid"
@@ -132,6 +145,11 @@ fullscnlines <- c(
 fullscncolors <- c(
   vandq_ring = "#00529b",
   vonly_ring = "#00529b",
+  "vandq_ring_only" = "firebrick",
+  "vonly_ring_only" = "firebrick",
+  "vandq_risk_only" = "dodgerblue",
+  "vonly_risk_only" = "dodgerblue",
+
   vandq_passive="#fb6502",
   vonly_passive = "#fb6502",
   "vandq_passive+" = "#fb6502",
@@ -149,7 +167,7 @@ scale_linetype_fullscenario <- gg_scale_wrapper(
   labels = fullscnlabels,
   values = fullscnlines,
   drop = TRUE, limits = force
-#  , guide = guide_legend(override.aes = list(color = "grey"))
+  , guide = guide_legend(override.aes = list(fill = NA))
 )
 
 scale_color_fullscenario <- gg_scale_wrapper(
@@ -158,8 +176,9 @@ scale_color_fullscenario <- gg_scale_wrapper(
   breaks = fullscnbreaks,
   labels = fullscnlabels,
   values = fullscncolors,
-  drop = TRUE, limits = force
-  #  , guide = guide_legend(override.aes = list(color = "grey"))
+  drop = TRUE, limits = force,
+  aesthetics = c("color", "fill")
+  , guide = guide_legend(override.aes = list(fill = NA))
 )
 
 scale_color_measure <- gg_scale_wrapper(
@@ -185,14 +204,18 @@ scale_color_inputs <- gg_scale_wrapper(
   aesthetics = c("color", "fill")
 )
 
-measlbls <- c(observed = "Observed", sample = "Simulated Replicates", central = "Median Simulation")
+measlbls <- c(
+  observed = "Observed", sample = "Simulated Replicates",
+  central = "Median Simulation",
+  quantile = "90% Prediction Interval"
+)
 
 scale_alpha_measure <- gg_scale_wrapper(
   scale_alpha_manual,
   name = NULL,
-  breaks = c("observed", "sample", "central"),
+  breaks = c("observed", "sample", "central", "quantile"),
   labels = measlbls,
-  values = c(observed = 0.6, sample = 0.05, central = 1),
+  values = c(observed = 0.6, sample = 0.05, quantile = 0.5, central = 1),
   guide = guide_legend(
     override.aes = list(
       linetype = c("blank", "solid", "solid"),
@@ -349,77 +372,155 @@ geom_month_background <- function(
   )
 }
 
-med.dt <- function(
-  dt,
-  yvar,
-  midfun = median,
+
+#' @title Quantile [data.table] Groups
+#'
+#' @description Applies [quantile()] to [data.table] groups,
+#' across sample column, for target column(s). Returns results by
+#' group and (when more than one target column) measure.
+#'
+#' @param dt a [data.table]
+#'
+#' @param col the column(s) to quantile
+#'
+#' @param samplecol the sample-defining column (i.e., what gets
+#' quantiled over)
+#'
+#' @param keyby the grouping definition
+#'
+#' @param ... arguments to [stats::quantile()]. If `probs` provided
+#' with names, those names will be used for the resulting quantile columns
+#'
+#' @return a [data.table], cols for:
+#'  * the keys
+#'  * optionally, `measure` if `length(col) > 1`
+#'  * a column for each quantile returned; if `probs` in `...` and named,
+#'  those are the column names
+quantile.data.table <- function(
+  dt, col = "value",
+  samplecol,
+  keyby = setdiff(key(dt), samplecol),
   ...
 ) {
-  bynames <- setdiff(
-    colnames(dt),
-    c("realization", yvar, "value", "averted", "c.averted", "c.effectiveness", "c0.effectiveness")
-  )
-  setnames(dt[,.(midfun(get(yvar))), keyby = bynames ], "V1", yvar)
-}
 
-span.dt <- function(
-    dt,
-    yvar,
-    spanfun = function(x) quantile(x, probs = c(0.025, 0.975)),
-    ...
-) {
-  bynames <- setdiff(
-    colnames(dt),
-    c("realization", yvar, "value", "averted", "c.averted", "c.effectiveness", "c0.effectiveness")
+  if (!all(col %in% colnames(dt))) {
+    stop("`colnames(dt)` and `col` mismatch")
+  }
+
+  if (length(col) > 1) {
+    idcol <- "measure"
+    names(col) <- col
+  } else {
+    idcol <- NULL
+  }
+
+  dots <- list(...)
+  curryq <- if (!is.null(dots$probs) && !is.null(names(dots$probs))) {
+    function(x) quantile |> do.call(c(list(x), dots)) |> setNames(names(dots$probs))
+  } else {
+    function(x) quantile |> do.call(c(list(x), dots))
+  }
+
+  return(
+    col |> lapply(\(tarcol) {
+      dt[,{
+        get(tarcol) |> curryq() |> as.list()
+      }, keyby = keyby]
+    }) |> rbindlist(idcol = idcol) |>
+    setkeyv(cols = c(idcol, keyby))
   )
-  dt[,{
-    qs <- setNames(spanfun(get(yvar)), c("lo", "hi"))
-    as.list(qs)
-  }, keyby = bynames ]
+
 }
 
 geom_spaghetti <- function(
-  mapping, data,
-  show.end = FALSE,
-  spag.size = 0.1, c.size = 3*spag.size,
+  mapping,
+  data,
+  spaghetti = {
+    grouptree <- as.character(rlang::get_expr(mapping$group))
+    res <- list(sample = tail(grouptree, 1))
+    if (grouptree[1] == "interaction") {
+      if (length(grouptree) == 3) { # group = interaction(something, samplevar)
+        res$subgroup <- rlang::parse_expr(grouptree[2])
+      } else { # group = interaction(...somethings..., samplevar)
+        res$subgroup <- rlang::parse_expr(head(grouptree, -1))
+      }
+    } else { # group = samplevar
+      res$subgroup <- NULL
+    }
+    res
+  },
+  datafn = \(dt) dt |> quantile(
+    col = rlang::as_name(mapping$y),
+    samplecol = spaghetti$sample,
+    probs = c(md = 0.5)
+  ) |> setnames("md", rlang::as_name(mapping$y)),
+  sample.size = 0.1,
+  center.size = 3*sample.size,
   max.lines = if (interactive()) 10 else 150,
-  sample.var = "realization",
   geom = geom_line,
   ...
 ) {
-  aesmany <- mapping
-  aesmany$linetype <- NULL
-  #' TODO check ... for alpha
-  aesmany$alpha <- "sample"
-  aesone <- mapping
-  aesone$alpha <- "central"
-  #' assert: spaghetti geoms always have a group
-  grouptree <- as.character(rlang::get_expr(aesmany$group))
-  if (grouptree[1] == "interaction") { # most typical case
-    newcombo <- grep(sample.var, grouptree[-1], invert = TRUE, value = TRUE)
-    if (length(newcombo) == 1) {
-      aesone$group <- rlang::parse_expr(newcombo)
-    } else {
-      aesone$group <- rlang::parse_expr(sprintf("interaction(%s)", paste(newcombo, collapse = ", ")))
-    }
-  } else { # assert: group == sample.var
-    aesone$group <- NULL
+  show.end <- !is.null(mapping$label)
+  # split mapping ...
+  aesmany <- mapping; aesone <- mapping
+  # ignore specific elements
+  aesmany$linetype <- aesmany$label <- aesone$label <- NULL
+
+  if(is.null(mapping$alpha)) {
+    aesmany$alpha <- "sample"
+    aesone$alpha <- "central"
   }
 
-  mdt <- med.dt(data, rlang::as_name(aesmany$y), ...)
+  if (!is.null(spaghetti$subgroup)) {
+    aesone$group <- spaghetti$subgroup
+  }
+
+  if (!is.null(max.lines)) {
+    datamany <- \(dt) dt[get(spaghetti$sample) < max.lines]
+  } else {
+    datamany <- NULL
+  }
+  dataone <- datafn
+
+  if (!missing(data)) {
+    dataone <- dataone(data)
+    if (!is.null(datamany)) datamany <- datamany(data)
+  }
+
   ret <- list(
-    geom(aesmany, size = spag.size, data = data[get(sample.var) < max.lines], ...),
-    geom(aesone, data = mdt, size = c.size, ...)
+    geom(aesmany, data = datamany, size = sample.size, ...),
+    geom(aesone, data = dataone, size = center.size, ...)
   )
+
   if (show.end) {
-    aesend <- aesmany
+    aesend <- mapping
     aesend$group <- aesone$group
     aesend$alpha <- aesone$alpha
-    aesend$label <- str2lang(paste0("sprintf('%.2f',", rlang::as_name(aesend$y),")"))
+    aesend$linetype <- NULL
+
+    if (is.function(dataone)) {
+      datalbl <- \(dt) {
+        res <- dataone(dt)
+        res[order(get(rlang::as_name(aesend$x))),
+          .SD[.N], by = setdiff(key(res), rlang::as_name(aesend$x))
+        ]
+      }
+    } else {
+      datalbl <- dataone[
+        order(get(rlang::as_name(aesend$x))),
+        .SD[.N],
+        by = setdiff(key(dataone), rlang::as_name(aesend$x))
+      ]
+    }
+
+    # aesend$label <- str2lang(paste0("sprintf('%.2f',", rlang::as_name(aesend$y),")"))
+
     ret[[length(ret)+1]] <- geom_text_repel(
-      aesend, data = mdt[date == max(date)],
-      hjust = "left", direction = "y", nudge_x = 7,
-      size = 2, segment.size = 0.1, min.segment.length = 0,
+      aesend, data = datalbl,
+      hjust = "left", direction = "y",
+      nudge_x = 7, size = 2,
+      segment.size = sample.size,
+      min.segment.length = 0,
       show.legend = FALSE
     )
   }
@@ -427,49 +528,95 @@ geom_spaghetti <- function(
 }
 
 geom_river <- function(
-    mapping, data,
-    show.end = FALSE,
-    sample.var = "realization",
-    geom = geom_line,
+    mapping,
+    data,
+    spaghetti = {
+      grouptree <- as.character(rlang::get_expr(mapping$group))
+      res <- list(sample = tail(grouptree, 1))
+      if (grouptree[1] == "interaction") {
+        if (length(grouptree) == 3) { # group = interaction(something, samplevar)
+          res$subgroup <- rlang::parse_expr(grouptree[2])
+        } else { # group = interaction(...somethings..., samplevar)
+          res$subgroup <- rlang::parse_expr(head(grouptree, -1))
+        }
+      } else { # group = samplevar
+        res$subgroup <- NULL
+      }
+      res
+    },
+    datafn = \(dt) dt |> quantile(
+      col = rlang::as_name(mapping$y),
+      samplecol = spaghetti$sample,
+      probs = c(lo = 0.05, md = 0.5, hi = 0.95)
+    ) |> setnames("md", rlang::as_name(mapping$y)),
+    sample.size = 0.1,
+    center.size = 3*sample.size,
     ...
 ) {
-  aesmany <- mapping
-  aesmany$ymax <- rlang::parse_expr("hi")
-  aesmany$ymin <- rlang::parse_expr("lo")
-  aesmany$y <- NULL
-  aesone <- mapping
-  #' TODO check ... for alpha
-  aesmany$alpha <- "sample"
-  aesone$alpha <- "central"
-  #' assert: spaghetti geoms always have a group
-  grouptree <- as.character(rlang::get_expr(aesmany$group))
-  if (grouptree[1] == "interaction") { # most typical case
-    newcombo <- grep(sample.var, grouptree[-1], invert = TRUE, value = TRUE)
-    if (length(newcombo) == 1) {
-      aesone$group <- rlang::parse_expr(newcombo)
-    } else {
-      aesone$group <- rlang::parse_expr(sprintf("interaction(%s)", paste(newcombo, collapse = ", ")))
-    }
-  } else { # assert: group == sample.var
-    aesone$group <- NULL
-  }
-  aesmany$group <- aesone$group
+  show.end <- !is.null(mapping$label)
+  # split mapping ...
+  aesmany <- mapping; aesone <- mapping
+  # ignore specific elements
+  aesmany$linetype <- aesmany$label <- aesone$label <- NULL
+  aesmany$fill <- aesmany$colour
+  aesmany$colour <- NULL
 
-  mdt <- med.dt(data, rlang::as_name(aesone$y), ...)
-  ldt <- span.dt(data, rlang::as_name(aesone$y), ...)
+  # TODO generify
+  aesmany$ymax <- quo(hi)
+  aesmany$ymin <- quo(lo)
+  aesmany$y <- NULL
+
+  if(is.null(mapping$alpha)) {
+    aesmany$alpha <- "quantile"
+    aesone$alpha <- "central"
+  }
+
+  if (!is.null(spaghetti$subgroup)) {
+    aesmany$group <- aesone$group <- spaghetti$subgroup
+  } else {
+    aesmany$group <- aesone$group <- NULL
+  }
+
+  dataone <- datafn
+
+  if (!missing(data)) {
+    dataone <- dataone(data)
+  }
+
   ret <- list(
-    geom_ribbon(aesmany, data = ldt, ...),
-    geom(aesone, data = mdt, ...)
+    geom_ribbon(aesmany, data = dataone, ...),
+    geom_line(aesone, data = dataone, size = center.size, ...)
   )
-  browser()
+
   if (show.end) {
-    aesend <- aesone
+    aesend <- mapping
+    aesend$group <- aesone$group
+    aesend$alpha <- aesone$alpha
     aesend$linetype <- NULL
-    aesend$label <- str2lang(paste0("sprintf('%.2f',", rlang::as_name(aesend$y),")"))
+
+    if (is.function(dataone)) {
+      datalbl <- \(dt) {
+        res <- dataone(dt)
+        res[order(get(rlang::as_name(aesend$x))),
+            .SD[.N], by = setdiff(key(res), rlang::as_name(aesend$x))
+        ]
+      }
+    } else {
+      datalbl <- dataone[
+        order(get(rlang::as_name(aesend$x))),
+        .SD[.N],
+        by = setdiff(key(dataone), rlang::as_name(aesend$x))
+      ]
+    }
+
+    # aesend$label <- str2lang(paste0("sprintf('%.2f',", rlang::as_name(aesend$y),")"))
+
     ret[[length(ret)+1]] <- geom_text_repel(
-      aesend, data = mdt[date == max(date)],
-      hjust = "left", direction = "y", nudge_x = 7,
-      size = 2, segment.size = 0.1, min.segment.length = 0,
+      aesend, data = datalbl,
+      hjust = "left", direction = "y",
+      nudge_x = 7, size = 2,
+      segment.size = sample.size,
+      min.segment.length = 0,
       show.legend = FALSE
     )
   }

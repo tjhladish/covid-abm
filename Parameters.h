@@ -183,6 +183,15 @@ enum VaccineSeroConstraint {
     NUM_OF_VACCINE_SERO_CONSTRAINTS
 };
 
+enum VaccineInfConstraint {
+  VACCINATE_NAIVE_ONLY,
+  VACCINATE_INF_ONLY,
+  VACCINATE_NON_CASE_ONLY,
+  VACCINATE_CASE_ONLY,
+  VACCINATE_ALL_INF_STATUSES,
+  NUM_OF_VACCINE_INF_CONSTRAINTS
+};
+
 enum TimedIntervention {
     SCHOOL_CLOSURE,
     NONESSENTIAL_BUSINESS_CLOSURE,
@@ -660,6 +669,7 @@ public:
     unsigned long int serial;
 
     VaccineSeroConstraint vaccineSeroConstraint;
+    VaccineInfConstraint vaccineInfConstraint;
 //    CsmhScenario csmhScenario;
 
     bool behavioral_autotuning;

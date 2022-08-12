@@ -55,10 +55,10 @@ bool autotune                     = false;
 const int FL_POP                  = 21538187;   // as of 2020 census
 
 enum VacCampaignScenario {
-    FL_LIKE_FL,
-    VT_LIKE_FL,
-    MS_LIKE_FL,
-    ACTIVE_VAC_CAMPAIGN,
+    FL_LIKE_FL,          // FL_ROLLOUT
+    VT_LIKE_FL,          // VT_ROLLOUT
+    MS_LIKE_FL,          // MS_ROLLOUT
+    ACTIVE_VAC_CAMPAIGN, // remove
     NUM_OF_VAC_CAMPAIGN_SCENARIOS
 };
 
@@ -246,14 +246,14 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->networkFilename          = pop_dir    + "/network-"            + SIM_POP + ".txt";
     par->publicActivityFilename   = pop_dir    + "/public-activity-"    + SIM_POP + ".txt";
     par->rCaseDeathFilename       = "./rcasedeath-florida.csv";
-    par->vaccinationFilename      = "./state_based_counterfactual_doses.txt"; //"./counterfactual_doses_v2.txt";
+//    par->vaccinationFilename      = "./state_based_counterfactual_doses.txt"; //"./counterfactual_doses_v2.txt";
     // par->doseFilename            = "./counterfactual_doses.txt"; //"./dose_data/FL_doses.txt"; //pop_dir    + "/../fl_vac/doses.txt";
     par->riskGroupsFilename       = "./300K_sample_pop_groups.txt";
 
     par->behavior_fitting_data_target = CASES;
     par->death_tuning_offset = 18; // 18 is median lag b/n infection and death; 8 is median lag b/n detection and death
     par->behaviorInputFilename  = "autotuning_dataset.csv";   // ALEX: I just create a sym link to whatever anchor file you want to read
-    par->behaviorOutputFilename = "/blue/longini/tjhladish/covid-abm/exp/flvtms-vac_comp-300k/behavior_" + to_string(serial) + ".csv";
+    par->behaviorOutputFilename = "/blue/longini/tjhladish/covid-abm/exp/active-vac/behavior_" + to_string(serial) + ".csv";
 
     par->dump_simulation_data = false;
 
@@ -405,6 +405,17 @@ void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign*
     // vc->set_doses_available(doses_available);
     // vc->set_urg_doses_available(urg_doses_available);
     // vc->init_orig_doses_available();
+
+//    for (size_t day = 0; day < std_doses_available.size(); ++day) {
+//        for (size_t dose = 0; dose < std_doses_available[day].size(); ++dose) {
+//            for (auto const &[age_bin, dose_ct] : std_doses_available[day][dose]) {
+//                cerr << "d,dose,age,ct: " << day << " " << dose << " " << age_bin << " " << dose_ct << endl; 
+//            }
+//        }
+//    }
+//    exit(1);
+
+
 }
 
 // REFACTOR generateVac_Campaign()
@@ -522,19 +533,20 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     cerr << "SCENARIO " << rng_seed;
     for (auto _p: args) { cerr << " " << _p; } cerr << endl;
 
-    // const size_t realization               = (size_t) args[0];
-    const bool vaccine                              = (bool) args[1];
-    const bool mutation                             = (bool) args[2];
-    const VacCampaignScenario vac_campaign_scenario = (VacCampaignScenario) args[3];
-    const size_t dose_file                          = (size_t) args[4];       // 0 = state_based_counterfactual_doses.txt; 1 = active_vax_counterfactual_doses.txt; 2 =ring_vax_deployment_counterfactual_doses.txt
-    const VacCampaignType active_vax_strat          = (VacCampaignType) args[5];       // 0 = none; 1 = ring vax; 2 = risk group vax; 3 = risk vax
-    const bool quarantine_ctrl                      = (bool) args[6];     // 0 = off; 1 = on
+    // const size_t realization                        = (size_t) args[0];
+    const bool quarantine_ctrl                      = (bool) args[1];                 // 0 = off; 1 = on
+    const bool do_passive_vac                       = (bool) args[2];                 // 0 = off; 1 = on
+    const VacCampaignType active_vac                = (VacCampaignType) args[3];      // 0 = off; 1 = ring; 2 = risk
+    const size_t passive_alloc                      = args[4];                        // 0 = 0;   1 = FL;   2 = FL + ring; 3 = COVAX
+    const size_t active_alloc                       = args[5];                        // 0 = 0;   1 = 50;   2 = ring/30; 3 = COVAX
+    const VaccineInfConstraint vac_constraint       = (VaccineInfConstraint) args[6]; // 2 = non-case only; 4 = any status
+  //const bool ppb_fitting                          = (bool) args[7];
 
     Parameters* par = define_simulator_parameters(args, rng_seed, serial, process_id);
     define_strain_parameters(par);
 
     vector<string> mutant_intro_dates = {};
-    if (mutation) { mutant_intro_dates = {"2021-02-01", "2021-05-27", "2021-11-26"}; }
+    mutant_intro_dates = {"2021-02-01", "2021-05-27", "2021-11-26"};
 
     Community* community = build_community(par);
 
@@ -545,81 +557,105 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     par->immunityWanes           = false;         // related to time-dep waning of protection, not waning of Ab levels
     par->seroPositivityThreshold = 0.0;
 
-    // hanlde all vac campaign setup
-    if (vaccine) {
+    // handle all vac campaign setup
+    if (do_passive_vac or active_vac) { // active_vac can take on 0 (no active vac), 1 (ring), or 2 (risk)
         par->numVaccineDoses       = 3;             // total doses in series
         par->vaccineDoseInterval   = {21, 240};     // intervals between dose 1-->2, dose 2-->3, etc.
         // par->vaccineTargetCoverage = 0.60;          // for healthcare workers only
         par->vaccine_dose_to_protection_lag = 10;   // number of days from vaccination to protection
         par->urgent_vax_dose_threshold = 1;         // the highest dose in series that will be administered in the active strategy
 
-        const vector<string> vacFilenames = {"./state_based_counterfactual_doses.txt",
-                                             "./active_vax_counterfactual_doses_50k.txt",
-                                             "./active_vax_counterfactual_doses_100k.txt",
-                                             "./ring_vax_deployment_active_counterfactual_doses.txt",
-                                             "./ring_vax_deployment_passive_counterfactual_doses.txt"};
+        par->vaccinationFilename = "";
+        // pooling will accumulate doses across age bins and across doses
+        /* allowed settings (std, urg, all):
+            - FFF: don't pool any doses
+            - TFF: only pool std doses
+            - FTF: only pool urg doses             // correct setting for any scenarios with an active campaign
+            - TTF: pool std and urg independently
+            - FFT: pool std and urg together       // use for expanded passive & covax passive
+        */
+        bool pool_std_doses    = false;
+        bool pool_urg_doses    = true;
+        bool pool_all_doses    = false;
 
-        par->vaccinationFilename = vacFilenames[dose_file];
+        if (do_passive_vac) {
+            if (not active_vac) {
+                if (passive_alloc == 1) {                // passive baseline FL (incl MS, VT dosing; not used)
+                    par->vaccinationFilename = "./state_based_counterfactual_doses.txt";
+                } else if (passive_alloc == 2) {         // passive augmented with number of doses used by ring vac
+                    par->vaccinationFilename = "./ring_vax_deployment_passive_counterfactual_doses.txt";
+                    pool_urg_doses = false;
+                    pool_all_doses = true;
+                } else if (passive_alloc == 3) {         // limited passive (COVAX scenario)
+                    par->vaccinationFilename = "./covax_doses.txt";
+                    pool_urg_doses = false;
+                    pool_all_doses = true;
+                }
+            } else if (active_vac == 1) {                // + ring vac
+                assert(active_alloc == 1);
+                par->vaccinationFilename = "./active_vax_counterfactual_doses_50k.txt";             // passive + 50k doses daily for ring vax
+            } else if (active_vac == 2) {                // + risk vac
+                assert(active_alloc == 2);
+                par->vaccinationFilename = "./ring_vax_deployment_active_counterfactual_doses.txt"; // passive + total doses used by ring vax, distributed over 30d (for risk strat)
+            }
+        } else if (active_vac == 1 or active_vac == 2) { // ring or risk, without passive vac
+            assert(active_alloc == 3);
+            par->vaccinationFilename =  "./covax_doses.txt";
+        }
 
+        if (par->vaccinationFilename == "") {
+            cerr << "ERROR: unknown vaccination scenario was specified" << endl;
+            exit(1);
+        }
+// TODO - maybe assert that if vac_req == 2, file = covax
         // control whether to adjust to bin pops or total pop
         // pop adjustment occurs before any dose pooling
         bool adjust_std_to_bin_pop = true;
         bool adjust_urg_to_bin_pop = false;
 
-        // pooling will accumulate doses across age bins BUT NOT across doses
-        /* allowed settings (std, urg, all):
-            - FFF: don't pool any doses
-            - TFF: only pool std doses
-            - FTF: only pool urg doses
-            - TTF: pool std and urg independently
-            - FFT: pool std and urg together
-        */
-        bool pool_std_doses    = false;
-        bool pool_urg_doses    = true;
-        bool pool_all_doses    = false;
-        if ((pool_std_doses or pool_urg_doses) and pool_all_doses) { cerr << "Cannot set std or urg dose pooling AND all dose pooling"; exit(-1); }
+       if ((pool_std_doses or pool_urg_doses) and pool_all_doses) { cerr << "ERROR: Cannot set std or urg dose pooling AND all dose pooling" << endl; exit(-1); }
 
-        vc = generateVac_Campaign(par, community, vac_campaign_scenario, {pool_urg_doses, pool_std_doses, pool_all_doses}, adjust_std_to_bin_pop, adjust_urg_to_bin_pop);
+        vc = generateVac_Campaign(par, community, FL_LIKE_FL, {pool_urg_doses, pool_std_doses, pool_all_doses}, adjust_std_to_bin_pop, adjust_urg_to_bin_pop);
 
         // parameter handling --- how do we want to handle setting these? I just set them here rather than use par
         vc->set_prioritize_first_doses(false);
         vc->set_flexible_queue_allocation(false);
 
-
-        vc->set_reactive_vac_strategy(active_vax_strat);
+        par->vaccineInfConstraint = vac_constraint;
+        vc->set_reactive_vac_strategy(active_vac);
         // vc->set_reactive_vac_dose_allocation(0.0);
 
         // the GROUPED_RISK_VACCINATION strategies starts alongside the GENERAL_CAMPAIGN
         // other active strategies start on May 1, 2021 (and if they require contact tracing, the check is called)
-        int active_strat_start = active_vax_strat == GROUPED_RISK_VACCINATION
-                                     ? vc->get_start_of_campaign(GENERAL_CAMPAIGN)
-                                     : Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-05-01");
-        if (vc->contact_tracing_required(active_vax_strat)) { assert(active_strat_start >= par->beginContactTracing); }
-        vc->set_start_of_campaign(active_vax_strat, active_strat_start);
+        int active_strat_start = active_vac == GROUPED_RISK_VACCINATION ?
+                                 vc->get_start_of_campaign(GENERAL_CAMPAIGN) :
+                                 Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-05-01");
+        if (vc->contact_tracing_required(active_vac)) { assert(active_strat_start >= par->beginContactTracing); }
+        vc->set_start_of_campaign(active_vac, active_strat_start);
 
         vc->set_end_of_campaign(GENERAL_CAMPAIGN, par->runLength);
-        vc->set_end_of_campaign(active_vax_strat, par->runLength);
+        vc->set_end_of_campaign(active_vac, par->runLength);
 
         vector<int> min_ages(par->runLength, 5);
         vc->set_min_age(min_ages);       // needed for e.g. urgent vaccinations
 
-        cerr << "Vaccination scenario:\n"
-             << GENERAL_CAMPAIGN << "\n"
-                                 << "\tduration " << vc->get_start_of_campaign(GENERAL_CAMPAIGN) << "--" << vc->get_end_of_campaign(GENERAL_CAMPAIGN) << "\n"
-                                 << "\tnum doses " << par->numVaccineDoses << "\n"
-                                 << "\tdose intervals "; cerr_vector(par->vaccineDoseInterval); cerr << "\n"
-                                 << "\tdose protection lag " << par->vaccine_dose_to_protection_lag << "\n"
-             << active_vax_strat   << "\n"
-                                 << "\tduration " << vc->get_start_of_campaign(active_vax_strat) << "--" << vc->get_end_of_campaign(active_vax_strat) << "\n"
-                                 << "\trequires contact tracing? " << boolalpha << vc->contact_tracing_required(active_vax_strat) << noboolalpha << "\n"
-             << "other details"  << "\n"
-                                 << "\tdose file " << par->vaccinationFilename << "\n"
-                                 << "\tdose pooling (urg,std,all)? " << boolalpha << pool_urg_doses << ' ' << pool_std_doses << ' ' << pool_all_doses << noboolalpha << "\n"
-                                 << "\tadj std doses to bin pop? " << boolalpha << adjust_std_to_bin_pop << noboolalpha << "\n"
-                                 << "\tadj urg doses to bin pop? " << boolalpha << adjust_urg_to_bin_pop << noboolalpha << "\n"
-                                 << "\tcontact tracing start " << par->beginContactTracing << "\n"
-                                 << "\tself quarantining probs "; cerr_vector(par->quarantineProbability); cerr << "\n"
-                                 << "\tself quarantining duration " << par->quarantineDuration << "\n" << endl;
+//        cerr << "Vaccination scenario:\n"
+//             << GENERAL_CAMPAIGN << "\n"
+//                                 << "\tduration " << vc->get_start_of_campaign(GENERAL_CAMPAIGN) << "--" << vc->get_end_of_campaign(GENERAL_CAMPAIGN) << "\n"
+//                                 << "\tnum doses " << par->numVaccineDoses << "\n"
+//                                 << "\tdose intervals "; cerr_vector(par->vaccineDoseInterval); cerr << "\n"
+//                                 << "\tdose protection lag " << par->vaccine_dose_to_protection_lag << "\n"
+//             << active_vax_strat   << "\n"
+//                                 << "\tduration " << vc->get_start_of_campaign(active_vax_strat) << "--" << vc->get_end_of_campaign(active_vax_strat) << "\n"
+//                                 << "\trequires contact tracing? " << boolalpha << vc->contact_tracing_required(active_vax_strat) << noboolalpha << "\n"
+//             << "other details"  << "\n"
+//                                 << "\tdose file " << par->vaccinationFilename << "\n"
+//                                 << "\tdose pooling (urg,std,all)? " << boolalpha << pool_urg_doses << ' ' << pool_std_doses << ' ' << pool_all_doses << noboolalpha << "\n"
+//                                 << "\tadj std doses to bin pop? " << boolalpha << adjust_std_to_bin_pop << noboolalpha << "\n"
+//                                 << "\tadj urg doses to bin pop? " << boolalpha << adjust_urg_to_bin_pop << noboolalpha << "\n"
+//                                 << "\tcontact tracing start " << par->beginContactTracing << "\n"
+//                                 << "\tself quarantining probs "; cerr_vector(par->quarantineProbability); cerr << "\n"
+//                                 << "\tself quarantining duration " << par->quarantineDuration << "\n" << endl;
     }
     // probability of self-quarantining for index cases and subsequent contacts
     if (quarantine_ctrl) {
@@ -659,24 +695,27 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 //    }
 
 // comment out this block if simvis.R is not needed
-//{
-//    vector<pair<size_t, double>> Rt = community->getMeanNumSecondaryInfections();
-//    vector<double> Rt_ma = calc_Rt_moving_average(Rt, 7);
-//
-//    assert(Rt.size()+1 == plot_log_buffer.size()); // there's a header line
-//    for (size_t i = 1; i < plot_log_buffer.size(); ++i) {
-//        //plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt[i-1].second);
-//        plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt_ma[i-1]);
-//    }
-//    bool overwrite = true;
-//    string filename = "plot_log" + to_string(serial) + ".csv";
-//    write_daily_buffer(plot_log_buffer, process_id, filename, overwrite);
+{
+    vector<pair<size_t, double>> Rt = community->getMeanNumSecondaryInfections();
+    vector<double> Rt_ma = calc_Rt_moving_average(Rt, 7);
+
+    assert(Rt.size()+1 == plot_log_buffer.size()); // there's a header line
+    for (size_t i = 1; i < plot_log_buffer.size(); ++i) {
+        //plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt[i-1].second);
+        plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt_ma[i-1]);
+    }
+    bool overwrite = true;
+    // this output filename needs to be adjusted for each experiment, so as to not overwrite files
+    //string filename = "plot_log" + to_string(serial) + ".csv";
+    //string filename = "/blue/longini/tjhladish/covid-abm/exp/active-vac/plot_log" + to_string(serial) + ".csv";
+    string filename = "/blue/longini/tjhladish/covid-abm/exp/active-vac/v2.0/plot_log" + to_string(serial) + ".csv";
+    write_daily_buffer(plot_log_buffer, process_id, filename, overwrite);
 //    stringstream ss;
 //    ss << "Rscript expanded_simvis.R " << serial;
 //    string cmd_str = ss.str();
 //    int retval = system(cmd_str.c_str());
 //    if (retval == -1) { cerr << "System call to `Rscript expanded_simvis.R` failed\n"; }
-//}
+}
 
     time (&end);
     double dif = difftime (end,start);
@@ -702,14 +741,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
     double tot_doses = 0;
     if (vc) {
-        const Dose_Vals std_doses  = vc->get_std_doses_used();
-        const Dose_Vals urg_doses  = vc->get_urg_doses_used();
         for (int day = 0; day < (int) par->runLength; ++day) {
-            for (int dose = 0; dose < (int) par->numVaccineDoses; ++dose) {
-                for (int bin : vc->get_unique_age_bins()) {
-                    tot_doses += (double) std_doses[day][dose].at(bin) + (double) urg_doses[day][dose].at(bin);
-                }
-            }
+            tot_doses += vc->get_doses_used(day, STANDARD_ALLOCATION) + vc->get_doses_used(day, URGENT_ALLOCATION);
         }
     }
 
