@@ -6,7 +6,7 @@ default: res_fig1.png res_fig1_noq.png
 # setup definitions
 
 DATADIR ?= ..
-SIMFILES ?= $(patsubst %,covid-active-%.sqlite,vac_w-meta vac_ring-vac-alternatives_w-meta only)
+SIMFILES ?= $(patsubst %,covid-active-%.sqlite,v2.0)
 
 R = $(strip Rscript $^ $(1) $@)
 
@@ -21,16 +21,9 @@ digest-key.rds digest-doses.rds digest-ref.rds: digest.rds
 vis_support.rda: vis_support.R
 	$(call R)
 
-plotlog: ${DATADIR}/active_vac_raw_output.tgz
-	mkdir $@
-	tar -tf $< | grep -E "log1[0-9]{3}\." | xargs tar -xf $< -C $@
-
-plotlog_ao: ${DATADIR}/active_vac_only_raw_output.tgz
+plotlog: ${DATADIR}/active_vac_logs-v2.0-FL_ref_only.tgz
 	mkdir $@
 	tar -xf $< --strip-components=1 -C $@
-
-validation_ao.rds: validation_ingest.R plotlog_ao
-	$(call R)
 
 digest-ext.rds: digest-ext.R ${DATADIR}/covid-active-only.sqlite digest-key.rds digest-ref.rds
 	$(call R)
@@ -61,7 +54,7 @@ combo-low-matched-isq.png: combo-low-matched-noq.png
 
 EXTDATA := rcasedeath-florida Rates_of_COVID-19_Cases_or_Deaths_by_Age_Group_and_Vaccination_Status\
 COVID-19_Reported_Patient_Impact_and_Hospital_Capacity_by_State_Timeseries\
-CDC_seroprev_long dose_data/trends_in_number_of_covid19_vaccinations_in_fl
+CDC_seroprev_long population-pseudo-300K state_based_counterfactual_doses
 
 validation.rds: validation_ingest.R plotlog
 	$(call R)

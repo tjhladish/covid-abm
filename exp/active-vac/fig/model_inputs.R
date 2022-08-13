@@ -9,7 +9,8 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
   "Rates_of_COVID-19_Cases_or_Deaths_by_Age_Group_and_Vaccination_Status.csv",
   "COVID-19_Reported_Patient_Impact_and_Hospital_Capacity_by_State_Timeseries.csv",
   "CDC_seroprev_long.csv",
-  file.path("dose_data","trends_in_number_of_covid19_vaccinations_in_fl.csv"),
+  "population-pseudo-300K.csv",
+  "state_based_counterfactual_doses.csv",
   "reporting_dump.csv",
   file.path("fig", "vis_support.rda"),
   file.path("fig", "modelinputs.png")
@@ -67,20 +68,20 @@ seroprev = fread(.args[5])[
 ), by=run
 ]
 
-vax = dcast(melt(
-  fread(.args[6], stringsAsFactors=F, header=T, skip=2)[order(Date), .(
-    date = Date,
-    dose1 = `Daily Count People Receiving Dose 1`,
-    dose2 = `Daily Count of People Fully Vaccinated`,
-    dose3 = `Daily Count People Receiving a First Booster Dose`
-  )][, paste0("cov",c(1,2,3)) := lapply(.(dose1, dose2, dose3), cumsum) ],
-  id.vars = "date")[, value := fifelse(variable %like% "dose", value * per10k, value/pop)],
-  date ~ variable
-)
+bin_pops = fread(.args[6], select = "age")$age |>
+  cut(breaks = c(0, 5, 12, 18, 65, 120), right = F) |>
+  table() |> data.table(bin_min = c(0, 5, 12, 18, 65))
+poptot <- bin_pops[, sum(N)]
 
-detect.dt <- fread(.args[7])
+vax = fread(.args[7])[
+  ref_location == "FL" & is_urg == 0
+][bin_pops[bin_min != 0, .(bin_min, pop = N)], on=.(bin_min)][,
+                                                              doses := n_doses_p10k * (pop / 1e4)
+][, .(doses = sum(doses)), keyby = .(date, dose) ][, cov := cumsum(doses)/poptot, by=.(dose) ]
 
-load(.args[8])
+detect.dt <- fread(.args[8])
+
+load(.args[9])
 
 sd.dt <- d[realization == 1, .(date, value = sd, closed) ]
 
@@ -150,10 +151,11 @@ voc.dt <- prepare(
 )
 
 #' TODO make geom_month_background work for logit
-p.voc <- p.core(voc.dt, ymin = 0, ymax = 1) +
+p.voc <- p.core(
+  voc.dt[!is.na(value)], ymin = 0, ymax = 1
+) +
   geom_spaghetti(
-    aes(y = value, group = interaction(realization, measure)),
-    voc.dt
+    aes(y = value, group = interaction(measure, realization))
   ) +
   scale_y_fraction(
     name = "Variant Fraction"
@@ -162,9 +164,11 @@ p.voc <- p.core(voc.dt, ymin = 0, ymax = 1) +
   scale_x_null() +
   scale_color_inputs() + theme_minimal()
 
+vax.mlt <- dcast(vax, date ~ dose, value.var = "cov")
+setnames(vax.mlt, 2:4, paste0("cov", 1:3))
 vax.dt <- prepare(
   d[realization == 1, .(realization, date, cov1, cov2, cov3)],
-  vax[, .(realization = 0, date, cov1, cov2, cov3)]
+  vax.mlt[, .(realization = 0, date, cov1, cov2, cov3)]
 )
 
 vlbls <- c(cov1="First", cov2="Second", cov3="Booster")

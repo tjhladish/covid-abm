@@ -12,7 +12,9 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
   "Rates_of_COVID-19_Cases_or_Deaths_by_Age_Group_and_Vaccination_Status.csv",
   "COVID-19_Reported_Patient_Impact_and_Hospital_Capacity_by_State_Timeseries.csv",
   "CDC_seroprev_long.csv",
-  file.path("dose_data","trends_in_number_of_covid19_vaccinations_in_fl.csv"),
+  "population-pseudo-300K.txt",
+  "state_based_counterfactual_doses.txt",
+#  file.path("dose_data","trends_in_number_of_covid19_vaccinations_in_fl.csv"),
   file.path("fig", "vis_support.rda"),
   file.path("fig", "validation.png")
 ) else commandArgs(trailingOnly=TRUE)
@@ -69,24 +71,32 @@ seroprev = fread(.args[5])[
 ), by=run
 ]
 
-vax = dcast(melt(
-  fread(.args[6], stringsAsFactors=F, header=T, skip=2)[order(Date), .(
-  date = Date,
-  dose1 = `Daily Count People Receiving Dose 1`,
-  dose2 = `Daily Count of People Fully Vaccinated`,
-  dose3 = `Daily Count People Receiving a First Booster Dose`
-)][, paste0("cov",c(1,2,3)) := lapply(.(dose1, dose2, dose3), cumsum) ],
-id.vars = "date")[, value := fifelse(variable %like% "dose", value * per10k, value/pop)],
-  date ~ variable
-)
+bin_pops = fread(.args[6], select = "age")$age |>
+  cut(breaks = c(0, 5, 12, 18, 65, 120), right = F) |>
+  table() |> data.table(bin_min = c(0, 5, 12, 18, 65))
+poptot <- bin_pops[, sum(N)]
 
-load(.args[7])
+vax = fread(.args[7])[
+  ref_location == "FL" & is_urg == 0
+][bin_pops[bin_min != 0, .(bin_min, pop = N)], on=.(bin_min)][,
+  doses := n_doses_p10k * (pop / 1e4)
+][, .(doses = sum(doses)), keyby = .(date, dose) ][, cov := cumsum(doses)/poptot, by=.(dose) ]
+
+load(.args[8])
 
 conserved <- list(
   scale_x_null(),
   scale_color_measure(),
   scale_shape_measure(),
-  scale_alpha_measure(),
+  scale_alpha_measure(guide = guide_legend(
+    breaks = c("observed", "sample", "central"),
+    labels = measlbls[c("observed", "sample", "central")],
+    values = c(observed = 0.6, sample = 0.05, quantile = 0.5, central = 1)[c("observed", "sample", "central")],
+    override.aes = list(
+      linetype = c("blank", "solid", "solid"),
+      size = c(10, 1, 3)
+    )
+  )),
   theme_minimal(),
   theme(text = element_text(face = "bold"))
 )
@@ -95,7 +105,7 @@ p.core <- function(dt, ymax = NA, ymin = NA, ylog = FALSE, aesc = aes(color = me
   aes(date, value) + aesc +
   geom_month_background(dt, by = NULL, ymax = ymax, ymin = ymin, ylog = ylog) +
   geom_spaghetti(
-    aes(y = value, group = interaction(realization, measure)),
+    aes(y = value, group = interaction(measure, realization)),
     dt[!is.na(realization)]
   )
 
@@ -127,6 +137,7 @@ p.sero <- p.core(
   ]) +
   scale_y_fraction() +
   conserved +
+#  scale_shape_discrete(guide = "none") +
   theme(
     legend.position = c(0+0.05, 1-0.175), legend.justification = c(0, 1),
     legend.background = element_rect(fill = alpha("white", 0.5), color = NA),

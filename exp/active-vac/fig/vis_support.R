@@ -216,10 +216,11 @@ scale_alpha_measure <- gg_scale_wrapper(
   breaks = c("observed", "sample", "central", "quantile"),
   labels = measlbls,
   values = c(observed = 0.6, sample = 0.05, quantile = 0.5, central = 1),
+  drop = TRUE, limits = force,
   guide = guide_legend(
     override.aes = list(
-      linetype = c("blank", "solid", "solid"),
-      size = c(10, 1, 3)
+      linetype = c("blank", "solid", "solid", "blank"),
+      size = c(10, 1, 3, 0)
     )
   )
 )
@@ -228,7 +229,7 @@ scale_shape_measure <- gg_scale_wrapper(
   scale_shape_manual,
   name = NULL,
   breaks = c("observed", "sample", "central"),
-  labels = measlbls,
+  labels = measlbls[c("observed", "sample", "central")],
   values = c(observed = 20, sample = NA, central = NA),
   guide = guide_legend(
     override.aes = list(linetype = c("blank", "solid", "solid"))
