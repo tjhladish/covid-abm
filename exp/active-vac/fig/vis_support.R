@@ -13,6 +13,10 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
   file.path("fig", "vis_support.rda")
 } else commandArgs(trailingOnly = TRUE)
 
+# MAGIC DATE
+endday <- as.Date("2022-03-31")
+pop <- c(florida = 21538187, escambia = 312212, dade = 2794464)
+
 gg_scale_wrapper <- function(
     scale_fun,
     ...
