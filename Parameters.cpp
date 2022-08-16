@@ -80,7 +80,8 @@ void Parameters::define_defaults() {
     vaccineDoseInterval            = vector<int>(numVaccineDoses);
 
     immunityWanes                  = false;
-    seroPositivityThreshold        = 0.0;
+    seropositivityThreshold        = 0.0;
+    seroconversionLag              = 10.0;
     vaccineImmunityDuration        = INT_MAX;
     vaccineBoosting                = false;
     vaccineBoostingInterval        = 730;

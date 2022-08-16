@@ -635,7 +635,8 @@ public:
 //        return time_to_susceptible < 0 ? 0 : (size_t) round(time_to_susceptible);
 //    }
     bool immunityWanes;                                     // innate waning of both natural and vaccine immunity
-    double seroPositivityThreshold;                         // threshold at which an individual would be considered seropositive
+    double seropositivityThreshold;                         // threshold at which an individual would be considered seropositive
+    double seroconversionLag;                               // time from infection to seroconversion (for serosurvey purposes)
     int vaccineImmunityDuration;
     bool vaccineBoosting;                                   // Are we re-vaccinated, either because of waning or because of multi-dose vaccine
     int numVaccineDoses;                                    // Number of times to boost; default is INT_MAX
