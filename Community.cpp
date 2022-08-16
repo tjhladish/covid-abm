@@ -1212,34 +1212,42 @@ double Community::doSerosurvey(const ImmuneStateType ist, const vector<Person*> 
         switch (ist) {
             case NATURAL: // similar(ish) to an N IgG assay
                 if (p->hasBeenInfected()) {
-                    const Infection* last_inf = p->getInfectionHistory().back();
+                    const vector<Infection*> infections = p->getInfectionHistory();
+                    const Infection* last_inf = infections.back();
                     vector<int> possible_last_infection_end_dates = {last_inf->getInfectiousEndTime(), last_inf->getSymptomEndTime()};
                     const int last_infection_end_date = covid::util::max_element(possible_last_infection_end_dates);
                     const int time_since_last_infection = time - last_infection_end_date;
                     double remaining_natural_efficacy = _par->remainingEfficacy(p->getStartingNaturalEfficacy(), time_since_last_infection);
 
-                    if ( (_par->immunityLeaky and (remaining_natural_efficacy > _par->seroPositivityThreshold)) or
-                         (not _par->immunityLeaky and (time_since_last_infection < p->getNaturalImmunityDuration())) ) { ++seropos; }
+                    bool seroconversion_check = false;
+                    for (int i = (int) infections.size() - 1; i >= 0; --i) {
+                        if (infections[i]->getInfectedTime() >= _par->seroconversionLag) {
+                            seroconversion_check = true;
+                            break;
+                        }
+                    }
+
+                    if (seroconversion_check and
+                         ((_par->immunityLeaky and (remaining_natural_efficacy > _par->seropositivityThreshold)) or
+                         (not _par->immunityLeaky and (time_since_last_infection < p->getNaturalImmunityDuration()))) ) { ++seropos; }
                     else { ++seroneg; }
                 } else {
                     ++seroneg;
                 }
                 break;
             case VACCINATED: // similar(ish) to an S IgG & N IgG assays, (positive and negative, respectively)
-                if (p->isVaccinated()) {
-
-                } else {
-
-                }
+                cerr << "ERROR: Community::doSerosurvey() not yet implemented for VACCINATED immunity" << endl;
+                exit(1);
+                //if (p->isVaccinated()) { } else { }
                 break;
             case NATURAL_AND_VACCINATED: // similar(ish) to an S IgG assay
-                if (p->hasBeenInfected() or p->isVaccinated()) {
-
-                } else {
-
-                }
+                cerr << "ERROR: Community::doSerosurvey() not yet implemented for NATURAL_AND_VACCINATED immunity" << endl;
+                exit(1);
+                //if (p->hasBeenInfected() or p->isVaccinated()) { } else { }
                 break;
             default:
+                cerr << "ERROR: Community::doSerosurvey() not yet implemented for NATURAL_AND_VACCINATED immunity" << endl;
+                exit(1);
                 break;
         }
     }
