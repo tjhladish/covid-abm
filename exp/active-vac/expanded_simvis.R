@@ -40,7 +40,7 @@ hhsHosp = hhsHosp[hhsHosp$state == 'FL',]
 hhsHosp$date = as.Date(hhsHosp$date)
 hhsHosp = hhsHosp[order(hhsHosp$date),]
 
-seroprev = read.csv("CDC_seroprev_long.csv", stringsAsFactors = F, header = T)
+seroprev = read.csv("fl_seroprev_cdc.csv", stringsAsFactors = F, header = T)
 seroprev$date = as.Date(seroprev$date)
 
 vax = read.table("./state_based_counterfactual_doses.txt", stringsAsFactors = F, header = T, sep = ' ')
@@ -128,16 +128,19 @@ segments(as.Date(c('2020-03-27', '2020-05-07')), c(0.78, 1.37), as.Date(c('2020-
 abline(h=1.0, lty=3)
 annotate(expression(R[t]))
 
-# Cumulative infections
+# Seroprevalence
 ymax = max(d$cinf, d$seroprev, seroprev$upper, 1, na.rm=T)
 plot(d$date, d$cinf, type='n', xlab='', ylab='', xaxt='n', ylim=c(0,ymax), bty='n')
 shading()
 abline(h=1, lty=3)
-arrows(seroprev$date, seroprev$lower, seroprev$date, seroprev$upper, length = 0.05, code=0, col = rgb(0,0,0,0.25))
-points(seroprev$date, seroprev$est, pch = 20, cex = 0.5)
-lines(d$date, d$cinf, col='orangered', lty = 3)
-lines(d$date, d$seroprev, col='orangered')
-annotate('Seroprevalence (solid) and cumulative infections (dashed)')
+arrows(seroprev$date, seroprev$all_seroprev_lower/100, seroprev$date, seroprev$all_seroprev_upper/100, length = 0.05, code=0, col = rgb(0,0,0,0.25))
+points(seroprev$date, seroprev$all_seroprev_point/100, pch = 20, cex = 0.5, col='darkorange')
+arrows(seroprev$date, seroprev$ped_seroprev_lower/100, seroprev$date, seroprev$ped_seroprev_upper/100, length = 0.05, code=0, col = rgb(0,0,0,0.25))
+points(seroprev$date, seroprev$ped_seroprev_point/100, pch = 20, cex = 0.5, col='royalblue')
+# lines(d$date, d$cinf, col='orangered', lty = 3)
+lines(d$date, d$seroprev, col='darkorange')
+lines(d$date, d$ped_seroprev, col='royalblue')
+annotate('Seroprevalence (total - orange; pediatric - blue)')
 
 # Seasonality
 plot(d$date, d$seasonality, type='n', xlab='', ylab='', xaxt='n', bty='n')
