@@ -1218,28 +1218,27 @@ double Community::doSerosurvey(const ImmuneStateType ist, const vector<Person*> 
                     const int time_since_last_infection = time - last_infection_end_date;
                     double remaining_natural_efficacy = _par->remainingEfficacy(p->getStartingNaturalEfficacy(), time_since_last_infection);
 
-                    if ( (_par->immunityLeaky and (remaining_natural_efficacy > _par->seroPositivityThreshold)) or
-                         (not _par->immunityLeaky and (time_since_last_infection < p->getNaturalImmunityDuration())) ) { ++seropos; }
+                    if (time_since_last_infection >= _par->seroconversionLag and
+                         ((_par->immunityLeaky and (remaining_natural_efficacy > _par->seropositivityThreshold)) or
+                         (not _par->immunityLeaky and (time_since_last_infection < p->getNaturalImmunityDuration()))) ) { ++seropos; }
                     else { ++seroneg; }
                 } else {
                     ++seroneg;
                 }
                 break;
             case VACCINATED: // similar(ish) to an S IgG & N IgG assays, (positive and negative, respectively)
-                if (p->isVaccinated()) {
-
-                } else {
-
-                }
+                cerr << "ERROR: Community::doSerosurvey() not yet implemented for VACCINATED immunity" << endl;
+                exit(1);
+                //if (p->isVaccinated()) { } else { }
                 break;
             case NATURAL_AND_VACCINATED: // similar(ish) to an S IgG assay
-                if (p->hasBeenInfected() or p->isVaccinated()) {
-
-                } else {
-
-                }
+                cerr << "ERROR: Community::doSerosurvey() not yet implemented for NATURAL_AND_VACCINATED immunity" << endl;
+                exit(1);
+                //if (p->hasBeenInfected() or p->isVaccinated()) { } else { }
                 break;
             default:
+                cerr << "ERROR: Community::doSerosurvey() not yet implemented for NATURAL_AND_VACCINATED immunity" << endl;
+                exit(1);
                 break;
         }
     }
