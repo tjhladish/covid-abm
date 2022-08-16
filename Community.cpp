@@ -1212,13 +1212,22 @@ double Community::doSerosurvey(const ImmuneStateType ist, const vector<Person*> 
         switch (ist) {
             case NATURAL: // similar(ish) to an N IgG assay
                 if (p->hasBeenInfected()) {
-                    const Infection* last_inf = p->getInfectionHistory().back();
+                    const vector<Infection*> infections = p->getInfectionHistory();
+                    const Infection* last_inf = infections.back();
                     vector<int> possible_last_infection_end_dates = {last_inf->getInfectiousEndTime(), last_inf->getSymptomEndTime()};
                     const int last_infection_end_date = covid::util::max_element(possible_last_infection_end_dates);
                     const int time_since_last_infection = time - last_infection_end_date;
                     double remaining_natural_efficacy = _par->remainingEfficacy(p->getStartingNaturalEfficacy(), time_since_last_infection);
 
-                    if (time_since_last_infection >= _par->seroconversionLag and
+                    bool seroconversion_check = false;
+                    for (int i = (int) infections.size() - 1; i >= 0; --i) {
+                        if (infections[i]->getInfectedTime() >= _par->seroconversionLag) {
+                            seroconversion_check = true;
+                            break;
+                        }
+                    }
+
+                    if (seroconversion_check and
                          ((_par->immunityLeaky and (remaining_natural_efficacy > _par->seropositivityThreshold)) or
                          (not _par->immunityLeaky and (time_since_last_infection < p->getNaturalImmunityDuration()))) ) { ++seropos; }
                     else { ++seroneg; }
