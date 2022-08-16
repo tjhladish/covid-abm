@@ -555,7 +555,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
     par->immunityLeaky           = true;          // applies to both infection and vaccine immunity
     par->immunityWanes           = false;         // related to time-dep waning of protection, not waning of Ab levels
-    par->seroPositivityThreshold = 0.0;
+    par->seropositivityThreshold = 0.0;
 
     // handle all vac campaign setup
     if (do_passive_vac or active_vac) { // active_vac can take on 0 (no active vac), 1 (ring), or 2 (risk)
