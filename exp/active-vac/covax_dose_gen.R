@@ -11,12 +11,20 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 .args <- if (interactive()) c(
   "covax_raw.csv",
   "active_vax_counterfactual_doses.txt",
+  "wb_inc.csv",
   "covax_doses.txt"
 ) else commandArgs(trailingOnly = TRUE)
 
 dose_file <- fread(.args[1])[,
-  COVAX := as.integer(gsub(",","",COVAX))
-] |> dcast(`Country/territory` + `mmm Year` ~ `WHO Preferred Vaccine Name`, value.var = "COVAX")
+  c("COVAX", "bilat", "other") := .(
+    as.integer(gsub(",","",COVAX)),
+    as.integer(gsub(",","",`Bilateral/multilateral agreements`)),
+    as.integer(gsub(",","",`Donations`)) + as.integer(gsub(",","",`Unknown`)) + as.integer(gsub(",","",`AVAT`))
+  )
+] |> melt.data.table(measure.vars = c("COVAX", "bilat", "other")) |> dcast(
+  `Country/territory` + `mmm Year` + variable ~ `WHO Preferred Vaccine Name`,
+  value.var = "value"
+)
 
 dropcols <- dose_file[, .SD |> lapply(\(col) all(is.na(col))), .SDcols = -c("Country/territory", "mmm Year")] |>
   unlist() |> which() |> names()
@@ -24,8 +32,16 @@ dropcols <- dose_file[, .SD |> lapply(\(col) all(is.na(col))), .SDcols = -c("Cou
 dose_file <- dose_file[, .SD, .SDcols = -c(dropcols)]
 
 # assumes all individuals need two doses of all vaccines given
-# despite Janssen being by label a 1-dose vaccine
-dose_file[, doses := rowSums(.SD, na.rm = TRUE), .SDcols = -c("Country/territory", "mmm Year")]
+# despite e.g. Janssen being by label a 1-dose vaccine
+dose_file <- dose_file[,
+  doses := rowSums(.SD, na.rm = TRUE), .SDcols = -c("Country/territory", "mmm Year", "variable")
+][!(`Country/territory` %in% c("Kosovo", "Humanitarian Buffer")), .(
+  name = `Country/territory`,
+  date = as.Date(paste0("01 ",`mmm Year`), "%d %b %Y"),
+  variable,
+  iso3 = countrycode(`Country/territory`, "country.name", "iso3n"),
+  doses
+)]
 
 data("popF"); data("popM")
 refpop <- as.data.table(popF)[
@@ -34,23 +50,32 @@ refpop <- as.data.table(popF)[
   age != "0-4", .(pop1k = sum(`2020`)), keyby=.(country_code, name)
 ]][, .(country_code, pop10k = (pop1k + i.pop1k)/10)]
 
-covax.dt <- dose_file[, .(
-  name = `Country/territory`,
-  iso3 = countrycode(`Country/territory`, "country.name", "iso3n"),
-  date = as.Date(paste0("01 ",`mmm Year`), "%d %b %Y"),
-  doses
-)][!(name %in% c("Humanitarian Buffer", "Kosovo"))]
+wb.dt <- fread(.args[3])[!(country %in% c("Kosovo", "Channel Islands")), iso3 := countrycode(`country`, "country.name", "iso3n")]
+wb.dt[country == "Türkiye", iso3 := 792]
 
-globalpop10k <- refpop[country_code %in% unique(covax.dt$iso3), sum(pop10k)]
-res.dt <- covax.dt[,
-  .(dp10k = sum(doses)/globalpop10k, measure = "provisioned"), keyby=date
-][CJ(
-  date = seq(min(date), as.Date("2022-03-31"), by="day")
+dose_file[wb.dt, on=.(iso3), category := category]
+covax.only <- dose_file[variable != "COVAX", sum(doses), by=.(iso3)][V1 == 0, iso3]
+MIC.only <- wb.dt[!(category %in% c("HIC", "LIC")), iso3]
+# mixed.frac <- dose_file[, sum(doses[variable == "COVAX"])/sum(doses), by=.(iso3)]
+
+globalpop10k <- refpop[country_code %in% unique(dose_file$iso3), sum(pop10k)]
+covaxpop10k <- refpop[country_code %in% covax.only, sum(pop10k)]
+MICpop10k <- refpop[country_code %in% MIC.only, sum(pop10k)]
+
+covax.dt <- rbind(
+  dose_file[iso3 %in% covax.only,
+    .(dp10k = sum(doses)/covaxpop10k, grp = "covaxonly"), keyby=.(date)
+  ],
+  dose_file[iso3 %in% MIC.only,
+    .(dp10k = sum(doses)/MICpop10k, grp = "MIConly"), keyby=.(date)
+  ]
+)[CJ(
+  date = seq(min(date), as.Date("2022-03-31"), by="day"), grp = c("covaxonly", "MIConly")
 ), .(
-  date, dp10k = nafill(dp10k, "locf")
-), on=.(date)][,.(
+  date, grp, dp10k
+), on=.(date, grp)][order(grp, date), dp10k := nafill(dp10k, "locf") ][,.(
   date, provisioned = dp10k/with(rle(dp10k), rep(lengths, lengths))
-)][which.max(provisioned > 0):.N]
+), by=grp][which.max(provisioned > 0):.N] |> dcast(date ~ grp, value.var = "provisioned")
 
 # vs 10ks of 5+ used in Sindh model
 sindh10k <- 4444.124
@@ -62,14 +87,14 @@ sindhapprox <- data.table(
   date = seq(min(date), as.Date("2022-03-31"), by="day")
 ), on=.(date), .(date, assumedcourses = nafill(assumed, "locf")*2, assumeddoses = nafill(assumed, "locf"))]
 
-res.dt[
+covax.dt[
   sindhapprox, on=.(date), c("assumedcourses","assumeddoses") := .(assumedcourses, assumeddoses)
 ][,
   assumedcourses := nafill(assumedcourses, fill = 0)][,
   assumeddoses := nafill(assumeddoses, fill = 0)
 ]
 
-fwrite(res.dt, file = tail(.args, 1), sep = " ")
+fwrite(covax.dt, file = tail(.args, 1), sep = " ")
 
 dose_file_overwrite <- fread(.args[2])
 dose_file_overwrite[, n_doses_p10k := 0]
