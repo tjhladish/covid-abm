@@ -327,7 +327,7 @@ void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign*
     string date, ref_loc;
     int bin_min, bin_max, dose, is_urg;
     double doses_p10k;
-    size_t first_vac_day = par->runLength;
+    int first_vac_day = par->runLength;
 
     // save unique age bin boundaries encountered
     set<int> unique_bin_mins, unique_bin_maxs;
@@ -342,11 +342,11 @@ void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign*
         line.str(buffer);
 
         if (line >> date >> ref_loc >> bin_min >> bin_max >> dose >> is_urg >> doses_p10k) {
-            const size_t sim_day = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, date);
+            const int sim_day = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, date);
             if (sim_day < first_vac_day) { first_vac_day = sim_day; }
 
             // skip lines of data not pertaining to this vac_campaign_scenario or are beyond runLength
-            if (not ((ref_loc == loc_lookup[vac_campaign_scenario]) and (sim_day < par->runLength))) { continue; }
+            if (not ((ref_loc == loc_lookup[vac_campaign_scenario]) and (sim_day < (int) par->runLength))) { continue; }
 
             // will only insert values not encountered before
             unique_bin_mins.insert(bin_min);
@@ -550,8 +550,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
     Community* community = build_community(par);
 
-    Vac_Campaign* vc = nullptr;
-    community->setVac_Campaign(vc);
+    Vac_Campaign* vc = community->getVac_Campaign();
 
     par->immunityLeaky           = true;          // applies to both infection and vaccine immunity
     par->immunityWanes           = false;         // related to time-dep waning of protection, not waning of Ab levels
@@ -667,6 +666,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
     // seed_epidemic(par, community, WILDTYPE);
     vector<string> plot_log_buffer = simulate_epidemic(par, community, process_id, mutant_intro_dates);//, social_contact_map);
+    vc = community->getVac_Campaign();
 
     vector<double> cases(par->runLength, 0.0);
     vector<double> deaths(par->runLength, 0.0);
@@ -710,13 +710,13 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     //string filename = "/blue/longini/tjhladish/covid-abm/exp/active-vac/plot_log" + to_string(serial) + ".csv";
     string filename = "/blue/longini/tjhladish/covid-abm/exp/active-vac/v2.0/plot_log" + to_string(serial) + ".csv";
     write_daily_buffer(plot_log_buffer, process_id, filename, overwrite);
+
 //    stringstream ss;
 //    ss << "Rscript expanded_simvis.R " << serial;
 //    string cmd_str = ss.str();
 //    int retval = system(cmd_str.c_str());
 //    if (retval == -1) { cerr << "System call to `Rscript expanded_simvis.R` failed\n"; }
 }
-
     time (&end);
     double dif = difftime (end,start);
 
@@ -748,7 +748,6 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
     vector<double> metrics = {tot_infs, tot_symp, tot_sevr, tot_crit, tot_dths, tot_doses};
     //calculate_reporting_ratios(community);
-
 
     stringstream ss;
     ss << mp->mpi_rank << " end " << hex << process_id << " " << dec << dif << " ";

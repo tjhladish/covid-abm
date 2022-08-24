@@ -324,6 +324,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
 
     bool restore_occurred = false; // relevant for behavior autotuning
     for (; date->day() < (signed) par->runLength; date->increment()) {
+
         if (par->behavioral_autotuning) {
            behavior_autotuning(par, community, date, ledger, tuner, sim_cache, social_distancing_anchors, restore_occurred);
         }
@@ -386,7 +387,7 @@ if (sim_day == 0) { seed_epidemic(par, community, WILDTYPE); }
         const vector<size_t> severe             = community->getNumNewlySevere();
         const double trailing_avg = trailing_averages[sim_day];
 
-        Vac_Campaign* vc    = community->getVac_Campaign() ? community->getVac_Campaign() : nullptr;
+        Vac_Campaign* vc    = community->getVac_Campaign();
         const int std_doses = vc ? vc->get_doses_used(sim_day, STANDARD_ALLOCATION) : 0;
         const int urg_doses = vc ? vc->get_doses_used(sim_day, URGENT_ALLOCATION) : 0;
         const int all_doses = std_doses + urg_doses;
