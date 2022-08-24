@@ -236,13 +236,16 @@ scale_shape_measure <- gg_scale_wrapper(
   labels = measlbls[c("observed", "sample", "central")],
   values = c(observed = 20, sample = NA, central = NA),
   guide = guide_legend(
-    override.aes = list(linetype = c("blank", "solid", "solid"))
+    override.aes = list(
+      linetype = c("blank", "solid", "solid"),
+      alpha = c(1, 1, 1/20)
+    )
   )
 )
 
 geom_observation <- gg_scale_wrapper(
   geom_point,
-  mapping = aes(alpha = "observed", shape = "observed"),
+  mapping = aes(shape = "observed"),
   data = function(dt) subset(dt, is.na(realization)),
   size = 2.5,
   stroke = 0
@@ -668,10 +671,10 @@ geom_crosshair <- function(mapping, data, ...) {
   #'
   mapv <- mapping
   mapv$xmax <- NULL; mapv$xmin <- NULL
-  mapv$shape <- NULL
+  mapv$shape <- quo(NULL)
   maph <- mapping
   maph$ymax <- NULL; maph$ymin <- NULL
-  maph$shape <- NULL
+  maph$shape <- quo(NULL)
   showpoint <- !is.null(mapping$shape)
   res <- list(
     geom_linerange(mapv, data = data, show.legend = FALSE),
@@ -683,7 +686,7 @@ geom_crosshair <- function(mapping, data, ...) {
     mapp$xmin <- NULL
     mapp$ymax <- NULL
     mapp$ymin <- NULL
-    mapp$alpha <- mapp$shape
+    # mapp$alpha <- mapp$shape
     res[[length(res)+1]] <- geom_observation(mapping = mapp, data = seroprev)
   }
   return(res)
