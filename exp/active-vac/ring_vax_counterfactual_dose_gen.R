@@ -8,29 +8,26 @@ if (interactive()) { setwd("~/documents/work/covid-abm/exp/active-vac/") }
 ) else commandArgs(trailingOnly = TRUE)
 
 if (length(.args) != 2) {
-  stop("Rscript active_plot_log_extract.R [path to zipped archive] [path to dir where dose files will be created]")
+  stop("Rscript active_plot_log_extract.R [path to simulator logs] [path to dir where dose files will be created]")
 }
 
-print("Extracting plot_log files from zipped archive...")
-tmp_dir = paste0("./tmp", paste0(sample(c(sample(LETTERS, 10, replace = T), sample(0:9, 10, replace = T))), collapse = ''))
-dir.create(tmp_dir)
-untar(.args[1], exdir = tmp_dir)
+log_dir = .args[1]
 
 print("Extracting data from plot_log files...")
 dir.create(.args[2])
-pb = txtProgressBar(min = 0, max = length(list.files(tmp_dir)), initial = 0, style = 3)
-for (i in 1:length(list.files(tmp_dir))) {
-  in_plot_log = tolower(list.files(tmp_dir)[i])
+pb = txtProgressBar(min = 0, max = length(list.files(log_dir)), initial = 0, style = 3)
+for (i in 1:length(list.files(log_dir))) {
+  in_plot_log = tolower(list.files(log_dir)[i])
   in_serial = as.integer(sub("plot_log(.*).csv", "\\1", in_plot_log))
   
-  if (!file.exists(file.path(tmp_dir, in_plot_log))) { next }
+  if (!file.exists(file.path(log_dir, in_plot_log))) { next }
   
   active_cntfact <- fread("./state_based_counterfactual_doses.txt")
   passive_cntfact <- fread("./state_based_counterfactual_doses.txt")
   active_cntfact <- active_cntfact[ref_location == "FL"]
   passive_cntfact <- passive_cntfact[ref_location == "FL"]
   
-  d <- fread(file.path(tmp_dir, in_plot_log))
+  d <- fread(file.path(log_dir, in_plot_log))
   
   # for the active counterfactual, risk-based vax will be allocated the total number of doses ring vax but condensed over 30 days
   month_urg_deploy <- rep(d[, sum(urg_doses)] / 30, 30)
@@ -47,5 +44,5 @@ for (i in 1:length(list.files(tmp_dir))) {
   
   setTxtProgressBar(pb, i)
 }
+
 close(pb)
-unlink(tmp_dir, recursive = T)
