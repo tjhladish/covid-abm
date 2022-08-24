@@ -6,16 +6,14 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 #' assumes R project at the experiment root level
 .args <- if (interactive()) c(
   file.path(c(
-    "covid-active-vac_w-meta.sqlite",
-    "covid-active-vac_ring-vac-alternatives_w-meta.sqlite",
-    "covid-active-only.sqlite"
+    "covid-active-v2.0.sqlite"
   )),
   file.path("fig", "digest.rds")
 ) else commandArgs(trailingOnly = TRUE)
 
 abcreader <- function(
   pth,
-  pmcols = c("serial", "realization", "vac", "dose_file", "active_vax_strat", "quarantine"),
+  pmcols = c("serial", "realization", "quar", "pas_vac", "act_vac", "pas_alloc", "act_alloc", "inf_con", "ppb_ctrl"),
   metacols = c("serial", "date", "inf", "sev", "deaths", "std_doses + urg_doses AS doses")
 ) {
 
@@ -84,7 +82,7 @@ merge.dt <- head(.args, -1) |> lapply(abcreader) |> (\(alldts) Reduce(
 })()
 
 # WARNING: MAGIC NUMBER
-basescnid <- 1
+basescnid <- 7
 
 ref.dt <- merge.dt$meta[(scenario == basescnid) & (outcome != "doses")]
 int.dt <- merge.dt$meta[
@@ -129,39 +127,53 @@ saveRDS(int.dt[,.(value, averted, c.effectiveness), keyby=.(scenario, realizatio
 rm(int.dt)
 gc()
 
-caststockpile <- function(df, v) factor(
-  fifelse(v == 0, "none", fifelse(
-    df == 1, "low", fifelse(
-    df == 1.5, "low-matched", fifelse(
-    df == 2, "high", fifelse(
-    df == 5, "covax", "ERROR"
-  ))))), levels = c(
-    "none", "low", "low-matched", "high", "covax"
-  ), ordered = TRUE
+genordfac <- \(lvl) return(\(x) lvl[x+1] |> factor(levels = lvl, ordered = TRUE))
+
+funs <- list(
+  quar = as.logical,
+  pas_vac = as.logical,
+  act_vac = genordfac(c("none", "ring", "risk")),
+  pas_alloc = genordfac(c("none", "FL", "FL+ring", "COVAX")),
+  act_alloc = genordfac(c("none", "ring", "ringmonth", "COVAX")),
+  inf_con = \(x) x == 2
 )
 
-castaction <- function(v,q) factor(
-  fifelse(
-    v == q, fifelse(v==1,"vandq", "none"), fifelse(v==1, "vonly", "qonly")
-  ), levels = c("none", "qonly", "vonly", "vandq"), ordered = TRUE
-)
+res <- scn.dt[, sapply(names(funs), \(nm) funs[[nm]](.SD[[nm]]), USE.NAMES = TRUE, simplify = FALSE)][, scenario := 1:.N ]
 
-castactive <- function(strat, v) factor(
-  fifelse(
-    strat == 0, fifelse(v==0, "none", "passive"), fifelse(
-    strat == 2, "ring", fifelse(
-    strat == 6, "risk", "ERROR"
-  ))), levels = c("none", "passive", "risk", "ring"), ordered = TRUE
-)
+saveRDS(res, gsub("\\.rds","-key.rds", tail(.args, 1)))
 
 # WARNING: SERIOUS MAGIC HERE
 # TODO refactor when updated scenario runs
-scn.dt[,
-  c("stockpile", "action", "active") := .(
-    caststockpile(dose_file, vac),
-    castaction(vac, quarantine),
-    castactive(active_vax_strat, vac)
-  )
-]
+# scn.dt[,
+#        c("stockpile", "action", "active") := .(
+#          caststockpile(dose_file, vac),
+#          castaction(vac, quarantine),
+#          castactive(active_vax_strat, vac)
+#        )
+# ]
 
-saveRDS(scn.dt, gsub("\\.rds","-key.rds", tail(.args, 1)))
+
+# caststockpile <- function(df, v) factor(
+#   fifelse(v == 0, "none", fifelse(
+#     df == 1, "low", fifelse(
+#       df == 1.5, "low-matched", fifelse(
+#         df == 2, "high", fifelse(
+#           df == 5, "covax", "ERROR"
+#         ))))), levels = c(
+#           "none", "low", "low-matched", "high", "covax"
+#         ), ordered = TRUE
+# )
+#
+# castaction <- function(v,q) factor(
+#   fifelse(
+#     v == q, fifelse(v==1,"vandq", "none"), fifelse(v==1, "vonly", "qonly")
+#   ), levels = c("none", "qonly", "vonly", "vandq"), ordered = TRUE
+# )
+#
+# castactive <- function(strat, v) factor(
+#   fifelse(
+#     strat == 0, fifelse(v==0, "none", "passive"), fifelse(
+#       strat == 2, "ring", fifelse(
+#         strat == 6, "risk", "ERROR"
+#       ))), levels = c("none", "passive", "risk", "ring"), ordered = TRUE
+# )

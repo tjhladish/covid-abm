@@ -5,11 +5,12 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 
 #' assumes R project at the experiment root level
 .args <- if (interactive()) c(
+  file.path("fig", "vis_support.rda"),
   file.path("fig", "plotlog"),
-  file.path("fig", "validation.rds")
+  file.path("fig", "input", "validation.rds")
 ) else commandArgs(trailingOnly = TRUE)
 
-fls <- list.files(.args[1], full.names = TRUE)
+fls <- list.files(.args[2], full.names = TRUE)
 
 extractor <- function(fl) {
   ret <- setnames(fread(fl)[,

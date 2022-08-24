@@ -1,92 +1,44 @@
 #!/usr/bin/env Rscript
 
-.pkgs <- c("data.table", "MMWRweek", "ggplot2", "ggrepel", "patchwork", "scales")
+.pkgs <- c("data.table", "ggplot2", "ggrepel", "patchwork", "scales")
 
 stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 
 #' assumes working directory at exp level,
 #' though makefile will be invoked from w/in fig dir
 .args = if (interactive()) c(
-  "fig/validation.rds",
-  "rcasedeath-florida.csv",
-  "Rates_of_COVID-19_Cases_or_Deaths_by_Age_Group_and_Vaccination_Status.csv",
-  "COVID-19_Reported_Patient_Impact_and_Hospital_Capacity_by_State_Timeseries.csv",
-  "CDC_seroprev_long.csv",
-  file.path("dose_data","trends_in_number_of_covid19_vaccinations_in_fl.csv"),
   file.path("fig", "vis_support.rda"),
-  file.path("fig", "validation.png")
+  "fig/input/validation.rds",
+  "fig/input/outcomes.rds",
+  "fig/input/vaccines.rds",
+  "fig/input/hospitals.rds",
+  "fig/input/seroprev.rds",
+  "fig/input/FLvaccines.rds",
+  "fig/input/detection.rds",
+  file.path("fig", "validation_review.png")
 ) else commandArgs(trailingOnly=TRUE)
 
-d <- readRDS(.args[1])
-
-#' doesn't seem to apply to any entries?
-# is.na(d) = sapply(d, is.infinite)
-
-#escambia_fraction    = 0.0153 # fraction of FL pop that lives in Escambia
-tarpop <- gsub("^.+-(\\w+)\\.csv$", "\\1", .args[2])
-pop <- c(florida = 21538187, escambia = 312212, dade = 2794464)[tarpop]
-per10k <- 1e4/pop
-
-ed <- fread(.args[2])
-ed[, rcase := rcase * per10k ]
-#' TODO fix upstream to only report on wday == 7? if so, need to change 7 below
-ed[, rdeath := excess*per10k*7 ]
-ed[wday(Date) != 7, rdeath := NA ]
-ed[, crcase := cumsum(rcase) ]
-ed[!is.na(rdeath), crdeath := cumsum(rdeath) ]
-setnames(ed, "Date", "date")
-
-cdc = fread(.args[3])[
-  `Age group` == "all_ages_adj" &
-  `Vaccine product` == "all_types" & outcome == "case"
-][, date := {
-  spl <- lapply(tstrsplit(`MMWR week`,"(?<=.{4})", perl = TRUE), as.integer)
-  MMWRweek2Date(spl[[1]], spl[[2]])
-}][,
-   brkthruRatio := `Vaccinated with outcome`/(`Vaccinated with outcome` + `Unvaccinated with outcome`)
-][,
-  vaxOutcomeP10k := `Vaccinated with outcome` * (1e4/`Fully vaccinated population`)
-]
-
-hhsHosp = fread(.args[4])[
-  state == 'FL'
-][,
-  date := as.Date(date)
-][order(date)][,
-  hospInc := previous_day_admission_adult_covid_confirmed * per10k
-]
-
-seroprev = fread(.args[5])[
-  !is.na(est)
-][,
-  unique(.SD), keyby=date
-][, run := {
-  res <- rle(est)
-  rep(1:length(res$lengths), res$lengths)
-}][,.(
-  start = date[1], end = date[.N],
-  lower = lower[1], est = est[1], upper = upper[1]
-), by=run
-]
-
-vax = dcast(melt(
-  fread(.args[6], stringsAsFactors=F, header=T, skip=2)[order(Date), .(
-  date = Date,
-  dose1 = `Daily Count People Receiving Dose 1`,
-  dose2 = `Daily Count of People Fully Vaccinated`,
-  dose3 = `Daily Count People Receiving a First Booster Dose`
-)][, paste0("cov",c(1,2,3)) := lapply(.(dose1, dose2, dose3), cumsum) ],
-id.vars = "date")[, value := fifelse(variable %like% "dose", value * per10k, value/pop)],
-  date ~ variable
-)
-
-load(.args[7])
+load(.args[1])
+d <- readRDS(.args[2])[date <= endday]
+ed <- readRDS(.args[3])
+cdc = readRDS(.args[4])
+hhsHosp = readRDS(.args[5])
+seroprev = readRDS(.args[6])
+vax = readRDS(.args[7])
 
 conserved <- list(
   scale_x_null(),
   scale_color_measure(),
   scale_shape_measure(),
-  scale_alpha_measure(),
+  scale_alpha_measure(guide = guide_legend(
+    breaks = c("observed", "sample", "central"),
+    labels = measlbls[c("observed", "sample", "central")],
+    values = c(observed = 0.6, sample = 0.05, quantile = 0.5, central = 1)[c("observed", "sample", "central")],
+    override.aes = list(
+      linetype = c("blank", "solid", "solid"),
+      size = c(10, 1, 3)
+    )
+  )),
   theme_minimal(),
   theme(text = element_text(face = "bold"))
 )
@@ -95,7 +47,7 @@ p.core <- function(dt, ymax = NA, ymin = NA, ylog = FALSE, aesc = aes(color = me
   aes(date, value) + aesc +
   geom_month_background(dt, by = NULL, ymax = ymax, ymin = ymin, ylog = ylog) +
   geom_spaghetti(
-    aes(y = value, group = interaction(realization, measure)),
+    aes(y = value, group = interaction(measure, realization)),
     dt[!is.na(realization)]
   )
 
@@ -127,6 +79,7 @@ p.sero <- p.core(
   ]) +
   scale_y_fraction() +
   conserved +
+#  scale_shape_discrete(guide = "none") +
   theme(
     legend.position = c(0+0.05, 1-0.175), legend.justification = c(0, 1),
     legend.background = element_rect(fill = alpha("white", 0.5), color = NA),

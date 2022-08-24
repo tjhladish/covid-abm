@@ -125,17 +125,21 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
                                                          {0.1, 0.5, 0.5, 0.1}, // up to "2020-10-01"
                                                          {0.3, 0.9, 0.5, 0.1}, // up to "2021-02-15"
                                                          {0.1, 0.7, 0.75, 0.1},// up to "2021-10-01"
-                                                         {0.1, 0.6, 0.9, 0.1} };
+                                                         {0.1, 0.6, 0.9, 0.1}, // up to "2022-01-19"
+                                                         {0.03, 0.2, 0.95, 0.1} };
                                                          // {0.1, 0.7, 0.75, 0.1} };
 
         add_death_probabilities(first_detection_probs, RF_death);
         vector<string> inflection_dates = {"2020-06-01",
                                            "2020-10-01",
                                            "2021-02-15",
-                                           "2021-10-01"};
+                                           "2021-10-01",
+                                           "2022-01-19"};
+
         vector<vector<int>> inflection_matrix = create_sim_day_matrix(par, inflection_dates);
         // sign of slope is determined based on initial/final values
-        vector<vector<double>> slope_matrix   = create_slope_matrix(inflection_dates.size(), 0.1); // assume same logistic slope for all reporting transitions
+        vector<vector<double>> slope_matrix   = create_slope_matrix(inflection_dates.size() - 1, 0.1); // assume same logistic slope for all reporting transitions
+        slope_matrix.push_back(vector<double>(NUM_OF_OUTCOME_TYPES, 0.5)); // omicron transition seems to have happend much faster due to test availability
 
         par->createDetectionModel(first_detection_probs, inflection_matrix, slope_matrix);
 
@@ -214,9 +218,10 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     //par->defaultReportingLag = 14;
     par->createReportingLagModel(pop_dir + "/../case_report_delay.csv");
     par->symptomToTestLag = 2;
+    par->seroconversionLag = 20;                            //https://erj.ersjournals.com/content/56/2/2000763
 //    par->meanDeathReportingLag = 9;
 
-    const double max_icu_mortality_reduction = 0.35;         // primarily due to use of dexamethasone
+    const double max_icu_mortality_reduction = 0.35;        // primarily due to use of dexamethasone
     const size_t icu_mortality_inflection_sim_day = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-06-15");
     const double icu_mortality_reduction_slope = 1.0;       // 0.5 -> change takes ~2 weeks; 0.1 -> ~2 months
     par->createIcuMortalityReductionModel(max_icu_mortality_reduction, icu_mortality_inflection_sim_day, icu_mortality_reduction_slope);
@@ -563,7 +568,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
     par->immunityLeaky           = true;          // applies to both infection and vaccine immunity
     par->immunityWanes           = false;         // related to time-dep waning of protection, not waning of Ab levels
-    par->seroPositivityThreshold = 0.0;
+    par->seropositivityThreshold = 0.0;
 
     // handle all vac campaign setup
     if (do_passive_vac or active_vac) { // active_vac can take on 0 (no active vac), 1 (ring), or 2 (risk)

@@ -1,86 +1,32 @@
 
-.pkgs <- c("data.table", "MMWRweek", "ggplot2", "ggrepel", "patchwork")
+.pkgs <- c("data.table", "ggplot2", "ggrepel", "patchwork")
 
 stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 
 .args = if (interactive()) c(
-  "fig/validation.rds",
-  "rcasedeath-florida.csv",
-  "Rates_of_COVID-19_Cases_or_Deaths_by_Age_Group_and_Vaccination_Status.csv",
-  "COVID-19_Reported_Patient_Impact_and_Hospital_Capacity_by_State_Timeseries.csv",
-  "CDC_seroprev_long.csv",
-  file.path("dose_data","trends_in_number_of_covid19_vaccinations_in_fl.csv"),
-  "reporting_dump.csv",
   file.path("fig", "vis_support.rda"),
-  file.path("fig", "modelinputs.png")
+  "fig/input/validation.rds",
+  "fig/input/outcomes.rds",
+  "fig/input/vaccines.rds",
+  "fig/input/hospitals.rds",
+  "fig/input/seroprev.rds",
+  "fig/input/FLvaccines.rds",
+  "fig/input/detection.rds",
+  file.path("fig", "model_inputs.png")
 ) else commandArgs(trailingOnly=TRUE)
 
-d <- readRDS(.args[1])
+load(.args[1])
 
-#' doesn't seem to apply to any entries?
-# is.na(d) = sapply(d, is.infinite)
+d <- readRDS(.args[2])[date <= endday]
+ed <- readRDS(.args[3])
+cdc = readRDS(.args[4])
+hhsHosp = readRDS(.args[5])
+seroprev = readRDS(.args[6])
+vax = readRDS(.args[7])
 
-#escambia_fraction    = 0.0153 # fraction of FL pop that lives in Escambia
-tarpop <- gsub("^.+-(\\w+)\\.csv$", "\\1", .args[2])
-pop <- c(florida = 21538187, escambia = 312212, dade = 2794464)[tarpop]
-per10k <- 1e4/pop
+ref.day0 <- d[, min(date)]
 
-ed <- fread(.args[2])
-ed[, rcase := rcase * per10k ]
-#' TODO fix upstream to only report on wday == 7? if so, need to change 7 below
-ed[, rdeath := excess*per10k*7 ]
-ed[wday(Date) != 7, rdeath := NA ]
-ed[, crcase := cumsum(rcase) ]
-ed[!is.na(rdeath), crdeath := cumsum(rdeath) ]
-setnames(ed, "Date", "date")
-
-cdc = fread(.args[3])[
-  `Age group` == "all_ages_adj" &
-    `Vaccine product` == "all_types" & outcome == "case"
-][, date := {
-  spl <- lapply(tstrsplit(`MMWR week`,"(?<=.{4})", perl = TRUE), as.integer)
-  MMWRweek2Date(spl[[1]], spl[[2]])
-}][,
-   brkthruRatio := `Vaccinated with outcome`/(`Vaccinated with outcome` + `Unvaccinated with outcome`)
-][,
-  vaxOutcomeP10k := `Vaccinated with outcome` * (1e4/`Fully vaccinated population`)
-]
-
-hhsHosp = fread(.args[4])[
-  state == 'FL'
-][,
-  date := as.Date(date)
-][order(date)][,
-               hospInc := previous_day_admission_adult_covid_confirmed * per10k
-]
-
-seroprev = fread(.args[5])[
-  !is.na(est)
-][,
-  unique(.SD), keyby=date
-][, run := {
-  res <- rle(est)
-  rep(1:length(res$lengths), res$lengths)
-}][,.(
-  start = date[1], end = date[.N],
-  lower = lower[1], est = est[1], upper = upper[1]
-), by=run
-]
-
-vax = dcast(melt(
-  fread(.args[6], stringsAsFactors=F, header=T, skip=2)[order(Date), .(
-    date = Date,
-    dose1 = `Daily Count People Receiving Dose 1`,
-    dose2 = `Daily Count of People Fully Vaccinated`,
-    dose3 = `Daily Count People Receiving a First Booster Dose`
-  )][, paste0("cov",c(1,2,3)) := lapply(.(dose1, dose2, dose3), cumsum) ],
-  id.vars = "date")[, value := fifelse(variable %like% "dose", value * per10k, value/pop)],
-  date ~ variable
-)
-
-detect.dt <- fread(.args[7])
-
-load(.args[8])
+detect.dt <- readRDS(.args[8])[, date := day + ref.day0][date <= endday]
 
 sd.dt <- d[realization == 1, .(date, value = sd, closed) ]
 
@@ -150,10 +96,11 @@ voc.dt <- prepare(
 )
 
 #' TODO make geom_month_background work for logit
-p.voc <- p.core(voc.dt, ymin = 0, ymax = 1) +
+p.voc <- p.core(
+  voc.dt[!is.na(value)], ymin = 0, ymax = 1
+) +
   geom_spaghetti(
-    aes(y = value, group = interaction(realization, measure)),
-    voc.dt
+    aes(y = value, group = interaction(measure, realization))
   ) +
   scale_y_fraction(
     name = "Variant Fraction"
@@ -162,9 +109,11 @@ p.voc <- p.core(voc.dt, ymin = 0, ymax = 1) +
   scale_x_null() +
   scale_color_inputs() + theme_minimal()
 
+vax.mlt <- dcast(vax, date ~ dose, value.var = "cov")
+setnames(vax.mlt, 2:4, paste0("cov", 1:3))
 vax.dt <- prepare(
   d[realization == 1, .(realization, date, cov1, cov2, cov3)],
-  vax[, .(realization = 0, date, cov1, cov2, cov3)]
+  vax.mlt[, .(realization = 0, date, cov1, cov2, cov3)]
 )
 
 vlbls <- c(cov1="First", cov2="Second", cov3="Booster")
@@ -201,10 +150,8 @@ p.vax <- p.core(
     legend.spacing.y = unit(.5, "line"),
   )
 
-ref.day0 <- d[, min(date)]
-
 det.dt <- prepare(detect.dt[, .(
-  realization = 1, date = day + ref.day0, asymp, mild, severe, crit
+  realization = 1, date, asymp, mild, severe, crit
 )])
 
 p.detect <- p.core(
