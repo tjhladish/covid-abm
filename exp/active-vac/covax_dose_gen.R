@@ -98,9 +98,9 @@ fwrite(covax.dt, file = tail(.args, 1), sep = " ")
 
 dose_file_overwrite <- fread(.args[2])
 dose_file_overwrite[, n_doses_p10k := 0]
-covax_assumed = copy(res.dt[dose_file_overwrite, on = .(date)][is_urg == 1 & bin_min == 5 & dose == 1, n_doses_p10k := assumedcourses])
-covax_provisioned = copy(res.dt[dose_file_overwrite, on = .(date)][is_urg == 1 & bin_min == 5 & dose == 1, n_doses_p10k := provisioned])
-fwrite(covax_assumed[,.(date, ref_location, bin_min, bin_max, dose, is_urg, n_doses_p10k)],
-       file = paste0(base::strsplit(tail(.args, 1), split = '\\.')[[1]][1], "_assumed.txt"), sep = " ")
-fwrite(covax_provisioned[,.(date, ref_location, bin_min, bin_max, dose, is_urg, n_doses_p10k)],
-       file = paste0(base::strsplit(tail(.args, 1), split = '\\.')[[1]][1], "_provisioned.txt"), sep = " ")
+covax_mic = copy(covax.dt[dose_file_overwrite, on = .(date)][is_urg == 1 & bin_min == 5 & dose == 1, n_doses_p10k := MIConly])
+covax_covax = copy(covax.dt[dose_file_overwrite, on = .(date)][is_urg == 1 & bin_min == 5 & dose == 1, n_doses_p10k := covaxonly])
+fwrite(covax_mic[,.(date, ref_location, bin_min, bin_max, dose, is_urg, n_doses_p10k)],
+       file = paste0(base::strsplit(tail(.args, 1), split = '\\.')[[1]][1], "_MIC_only.txt"), sep = " ")
+fwrite(covax_covax[,.(date, ref_location, bin_min, bin_max, dose, is_urg, n_doses_p10k)],
+       file = paste0(base::strsplit(tail(.args, 1), split = '\\.')[[1]][1], "_COVAX_only.txt"), sep = " ")
