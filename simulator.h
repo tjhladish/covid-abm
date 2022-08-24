@@ -305,7 +305,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
     community->setSocialDistancingTimedIntervention(social_distancing_anchors);
 
     //vector<string> plot_log_buffer = {"date,sd,seasonality,vocprev1,vocprev2,cinf,closed,rcase,rdeath,inf,rhosp,Rt"};
-    ledger->plot_log_buffer = {"serial,date,sd,seasonality,vocprev1,vocprev2,vocprev3,cinf,closed,rcase,rdeath,inf,rhosp,VES,brkthruRatio,vaxInfs,unvaxInfs,hospInc,hospPrev,icuInc,icuPrev,vaxHosp,unvaxHosp,std_doses,urg_doses,cov1,cov2,cov3,seroprev,symp_infs,sevr_infs,crit_infs,all_deaths,dose1_ct,dose2_ct,dose3_ct,Rt"};
+    ledger->plot_log_buffer = {"serial,date,sd,seasonality,vocprev1,vocprev2,vocprev3,cinf,closed,rcase,rdeath,inf,rhosp,VES,brkthruRatio,vaxInfs,unvaxInfs,hospInc,hospPrev,icuInc,icuPrev,vaxHosp,unvaxHosp,std_doses,urg_doses,cov1,cov2,cov3,seroprev,ped_seroprev,symp_infs,sevr_infs,crit_infs,all_deaths,dose1_ct,dose2_ct,dose3_ct,Rt"};
     //ledger->plot_log_buffer = {"date,sd,seasonality,vocprev1,vocprev2,cinf,closed,rcase,rdeath,inf,rhosp,Rt"};
 
     Date* date = community->get_date();
@@ -397,6 +397,13 @@ if (sim_day == 0) { seed_epidemic(par, community, WILDTYPE); }
         const size_t rc_ct = accumulate(all_reported_cases.begin(), all_reported_cases.begin()+sim_day+1, 0);
         map<string, double> VE_data = community->calculate_vax_stats(sim_day);
         const double seroprev = community->doSerosurvey(NATURAL, community->getPeople(), sim_day);
+
+        vector<Person*> pediatric_pop;
+        for (int age = 0; age <= 17; ++age) {
+            vector<Person*> age_pop = community->getAgeCohort(age);
+            pediatric_pop.insert(pediatric_pop.end(), age_pop.begin(), age_pop.end());
+        }
+        const double pediatric_seroprev = community->doSerosurvey(NATURAL, pediatric_pop, sim_day);
         //vector<string> inf_by_loc_keys = {"home", "social", "work_staff", "patron", "school_staff", "student", "hcw", "patient", "ltcf_staff", "ltcf_resident"};
         //for (string key : inf_by_loc_keys) {
         //    cerr << "infLoc " << date->to_ymd() << ' ' << key << ' ' << community->getNumNewInfectionsByLoc(key)[sim_day] << endl;
@@ -461,6 +468,7 @@ if (sim_day == 0) { seed_epidemic(par, community, WILDTYPE); }
            << VE_data["dose_2"] << ","
            << VE_data["dose_3"] << ","
            << seroprev << ","
+           << pediatric_seroprev << ","
            << symp_infs[sim_day]*per_10k << ","
            << sevr_infs[sim_day]*per_10k << ","
            << crit_infs[sim_day]*per_10k << ","
