@@ -50,10 +50,10 @@ allfigs: $(patsubst %,${OUTDIR}/%.png,model_input validation_review everything)
 # reference data for generating figures
 # note: these are big files
 
-digest.rds: digest.R $(addprefix ${DATADIR}/,${SIMFILES})
+${RESDIR}/digest.rds: digest.R $(addprefix ${DATADIR}/,${SIMFILES})
 	$(call R)
 
-digest-key.rds digest-doses.rds digest-ref.rds: digest.rds
+$(patsubst %,${RESDIR}/digest-%.rds,key doses ref): ${RESDIR}/digest.rds
 
 vis_support.rda: vis_support.R
 	$(call R)
@@ -61,6 +61,11 @@ vis_support.rda: vis_support.R
 plotlog: ${DATADIR}/active_vac_logs-v3.0-FL_ref_only.tgz
 	mkdir $@
 	tar -xf $< --strip-components=1 -C $@
+
+${OUTDIR}/fullpage_%.png: fullpage.R vis_support.rda ${RESDIR}/digest.rds ${RESDIR}/digest-key.rds ${RESDIR}/digest-ref.rds
+	$(call R)
+
+fullpagers: $(patsubst %,${OUTDIR}/fullpage_%.png,inf_value inf_averted inf_ceff sev_value sev_averted sev_ceff deaths_value deaths_averted deaths_ceff)
 
 digest-ext.rds: digest-ext.R ${DATADIR}/covid-active-only.sqlite digest-key.rds digest-ref.rds
 	$(call R)
