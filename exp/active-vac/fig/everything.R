@@ -40,7 +40,7 @@ conserved <- list(
   theme(text = element_text(face = "bold"))
 )
 
-p.core <- function(dt, ymax = NA, ymin = NA, ylog = FALSE) ggplot(dt) +
+p.core <- function(dt, ymax = NA, ymin = NA, ytrans = "identity") ggplot(dt) +
   aes(date, value, color = measure) +
   geom_month_background(
     dt, by = NULL, ymax = ymax, ymin = ymin, ylog = ylog
@@ -60,7 +60,7 @@ geom_liner <- function(datafn) geom_text(
 )
 
 p.sero <- p.core(
-  sero.dt[, measure := "infection"], ymin = 0, ymax = 1
+  sero.dt[, measure := "infection"], ymin = 0.01, ymax = .99, ylog = TRUE
 ) + aes(shape = after_stat(spaghetti)) + geom_crosshair(
   mapping = aes(
     x = start + (end+1-start)/2, xmin = start, xmax = end+1,
@@ -76,8 +76,9 @@ p.sero <- p.core(
       vj = 1, hj = 0
     ), by = measure
   ]) +
-  scale_y_fraction() +
+  scale_y_fraction(breaks = c(0.01, 0.03, 0.1, 0.3, 0.5, 0.7, 0.9, 0.97, 0.99), limits = c(0.01, 0.99)) +
   conserved +
+  coord_trans(y="logit") +
   scale_alpha(guide = "none") +
   theme(
     legend.position = c(0+0.05, 1-0.175), legend.justification = c(0, 1),
