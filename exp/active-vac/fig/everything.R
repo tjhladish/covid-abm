@@ -43,7 +43,7 @@ conserved <- list(
 p.core <- function(dt, ymax = NA, ymin = NA, ytrans = "identity") ggplot(dt) +
   aes(date, value, color = measure) +
   geom_month_background(
-    dt, by = NULL, ymax = ymax, ymin = ymin, ylog = ylog
+    dt, by = NULL, ymax = ymax, ymin = ymin, ytrans = ytrans
   ) +
   stat_spaghetti(
     aes(sample = realization),
@@ -60,7 +60,7 @@ geom_liner <- function(datafn) geom_text(
 )
 
 p.sero <- p.core(
-  sero.dt[, measure := "infection"], ymin = 0.01, ymax = .99, ylog = TRUE
+  sero.dt[, measure := "infection"], ymin = 0.01, ymax = .99
 ) + aes(shape = after_stat(spaghetti)) + geom_crosshair(
   mapping = aes(
     x = start + (end+1-start)/2, xmin = start, xmax = end+1,
@@ -76,9 +76,11 @@ p.sero <- p.core(
       vj = 1, hj = 0
     ), by = measure
   ]) +
-  scale_y_fraction(breaks = c(0.01, 0.03, 0.1, 0.3, 0.5, 0.7, 0.9, 0.97, 0.99), limits = c(0.01, 0.99)) +
+  scale_y_fraction(
+#    breaks = c(0.01, 0.03, 0.1, 0.3, 0.5, 0.7, 0.9, 0.97, 0.99), limits = c(0.01, 0.99)
+  ) +
   conserved +
-  coord_trans(y="logit") +
+#  coord_trans(y="logit") +
   scale_alpha(guide = "none") +
   theme(
     legend.position = c(0+0.05, 1-0.175), legend.justification = c(0, 1),
@@ -98,7 +100,7 @@ inc.dt <- prepare(
 )[date < "2022-04-01"][!is.na(value)]
 
 p.inc <- p.core(
-  inc.dt, ymin = 1e-2, ymax = 1e2, ylog = TRUE
+  inc.dt, ymin = 1e-2, ymax = 1e2, ytrans = "log10"
 ) + geom_observation() +
   geom_liner(
     data = function(dt) dt[date == "2021-04-17", .(
@@ -118,7 +120,7 @@ cum.dt <- prepare(
 )[date < "2022-04-01"][!is.na(value)]
 
 p.cum.combo <- p.core(
-  cum.dt, ymin = 1, ymax = 1e4, ylog = TRUE
+  cum.dt, ymin = 1, ymax = 1e4, ytrans = "log10"
 ) + geom_observation() +
   geom_liner(
     function(dt) dt[date == "2021-04-17", .(
@@ -141,7 +143,7 @@ hinc.dt <- prepare(
 )[date < "2022-04-01"][!is.na(value)]
 
 p.hosp <- p.core(
-  hinc.dt, ylog = TRUE, ymin = 1e-2, ymax = 3
+  hinc.dt, ytrans = "log10", ymin = 1e-2, ymax = 3
 ) + geom_observation() +
   geom_liner(function(dt) dt[date == "2021-03-17", .(
     measure = measure[1], date = date[1], value = max(mean(value), 1e-2)*(10^(fifelse(.BY == "hospInc", -1, 1)/3)),
@@ -152,7 +154,8 @@ p.hosp <- p.core(
   scale_y_incidence(trans = "log10", breaks = 10^sort(c((-2):0, log10(3)-(2:0))), labels = c("0.01", "0.03", "0.1", "0.3", "1", "3")) +#, )
   conserved +
   coord_cartesian(ylim = c(1e-2, 3), expand = FALSE) +
-  theme(legend.position = "none")
+  theme(legend.position = "none") +
+  scale_alpha_continuous(range = c(0.01, 1))
 
 # min.breakthrough <- d[order(date),.SD[which.max(tot_std_doses + tot_urg_doses > 0)][1, date], by=realization][, min(V1)]
 
@@ -179,10 +182,12 @@ p.vis <- p.sero + p.inc + p.cum.combo + p.hosp + p.brk
 sd.dt <- d[realization == 1, .(date, value = sd, closed) ]
 
 p.core <- function(
-  dt, ymin = NA, ymax = NA, ylog = FALSE
+  dt, ymin = NA, ymax = NA, ytrans = "identity"
 ) ggplot(dt) +
   aes(date, value, color = measure) +
-  geom_month_background(dt, ymin = ymin, ymax = ymax, ylog = ylog)
+  geom_month_background(dt, ymin = ymin, ymax = ymax, ytrans = ytrans) +
+  theme_minimal() + theme(text = element_text(face = "bold")) +
+  scale_x_null()
 
 ed.xform <- ed[, .(date, value = {
   tmp <- log10(rcase)
@@ -218,8 +223,7 @@ p.sd <- p.core(
 #      breaks = seq(0, 1, by=.25),
       labels = c("0.01", "0.1", "1", "10", "100")
     )
-  ) + theme_minimal() + scale_x_null() +
-  scale_color_inputs()
+  ) + scale_color_inputs()
 
 seas.dt <- prepare(d[realization == 1, .(realization, date, seasonality) ])
 
@@ -233,7 +237,7 @@ scale_y_seasonality <- gg_scale_wrapper(
 )
 
 p.seas <- p.core(seas.dt, ymin = 0.8, ymax = 1.2) +
-  geom_line() + theme_minimal() + scale_x_null() +
+  geom_line() +
   scale_y_seasonality() +
   scale_color_inputs()
 
@@ -248,8 +252,7 @@ p.voc <- p.core(
   scale_y_fraction(
     name = "Variant Fraction"
   ) +
-  scale_x_null() +
-  scale_color_inputs() + theme_minimal()
+  scale_color_inputs()
 
 vax.mlt <- dcast(vax, date ~ dose, value.var = "cov")
 setnames(vax.mlt, 2:4, paste0("cov", 1:3))
@@ -270,9 +273,7 @@ p.vax <- p.core(
   geom_point(data = function (dt) dt[realization == 0][value > 0], alpha = 0.2) +
   geom_line(data = function(dt) dt[realization == 1][value > 0]) +
   scale_color_inputs() +
-  scale_x_null() +
   scale_y_fraction() +
-  theme_minimal() +
   scale_linetype_manual(
     name = "Simulated Doses",
     values = c(cov1="dotted", cov2="dashed", cov3="solid"),
@@ -305,9 +306,7 @@ p.detect <- p.core(
   det.dt, ymin = 0, ymax = 1
 ) + aes(linetype = outcome) +
   geom_line() +
-  scale_x_null() +
   scale_y_fraction(name = "P(Detect) Individual with Outcome ...") +
-  theme_minimal() +
   scale_linetype_manual(
     name = NULL, breaks = rev(c("asymp", "mild", "severe", "crit")),
     labels = c(asymp = "Asymptomic", mild = "Mild", severe = "Severe", crit = "Critical"),

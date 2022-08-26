@@ -337,8 +337,9 @@ geom_month_background <- function(
     col.cycle = c(off = NA, on = alpha("lightgrey", 0.75)),
     m.labels = m.abb,
     font.size = 8, font.face = "bold",
-    ylog = FALSE,
+    ytrans = "identity",
     datafn = tsref.dt,
+    m.y = 0.85, y.y = 0.81,
     ...
 ) {
   text.col <- alpha(col.cycle, 1)
@@ -347,36 +348,34 @@ geom_month_background <- function(
   dt <- datafn(data, ...)
   dt[, fill := col.cycle[mtype] ]
   dt[, col := text.col[mtype] ]
+
+  xformer <- scales::as.trans(ytrans)
+
+  xform <- function(ymax, ymin, dropto) {
+    xformer$inverse(
+      (xformer$transform(ymax)-xformer$transform(ymin))*dropto + xformer$transform(ymin)
+    )
+  }
+
   # ggplot isn't great on replicating these across facets
   # would be preferrable to use `annotate`, and let backend recycle fills, but
   # it won't, so have to tell this how many facets there will be
-  xform <- if (ylog) {
-    function(hi, lo, dropto) lo*(hi/lo)^dropto
-  } else {
-    function(hi, lo, dropto) lo+(hi-lo)*dropto
-  }
   list(
     geom_rect(
-      mapping = aes(xmin = start - 0.5, xmax = end + 0.5, ymin = if (ylog) 0 else -Inf, ymax = Inf),
+      mapping = aes(xmin = start - 0.5, xmax = end + 0.5, ymin = if (xformer$name %like% "log") 0 else -Inf, ymax = if (xformer$name %like% "prob") 1 else Inf),
       data = dt, inherit.aes = FALSE, show.legend = FALSE, fill = dt$fill
     ),
     geom_text(
-      mapping = aes(x = mid, y = xform(ymax, ymin, .87), label = m.abb[mon]),
+      mapping = aes(x = mid, y = xform(ymax, ymin, m.y), label = m.abb[mon]),
       data = dt, inherit.aes = FALSE, show.legend = FALSE, color = dt$col,
       size = font.size, vjust = "bottom", fontface = font.face
     ),
     geom_text(
-      mapping = aes(x = mid, y = xform(ymax, ymin, .83), label = yr),
+      mapping = aes(x = mid, y = xform(ymax, ymin, y.y), label = yr),
       data = dt[yshow == TRUE], angle = 90,
       inherit.aes = FALSE, show.legend = FALSE, color = dt[yshow == TRUE]$col,
       size = font.size, hjust = "right", fontface = font.face
     )
-    # ,
-    # geom_text(
-    #   mapping = aes(x = mid, y = 0.25, label = yr),
-    #   data = dt[yshow == TRUE],
-    #   inherit.aes = FALSE, show.legend = FALSE, color = rep(dt[yshow == TRUE]$col, facet.mul)
-    # )
   )
 }
 

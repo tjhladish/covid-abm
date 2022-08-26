@@ -5,9 +5,11 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 
 #' assumes R project at the experiment root level
 .args <- if (interactive()) c(
-  file.path("fig", c("digest.rds", "digest-key.rds", "digest-ref.rds", "vis_support.rda")),
+  file.path("fig", c("vis_support.rda", "digest.rds", "digest-key.rds", "digest-ref.rds")),
   file.path("fig", "combo-low-matched.png")
 ) else commandArgs(trailingOnly = TRUE)
+
+load(.args[1])
 
 #' comes key'd
 eff.dt <- readRDS(.args[1])[
