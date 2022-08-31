@@ -6,9 +6,9 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 #' assumes R project at the experiment root level
 .args <- if (interactive()) c(
   file.path(c(
-    "covid-active-v2.0.sqlite"
+    "covid-active-v3.0.sqlite"
   )),
-  file.path("fig", "digest.rds")
+  file.path("fig", "process", "digest.rds")
 ) else commandArgs(trailingOnly = TRUE)
 
 abcreader <- function(
@@ -82,7 +82,7 @@ merge.dt <- head(.args, -1) |> lapply(abcreader) |> (\(alldts) Reduce(
 })()
 
 # WARNING: MAGIC NUMBER
-basescnid <- 7
+basescnid <- 13
 
 ref.dt <- merge.dt$meta[(scenario == basescnid) & (outcome != "doses")]
 int.dt <- merge.dt$meta[
@@ -133,8 +133,8 @@ funs <- list(
   quar = as.logical,
   pas_vac = as.logical,
   act_vac = genordfac(c("none", "ring", "risk")),
-  pas_alloc = genordfac(c("none", "FL", "FL+ring", "COVAX")),
-  act_alloc = genordfac(c("none", "ring", "ringmonth", "COVAX")),
+  pas_alloc = genordfac(c("none", "FL", "FL+ring", "COVAX", "MIC")),
+  act_alloc = genordfac(c("none", "ring", "ringmonth", "COVAX", "MIC")),
   inf_con = \(x) x == 2
 )
 

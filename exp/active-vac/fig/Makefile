@@ -23,37 +23,40 @@ ${RESDIR}/FLvaccines.rds: ${DATADIR}/population-pseudo-300K.csv ${DATADIR}/state
 ${RESDIR}/detection.rds: ${DATADIR}/reporting_dump.csv
 ${RESDIR}/validation.rds: plotlog
 
-INPUTS := $(patsubst %,${RESDIR}/%.rds,validation outcomes vaccines hospitals seroprev FLvaccines detection)
+${RESDIR}/%.rds: ${RESDIR}/%.R vis_support.rda | ${RESDIR}
+	$(call R)
+
+# reference data for generating figures
+# note: these are big files
+${RESDIR}/digest.rds: digest.R $(addprefix ${DATADIR}/,${SIMFILES}) | ${RESDIR}
+	$(call R)
+
+$(patsubst %,${RESDIR}/digest-%.rds,key doses ref): ${RESDIR}/digest.rds
+
+INPUTS := $(patsubst %,${RESDIR}/%.rds,validation outcomes vaccines hospitals seroprev FLvaccines detection digest)
 
 allinputs: ${INPUTS}
 cleaninputs:
 	cd ${RESDIR} && rm *.rds
 
-${RESDIR}/%.rds: ${RESDIR}/%.R vis_support.rda | ${RESDIR}
-	$(call R)
-
 ${OUTDIR}:
 	mkdir $@
 
-PLOTINS := digest.rds digest-key.rds digest-ref.rds
+PLOTINS := $(addprefix ${RESDIR}/,digest.rds digest-key.rds digest-ref.rds)
 
 ${OUTDIR}/model_input.png: ${INPUTS}
 ${OUTDIR}/validation_review.png: ${INPUTS}
 ${OUTDIR}/everything.png: ${INPUTS}
-${OUTDIR}/averted.png: ${PLOTINS}
+${OUTDIR}/avertvis.png: ${PLOTINS}
 
 ${OUTDIR}/%.png: %.R vis_support.rda | ${OUTDIR}
 	$(call R)
 
-allfigs: $(patsubst %,${OUTDIR}/%.png,model_input validation_review everything)
-
-# reference data for generating figures
-# note: these are big files
-
-${RESDIR}/digest.rds: digest.R $(addprefix ${DATADIR}/,${SIMFILES})
+${OUTDIR}/avertvis_%.png: avertvis_outcome.R vis_support.rda ${PLOTINS} | ${OUTDIR}
 	$(call R)
 
-$(patsubst %,${RESDIR}/digest-%.rds,key doses ref): ${RESDIR}/digest.rds
+allavert: $(patsubst %,${OUTDIR}/avertvis%.png,  _inf _sev _deaths)
+allfigs: $(patsubst %,${OUTDIR}/%.png,model_input validation_review everything)
 
 vis_support.rda: vis_support.R
 	$(call R)
