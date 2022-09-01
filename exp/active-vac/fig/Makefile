@@ -8,7 +8,7 @@ default: res_fig1.png res_fig1_noq.png
 DATADIR ?= ..
 RESDIR := process
 OUTDIR ?= output
-SIMFILES ?= $(patsubst %,covid-active-%.sqlite,v3.0)
+SIMFILES ?= $(patsubst %,covid-active-%.sqlite,v3.1)
 
 R = $(strip Rscript $^ $(1) $@)
 
@@ -29,7 +29,7 @@ ${RESDIR}/%.rds: ${RESDIR}/%.R vis_support.rda | ${RESDIR}
 # reference data for generating figures
 # note: these are big files
 ${RESDIR}/digest.rds: digest.R $(addprefix ${DATADIR}/,${SIMFILES}) | ${RESDIR}
-	$(call R)
+	Rscript --min-vsize=12G $^ $@
 
 $(patsubst %,${RESDIR}/digest-%.rds,key doses ref): ${RESDIR}/digest.rds
 
@@ -55,7 +55,7 @@ ${OUTDIR}/%.png: %.R vis_support.rda | ${OUTDIR}
 ${OUTDIR}/avertvis_%.png: avertvis_outcome.R vis_support.rda ${PLOTINS} | ${OUTDIR}
 	$(call R)
 
-allavert: $(patsubst %,${OUTDIR}/avertvis%.png,  _inf _sev _deaths)
+allavert: $(patsubst %,${OUTDIR}/avertvis_%.png,inf sev deaths) ${OUTDIR}/avertvis.png
 allfigs: $(patsubst %,${OUTDIR}/%.png,model_input validation_review everything)
 
 vis_support.rda: vis_support.R
