@@ -6,11 +6,15 @@ default: res_fig1.png res_fig1_noq.png
 # setup definitions
 
 DATADIR ?= ..
+DLDIR ?= ~/Downloads
 RESDIR := process
 OUTDIR ?= output
 SIMFILES ?= $(patsubst %,covid-active-%.sqlite,v3.1)
 
 R = $(strip Rscript $^ $(1) $@)
+
+${DATADIR}/${SIMFILES}:
+	mv $(subst ${DATADIR},${DLDIR},$@) $@
 
 ${RESDIR}:
 	mkdir $@
@@ -32,6 +36,9 @@ ${RESDIR}/digest.rds: digest.R $(addprefix ${DATADIR}/,${SIMFILES}) | ${RESDIR}
 	Rscript --min-vsize=12G $^ $@
 
 $(patsubst %,${RESDIR}/digest-%.rds,key doses ref): ${RESDIR}/digest.rds
+
+${RESDIR}/alt_eff.rds: alt_eff_digest.R $(addprefix ${DATADIR}/,${SIMFILES}) | ${RESDIR}
+	Rscript --min-vsize=12G $^ $@
 
 INPUTS := $(patsubst %,${RESDIR}/%.rds,validation outcomes vaccines hospitals seroprev FLvaccines detection digest)
 
@@ -55,7 +62,14 @@ ${OUTDIR}/%.png: %.R vis_support.rda | ${OUTDIR}
 ${OUTDIR}/avertvis_%.png: avertvis_outcome.R vis_support.rda ${PLOTINS} | ${OUTDIR}
 	$(call R)
 
-allavert: $(patsubst %,${OUTDIR}/avertvis_%.png,inf sev deaths) ${OUTDIR}/avertvis.png
+${OUTDIR}/cum_averted_%.png: cum_avert_outcome.R vis_support.rda ${PLOTINS} | ${OUTDIR}
+	$(call R)
+
+${OUTDIR}/cum_eff_%.png: cum_eff_outcome.R vis_support.rda ${PLOTINS} | ${OUTDIR}
+	$(call R)
+
+allavert: $(addprefix ${OUTDIR}/,$(patsubst %,avertvis_%.png,inf sev deaths) $(patsubst %,cum_averted_%.png,inf sev deaths) avertvis.png)
+alleff: $(addprefix ${OUTDIR}/,$(patsubst %,cum_eff_%.png,inf sev deaths))
 allfigs: $(patsubst %,${OUTDIR}/%.png,model_input validation_review everything)
 
 vis_support.rda: vis_support.R
