@@ -23,8 +23,10 @@ eff.dt <- readRDS(.args[2])[
 ][
   outcome == tar
 ][, .(
-  scenario, realization, date, outcome, c.effectiveness
+  scenario, realization, date, outcome, averted
 )]
+
+eff.dt[order(date), c.averted := cumsum(averted), by=.(scenario, realization, outcome)]
 
 intscns <- eff.dt[, unique(scenario)]
 
@@ -46,7 +48,7 @@ plt.dt[, talloc := factor(
 )][, qfac := factor(c("No Q", "Q")[quar+1]) ]
 
 p <- ggplot(plt.dt) + aes(
-  x = date, y = c.effectiveness,
+  x = date, y = c.averted,
   color = act_vac,
   linetype = factor(c("unconditional", "conditional")[inf_con+1]),
   sample = realization
@@ -54,9 +56,9 @@ p <- ggplot(plt.dt) + aes(
   facet_nested(rows = vars(qfac), cols = vars(talloc)) +
   geom_month_background(
     plt.dt, by = c("qfac", "talloc"),
-    font.size = 3, value.col = "c.effectiveness",
-    ymax = plt.dt[, max(c.effectiveness)],
-    ymin = plt.dt[, min(c.effectiveness)]
+    font.size = 3, value.col = "c.averted",
+    ymax = plt.dt[, max(c.averted)],
+    ymin = plt.dt[, min(c.averted)]
   ) +
   stat_spaghetti(
     aes(alpha = after_stat(sampleN^-1))
@@ -64,7 +66,7 @@ p <- ggplot(plt.dt) + aes(
   geom_hline(aes(yintercept=0, color = "none")) +
   scale_y_continuous(
     name = sprintf(
-      "Cumulative Effectiveness\nAgainst Incidence of %s",
+      "Cumulative Difference\nin %s",
       switch(tar, inf = "Infection", sev = "Severe Disease", deaths = "Death", doses = "Vaccination", stop())
     )
   ) +

@@ -121,7 +121,7 @@ excludescns <- scn.dt[
 ]
 
 ref.dt <- meta.dt[
-  (scenario %in% basescnid) & (outcome != "doses")
+  (scenario %in% basescnid)# & (outcome != "doses")
 ][
   scn.dt,
   c("alloc", "inf_con", "quar") := .(pas_alloc, inf_con, quar),
@@ -129,7 +129,7 @@ ref.dt <- meta.dt[
 ]
 
 int.dt <- meta.dt[
-  !(scenario %in% c(basescnid, excludescns)) & (outcome != "doses")
+  !(scenario %in% c(basescnid, excludescns))# & (outcome != "doses")
 ][scn.dt,
   c("alloc", "inf_con", "quar") := .(
   fifelse(pas_alloc == "none",
