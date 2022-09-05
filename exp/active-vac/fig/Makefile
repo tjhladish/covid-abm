@@ -40,7 +40,7 @@ $(patsubst %,${RESDIR}/digest-%.rds,key doses ref): ${RESDIR}/digest.rds
 ${RESDIR}/alt_eff.rds: alt_eff_digest.R $(addprefix ${DATADIR}/,${SIMFILES}) | ${RESDIR}
 	Rscript --min-vsize=12G $^ $@
 
-INPUTS := $(patsubst %,${RESDIR}/%.rds,validation outcomes vaccines hospitals seroprev FLvaccines detection digest)
+INPUTS := $(patsubst %,${RESDIR}/%.rds,validation outcomes vaccines hospitals seroprev FLvaccines detection digest alt_eff)
 
 allinputs: ${INPUTS}
 cleaninputs:
@@ -68,9 +68,15 @@ ${OUTDIR}/cum_averted_%.png: cum_avert_outcome.R vis_support.rda ${PLOTINS} | ${
 ${OUTDIR}/cum_eff_%.png: cum_eff_outcome.R vis_support.rda ${PLOTINS} | ${OUTDIR}
 	$(call R)
 
+${OUTDIR}/alt_eff_%.png: alt_eff_outcome.R vis_support.rda ${RESDIR}/alt_eff.rds \
+${RESDIR}/digest-key.rds | ${OUTDIR}
+	$(call R)
+
 allavert: $(addprefix ${OUTDIR}/,$(patsubst %,avertvis_%.png,inf sev deaths) $(patsubst %,cum_averted_%.png,inf sev deaths) avertvis.png)
 alleff: $(addprefix ${OUTDIR}/,$(patsubst %,cum_eff_%.png,inf sev deaths))
+alteff: $(addprefix ${OUTDIR}/,$(patsubst %,alt_eff_%.png,inf sev deaths))
 allfigs: $(patsubst %,${OUTDIR}/%.png,model_input validation_review everything)
+
 
 vis_support.rda: vis_support.R
 	$(call R)

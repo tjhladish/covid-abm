@@ -47,7 +47,7 @@ plt.dt[, talloc := factor(
 
 p <- ggplot(plt.dt) + aes(
   x = date, y = c.effectiveness,
-  color = interaction(act_vac, act_alloc, pas_alloc, drop = TRUE),
+  color = act_vac,
   linetype = factor(c("unconditional", "conditional")[inf_con+1]),
   sample = realization
 ) +
@@ -61,11 +61,12 @@ p <- ggplot(plt.dt) + aes(
   stat_spaghetti(
     aes(alpha = after_stat(sampleN^-1))
   ) +
-  scale_y_fraction(
+  geom_hline(aes(yintercept=0, color = "none")) +
+  scale_y_continuous(
     name = sprintf(
       "Cumulative Effectiveness\nAgainst Incidence of %s",
       switch(tar, inf = "Infection", sev = "Severe Disease", deaths = "Death", stop())
-    ), limits = c(0, 0.4)
+    )
   ) +
   scale_x_null() +
   scale_color_discrete("Active Vax.") +
