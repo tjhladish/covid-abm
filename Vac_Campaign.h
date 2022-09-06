@@ -210,7 +210,7 @@ class Vac_Campaign {
 
         enum GroupedRiskDef {
             BY_FILE,
-            BY_DECILE,
+            BY_QUANTILE,
             NUM_OF_GROUPED_RISK_DEF_TYPES
         };
 
@@ -537,7 +537,7 @@ class Vac_Campaign {
         bool pool_std_doses;                                    // standard doses are pooled and used for any standard vaccinee (regardless of age or dose)
         bool pool_all_doses;                                    // all doses are pooled and used for any vaccinee (regardless of age or dose)
 
-        GroupedRiskDef grouped_risk_def;                        // will risk groups be provided by file or generated in deciles
+        GroupedRiskDef grouped_risk_def;                        // will risk groups be provided by file or generated from quantiles 
 
         VacCampaignType reactive_vac_strategy;                  // parameter for type of reactive strategy (if one is active)
         double reactive_vac_dose_allocation;                    // what proportion of total daily doses are reserved for reactive strategies
@@ -591,7 +591,7 @@ class Vac_Campaign {
             }
         }
 
-        void generate_risk_deciles(Community* community, map<int, vector<Person*>>& grouped_ppl, map<int, double>& grouped_risk);
+        void generate_risk_quantiles(Community* community, map<int, vector<Person*>>& grouped_ppl, map<int, double>& grouped_risk, size_t nbin);
 };
 
 

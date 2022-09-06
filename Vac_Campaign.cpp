@@ -147,7 +147,7 @@ void Vac_Campaign::location_scheduling(int day, vector<set<Person*, PerPtrComp>>
     }
 }
 
-void Vac_Campaign::generate_risk_deciles(Community* community, map<int, vector<Person*>>& grouped_ppl, map<int, double>& grouped_risk) {
+void Vac_Campaign::generate_risk_quantiles(Community* community, map<int, vector<Person*>>& grouped_ppl, map<int, double>& grouped_risk, size_t nbin) {
     grouped_ppl.clear();
     grouped_risk.clear();
 
@@ -164,13 +164,13 @@ void Vac_Campaign::generate_risk_deciles(Community* community, map<int, vector<P
         return a.second < b.second;
     });
 
-    // splits the sorted pop in to 10 groups from the back
-    int pop_size = community->getNumPeople();
-    for (int group = 0; group < 10; ++group) {
-        int group_size = (int)(pop_size / 10);
-        group_size += (group < (pop_size % 10)) ? 1 : 0;
+    // splits the sorted pop in to nbin groups from the back
+    const size_t pop_size = community->getNumPeople();
+    for (size_t group = 0; group < nbin; ++group) {
+        size_t group_size = (size_t) (pop_size / nbin);
+        group_size += (group < (pop_size % nbin)) ? 1 : 0;
 
-        for (int j = 0; j < group_size; ++j) {
+        for (size_t j = 0; j < group_size; ++j) {
             grouped_ppl[group].push_back(pop_with_risk.back().first);
 
             if (not grouped_risk.count(group)) {
@@ -220,8 +220,9 @@ void Vac_Campaign::grouped_risk_scheduling(int day, Community* community) {
                 }
             }
             iss.close();
-        } else if (grouped_risk_def == BY_DECILE) {
-            generate_risk_deciles(community, grouped_ppl, grouped_risk);
+        } else if (grouped_risk_def == BY_QUANTILE) {
+            const size_t nbin = 10; // TODO - probably move this out so it can be adjusted by user somehow
+            generate_risk_quantiles(community, grouped_ppl, grouped_risk, nbin);
         }
 
         // special comparator to sort the groups by per capita risk
