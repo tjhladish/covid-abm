@@ -148,28 +148,27 @@ void Vac_Campaign::location_scheduling(int day, vector<set<Person*, PerPtrComp>>
 }
 
 void Vac_Campaign::generate_risk_quantiles(Community* community, map<int, vector<Person*>>& grouped_ppl, map<int, double>& grouped_risk, size_t nbin) {
+    // index for these maps is arbitrary group id (int)
     grouped_ppl.clear();
     grouped_risk.clear();
 
-    // will hold pairs of person and their risk
-    vector< pair<Person*, double> > pop_with_risk;
+    // created a vector of people sorted by their risk of severe outcome
+    vector< pair<Person*, double> > pop_with_risk; // pairs of person and their risk
 
-    for (Person* p : community->getPeople()) {
-        double risk = p->getBaselineRiskSevOutcome();
-        pop_with_risk.push_back({p, risk});
-    }
+    for (Person* p : community->getPeople()) { pop_with_risk.push_back({p, p->getBaselineRiskSevOutcome()}); }
 
-    // sorts the pop by risk in ascending order (highest risk at the end)
+    // highest risk at the end
     std::sort(pop_with_risk.begin(), pop_with_risk.end(), [](pair<Person*, double> a, pair<Person*, double> b) {
         return a.second < b.second;
     });
 
-    // splits the sorted pop in to nbin groups from the back
+    // splits the sorted pop in to nbin groups, from the back
     const size_t pop_size = community->getNumPeople();
     for (size_t group = 0; group < nbin; ++group) {
         size_t group_size = (size_t) (pop_size / nbin);
-        group_size += (group < (pop_size % nbin)) ? 1 : 0;
+        group_size += (group < (pop_size % nbin)) ? 1 : 0; // distribute the remainder
 
+        // take group_size number of people off the back of pop_with_risk, and populate the passed-in data structures
         for (size_t j = 0; j < group_size; ++j) {
             grouped_ppl[group].push_back(pop_with_risk.back().first);
 
