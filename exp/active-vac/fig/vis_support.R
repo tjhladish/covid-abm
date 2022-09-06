@@ -15,6 +15,8 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 
 # MAGIC DATE
 endday <- as.Date("2022-03-31")
+startday <- as.Date("2020-12-01")
+datefilter <- expression(between(date, startday, endday))
 pop <- c(florida = 21538187, escambia = 312212, dade = 2794464)
 
 gg_scale_wrapper <- function(
@@ -236,13 +238,16 @@ scale_shape_measure <- gg_scale_wrapper(
   labels = measlbls[c("observed", "sample", "central")],
   values = c(observed = 20, sample = NA, central = NA),
   guide = guide_legend(
-    override.aes = list(linetype = c("blank", "solid", "solid"))
+    override.aes = list(
+      linetype = c("blank", "solid", "solid"),
+      alpha = c(1, 1, 1/20)
+    )
   )
 )
 
 geom_observation <- gg_scale_wrapper(
   geom_point,
-  mapping = aes(alpha = "observed", shape = "observed"),
+  mapping = aes(shape = "observed"),
   data = function(dt) subset(dt, is.na(realization)),
   size = 2.5,
   stroke = 0
@@ -334,8 +339,9 @@ geom_month_background <- function(
     col.cycle = c(off = NA, on = alpha("lightgrey", 0.75)),
     m.labels = m.abb,
     font.size = 8, font.face = "bold",
-    ylog = FALSE,
+    ytrans = "identity",
     datafn = tsref.dt,
+    m.y = 0.85, y.y = 0.81,
     ...
 ) {
   text.col <- alpha(col.cycle, 1)
@@ -344,36 +350,34 @@ geom_month_background <- function(
   dt <- datafn(data, ...)
   dt[, fill := col.cycle[mtype] ]
   dt[, col := text.col[mtype] ]
+
+  xformer <- scales::as.trans(ytrans)
+
+  xform <- function(ymax, ymin, dropto) {
+    xformer$inverse(
+      (xformer$transform(ymax)-xformer$transform(ymin))*dropto + xformer$transform(ymin)
+    )
+  }
+
   # ggplot isn't great on replicating these across facets
   # would be preferrable to use `annotate`, and let backend recycle fills, but
   # it won't, so have to tell this how many facets there will be
-  xform <- if (ylog) {
-    function(hi, lo, dropto) lo*(hi/lo)^dropto
-  } else {
-    function(hi, lo, dropto) lo+(hi-lo)*dropto
-  }
   list(
     geom_rect(
-      mapping = aes(xmin = start - 0.5, xmax = end + 0.5, ymin = if (ylog) 0 else -Inf, ymax = Inf),
+      mapping = aes(xmin = start - 0.5, xmax = end + 0.5, ymin = if (xformer$name %like% "log") 0 else -Inf, ymax = if (xformer$name %like% "prob") 1 else Inf),
       data = dt, inherit.aes = FALSE, show.legend = FALSE, fill = dt$fill
     ),
     geom_text(
-      mapping = aes(x = mid, y = xform(ymax, ymin, .87), label = m.abb[mon]),
+      mapping = aes(x = mid, y = xform(ymax, ymin, m.y), label = m.abb[mon]),
       data = dt, inherit.aes = FALSE, show.legend = FALSE, color = dt$col,
       size = font.size, vjust = "bottom", fontface = font.face
     ),
     geom_text(
-      mapping = aes(x = mid, y = xform(ymax, ymin, .83), label = yr),
+      mapping = aes(x = mid, y = xform(ymax, ymin, y.y), label = yr),
       data = dt[yshow == TRUE], angle = 90,
       inherit.aes = FALSE, show.legend = FALSE, color = dt[yshow == TRUE]$col,
       size = font.size, hjust = "right", fontface = font.face
     )
-    # ,
-    # geom_text(
-    #   mapping = aes(x = mid, y = 0.25, label = yr),
-    #   data = dt[yshow == TRUE],
-    #   inherit.aes = FALSE, show.legend = FALSE, color = rep(dt[yshow == TRUE]$col, facet.mul)
-    # )
   )
 }
 
@@ -668,10 +672,10 @@ geom_crosshair <- function(mapping, data, ...) {
   #'
   mapv <- mapping
   mapv$xmax <- NULL; mapv$xmin <- NULL
-  mapv$shape <- NULL
+  mapv$shape <- quo(NULL)
   maph <- mapping
   maph$ymax <- NULL; maph$ymin <- NULL
-  maph$shape <- NULL
+  maph$shape <- quo(NULL)
   showpoint <- !is.null(mapping$shape)
   res <- list(
     geom_linerange(mapv, data = data, show.legend = FALSE),
@@ -683,7 +687,7 @@ geom_crosshair <- function(mapping, data, ...) {
     mapp$xmin <- NULL
     mapp$ymax <- NULL
     mapp$ymin <- NULL
-    mapp$alpha <- mapp$shape
+    # mapp$alpha <- mapp$shape
     res[[length(res)+1]] <- geom_observation(mapping = mapp, data = seroprev)
   }
   return(res)

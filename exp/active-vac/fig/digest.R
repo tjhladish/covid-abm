@@ -6,9 +6,9 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 #' assumes R project at the experiment root level
 .args <- if (interactive()) c(
   file.path(c(
-    "covid-active-v2.0.sqlite"
+    "covid-active-v3.1.sqlite"
   )),
-  file.path("fig", "digest.rds")
+  file.path("fig", "process", "digest.rds")
 ) else commandArgs(trailingOnly = TRUE)
 
 abcreader <- function(
@@ -49,65 +49,55 @@ scenarize <- function(dt, offset = 0L) {
   dt
 }
 
-metakeys <- c("scenario", "realization", "outcome", "date")
+dts <- head(.args, -1) |> abcreader()
 
-merge.dt <- head(.args, -1) |> lapply(abcreader) |> (\(alldts) Reduce(
-  f = \(ldts, rdts) {
-    serialoffset <- ldts[[1]]$pars[, max(serial)]
-    scenaroffset <- ldts[[1]]$pars[, max(scenario)]
-    return(
-      rdts |>
-      reserialize(offset = serialoffset) |>
-      scenarize(offset = scenaroffset) |> list()
-    )
-  }, x = alldts[-1], init = alldts[[1]] |> reserialize() |> scenarize() |> list(),
-  accumulate = TRUE
-))() |> (\(alldt) {
-  meta <- alldt |>
-    lapply(\(pair) pair$meta[
-      pair$pars, on=.(serial), c("scenario", "realization") := .(scenario, realization)
-    ][, .SD, .SDcols = -c("serial")]) |>
-    rbindlist() |>
-    melt(
-      id.vars = setdiff(metakeys, "outcome"), variable.name = "outcome"
-    ) |>
-    setkeyv(cols = metakeys)
-  meta[, c.value := cumsum(value), by=c(setdiff(metakeys, "date"))]
+setkey(dts$pars, serial, realization)
+reserialize(dts)
+scenarize(dts)
 
-  scn <- alldt |> lapply(
-    \(pair) pair$pars[realization == 0, .SD, .SDcols = -c("serial", "realization")]
-  ) |> rbindlist()
+meta.dt <- dts$meta[, .SD, .SDcols = -c("serial")] |>
+  setkey(scenario, realization, date)
 
-  return(list(meta = meta, scn = scn))
-})()
-
-# WARNING: MAGIC NUMBER
-basescnid <- 7
-
-ref.dt <- merge.dt$meta[(scenario == basescnid) & (outcome != "doses")]
-int.dt <- merge.dt$meta[
-  (scenario != basescnid) & (outcome != "doses")
-][
-  ref.dt[, .SD, .SDcols = -c("scenario")], on=.(realization, date, outcome)
-]
-
-scn.dt <- merge.dt$scn
-doses.dt <- merge.dt$meta[outcome == "doses"]
-
-rm(merge.dt)
-
-saveRDS(ref.dt, gsub("\\.rds","-ref.rds", tail(.args, 1)))
-saveRDS(doses.dt, gsub("\\.rds","-doses.rds", tail(.args, 1)))
-
-rm(ref.dt, doses.dt)
-
+dts$meta <- NULL
 gc()
 
-int.dt[,
-  c("averted", "c.averted") := .(i.value-value, i.c.value-c.value)
-][,
-  c.effectiveness := c.averted/i.c.value
+meta.dt <- meta.dt |>
+  (\(dt) melt.data.table(dt, key(dt), variable.name = "outcome"))() |>
+  setkey(scenario, realization, outcome, date)
+
+meta.dt[, c.value := cumsum(value), by=setdiff(key(meta.dt), "date")]
+
+scn.dt <- dts$pars[
+  realization == 0, .SD, .SDcols = -c("serial", "realization")
 ]
+dts$pars <- NULL
+rm(dts)
+gc()
+
+# WARNING: MAGIC NUMBER
+basescnid <- 13
+
+ref.dt <- meta.dt[(scenario == basescnid) & (outcome != "doses")]
+int.dt <- meta.dt[
+  (scenario != basescnid) & (outcome != "doses")
+]
+
+doses.dt <- meta.dt[outcome == "doses"]
+saveRDS(doses.dt, gsub("\\.rds","-doses.rds", tail(.args, 1)))
+
+rm(meta.dt, doses.dt)
+gc()
+
+int.dt[
+  ref.dt[, .SD, .SDcols = -c("scenario")],
+  c("averted", "c.effectiveness") := .(i.value-value, (i.c.value-c.value)/i.c.value),
+  on=.(realization, outcome, date)
+]
+
+saveRDS(ref.dt, gsub("\\.rds","-ref.rds", tail(.args, 1)))
+
+rm(ref.dt)
+gc()
 
 #' in general, plotting value, averted, & c.eff
 #' potential also want c0.eff = c.eff, but
@@ -122,7 +112,10 @@ int.dt[,
 #'  c.value = cumsum(value), c.averted = cumsum(averted)
 #'  c0.effectiveness = c.averted (rebased) / cumsum(value + averted) (also rebased)
 
-saveRDS(int.dt[,.(value, averted, c.effectiveness), keyby=.(scenario, realization, outcome, date)], tail(.args, 1))
+saveRDS(
+  int.dt[,c(key(int.dt), "value", "averted", "c.effectiveness"), with = FALSE],
+  tail(.args, 1)
+)
 
 rm(int.dt)
 gc()
@@ -133,8 +126,8 @@ funs <- list(
   quar = as.logical,
   pas_vac = as.logical,
   act_vac = genordfac(c("none", "ring", "risk")),
-  pas_alloc = genordfac(c("none", "FL", "FL+ring", "COVAX")),
-  act_alloc = genordfac(c("none", "ring", "ringmonth", "COVAX")),
+  pas_alloc = genordfac(c("none", "FL", "FL+ring", "COVAX", "MIC")),
+  act_alloc = genordfac(c("none", "ring", "ringmonth", "COVAX", "MIC")),
   inf_con = \(x) x == 2
 )
 

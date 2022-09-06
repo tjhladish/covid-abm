@@ -6,11 +6,15 @@ default: res_fig1.png res_fig1_noq.png
 # setup definitions
 
 DATADIR ?= ..
+DLDIR ?= ~/Downloads
 RESDIR := process
 OUTDIR ?= output
-SIMFILES ?= $(patsubst %,covid-active-%.sqlite,v2.0)
+SIMFILES ?= $(patsubst %,covid-active-%.sqlite,v3.1)
 
 R = $(strip Rscript $^ $(1) $@)
+
+${DATADIR}/${SIMFILES}:
+	mv $(subst ${DATADIR},${DLDIR},$@) $@
 
 ${RESDIR}:
 	mkdir $@
@@ -23,49 +27,79 @@ ${RESDIR}/FLvaccines.rds: ${DATADIR}/population-pseudo-300K.csv ${DATADIR}/state
 ${RESDIR}/detection.rds: ${DATADIR}/reporting_dump.csv
 ${RESDIR}/validation.rds: plotlog
 
-INPUTS := $(patsubst %,${RESDIR}/%.rds,validation outcomes vaccines hospitals seroprev FLvaccines detection)
+${RESDIR}/%.rds: ${RESDIR}/%.R vis_support.rda | ${RESDIR}
+	$(call R)
+
+# reference data for generating figures
+# note: these are big files
+${RESDIR}/digest.rds: digest.R $(addprefix ${DATADIR}/,${SIMFILES}) | ${RESDIR}
+	Rscript --min-vsize=12G $^ $@
+
+$(patsubst %,${RESDIR}/digest-%.rds,key doses ref): ${RESDIR}/digest.rds
+
+${RESDIR}/alt_eff.rds: alt_eff_digest.R $(addprefix ${DATADIR}/,${SIMFILES}) | ${RESDIR}
+	Rscript --min-vsize=12G $^ $@
+
+INPUTS := $(patsubst %,${RESDIR}/%.rds,validation outcomes vaccines hospitals seroprev FLvaccines detection digest alt_eff)
 
 allinputs: ${INPUTS}
 cleaninputs:
 	cd ${RESDIR} && rm *.rds
 
-${RESDIR}/%.rds: ${RESDIR}/%.R vis_support.rda | ${RESDIR}
-	$(call R)
-
 ${OUTDIR}:
 	mkdir $@
+
+PLOTINS := $(addprefix ${RESDIR}/,digest.rds digest-key.rds digest-ref.rds)
 
 ${OUTDIR}/model_input.png: ${INPUTS}
 ${OUTDIR}/validation_review.png: ${INPUTS}
 ${OUTDIR}/everything.png: ${INPUTS}
+${OUTDIR}/avertvis.png: ${PLOTINS}
 
 ${OUTDIR}/%.png: %.R vis_support.rda | ${OUTDIR}
 	$(call R)
 
-allfigs: $(patsubst %,${OUTDIR}/%.png,model_input validation_review everything)
-
-# reference data for generating figures
-# note: these are big files
-
-digest.rds: digest.R $(addprefix ${DATADIR}/,${SIMFILES})
+${OUTDIR}/avertvis_%.png: avertvis_outcome.R vis_support.rda ${PLOTINS} | ${OUTDIR}
 	$(call R)
 
-digest-key.rds digest-doses.rds digest-ref.rds: digest.rds
+${OUTDIR}/cum_averted_%.png: cum_avert_outcome.R vis_support.rda ${PLOTINS} | ${OUTDIR}
+	$(call R)
+
+${OUTDIR}/cum_eff_%.png: cum_eff_outcome.R vis_support.rda ${PLOTINS} | ${OUTDIR}
+	$(call R)
+
+${OUTDIR}/alt_eff_%.png: alt_eff_outcome.R vis_support.rda ${RESDIR}/alt_eff.rds \
+${RESDIR}/digest-key.rds | ${OUTDIR}
+	$(call R)
+
+${OUTDIR}/alt_ave_%.png: alt_ave_outcome.R vis_support.rda ${RESDIR}/alt_eff.rds \
+${RESDIR}/digest-key.rds | ${OUTDIR}
+	$(call R)
+
+allavert: $(addprefix ${OUTDIR}/,$(patsubst %,avertvis_%.png,inf sev deaths) $(patsubst %,cum_averted_%.png,inf sev deaths) avertvis.png)
+alleff: $(addprefix ${OUTDIR}/,$(patsubst %,cum_eff_%.png,inf sev deaths))
+alteff: $(addprefix ${OUTDIR}/,$(patsubst %,alt_eff_%.png,inf sev deaths))
+altave: $(addprefix ${OUTDIR}/,$(patsubst %,alt_ave_%.png,inf sev deaths))
+allfigs: $(patsubst %,${OUTDIR}/%.png,model_input validation_review everything)
+
 
 vis_support.rda: vis_support.R
 	$(call R)
 
-plotlog: ${DATADIR}/active_vac_logs-v2.0-FL_ref_only.tgz
+plotlog: ${DATADIR}/active_vac_logs-v3.0-FL_ref_only.tgz
 	mkdir $@
 	tar -xf $< --strip-components=1 -C $@
+
+${OUTDIR}/fullpage_%.png: fullpage.R vis_support.rda ${RESDIR}/digest.rds ${RESDIR}/digest-key.rds ${RESDIR}/digest-ref.rds
+	$(call R)
+
+fullpagers: $(patsubst %,${OUTDIR}/fullpage_%.png,inf_value inf_averted inf_ceff sev_value sev_averted sev_ceff deaths_value deaths_averted deaths_ceff)
 
 digest-ext.rds: digest-ext.R ${DATADIR}/covid-active-only.sqlite digest-key.rds digest-ref.rds
 	$(call R)
 
 cleanplotlog:
 	rm -rf plotlog plotlog_ao
-
-PLOTINS := digest.rds digest-key.rds digest-ref.rds vis_support.rda
 
 # main text figures
 
@@ -101,9 +135,6 @@ effectiveness.png: effvis.R $(filter-out digest-ref.rds,$(PLOTINS))
 	$(call R)
 
 doses.png: dosevis.R digest-doses.rds digest-key.rds vis_support.rda
-	$(call R)
-
-averted.png: avertvis.R $(filter-out digest-ref.rds,$(PLOTINS))
 	$(call R)
 
 incidence.png: incvis.R $(PLOTINS)

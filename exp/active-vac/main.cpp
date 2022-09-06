@@ -264,7 +264,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
         par->behaviorInputFilename  = "";
         par->behaviorOutputFilename = "/blue/longini/tjhladish/covid-abm/exp/active-vac/ppb_fits/behavior_" + to_string(serial) + ".csv";
     } else {
-        par->behaviorInputFilename  = "1k_mean_ppb-v2.0.csv";
+        par->behaviorInputFilename  = "1k_mean_ppb-v3.1manual.csv";
         //par->behaviorInputFilename  = "/blue/longini/tjhladish/covid-abm/exp/active-vac/ppb_fits/behavior_" + to_string(serial) + ".csv";
         par->behaviorOutputFilename = "";
     }
@@ -547,12 +547,14 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     cerr << "SCENARIO " << rng_seed;
     for (auto _p: args) { cerr << " " << _p; } cerr << endl;
 
+    const vector<VacCampaignType> act_vc_lookup = {NO_CAMPAIGN, RING_VACCINATION, RISK_VACCINATION};
+
     const size_t realization                        = (size_t) args[0];
     const bool quarantine_ctrl                      = (bool) args[1];                 // 0 = off; 1 = on
     const bool do_passive_vac                       = (bool) args[2];                 // 0 = off; 1 = on
-    const VacCampaignType active_vac                = (VacCampaignType) args[3];      // 0 = off; 1 = ring; 2 = risk
-    const size_t passive_alloc                      = args[4];                        // 0 = 0;   1 = FL;   2 = FL + ring; 3 = COVAX
-    const size_t active_alloc                       = args[5];                        // 0 = 0;   1 = 50;   2 = ring/30; 3 = COVAX
+    const VacCampaignType active_vac                = act_vc_lookup.at(args[3]);      // 0 = off; 1 = ring; 2 = risk
+    const size_t passive_alloc                      = args[4];                        // 0 = 0;   1 = FL;   2 = FL + ring; 3 = COVAX; 4 = MIC
+    const size_t active_alloc                       = args[5];                        // 0 = 0;   1 = 50;   2 = ring/30; 3 = COVAX; 4 = MIC
     const VaccineInfConstraint vac_constraint       = (VaccineInfConstraint) args[6]; // 2 = non-case only; 4 = any status
   //const bool ppb_fitting                          = (bool) args[7];
 
@@ -571,7 +573,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     par->seropositivityThreshold = 0.0;
 
     // handle all vac campaign setup
-    if (do_passive_vac or active_vac) { // active_vac can take on 0 (no active vac), 1 (ring), or 2 (risk)
+    if (do_passive_vac or active_vac) { // active_vac can take on NO_CAMPAIGN, RING_VACCINATION, or RISK_VACCINATION
         par->numVaccineDoses       = 3;             // total doses in series
         par->vaccineDoseInterval   = {21, 240};     // intervals between dose 1-->2, dose 2-->3, etc.
         // par->vaccineTargetCoverage = 0.60;          // for healthcare workers only
@@ -592,18 +594,25 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         bool pool_all_doses    = false;
 
 //sqlite> select min(serial), max(serial), quar from par where pas_vac = 1 and act_vac = 1 and pas_alloc = 1 and act_alloc = 1 and inf_con = 4 group by quar;
-//min(serial)  max(serial)  quar      
+//min(serial)  max(serial)  quar
 //-----------  -----------  ----------
-//258000       258999       0.0       
-//259000       259999       1.0       
+//258000       258999       0.0      v2.0 numbers
+//259000       259999       1.0
+//
+//sqlite> select min(serial), max(serial), quar from par where pas_vac = 1 and act_vac = 1 and pas_alloc = 1 and act_alloc = 1 and inf_con = 4 group by quar;
+//min(serial)  max(serial)  quar
+//-----------  -----------  ----------
+//378000       378999       0.0      v3.0 numbers
+//379000       379999       1.0
+//
 //
 //sqlite> select min(job.serial), max(job.serial), act_vac, quar from job, par where job.serial=par.serial and status = 'S' group by quar, act_vac;
-//min(job.serial)  max(job.serial)  act_vac     quar      
+//min(job.serial)  max(job.serial)  act_vac     quar
 //---------------  ---------------  ----------  ----------
-//218000           218999           0.0         0.0       
-//310000           310999           2.0         0.0       
-//219000           219999           0.0         1.0       
-//311000           311999           2.0         1.0       
+//218000           218999           0.0         0.0
+//310000           310999           2.0         0.0
+//219000           219999           0.0         1.0
+//311000           311999           2.0         1.0
 
 
         if (do_passive_vac) {
@@ -612,27 +621,35 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
                     par->vaccinationFilename = "./state_based_counterfactual_doses.txt";
                 } else if (passive_alloc == 2) {         // passive augmented with number of doses used by ring vac
                     string prefix = "/blue/longini/tjhladish/covid-abm/exp/active-vac/ring_ctfl_dose_files/";
-                    prefix += quarantine_ctrl ? to_string(259000 + realization) : to_string(258000 + realization);
+                    prefix += quarantine_ctrl ? to_string(379000 + realization) : to_string(378000 + realization);
                     par->vaccinationFilename = prefix + "_ring_vax_deployment_passive_counterfactual_doses.txt";
                     pool_urg_doses = false;
                     pool_all_doses = true;
                 } else if (passive_alloc == 3) {         // limited passive (COVAX scenario)
-                    par->vaccinationFilename = "./covax_doses_provisioned.txt";
+                    par->vaccinationFilename = "./covax_doses_COVAX_only.txt";
+                    pool_urg_doses = false;
+                    pool_all_doses = true;
+                }else if (passive_alloc == 4) {         // limited passive (MIC scenario)
+                    par->vaccinationFilename = "./covax_doses_MIC_only.txt";
                     pool_urg_doses = false;
                     pool_all_doses = true;
                 }
-            } else if (active_vac == 1) {                // + ring vac
+            } else if (active_vac == RING_VACCINATION) {                // + ring vac
                 assert(active_alloc == 1);
                 par->vaccinationFilename = "./active_vax_counterfactual_doses_50k.txt";             // passive + 50k doses daily for ring vax
-            } else if (active_vac == 2) {                // + risk vac
+            } else if (active_vac == RISK_VACCINATION) {                // + risk vac
                 assert(active_alloc == 2);
                 string prefix = "/blue/longini/tjhladish/covid-abm/exp/active-vac/ring_ctfl_dose_files/";
-                prefix += quarantine_ctrl ? to_string(259000 + realization) : to_string(258000 + realization);
+                prefix += quarantine_ctrl ? to_string(379000 + realization) : to_string(378000 + realization);
                 par->vaccinationFilename = prefix + "_ring_vax_deployment_active_counterfactual_doses.txt"; // passive + total doses used by ring vax, distributed over 30d (for risk strat)
             }
-        } else if (active_vac == 1 or active_vac == 2) { // ring or risk, without passive vac
-            assert(active_alloc == 3);
-            par->vaccinationFilename =  "./covax_doses_provisioned.txt";
+        } else if (active_vac == RING_VACCINATION or active_vac == RISK_VACCINATION) { // ring or risk, without passive vac
+            assert(active_alloc == 3 or active_alloc == 4);
+            if (active_alloc == 3) {
+                par->vaccinationFilename = "./covax_doses_COVAX_only.txt";
+            } else if (active_alloc == 4) {
+                par->vaccinationFilename = "./covax_doses_MIC_only.txt";
+            }
         }
 
         if (par->vaccinationFilename == "") {
@@ -743,7 +760,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     // this output filename needs to be adjusted for each experiment, so as to not overwrite files
     //string filename = "plot_log" + to_string(serial) + ".csv";
     //string filename = "/blue/longini/tjhladish/covid-abm/exp/active-vac/plot_log" + to_string(serial) + ".csv";
-    string filename = "/blue/longini/tjhladish/covid-abm/exp/active-vac/v2.0/plot_log" + to_string(serial) + ".csv";
+    string filename = "/blue/longini/tjhladish/covid-abm/exp/active-vac/v3.1/plot_log" + to_string(serial) + ".csv";
     write_daily_buffer(plot_log_buffer, process_id, filename, overwrite);
 
 //    stringstream ss;
