@@ -298,7 +298,7 @@ void Vac_Campaign::generate_age_bins(Community* community, std::set<int> unique_
 
     // for remaining ages needing to be binnned, find their bins
     // will check each value for contiguity
-    std::vector ages_to_be_binned(ages_not_binned.begin(), ages_not_binned.end());
+    std::vector<int> ages_to_be_binned(ages_not_binned.begin(), ages_not_binned.end());
     for (int i = 0; i < (int)ages_to_be_binned.size(); ++i) {
         if (i == 0) { mins.push_back(ages_to_be_binned[i]); continue; }
 

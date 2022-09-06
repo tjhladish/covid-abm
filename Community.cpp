@@ -54,6 +54,7 @@ Community::Community(const Parameters* parameters, Date* date) //:
     _date = date;
     _day = 0;
     cmty_ledger = new CommunityLedger(_par);
+    vac_campaign = nullptr;
     // for (int strain = 0; strain < (int) NUM_OF_STRAIN_TYPES; ++strain) {
     //     _numNewInfectionsByStrain[(StrainType) strain] = vector<size_t>(_par->runLength);
     // }

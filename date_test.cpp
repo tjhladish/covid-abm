@@ -56,9 +56,9 @@ int main() {
     cerr << "2020-12-31 jd: " << Date::to_julian_day("2020-12-31") << endl;
     cerr << "2021-12-31 jd: " << Date::to_julian_day("2021-12-31") << endl;
 
-    cerr << "2020, day 1   ymd: "   << Date::to_ymd(2020,   1) << endl;
-    cerr << "2020, day 32  ymd: "  << Date::to_ymd(2020,  32) << endl;
-    cerr << "2020, day 61  ymd: "  << Date::to_ymd(2020,  61) << endl;
+    cerr << "2020, day 1   ymd: " << Date::to_ymd(2020,   1) << endl;
+    cerr << "2020, day 32  ymd: " << Date::to_ymd(2020,  32) << endl;
+    cerr << "2020, day 61  ymd: " << Date::to_ymd(2020,  61) << endl;
     cerr << "2020, day 366 ymd: " << Date::to_ymd(2020, 366) << endl;
     cerr << "2021, day 365 ymd: " << Date::to_ymd(2021, 365) << endl;
 
