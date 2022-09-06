@@ -208,6 +208,12 @@ class Vac_Campaign {
             }
         }
 
+        enum GroupedRiskDef {
+            BY_FILE,
+            BY_DECILE,
+            NUM_OF_GROUPED_RISK_DEF_TYPES
+        };
+
         void set_par(const Parameters* par) { _par = par; }
         void set_rng(gsl_rng* rng) { _VAX_RNG = rng; }
 
@@ -223,6 +229,8 @@ class Vac_Campaign {
         void set_pool_urg_doses(bool val)            { pool_urg_doses = val; }
         void set_pool_std_doses(bool val)            { pool_std_doses = val; }
         void set_pool_all_doses(bool val)            { pool_all_doses = val; }
+
+        void set_grouped_risk_def(GroupedRiskDef val) { grouped_risk_def = val; }
 
         void set_reactive_vac_strategy(VacCampaignType vct) { reactive_vac_strategy = vct; }
         VacCampaignType get_reactive_vac_strategy() { return reactive_vac_strategy; }
@@ -529,6 +537,8 @@ class Vac_Campaign {
         bool pool_std_doses;                                    // standard doses are pooled and used for any standard vaccinee (regardless of age or dose)
         bool pool_all_doses;                                    // all doses are pooled and used for any vaccinee (regardless of age or dose)
 
+        GroupedRiskDef grouped_risk_def;                        // will risk groups be provided by file or generated in deciles
+
         VacCampaignType reactive_vac_strategy;                  // parameter for type of reactive strategy (if one is active)
         double reactive_vac_dose_allocation;                    // what proportion of total daily doses are reserved for reactive strategies
 
@@ -567,7 +577,7 @@ class Vac_Campaign {
         // specialty method for group risk strategy
         // handles evaluating the stopping criteria for when to move from one group to the next
         bool _ready_to_add_next_group(Vaccinee_Pool vp) {
-            return get_pool_size(vp) <= (_sch_risk_groups[_current_risk_group].size() * 0.1);
+            return get_pool_size(vp) == 0; //<= (_sch_risk_groups[_current_risk_group].size() * 0.1);
         }
 
         // specialty method for group risk strategy
@@ -580,6 +590,8 @@ class Vac_Campaign {
                 _grouped_risk_deque.pop_front();
             }
         }
+
+        void generate_risk_deciles(Community* community, map<int, vector<Person*>>& grouped_ppl, map<int, double>& grouped_risk);
 };
 
 
