@@ -232,7 +232,7 @@ void Vac_Campaign::risk_scheduling(int day, Community* community, double hosp_ri
 
         for (Person* p : community->getPeople()) {
             // risk of severe outcomes given infection
-            double risk = _par->probSeriousOutcome.at(SEVERE)[p->hasComorbidity()][p->getAge()] * _par->pathogenicityByAge[p->getAge()];
+            double risk = p->getBaselineRiskSevOutcome();
             if (risk >= hosp_risk_threshold and is_age_eligible_on(p->getAge(), day) and (p->getNumVaccinations() < _par->urgent_vax_dose_threshold)) {
                 // getNumVaccinations() used as an index will ensure this person is being scheduled for their next dose
                 // eg: if getNumVaccinations() returns 1, 1 as an index pushes this person for dose 2
