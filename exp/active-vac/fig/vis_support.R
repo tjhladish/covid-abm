@@ -15,6 +15,8 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 
 # MAGIC DATE
 endday <- as.Date("2022-03-31")
+startday <- as.Date("2020-12-01")
+datefilter <- expression(between(date, startday, endday))
 pop <- c(florida = 21538187, escambia = 312212, dade = 2794464)
 
 gg_scale_wrapper <- function(

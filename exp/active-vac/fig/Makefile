@@ -78,8 +78,8 @@ ${RESDIR}/digest-key.rds | ${OUTDIR}
 
 allavert: $(addprefix ${OUTDIR}/,$(patsubst %,avertvis_%.png,inf sev deaths) $(patsubst %,cum_averted_%.png,inf sev deaths) avertvis.png)
 alleff: $(addprefix ${OUTDIR}/,$(patsubst %,cum_eff_%.png,inf sev deaths))
-alteff: $(addprefix ${OUTDIR}/,$(patsubst %,alt_eff_%.png,inf sev deaths doses))
-altave: $(addprefix ${OUTDIR}/,$(patsubst %,alt_ave_%.png,inf sev deaths doses))
+alteff: $(addprefix ${OUTDIR}/,$(patsubst %,alt_eff_%.png,inf sev deaths))
+altave: $(addprefix ${OUTDIR}/,$(patsubst %,alt_ave_%.png,inf sev deaths))
 allfigs: $(patsubst %,${OUTDIR}/%.png,model_input validation_review everything)
 
 

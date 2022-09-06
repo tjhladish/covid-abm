@@ -1,5 +1,5 @@
 
-.pkgs <- c("data.table", "ggplot2", "scales", "ggh4x", "cabputils")
+.pkgs <- c("data.table", "ggplot2", "scales", "ggh4x", "cabputils", "geomtextpath")
 
 stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 
@@ -7,7 +7,7 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 .args <- if (interactive()) c(
   file.path("fig", "vis_support.rda"),
   file.path("fig", "process", c("alt_eff.rds", "digest-key.rds")),
-  file.path("fig", "output", "alt_eff_deaths.png")
+  file.path("fig", "output", "alt_ave_deaths.png")
 ) else commandArgs(trailingOnly = TRUE)
 
 load(.args[1])
@@ -19,7 +19,7 @@ tar <- match.arg(
 
 #' comes key'd
 eff.dt <- readRDS(.args[2])[
-  date > "2020-12-01"
+  eval(datefilter)
 ][
   outcome == tar
 ][, .(
@@ -43,9 +43,9 @@ gc()
 plt.dt[, talloc := factor(
   fifelse(
     pas_alloc == "none", as.character(act_alloc), fifelse(
-    pas_alloc == "FL", "FL+ring", as.character(pas_alloc)
-  ))
-)][, qfac := factor(c("No Q", "Q")[quar+1]) ]
+    pas_alloc == "FL", "FL+", as.character(pas_alloc)
+  )), levels = c("COVAX", "MIC", "FL+"), ordered = TRUE
+)][, qfac := factor(c("No Additional NPI", "Quarantine Contacts")[quar+1]) ]
 
 p <- ggplot(plt.dt) + aes(
   x = date, y = c.averted,
@@ -63,20 +63,30 @@ p <- ggplot(plt.dt) + aes(
   stat_spaghetti(
     aes(alpha = after_stat(sampleN^-1))
   ) +
-  geom_hline(aes(yintercept=0, color = "none")) +
+  geom_texthline(
+    aes(yintercept = 0, color = "none", label = "Standard\nProgram"),
+    inherit.aes = FALSE, show.legend = FALSE, data = \(dt) dt[,.SD[1],by=.(qfac, talloc)],
+    hjust = 0, gap = FALSE
+  ) +
   scale_y_continuous(
     name = sprintf(
-      "Cumulative Difference\nin %s",
+      "Per 10k, Cumulative Averted\nIncidence of %s Beyond Standard Program",
       switch(tar, inf = "Infection", sev = "Severe Disease", deaths = "Death", doses = "Vaccination", stop())
     )
   ) +
   scale_x_null() +
-  scale_color_discrete("Active Vax.") +
-  scale_linetype_discrete("Conditional Vax.") +
-  scale_alpha(range = c(0.01, 1)) +
+  scale_color_discrete(
+    "Vaccine Program",
+    breaks = c("risk", "ring"),
+    labels = c(
+      ring="Infection-risk Prioritization",
+      risk="Disease-risk Prioritization"
+    )) +
+  scale_linetype_manual("Vaccinate...", labels = c(conditional="Condtional on\nCase History", unconditional = "Unconditionally"), values = c(conditional="dashed", unconditional="solid")) +
+  scale_alpha(range = c(0.02, 1)) +
   theme_minimal() +
   theme(
-    legend.position = "bottom", strip.placement = "outside"
+    legend.position = c(0, 1), legend.justification = c(0, 1), strip.placement = "outside"
   )
 
 ggsave(tail(.args, 1), p, height = 6, width = 10, bg = "white")
