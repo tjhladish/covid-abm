@@ -15,8 +15,11 @@ if (length(.args) != 2) {
 input_log_dir = .args[1]
 out_db_path = .args[2]
 
+plotlogs <- list.files(input_log_dir, full.names = TRUE)
+serials <- as.integer(gsub("^.+plot_log(.*)\\.csv$", "\\1", plotlogs))
+
 print("Extracting data from plot_log files...")
-pb = txtProgressBar(min = 0, max = length(list.files(input_log_dir)), initial = 0, style = 3)
+pb = txtProgressBar(min = 0, max = length(plotlogs), initial = 0, style = 3)
 
 cols_to_extract = c(
   "date",
@@ -31,13 +34,13 @@ cols_to_extract = c(
 
 # CREATE TABLE meta ( serial int not null, date text not null, inf real, symp real, sev real, crit real, deaths real, std_doses real, urg_doses real, primary key(serial, date));
 db = dbConnect(RSQLite::SQLite(), out_db_path)
-for (i in 1:length(list.files(input_log_dir))) {
-    in_plot_log = tolower(list.files(input_log_dir)[i])
-    in_serial = as.integer(sub("plot_log(.*).csv", "\\1", in_plot_log))
+for (i in seq_along(plotlogs)) {
+    in_plot_log = plotlogs[i]
+    in_serial = serials[i]
 
-    if (!file.exists(file.path(input_log_dir, in_plot_log))) { next }
+    #' if (!file.exists(file.path(input_log_dir, in_plot_log))) { next }
 
-    sub.d = fread(file.path(input_log_dir, in_plot_log), select = cols_to_extract)
+    sub.d = fread(in_plot_log, select = cols_to_extract)
     sub.d = sub.d[, .(serial = in_serial, date, inf, symp_infs, sevr_infs, crit_infs, all_deaths, std_doses, urg_doses)]
 
     sub.d[, date := as.character(date)]
