@@ -13,7 +13,7 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 
 load(.args[1])
 
-incovax <- fread(.args[5])
+#incovax <- fread(.args[5])
 
 tar <- "doses"
 
@@ -38,7 +38,7 @@ plt.dt <- setkeyv(
   union(key(doses.dt), colnames(scn.dt))
 )
 
-rm(eff.dt)
+rm(doses.dt)
 gc()
 
 plt.dt[, talloc := factor(
