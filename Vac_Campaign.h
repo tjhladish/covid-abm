@@ -335,7 +335,6 @@ class Vac_Campaign {
                     if (std_eg) { _insert_eligible_people(std_eg, potential_std_vaccinees, dose, bin); }
                     if (urg_eg) { _insert_eligible_people(urg_eg, potential_urg_vaccinees, dose, bin); }
                     if (reactive_vac_strategy == GROUPED_RISK_VACCINATION and (today > start_of_campaign[GROUPED_RISK_VACCINATION])) {
-                        _add_ppl_from_risk_groups(dose, bin);
                     }
                 }
 
@@ -345,6 +344,7 @@ class Vac_Campaign {
 
                 if (std_eg or urg_eg) { group_added = true; }
             }
+            _add_ppl_from_risk_groups();
             return group_added;
         }
 
@@ -577,15 +577,19 @@ class Vac_Campaign {
         // specialty method for group risk strategy
         // handles evaluating the stopping criteria for when to move from one group to the next
         bool _ready_to_add_next_group(Vaccinee_Pool vp) {
-            return get_pool_size(vp) == 0; //<= (_sch_risk_groups[_current_risk_group].size() * 0.1);
+            return get_pool_size_by_dose(vp, 0) == 0; //<= (_sch_risk_groups[_current_risk_group].size() * 0.1);
         }
 
         // specialty method for group risk strategy
         // adds the next group from the deque if the stopping criteria was met
-        void _add_ppl_from_risk_groups(const int dose, const int bin) {
+        void _add_ppl_from_risk_groups() {
             if (_ready_to_add_next_group(potential_urg_vaccinees) and _grouped_risk_deque.size()) {
-                _insert_eligible_people(_grouped_risk_deque.front().second[dose], potential_urg_vaccinees, dose, bin);
-                delete _grouped_risk_deque.front().second[dose];
+                for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
+                    for (int bin : unique_age_bins) {
+                        _insert_eligible_people(_grouped_risk_deque.front().second[dose], potential_urg_vaccinees, dose, bin);
+                    }
+                    delete _grouped_risk_deque.front().second[dose];
+                }
                 _current_risk_group =  _grouped_risk_deque.front().first;
                 _grouped_risk_deque.pop_front();
             }
