@@ -372,7 +372,6 @@ void Vac_Campaign::generate_age_bins(Community* community, std::set<int> unique_
     }
 
     unique_age_bins = mins;
-    sort(unique_age_bins.begin(), unique_age_bins.end(), std::greater<int>());
 }
 
 // called when doses should be aggregated regardless of dose or age bin

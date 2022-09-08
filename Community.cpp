@@ -568,8 +568,10 @@ void Community::vaccinate() {
     vector<Eligibility_Group*> std_revaccinations = vac_campaign->init_new_eligible_groups(_day);
 
     // for each age bin, dose combination, select new vaccinees until there are no more doses available
-    for (int bin : vac_campaign->get_unique_age_bins()) {
-        for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
+    vector<int> rev_age_bins = vac_campaign->get_unique_age_bins();
+    sort(rev_age_bins.begin(), rev_age_bins.end(), std::greater<int>());
+    for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
+        for (int bin : rev_age_bins) {
             Vaccinee* v = vac_campaign->next_vaccinee(_day, dose, bin);
             while (v) {
                 const Person* p = v->get_person();
