@@ -321,6 +321,14 @@ class Vac_Campaign {
             return tot;
         }
 
+        int get_pool_size_by_dose(Vaccinee_Pool vp, int dose) {
+            int tot = 0;
+            for (int bin : unique_age_bins) {
+                tot += vp[dose][bin].size();
+            }
+            return tot;
+        }
+
         // will be called everyday to check if new people need to be added to the pools
         bool add_new_eligible_people(int today) {
             bool group_added = false;
@@ -334,8 +342,6 @@ class Vac_Campaign {
                 for (int bin : unique_age_bins) {
                     if (std_eg) { _insert_eligible_people(std_eg, potential_std_vaccinees, dose, bin); }
                     if (urg_eg) { _insert_eligible_people(urg_eg, potential_urg_vaccinees, dose, bin); }
-                    if (reactive_vac_strategy == GROUPED_RISK_VACCINATION and (today > start_of_campaign[GROUPED_RISK_VACCINATION])) {
-                    }
                 }
 
                 // as we sim, Eligibility_Groups will be deleted (some will be left to be cleaned by the dtor)
@@ -344,7 +350,9 @@ class Vac_Campaign {
 
                 if (std_eg or urg_eg) { group_added = true; }
             }
-            _add_ppl_from_risk_groups();
+            if (reactive_vac_strategy == GROUPED_RISK_VACCINATION and (today > start_of_campaign[GROUPED_RISK_VACCINATION])) {
+                _add_ppl_from_risk_groups();
+            }
             return group_added;
         }
 
@@ -537,7 +545,7 @@ class Vac_Campaign {
         bool pool_std_doses;                                    // standard doses are pooled and used for any standard vaccinee (regardless of age or dose)
         bool pool_all_doses;                                    // all doses are pooled and used for any vaccinee (regardless of age or dose)
 
-        GroupedRiskDef grouped_risk_def;                        // will risk groups be provided by file or generated from quantiles 
+        GroupedRiskDef grouped_risk_def;                        // will risk groups be provided by file or generated from quantiles
 
         VacCampaignType reactive_vac_strategy;                  // parameter for type of reactive strategy (if one is active)
         double reactive_vac_dose_allocation;                    // what proportion of total daily doses are reserved for reactive strategies

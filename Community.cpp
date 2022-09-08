@@ -1163,6 +1163,9 @@ void Community::tick() {
         vac_campaign->reactive_strategy(_day, tracedContactsByDepth, this);
 
         // this is the actual vaccination step
+        cerr << vac_campaign->get_all_doses_available(_day)/15 << " | "
+             << vac_campaign->get_pool_size_by_dose(vac_campaign->get_potential_std_vaccinees(), 0) << ' ' << vac_campaign->get_pool_size_by_dose(vac_campaign->get_potential_std_vaccinees(), 1) << ' ' << vac_campaign->get_pool_size_by_dose(vac_campaign->get_potential_std_vaccinees(), 2) << " | "
+             << vac_campaign->get_pool_size_by_dose(vac_campaign->get_potential_urg_vaccinees(), 0) << ' ' << vac_campaign->get_pool_size_by_dose(vac_campaign->get_potential_urg_vaccinees(), 1) << ' ' << vac_campaign->get_pool_size_by_dose(vac_campaign->get_potential_urg_vaccinees(), 2) << endl;
         vaccinate();
     }
 
