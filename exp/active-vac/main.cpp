@@ -95,7 +95,6 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
 
     //par->annualIntroductionsCoef = 1;
 
-    par->beginContactTracing           = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-05-01");
     par->contactTracingCoverage        = 0.7;
     par->contactTracingEV[HOME]        = 5.0;
     par->contactTracingEV[WORK]        = 3.0;
@@ -423,7 +422,7 @@ void parseVaccineFile(const Parameters* par, Community* community, Vac_Campaign*
 //    for (size_t day = 0; day < std_doses_available.size(); ++day) {
 //        for (size_t dose = 0; dose < std_doses_available[day].size(); ++dose) {
 //            for (auto const &[age_bin, dose_ct] : std_doses_available[day][dose]) {
-//                cerr << "d,dose,age,ct: " << day << " " << dose << " " << age_bin << " " << dose_ct << endl; 
+//                cerr << "d,dose,age,ct: " << day << " " << dose << " " << age_bin << " " << dose_ct << endl;
 //            }
 //        }
 //    }
@@ -547,14 +546,14 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     cerr << "SCENARIO " << rng_seed;
     for (auto _p: args) { cerr << " " << _p; } cerr << endl;
 
-    const vector<VacCampaignType> act_vc_lookup = {NO_CAMPAIGN, RING_VACCINATION, RISK_VACCINATION};
+    const vector<VacCampaignType> act_vc_lookup = {NO_CAMPAIGN, RING_VACCINATION, GROUPED_RISK_VACCINATION};
 
     const size_t realization                        = (size_t) args[0];
     const bool quarantine_ctrl                      = (bool) args[1];                 // 0 = off; 1 = on
     const bool do_passive_vac                       = (bool) args[2];                 // 0 = off; 1 = on
     const VacCampaignType active_vac                = act_vc_lookup.at(args[3]);      // 0 = off; 1 = ring; 2 = risk
     const size_t passive_alloc                      = args[4];                        // 0 = 0;   1 = FL;   2 = FL + ring; 3 = COVAX; 4 = MIC
-    const size_t active_alloc                       = args[5];                        // 0 = 0;   1 = 50;   2 = ring/30; 3 = COVAX; 4 = MIC
+    const size_t active_alloc                       = args[5];                        // 0 = 0;   1 = 25;   2 = ring/30; 3 = COVAX; 4 = MIC
     const VaccineInfConstraint vac_constraint       = (VaccineInfConstraint) args[6]; // 2 = non-case only; 4 = any status
   //const bool ppb_fitting                          = (bool) args[7];
 
@@ -573,7 +572,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     par->seropositivityThreshold = 0.0;
 
     // handle all vac campaign setup
-    if (do_passive_vac or active_vac) { // active_vac can take on NO_CAMPAIGN, RING_VACCINATION, or RISK_VACCINATION
+    if (do_passive_vac or active_vac) { // active_vac can take on NO_CAMPAIGN, RING_VACCINATION, or GROUPED_RISK_VACCINATION
         par->numVaccineDoses       = 3;             // total doses in series
         par->vaccineDoseInterval   = {21, 240};     // intervals between dose 1-->2, dose 2-->3, etc.
         // par->vaccineTargetCoverage = 0.60;          // for healthcare workers only
@@ -614,6 +613,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 //219000           219999           0.0         1.0
 //311000           311999           2.0         1.0
 
+        par->beginContactTracing = passive_alloc == 1 ? Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-05-01")
+                                                      : Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-12-14");
 
         if (do_passive_vac) {
             if (not active_vac) {
@@ -636,14 +637,14 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
                 }
             } else if (active_vac == RING_VACCINATION) {                // + ring vac
                 assert(active_alloc == 1);
-                par->vaccinationFilename = "./active_vax_counterfactual_doses_50k.txt";             // passive + 50k doses daily for ring vax
-            } else if (active_vac == RISK_VACCINATION) {                // + risk vac
+                par->vaccinationFilename = "./active_vax_counterfactual_doses_25.txt";             // passive + 25 doses (per 10k) daily for ring vax
+            } else if (active_vac == GROUPED_RISK_VACCINATION) {                // + risk vac
                 assert(active_alloc == 2);
                 string prefix = "/blue/longini/tjhladish/covid-abm/exp/active-vac/ring_ctfl_dose_files/";
                 prefix += quarantine_ctrl ? to_string(379000 + realization) : to_string(378000 + realization);
                 par->vaccinationFilename = prefix + "_ring_vax_deployment_active_counterfactual_doses.txt"; // passive + total doses used by ring vax, distributed over 30d (for risk strat)
             }
-        } else if (active_vac == RING_VACCINATION or active_vac == RISK_VACCINATION) { // ring or risk, without passive vac
+        } else if (active_vac == RING_VACCINATION or active_vac == GROUPED_RISK_VACCINATION) { // ring or risk, without passive vac
             assert(active_alloc == 3 or active_alloc == 4);
             if (active_alloc == 3) {
                 par->vaccinationFilename = "./covax_doses_COVAX_only.txt";
@@ -676,10 +677,11 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
         // the GROUPED_RISK_VACCINATION strategies starts alongside the GENERAL_CAMPAIGN
         // other active strategies start on May 1, 2021 (and if they require contact tracing, the check is called)
-        int active_strat_start = active_vac == GROUPED_RISK_VACCINATION ?
-                                 vc->get_start_of_campaign(GENERAL_CAMPAIGN) :
-                                 Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-05-01");
-        if (vc->contact_tracing_required(active_vac)) { assert(active_strat_start >= par->beginContactTracing); }
+//        int active_strat_start = active_vac == GROUPED_RISK_VACCINATION ?
+//                                 vc->get_start_of_campaign(GENERAL_CAMPAIGN) :
+//                                 Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-05-01");
+
+        const int active_strat_start = par->beginContactTracing;
         vc->set_start_of_campaign(active_vac, active_strat_start);
 
         vc->set_end_of_campaign(GENERAL_CAMPAIGN, par->runLength);
@@ -687,6 +689,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
         vector<int> min_ages(par->runLength, 5);
         vc->set_min_age(min_ages);       // needed for e.g. urgent vaccinations
+
+        if (active_vac == GROUPED_RISK_VACCINATION) { vc->set_grouped_risk_def(Vac_Campaign::BY_QUANTILE); }
 
 //        cerr << "Vaccination scenario:\n"
 //             << GENERAL_CAMPAIGN << "\n"

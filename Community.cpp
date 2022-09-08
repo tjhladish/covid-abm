@@ -568,8 +568,10 @@ void Community::vaccinate() {
     vector<Eligibility_Group*> std_revaccinations = vac_campaign->init_new_eligible_groups(_day);
 
     // for each age bin, dose combination, select new vaccinees until there are no more doses available
-    for (int bin : vac_campaign->get_unique_age_bins()) {
-        for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
+    vector<int> rev_age_bins = vac_campaign->get_unique_age_bins();
+    sort(rev_age_bins.begin(), rev_age_bins.end(), std::greater<int>());
+    for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
+        for (int bin : rev_age_bins) {
             Vaccinee* v = vac_campaign->next_vaccinee(_day, dose, bin);
             while (v) {
                 const Person* p = v->get_person();
@@ -1163,6 +1165,9 @@ void Community::tick() {
         vac_campaign->reactive_strategy(_day, tracedContactsByDepth, this);
 
         // this is the actual vaccination step
+        cerr << vac_campaign->get_all_doses_available(_day)/15 << " | "
+             << vac_campaign->get_pool_size_by_dose(vac_campaign->get_potential_std_vaccinees(), 0) << ' ' << vac_campaign->get_pool_size_by_dose(vac_campaign->get_potential_std_vaccinees(), 1) << ' ' << vac_campaign->get_pool_size_by_dose(vac_campaign->get_potential_std_vaccinees(), 2) << " | "
+             << vac_campaign->get_pool_size_by_dose(vac_campaign->get_potential_urg_vaccinees(), 0) << ' ' << vac_campaign->get_pool_size_by_dose(vac_campaign->get_potential_urg_vaccinees(), 1) << ' ' << vac_campaign->get_pool_size_by_dose(vac_campaign->get_potential_urg_vaccinees(), 2) << endl;
         vaccinate();
     }
 

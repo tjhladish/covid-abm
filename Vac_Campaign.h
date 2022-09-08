@@ -208,6 +208,12 @@ class Vac_Campaign {
             }
         }
 
+        enum GroupedRiskDef {
+            BY_FILE,
+            BY_QUANTILE,
+            NUM_OF_GROUPED_RISK_DEF_TYPES
+        };
+
         void set_par(const Parameters* par) { _par = par; }
         void set_rng(gsl_rng* rng) { _VAX_RNG = rng; }
 
@@ -223,6 +229,8 @@ class Vac_Campaign {
         void set_pool_urg_doses(bool val)            { pool_urg_doses = val; }
         void set_pool_std_doses(bool val)            { pool_std_doses = val; }
         void set_pool_all_doses(bool val)            { pool_all_doses = val; }
+
+        void set_grouped_risk_def(GroupedRiskDef val) { grouped_risk_def = val; }
 
         void set_reactive_vac_strategy(VacCampaignType vct) { reactive_vac_strategy = vct; }
         VacCampaignType get_reactive_vac_strategy() { return reactive_vac_strategy; }
@@ -313,6 +321,14 @@ class Vac_Campaign {
             return tot;
         }
 
+        int get_pool_size_by_dose(Vaccinee_Pool vp, int dose) {
+            int tot = 0;
+            for (int bin : unique_age_bins) {
+                tot += vp[dose][bin].size();
+            }
+            return tot;
+        }
+
         // will be called everyday to check if new people need to be added to the pools
         bool add_new_eligible_people(int today) {
             bool group_added = false;
@@ -326,9 +342,6 @@ class Vac_Campaign {
                 for (int bin : unique_age_bins) {
                     if (std_eg) { _insert_eligible_people(std_eg, potential_std_vaccinees, dose, bin); }
                     if (urg_eg) { _insert_eligible_people(urg_eg, potential_urg_vaccinees, dose, bin); }
-                    if (reactive_vac_strategy == GROUPED_RISK_VACCINATION and (today > start_of_campaign[GROUPED_RISK_VACCINATION])) {
-                        _add_ppl_from_risk_groups(dose, bin);
-                    }
                 }
 
                 // as we sim, Eligibility_Groups will be deleted (some will be left to be cleaned by the dtor)
@@ -336,6 +349,9 @@ class Vac_Campaign {
                 if (urg_eg) { urg_eligibility_queue[dose].pop(); delete urg_eg; }
 
                 if (std_eg or urg_eg) { group_added = true; }
+            }
+            if (reactive_vac_strategy == GROUPED_RISK_VACCINATION and (today > start_of_campaign[GROUPED_RISK_VACCINATION])) {
+                _add_ppl_from_risk_groups();
             }
             return group_added;
         }
@@ -529,6 +545,8 @@ class Vac_Campaign {
         bool pool_std_doses;                                    // standard doses are pooled and used for any standard vaccinee (regardless of age or dose)
         bool pool_all_doses;                                    // all doses are pooled and used for any vaccinee (regardless of age or dose)
 
+        GroupedRiskDef grouped_risk_def;                        // will risk groups be provided by file or generated from quantiles
+
         VacCampaignType reactive_vac_strategy;                  // parameter for type of reactive strategy (if one is active)
         double reactive_vac_dose_allocation;                    // what proportion of total daily doses are reserved for reactive strategies
 
@@ -567,19 +585,25 @@ class Vac_Campaign {
         // specialty method for group risk strategy
         // handles evaluating the stopping criteria for when to move from one group to the next
         bool _ready_to_add_next_group(Vaccinee_Pool vp) {
-            return get_pool_size(vp) <= (_sch_risk_groups[_current_risk_group].size() * 0.1);
+            return get_pool_size_by_dose(vp, 0) == 0; //<= (_sch_risk_groups[_current_risk_group].size() * 0.1);
         }
 
         // specialty method for group risk strategy
         // adds the next group from the deque if the stopping criteria was met
-        void _add_ppl_from_risk_groups(const int dose, const int bin) {
+        void _add_ppl_from_risk_groups() {
             if (_ready_to_add_next_group(potential_urg_vaccinees) and _grouped_risk_deque.size()) {
-                _insert_eligible_people(_grouped_risk_deque.front().second[dose], potential_urg_vaccinees, dose, bin);
-                delete _grouped_risk_deque.front().second[dose];
+                for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
+                    for (int bin : unique_age_bins) {
+                        _insert_eligible_people(_grouped_risk_deque.front().second[dose], potential_urg_vaccinees, dose, bin);
+                    }
+                    delete _grouped_risk_deque.front().second[dose];
+                }
                 _current_risk_group =  _grouped_risk_deque.front().first;
                 _grouped_risk_deque.pop_front();
             }
         }
+
+        void generate_risk_quantiles(Community* community, map<int, vector<Person*>>& grouped_ppl, map<int, double>& grouped_risk, size_t nbin);
 };
 
 

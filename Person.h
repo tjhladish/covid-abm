@@ -325,6 +325,9 @@ class Person {
         void scheduleQuarantine(int start, int quarantineDuration);
         bool isQuarantining(int time);
 
+        // TODO: generalize
+        double getBaselineRiskSevOutcome() { return _par->probSeriousOutcome.at(SEVERE)[hasComorbidity()][getAge()] * _par->pathogenicityByAge[getAge()]; }
+
         void dumper(int time = 0) const {
             cerr << "Person ID: " << id << endl;
             cerr << "\thome loc: " << home_loc->getID() << endl;

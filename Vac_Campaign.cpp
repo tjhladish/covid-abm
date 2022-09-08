@@ -4,6 +4,7 @@
 #include "Location.h"
 #include "Utility.h"
 #include <map>
+#include <algorithm>
 
 using covid::util::choose_k;
 
@@ -146,40 +147,82 @@ void Vac_Campaign::location_scheduling(int day, vector<set<Person*, PerPtrComp>>
     }
 }
 
+void Vac_Campaign::generate_risk_quantiles(Community* community, map<int, vector<Person*>>& grouped_ppl, map<int, double>& grouped_risk, size_t nbin) {
+    // index for these maps is arbitrary group id (int)
+    grouped_ppl.clear();
+    grouped_risk.clear();
+
+    // created a vector of people sorted by their risk of severe outcome
+    vector< pair<Person*, double> > pop_with_risk; // pairs of person and their risk
+
+    for (Person* p : community->getPeople()) { pop_with_risk.push_back({p, p->getBaselineRiskSevOutcome()}); }
+
+    // highest risk at the end
+    std::sort(pop_with_risk.begin(), pop_with_risk.end(), [](pair<Person*, double> a, pair<Person*, double> b) {
+        return a.second < b.second;
+    });
+
+    // splits the sorted pop in to nbin groups, from the back
+    const size_t pop_size = community->getNumPeople();
+    for (size_t group = 0; group < nbin; ++group) {
+        size_t group_size = (size_t) (pop_size / nbin);
+        group_size += (group < (pop_size % nbin)) ? 1 : 0; // distribute the remainder
+
+        // take group_size number of people off the back of pop_with_risk, and populate the passed-in data structures
+        for (size_t j = 0; j < group_size; ++j) {
+            grouped_ppl[group].push_back(pop_with_risk.back().first);
+
+            if (not grouped_risk.count(group)) {
+                grouped_risk[group] = 0.0;
+            }
+            grouped_risk[group] += pop_with_risk.back().second;
+
+            pop_with_risk.pop_back();
+        }
+    }
+}
+
 void Vac_Campaign::grouped_risk_scheduling(int day, Community* community) {
     // this function only needs to be executed once at the start of the strategy
     // grouping and scheduling is performed here and then the groups will be added by specialty methods
     if (day == start_of_campaign[GROUPED_RISK_VACCINATION]) {
-        map<int, double> grouped_risk;   // map of group to pair of risk sum and group size (can then calculate per capita risk)
+        // maps are used so that keys can be arbitrary ints (e.g. FIPS codes, zip codes, etc.)
         map<int, vector<Person*>> grouped_ppl;      // map of group to vector of people in that group
-        ifstream iss(_par->riskGroupsFilename);
+        map<int, double> grouped_risk;              // map of group to pair of risk sum and group size (can then calculate per capita risk)
 
-        if (!iss) { cerr << "ERROR: " << _par->riskGroupsFilename << " not found." << endl; }
+        if (grouped_risk_def == BY_FILE) {
+            ifstream iss(_par->riskGroupsFilename);
 
-        string buffer;
-        istringstream line;
-        int pid, group;
+            if (!iss) { cerr << "ERROR: " << _par->riskGroupsFilename << " not found." << endl; exit(-1); }
 
-        // the input file is expected to have two columns: person ID and the group they belong to
-        while ( getline(iss, buffer) ) {
-            line.clear();
-            line.str(buffer);
+            string buffer;
+            istringstream line;
+            int pid, group;
 
-            // for each line in the file, calculate the individual's risk for their group and add
-            if (line >> pid >> group) {
-                Person* p = community->getPersonByID(pid);
-                grouped_ppl[group].push_back(p);
+            // the input file is expected to have two columns: person ID and the group they belong to
+            while ( getline(iss, buffer) ) {
+                line.clear();
+                line.str(buffer);
 
-                // risk of severe outcomes given infection
-                double risk = _par->probSeriousOutcome.at(SEVERE)[p->hasComorbidity()][p->getAge()] * _par->pathogenicityByAge[p->getAge()];
-                if (not grouped_risk.count(group)) {
-                    grouped_risk[group]  = 0.0;
+                // for each line in the file, calculate the individual's risk for their group and add
+                if (line >> pid >> group) {
+                    Person* p = community->getPersonByID(pid);
+                    grouped_ppl[group].push_back(p);
+
+                    // risk of severe outcomes given infection
+                    double risk = p->getBaselineRiskSevOutcome();
+                    if (not grouped_risk.count(group)) {
+                        grouped_risk[group] = 0.0;
+                    }
+
+                    grouped_risk[group] += risk;
                 }
-
-                grouped_risk[group] += risk;
             }
+            iss.close();
+        } else if (grouped_risk_def == BY_QUANTILE) {
+            const size_t nbin = 10; // TODO - probably move this out so it can be adjusted by user somehow
+            generate_risk_quantiles(community, grouped_ppl, grouped_risk, nbin);
         }
-        iss.close();
 
         // special comparator to sort the groups by per capita risk
         struct group_risk_comp {
@@ -232,7 +275,7 @@ void Vac_Campaign::risk_scheduling(int day, Community* community, double hosp_ri
 
         for (Person* p : community->getPeople()) {
             // risk of severe outcomes given infection
-            double risk = _par->probSeriousOutcome.at(SEVERE)[p->hasComorbidity()][p->getAge()] * _par->pathogenicityByAge[p->getAge()];
+            double risk = p->getBaselineRiskSevOutcome();
             if (risk >= hosp_risk_threshold and is_age_eligible_on(p->getAge(), day) and (p->getNumVaccinations() < _par->urgent_vax_dose_threshold)) {
                 // getNumVaccinations() used as an index will ensure this person is being scheduled for their next dose
                 // eg: if getNumVaccinations() returns 1, 1 as an index pushes this person for dose 2
