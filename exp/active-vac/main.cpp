@@ -263,7 +263,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
         par->behaviorInputFilename  = "";
         par->behaviorOutputFilename = "/blue/longini/tjhladish/covid-abm/exp/active-vac/ppb_fits/behavior_" + to_string(serial) + ".csv";
     } else {
-        par->behaviorInputFilename  = "1k_mean_ppb-v3.1manual.csv";
+        par->behaviorInputFilename  = "1k_mean_ppb-v4.0manual.csv";
         //par->behaviorInputFilename  = "/blue/longini/tjhladish/covid-abm/exp/active-vac/ppb_fits/behavior_" + to_string(serial) + ".csv";
         par->behaviorOutputFilename = "";
     }
@@ -762,7 +762,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     // this output filename needs to be adjusted for each experiment, so as to not overwrite files
     //string filename = "plot_log" + to_string(serial) + ".csv";
     //string filename = "/blue/longini/tjhladish/covid-abm/exp/active-vac/plot_log" + to_string(serial) + ".csv";
-    string filename = "/blue/longini/tjhladish/covid-abm/exp/active-vac/v3.1/plot_log" + to_string(serial) + ".csv";
+    string filename = "/blue/longini/tjhladish/covid-abm/exp/active-vac/v4.0/plot_log" + to_string(serial) + ".csv";
     write_daily_buffer(plot_log_buffer, process_id, filename, overwrite);
 
 //    stringstream ss;
