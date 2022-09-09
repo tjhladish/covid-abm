@@ -1,5 +1,5 @@
 
-.pkgs <- c("data.table", "ggplot2", "scales", "ggh4x", "cabputils")
+.pkgs <- c("data.table", "ggplot2", "scales", "ggh4x", "cabputils", "geomtextpath")
 
 stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 
@@ -7,7 +7,7 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 .args <- if (interactive()) c(
   file.path("fig", "vis_support.rda"),
   file.path("fig", "process", c("alt_eff.rds", "digest-key.rds")),
-  file.path("fig", "output", "alt_eff_sev.png")
+  file.path("fig", "output", "alt_inc_inf.png")
 ) else commandArgs(trailingOnly = TRUE)
 
 load(.args[1])
@@ -23,8 +23,13 @@ eff.dt <- readRDS(.args[2])[
 ][
   outcome == tar
 ][, .(
-  scenario, realization, date, outcome, c.effectiveness
+  scenario, realization, date, outcome, value, averted
 )]
+
+eff.dt[order(date),
+  c("c.value", "i.c.value") := .(cumsum(value), cumsum(value + averted)),
+  by=.(scenario, realization, outcome)
+]
 
 intscns <- eff.dt[, unique(scenario)]
 
@@ -41,13 +46,12 @@ gc()
 plt.dt[, talloc := factor(
   fifelse(
     pas_alloc == "none", as.character(act_alloc), fifelse(
-      pas_alloc == "FL", "FL+", as.character(pas_alloc)
-    )), levels = c("COVAX", "MIC", "FL+"), ordered = TRUE
+    pas_alloc == "FL", "FL+", as.character(pas_alloc)
+  )), levels = c("COVAX", "MIC", "FL+"), ordered = TRUE
 )][, qfac := factor(c("No Additional NPI", "Quarantine Contacts")[quar+1]) ]
 
-
 p <- ggplot(plt.dt) + aes(
-  x = date, y = c.effectiveness,
+  x = date, y = c.value,
   color = act_vac,
   linetype = factor(c("unconditional", "conditional")[inf_con+1]),
   sample = realization
@@ -55,27 +59,36 @@ p <- ggplot(plt.dt) + aes(
   facet_nested(rows = vars(qfac), cols = vars(talloc)) +
   geom_month_background(
     plt.dt, by = c("qfac", "talloc"),
-    font.size = 3, value.col = "c.effectiveness",
-    ymax = plt.dt[, max(c.effectiveness)],
-    ymin = plt.dt[, min(c.effectiveness)]
+    font.size = 3, value.col = "c.value",
+    ymax = plt.dt[, max(c.value)],
+    ymin = plt.dt[, min(c.value)]
   ) +
   stat_spaghetti(
     aes(alpha = after_stat(sampleN^-1))
   ) +
-  geom_hline(aes(yintercept=0, color = "none")) +
+  stat_spaghetti(
+    aes(alpha = after_stat(sampleN^-1)),
+    data = \(dt) dt[,.(act_vac="none", c.value = i.c.value[1]),by=.(qfac, talloc, inf_con, realization, date)]
+  ) +
   scale_y_continuous(
     name = sprintf(
-      "Cumulative Effectiveness\nAgainst Incidence of %s",
+      "Per 10k, Cumulative\nIncidence of %s",
       switch(tar, inf = "Infection", sev = "Severe Disease", deaths = "Death", doses = "Vaccination", stop())
     )
   ) +
   scale_x_null() +
-  scale_color_discrete("Active Vax.") +
-  scale_linetype_discrete("Conditional Vax.") +
-  scale_alpha(range = c(0.01, 1)) +
+  scale_color_discrete(
+    "Vaccine Program",
+    breaks = c("risk", "ring"),
+    labels = c(
+      ring="Infection-risk Prioritization",
+      risk="Disease-risk Prioritization"
+    )) +
+  scale_linetype_manual("Vaccinate...", labels = c(conditional="Condtional on\nCase History", unconditional = "Unconditionally"), values = c(conditional="dashed", unconditional="solid")) +
+  scale_alpha(range = c(0.02, 1)) +
   theme_minimal() +
   theme(
-    legend.position = "bottom", strip.placement = "outside"
+    legend.position = c(0, 1), legend.justification = c(0, 1), strip.placement = "outside"
   )
 
 ggsave(tail(.args, 1), p, height = 6, width = 10, bg = "white")

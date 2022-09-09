@@ -9,7 +9,7 @@ DATADIR ?= ..
 DLDIR ?= ~/Downloads
 RESDIR := process
 OUTDIR ?= output
-SIMFILES ?= $(patsubst %,covid-active-%.sqlite,v3.1)
+SIMFILES ?= $(patsubst %,covid-active-%.sqlite,v3.2)
 
 R = $(strip Rscript $^ $(1) $@)
 
@@ -76,10 +76,15 @@ ${OUTDIR}/alt_ave_%.png: alt_ave_outcome.R vis_support.rda ${RESDIR}/alt_eff.rds
 ${RESDIR}/digest-key.rds | ${OUTDIR}
 	$(call R)
 
+${OUTDIR}/alt_inc_%.png: alt_inc_outcome.R vis_support.rda ${RESDIR}/alt_eff.rds \
+${RESDIR}/digest-key.rds | ${OUTDIR}
+	$(call R)
+
 allavert: $(addprefix ${OUTDIR}/,$(patsubst %,avertvis_%.png,inf sev deaths) $(patsubst %,cum_averted_%.png,inf sev deaths) avertvis.png)
 alleff: $(addprefix ${OUTDIR}/,$(patsubst %,cum_eff_%.png,inf sev deaths))
 alteff: $(addprefix ${OUTDIR}/,$(patsubst %,alt_eff_%.png,inf sev deaths))
 altave: $(addprefix ${OUTDIR}/,$(patsubst %,alt_ave_%.png,inf sev deaths))
+altinc: $(addprefix ${OUTDIR}/,$(patsubst %,alt_inc_%.png,inf sev deaths))
 allfigs: $(patsubst %,${OUTDIR}/%.png,model_input validation_review everything)
 
 

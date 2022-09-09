@@ -26,7 +26,7 @@ scns <- c(
 
 #' comes key'd
 doses.dt <- readRDS(.args[2])[
-  date > "2020-12-01"
+  eval(datefilter)
 ][scenario %in% scns, .(
   scenario, realization, date, c.value
 )]
@@ -44,9 +44,9 @@ gc()
 plt.dt[, talloc := factor(
   fifelse(
     pas_alloc == "none", as.character(act_alloc), fifelse(
-      pas_alloc == "FL", "FL+ring", as.character(pas_alloc)
-    ))
-)][, qfac := factor(c("No Q", "Q")[quar+1]) ]
+    pas_alloc %in% c("FL", "FL+ring"), "FL+", as.character(pas_alloc)
+  )), levels = c("COVAX", "MIC", "FL+"), ordered = TRUE
+)][, qfac := factor(c("No Additional NPI", "Quarantine Contacts")[quar+1]) ]
 
 p <- ggplot(plt.dt) + aes(
   x = date, y = c.value,
@@ -54,7 +54,7 @@ p <- ggplot(plt.dt) + aes(
   linetype = factor(c("unconditional", "conditional")[inf_con+1]),
   sample = realization
 ) +
-  facet_nested(cols = vars(qfac), rows = vars(talloc), scales = "free_y") +
+  facet_nested(rows = vars(qfac), cols = vars(talloc)) +
   geom_month_background(
     plt.dt, by = c("qfac", "talloc"),
     font.size = 3, value.col = "c.value"
@@ -72,12 +72,19 @@ p <- ggplot(plt.dt) + aes(
     )
   ) +
   scale_x_null() +
-  scale_color_discrete("Active Vax.") +
-  scale_linetype_discrete("Conditional Vax.") +
+  scale_color_discrete(
+    "Vaccine Program",
+    breaks = c("risk", "ring", "none"),
+    labels = c(
+      ring="Infection-risk Prioritization",
+      risk="Disease-risk Prioritization",
+      none="Standard Only"
+    )) +
+  scale_linetype_manual("Vaccinate...", labels = c(conditional="Condtional on\nCase History", unconditional = "Unconditionally"), values = c(conditional="dashed", unconditional="solid")) +
   scale_alpha(range = c(0.01, 1)) +
   theme_minimal() +
   theme(
-    legend.position = "bottom", strip.placement = "outside"
+    legend.position = c(0, 1), legend.justification = c(0, 1), strip.placement = "outside"
   )
 
-ggsave(tail(.args, 1), p, height = 10, width = 6, bg = "white")
+ggsave(tail(.args, 1), p, height = 6, width = 10, bg = "white")
