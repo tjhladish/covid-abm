@@ -359,7 +359,7 @@ class Vac_Campaign {
                 if (std_eg or urg_eg) { group_added = true; }
             }
             if (reactive_vac_strategy == GROUPED_RISK_VACCINATION and (today > start_of_campaign[GROUPED_RISK_VACCINATION])) {
-                _add_ppl_from_risk_groups();
+                _add_ppl_from_risk_groups(today);
             }
             return group_added;
         }
@@ -592,14 +592,14 @@ class Vac_Campaign {
 
         // specialty method for group risk strategy
         // handles evaluating the stopping criteria for when to move from one group to the next
-        bool _ready_to_add_next_group(Vaccinee_Pool vp) {
-            return get_pool_size_by_dose(vp, 0) == 0; //<= (_sch_risk_groups[_current_risk_group].size() * 0.1);
+        bool _ready_to_add_next_group(Vaccinee_Pool vp, VaccineAllocationType vat, int today) {
+            return get_pool_size_by_dose(vp, 0) < get_all_doses_available(doses_available[vat], today); //<= (_sch_risk_groups[_current_risk_group].size() * 0.1);
         }
 
         // specialty method for group risk strategy
         // adds the next group from the deque if the stopping criteria was met
-        void _add_ppl_from_risk_groups() {
-            if (_ready_to_add_next_group(potential_urg_vaccinees) and _grouped_risk_deque.size()) {
+        void _add_ppl_from_risk_groups(int today) {
+            if (_ready_to_add_next_group(potential_urg_vaccinees, URGENT_ALLOCATION, today) and _grouped_risk_deque.size()) {
                 for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
                     for (int bin : unique_age_bins) {
                         _insert_eligible_people(_grouped_risk_deque.front().second[dose], potential_urg_vaccinees, dose, bin);
