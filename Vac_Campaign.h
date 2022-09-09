@@ -273,6 +273,14 @@ class Vac_Campaign {
             return tot_doses;
         }
 
+        int get_all_doses_available(Dose_Ptrs doses, int day, int dose) {
+            int tot_doses = 0;
+            for (int bin : unique_age_bins) {
+                tot_doses += (*doses[day][dose][bin]);
+            }
+            return tot_doses;
+        }
+
         void set_doses_available(Dose_Ptrs da, VaccineAllocationType vat) { doses_available[vat] = da; }
 
         void set_doses_available(int day, int dose, int age_bin, int da, VaccineAllocationType vat) { *doses_available[vat][day][dose][age_bin] = da; }
