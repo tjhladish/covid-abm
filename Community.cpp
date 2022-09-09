@@ -560,6 +560,12 @@ void Community::vaccinate() {
         new_groups_to_add = vac_campaign->add_new_eligible_people(_day);
     }
 
+    cerr << vac_campaign->get_all_doses_available(vac_campaign->get_doses_available(STANDARD_ALLOCATION), _day, 0) << ' ' << vac_campaign->get_all_doses_available(vac_campaign->get_doses_available(STANDARD_ALLOCATION), _day, 1) << ' ' << vac_campaign->get_all_doses_available(vac_campaign->get_doses_available(STANDARD_ALLOCATION), _day, 2) << " | "
+         << vac_campaign->get_all_doses_available(vac_campaign->get_doses_available(URGENT_ALLOCATION), _day)/15 << " | "
+         << vac_campaign->get_pool_size_by_dose(vac_campaign->get_potential_std_vaccinees(), 0) << ' ' << vac_campaign->get_pool_size_by_dose(vac_campaign->get_potential_std_vaccinees(), 1) << ' ' << vac_campaign->get_pool_size_by_dose(vac_campaign->get_potential_std_vaccinees(), 2) << " | "
+         << vac_campaign->get_pool_size_by_dose(vac_campaign->get_potential_urg_vaccinees(), 0) << ' ' << vac_campaign->get_pool_size_by_dose(vac_campaign->get_potential_urg_vaccinees(), 1) << ' ' << vac_campaign->get_pool_size_by_dose(vac_campaign->get_potential_urg_vaccinees(), 2) << endl;
+
+
     // only continue if any doses are available today
     if (not vac_campaign->get_all_doses_available(_day)) { return; }
 
@@ -1165,9 +1171,6 @@ void Community::tick() {
         vac_campaign->reactive_strategy(_day, tracedContactsByDepth, this);
 
         // this is the actual vaccination step
-        cerr << vac_campaign->get_all_doses_available(_day)/15 << " | "
-             << vac_campaign->get_pool_size_by_dose(vac_campaign->get_potential_std_vaccinees(), 0) << ' ' << vac_campaign->get_pool_size_by_dose(vac_campaign->get_potential_std_vaccinees(), 1) << ' ' << vac_campaign->get_pool_size_by_dose(vac_campaign->get_potential_std_vaccinees(), 2) << " | "
-             << vac_campaign->get_pool_size_by_dose(vac_campaign->get_potential_urg_vaccinees(), 0) << ' ' << vac_campaign->get_pool_size_by_dose(vac_campaign->get_potential_urg_vaccinees(), 1) << ' ' << vac_campaign->get_pool_size_by_dose(vac_campaign->get_potential_urg_vaccinees(), 2) << endl;
         vaccinate();
     }
 
