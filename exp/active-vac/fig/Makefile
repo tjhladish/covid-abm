@@ -9,7 +9,7 @@ DATADIR ?= ..
 DLDIR ?= ~/Downloads
 RESDIR := process
 OUTDIR ?= output
-SIMFILES ?= $(patsubst %,covid-active-%.sqlite,v3.2)
+SIMFILES ?= $(patsubst %,covid-active-%.sqlite,v4.0)
 
 R = $(strip Rscript $^ $(1) $@)
 
