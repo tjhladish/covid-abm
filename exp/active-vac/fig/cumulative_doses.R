@@ -8,7 +8,7 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
   file.path("fig", "vis_support.rda"),
   file.path("fig", "process", c("digest-doses.rds", "digest-key.rds", "alt_eff.rds")),
   file.path(c("covax_doses_COVAX_only.txt", "covax_doses_MIC_only.txt")),
-  file.path("fig", "output", "cum_doses.png")
+  file.path("fig", "output", "cumulative_doses.png")
 ) else commandArgs(trailingOnly = TRUE)
 
 load(.args[1])

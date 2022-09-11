@@ -55,6 +55,7 @@ ${OUTDIR}/model_input.png: ${INPUTS}
 ${OUTDIR}/validation_review.png: ${INPUTS}
 ${OUTDIR}/everything.png: ${INPUTS}
 ${OUTDIR}/avertvis.png: ${PLOTINS}
+${OUTDIR}/cumulative_doses.png: ${RESDIR}/digest-doses.rds ${RESDIR}/digest-key.rds ${RESDIR}/alt_eff.rds
 
 ${OUTDIR}/%.png: %.R vis_support.rda | ${OUTDIR}
 	$(call R)
