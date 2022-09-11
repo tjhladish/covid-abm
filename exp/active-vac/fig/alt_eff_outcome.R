@@ -1,5 +1,5 @@
 
-.pkgs <- c("data.table", "ggplot2", "scales", "ggh4x", "cabputils")
+.pkgs <- c("data.table", "ggplot2", "scales", "ggh4x", "cabputils", "geomtextpath")
 
 stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 
@@ -62,7 +62,11 @@ p <- ggplot(plt.dt) + aes(
   stat_spaghetti(
     aes(alpha = after_stat(sampleN^-1))
   ) +
-  geom_hline(aes(yintercept=0, color = "none")) +
+  geom_texthline(
+    aes(yintercept = 0, color = "none", label = "Standard\nProgram"),
+    inherit.aes = FALSE, show.legend = FALSE, data = \(dt) dt[,.SD[1],by=.(qfac, talloc)],
+    hjust = 0, gap = FALSE
+  ) +
   scale_y_continuous(
     name = sprintf(
       "Cumulative Effectiveness\nAgainst Incidence of %s",
@@ -70,8 +74,14 @@ p <- ggplot(plt.dt) + aes(
     )
   ) +
   scale_x_null() +
-  scale_color_discrete("Active Vax.") +
-  scale_linetype_discrete("Conditional Vax.") +
+  scale_color_discrete(
+    "Vaccine Program",
+    breaks = c("risk", "ring"),
+    labels = c(
+      ring="Infection-risk Prioritization",
+      risk="Disease-risk Prioritization"
+    )) +
+  scale_linetype_manual("Vaccinate...", labels = c(conditional="Condtional on\nCase History", unconditional = "Unconditionally"), values = c(conditional="dashed", unconditional="solid")) +
   scale_alpha(range = c(0.01, 1)) +
   theme_minimal() +
   theme(
