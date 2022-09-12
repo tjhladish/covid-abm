@@ -623,7 +623,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
                 } else if (passive_alloc == 2) {         // passive augmented with number of doses used by ring vac
                     string prefix = "/blue/longini/tjhladish/covid-abm/exp/active-vac/ring_ctfl_dose_files/";
                     prefix += quarantine_ctrl ? to_string(379000 + realization) : to_string(378000 + realization);
-                    par->vaccinationFilename = prefix + "_ring_vax_deployment_passive_counterfactual_doses.txt";
+                    par->vaccinationFilename = prefix + "_ring_vax_deployment_counterfactual_doses.txt";
                     pool_urg_doses = false;
                     pool_all_doses = true;
                 } else if (passive_alloc == 3) {         // limited passive (COVAX scenario)
@@ -642,7 +642,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
                 assert(active_alloc == 2);
                 string prefix = "/blue/longini/tjhladish/covid-abm/exp/active-vac/ring_ctfl_dose_files/";
                 prefix += quarantine_ctrl ? to_string(379000 + realization) : to_string(378000 + realization);
-                par->vaccinationFilename = prefix + "_ring_vax_deployment_active_counterfactual_doses.txt"; // passive + total doses used by ring vax, distributed over 30d (for risk strat)
+                par->vaccinationFilename = prefix + "_ring_vax_deployment_counterfactual_doses.txt"; // passive + total doses used by ring vax, distributed over 30d (for risk strat)
             }
         } else if (active_vac == RING_VACCINATION or active_vac == GROUPED_RISK_VACCINATION) { // ring or risk, without passive vac
             assert(active_alloc == 3 or active_alloc == 4);
