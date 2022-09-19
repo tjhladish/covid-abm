@@ -582,7 +582,7 @@ void Community::vaccinate() {
 
     // for each age bin, dose combination, select new vaccinees until there are no more doses available
     vector<int> rev_age_bins = vac_campaign->get_unique_age_bins();
-    sort(rev_age_bins.begin(), rev_age_bins.end(), std::greater<int>());
+    sort(rev_age_bins.begin(), rev_age_bins.end(), std::greater<int>()); // ensures oldest to youngest
     for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
         for (int bin : rev_age_bins) {
             Vaccinee* v = vac_campaign->next_vaccinee(_day, dose, bin);
