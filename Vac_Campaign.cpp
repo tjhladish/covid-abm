@@ -303,7 +303,7 @@ void Vac_Campaign::reactive_strategy(int day, vector<set<Person*, PerPtrComp>> t
 }
 
 void Vac_Campaign::init_eligibility_queue(const Community* community) {
-    for (Eligibility_Q eq : eligibility_queue) {
+    for (Eligibility_Q& eq : eligibility_queue) {
         eq.clear();
         eq.resize(_par->numVaccineDoses);
     }

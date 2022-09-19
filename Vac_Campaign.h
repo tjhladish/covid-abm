@@ -148,7 +148,7 @@ class Vac_Campaign {
             potential_vaccinees = vector<Vaccinee_Pool>(NUM_OF_VACCINATION_QUEUE_TYPES, Vaccinee_Pool(par->numVaccineDoses));
 
             eligibility_queue = vector<Eligibility_Q>(NUM_OF_VACCINATION_QUEUE_TYPES);
-            for (Eligibility_Q eq : eligibility_queue) {
+            for (Eligibility_Q& eq : eligibility_queue) {
                 eq.clear();
                 eq.resize(_par->numVaccineDoses);
             }
