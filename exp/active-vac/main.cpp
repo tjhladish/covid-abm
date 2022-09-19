@@ -692,23 +692,23 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
         if (active_vac == GROUPED_RISK_VACCINATION) { vc->set_grouped_risk_def(Vac_Campaign::BY_QUANTILE); }
 
-//        cerr << "Vaccination scenario:\n"
-//             << GENERAL_CAMPAIGN << "\n"
-//                                 << "\tduration " << vc->get_start_of_campaign(GENERAL_CAMPAIGN) << "--" << vc->get_end_of_campaign(GENERAL_CAMPAIGN) << "\n"
-//                                 << "\tnum doses " << par->numVaccineDoses << "\n"
-//                                 << "\tdose intervals "; cerr_vector(par->vaccineDoseInterval); cerr << "\n"
-//                                 << "\tdose protection lag " << par->vaccine_dose_to_protection_lag << "\n"
-//             << active_vax_strat   << "\n"
-//                                 << "\tduration " << vc->get_start_of_campaign(active_vax_strat) << "--" << vc->get_end_of_campaign(active_vax_strat) << "\n"
-//                                 << "\trequires contact tracing? " << boolalpha << vc->contact_tracing_required(active_vax_strat) << noboolalpha << "\n"
-//             << "other details"  << "\n"
-//                                 << "\tdose file " << par->vaccinationFilename << "\n"
-//                                 << "\tdose pooling (urg,std,all)? " << boolalpha << pool_urg_doses << ' ' << pool_std_doses << ' ' << pool_all_doses << noboolalpha << "\n"
-//                                 << "\tadj std doses to bin pop? " << boolalpha << adjust_std_to_bin_pop << noboolalpha << "\n"
-//                                 << "\tadj urg doses to bin pop? " << boolalpha << adjust_urg_to_bin_pop << noboolalpha << "\n"
-//                                 << "\tcontact tracing start " << par->beginContactTracing << "\n"
-//                                 << "\tself quarantining probs "; cerr_vector(par->quarantineProbability); cerr << "\n"
-//                                 << "\tself quarantining duration " << par->quarantineDuration << "\n" << endl;
+       // cerr << "Vaccination scenario:\n"
+       //      << GENERAL_CAMPAIGN << "\n"
+       //                          << "\tduration " << vc->get_start_of_campaign(GENERAL_CAMPAIGN) << "--" << vc->get_end_of_campaign(GENERAL_CAMPAIGN) << "\n"
+       //                          << "\tnum doses " << par->numVaccineDoses << "\n"
+       //                          << "\tdose intervals "; cerr_vector(par->vaccineDoseInterval); cerr << "\n"
+       //                          << "\tdose protection lag " << par->vaccine_dose_to_protection_lag << "\n"
+       //      << active_vac   << "\n"
+       //                          << "\tduration " << vc->get_start_of_campaign(active_vac) << "--" << vc->get_end_of_campaign(active_vac) << "\n"
+       //                          << "\trequires contact tracing? " << boolalpha << vc->contact_tracing_required(active_vac) << noboolalpha << "\n"
+       //      << "other details"  << "\n"
+       //                          << "\tdose file " << par->vaccinationFilename << "\n"
+       //                          << "\tdose pooling (urg,std,all)? " << boolalpha << pool_urg_doses << ' ' << pool_std_doses << ' ' << pool_all_doses << noboolalpha << "\n"
+       //                          << "\tadj std doses to bin pop? " << boolalpha << adjust_std_to_bin_pop << noboolalpha << "\n"
+       //                          << "\tadj urg doses to bin pop? " << boolalpha << adjust_urg_to_bin_pop << noboolalpha << "\n"
+       //                          << "\tcontact tracing start " << par->beginContactTracing << "\n"
+       //                          << "\tself quarantining probs "; cerr_vector(par->quarantineProbability); cerr << "\n"
+       //                          << "\tself quarantining duration " << par->quarantineDuration << "\n" << endl;
     }
     // probability of self-quarantining for index cases and subsequent contacts
     if (quarantine_ctrl) {
