@@ -257,29 +257,95 @@ class Vac_Campaign {
         // aggregates all std and urg doses available for a given day
         int get_all_doses_available(int day) {
             int tot_doses = 0;
-            for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
-                for (int bin : unique_age_bins) {
-                    tot_doses += (*doses_available[URGENT_ALLOCATION][day][dose][bin]) + (*doses_available[STANDARD_ALLOCATION][day][dose][bin]);
+
+            if (pool_std_doses) {
+                tot_doses += *doses_available[STANDARD_ALLOCATION][day][0][unique_age_bins.front()];
+            } else {
+                for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
+                    for (int bin : unique_age_bins) {
+                        tot_doses += *doses_available[STANDARD_ALLOCATION][day][dose][bin];
+                    }
                 }
             }
+
+            if (pool_urg_doses) {
+                tot_doses += *doses_available[URGENT_ALLOCATION][day][0][unique_age_bins.front()];
+            } else {
+                for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
+                    for (int bin : unique_age_bins) {
+                        tot_doses += *doses_available[URGENT_ALLOCATION][day][dose][bin];
+                    }
+                }
+            }
+
             return tot_doses;
         }
 
-        int get_all_doses_available(Dose_Ptrs doses, int day) {
+        int get_all_doses_available(VaccineAllocationType vat, int day) {
             int tot_doses = 0;
-            for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
-                for (int bin : unique_age_bins) {
-                    tot_doses += (*doses[day][dose][bin]);
+
+            switch (vat) {
+                case URGENT_ALLOCATION: {
+                    if (pool_urg_doses) {
+                        tot_doses += *doses_available[URGENT_ALLOCATION][day][0][unique_age_bins.front()];
+                    } else {
+                        for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
+                            for (int bin : unique_age_bins) {
+                                tot_doses += *doses_available[URGENT_ALLOCATION][day][dose][bin];
+                            }
+                        }
+                    }
+                    break;
                 }
+                case STANDARD_ALLOCATION: {
+                    if (pool_std_doses) {
+                        tot_doses += *doses_available[STANDARD_ALLOCATION][day][0][unique_age_bins.front()];
+                    } else {
+                        for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
+                            for (int bin : unique_age_bins) {
+                                tot_doses += *doses_available[STANDARD_ALLOCATION][day][dose][bin];
+                            }
+                        }
+                    }
+                    break;
+                }
+                default: { cerr << "ERROR: invalid VaccineAllocationType provided to get_all_doses_available(VaccineAllocationType vat, int day)" << endl; exit(-1); }
             }
+
             return tot_doses;
         }
 
-        int get_all_doses_available(Dose_Ptrs doses, int day, int dose) {
+        int get_all_doses_available(VaccineAllocationType vat, int day, int dose) {
             int tot_doses = 0;
-            for (int bin : unique_age_bins) {
-                tot_doses += (*doses[day][dose][bin]);
+
+            switch (vat) {
+                case URGENT_ALLOCATION: {
+                    if (pool_urg_doses) {
+                        tot_doses += *doses_available[URGENT_ALLOCATION][day][dose][unique_age_bins.front()];
+                    } else {
+                        for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
+                            for (int bin : unique_age_bins) {
+                                tot_doses += *doses_available[URGENT_ALLOCATION][day][dose][bin];
+                            }
+                        }
+                    }
+                    break;
+                }
+                case STANDARD_ALLOCATION: {
+                    if (pool_std_doses) {
+                        tot_doses += *doses_available[STANDARD_ALLOCATION][day][dose][unique_age_bins.front()];
+                    } else {
+                        for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
+                            for (int bin : unique_age_bins) {
+                                tot_doses += *doses_available[STANDARD_ALLOCATION][day][dose][bin];
+                            }
+                        }
+                    }
+                    break;
+                }
+                default: { cerr << "ERROR: invalid VaccineAllocationType provided to get_all_doses_available(VaccineAllocationType vat, int day, int dose)" << endl; exit(-1); }
             }
+
             return tot_doses;
         }
 
@@ -586,14 +652,14 @@ class Vac_Campaign {
 
         // specialty method for group risk strategy
         // handles evaluating the stopping criteria for when to move from one group to the next
-        bool _ready_to_add_next_group(Vaccinee_Pool vp, VaccineAllocationType vat, int today) {
-            return get_pool_size_by_dose(vp, 0) < get_all_doses_available(doses_available[vat], today); //<= (_sch_risk_groups[_current_risk_group].size() * 0.1);
+        bool _ready_to_add_next_group(VaccinationQueueType vqt, VaccineAllocationType vat, int today) {
+            return get_pool_size_by_dose(potential_vaccinees[vqt], 0) < (get_all_doses_available(vat, today)); //<= (_sch_risk_groups[_current_risk_group].size() * 0.1);
         }
 
         // specialty method for group risk strategy
         // adds the next group from the deque if the stopping criteria was met
         void _add_ppl_from_risk_groups(int today) {
-            if (_ready_to_add_next_group(potential_vaccinees[URGENT_QUEUE], URGENT_ALLOCATION, today) and _grouped_risk_deque.size()) {
+            if (_ready_to_add_next_group(URGENT_QUEUE, URGENT_ALLOCATION, today) and _grouped_risk_deque.size()) {
                 for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
                     for (int bin : unique_age_bins) {
                         _insert_eligible_people(_grouped_risk_deque.front().second[dose], potential_vaccinees[URGENT_QUEUE], dose, bin);
