@@ -13,7 +13,7 @@ class Person;
 enum VaccinationQueueType {
     URGENT_QUEUE,
     STANDARD_QUEUE,
-    REVACCINATE_QUEUE,
+    // REVACCINATE_QUEUE,       // outdated
     NUM_OF_VACCINATION_QUEUE_TYPES
 };
 
