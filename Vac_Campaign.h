@@ -147,11 +147,11 @@ class Vac_Campaign {
 
             potential_vaccinees = vector<Vaccinee_Pool>(NUM_OF_VACCINATION_QUEUE_TYPES, Vaccinee_Pool(par->numVaccineDoses));
 
-            std_eligibility_queue.clear();
-            std_eligibility_queue.resize(_par->numVaccineDoses);
-
-            urg_eligibility_queue.clear();
-            urg_eligibility_queue.resize(_par->numVaccineDoses);
+            eligibility_queue = vector<Eligibility_Q>(NUM_OF_VACCINATION_QUEUE_TYPES);
+            for (Eligibility_Q eq : eligibility_queue) {
+                eq.clear();
+                eq.resize(_par->numVaccineDoses);
+            }
         }
 
         // copy ctor does member-wise copying that will be updated in the Community copy ctor
@@ -163,8 +163,7 @@ class Vac_Campaign {
 
             potential_vaccinees = o.potential_vaccinees;
 
-            std_eligibility_queue = o.std_eligibility_queue;
-            urg_eligibility_queue = o.urg_eligibility_queue;
+            eligibility_queue = o.eligibility_queue;
 
             age_bin_lookup = o.age_bin_lookup;
             unique_age_bins = o.unique_age_bins;
@@ -192,16 +191,12 @@ class Vac_Campaign {
 
         virtual ~Vac_Campaign() { // is this correct to address a vtable error?
             for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
-                while (std_eligibility_queue[dose].size()) {
-                    Eligibility_Group* eg = std_eligibility_queue[dose].top();
-                    std_eligibility_queue[dose].pop();
-                    delete eg;
-                }
-
-                while (urg_eligibility_queue[dose].size()) {
-                    Eligibility_Group* eg = urg_eligibility_queue[dose].top();
-                    urg_eligibility_queue[dose].pop();
-                    delete eg;
+                for (Eligibility_Q eq : eligibility_queue) {
+                    while (eq[dose].size()) {
+                        Eligibility_Group* eg = eq[dose].top();
+                        eq[dose].pop();
+                        delete eg;
+                    }
                 }
             }
         }
@@ -248,11 +243,8 @@ class Vac_Campaign {
         double get_reactive_vac_dose_allocation() { return reactive_vac_dose_allocation; }
         void set_reactive_vac_dose_allocation(double val) { reactive_vac_dose_allocation = val; }
 
-        Eligibility_Q get_urg_eligibility_queue() const { return urg_eligibility_queue; }
-        void set_urg_eligibility_queue(Eligibility_Q uq) { urg_eligibility_queue = uq; }
-
-        Eligibility_Q get_std_eligibility_queue() const { return std_eligibility_queue; }
-        void set_std_eligibility_queue(Eligibility_Q eq) { std_eligibility_queue = eq; }
+        Eligibility_Q get_eligibility_queue(VaccinationQueueType vqt) const { return eligibility_queue[vqt]; }
+        void set_eligibility_queue(VaccinationQueueType vqt, Eligibility_Q uq) { eligibility_queue[vqt] = uq; }
 
         void init_doses_available(Dose_Vals urg_in, Dose_Vals std_in);
 
@@ -352,8 +344,8 @@ class Vac_Campaign {
                 Eligibility_Group* std_eg = nullptr;
                 Eligibility_Group* urg_eg = nullptr;
 
-                std_eg = _if_valid_eligibility_group_today(std_eligibility_queue, dose, today);
-                urg_eg = _if_valid_eligibility_group_today(urg_eligibility_queue, dose, today);
+                std_eg = _if_valid_eligibility_group_today(eligibility_queue[STANDARD_QUEUE], dose, today);
+                urg_eg = _if_valid_eligibility_group_today(eligibility_queue[URGENT_QUEUE], dose, today);
 
                 for (int bin : unique_age_bins) {
                     if (std_eg) { _insert_eligible_people(std_eg, potential_vaccinees[STANDARD_QUEUE], dose, bin); }
@@ -361,8 +353,8 @@ class Vac_Campaign {
                 }
 
                 // as we sim, Eligibility_Groups will be deleted (some will be left to be cleaned by the dtor)
-                if (std_eg) { std_eligibility_queue[dose].pop(); delete std_eg; }
-                if (urg_eg) { urg_eligibility_queue[dose].pop(); delete urg_eg; }
+                if (std_eg) { eligibility_queue[STANDARD_QUEUE][dose].pop(); delete std_eg; }
+                if (urg_eg) { eligibility_queue[URGENT_QUEUE][dose].pop(); delete urg_eg; }
 
                 if (std_eg or urg_eg) { group_added = true; }
             }
@@ -483,10 +475,10 @@ class Vac_Campaign {
         }
 
         void schedule_revaccinations(vector<Eligibility_Group*> urg_revaccinations, vector<Eligibility_Group*> std_revaccinations) {
-            _add_new_eligibility_groups(urg_eligibility_queue, urg_revaccinations);
-            _add_new_eligibility_groups(std_eligibility_queue, std_revaccinations);
+            _add_new_eligibility_groups(eligibility_queue[URGENT_QUEUE], urg_revaccinations);
+            _add_new_eligibility_groups(eligibility_queue[STANDARD_QUEUE], std_revaccinations);
         }
-        void schedule_urgent_doses(vector<Eligibility_Group*> urgents)          { _add_new_eligibility_groups(urg_eligibility_queue, urgents); }
+        void schedule_urgent_doses(vector<Eligibility_Group*> urgents)          { _add_new_eligibility_groups(eligibility_queue[URGENT_QUEUE], urgents); }
 
         void ring_scheduling(int day, vector<set<Person*, PerPtrComp>> tracedContacts);
         void geographic_scheduling(int day, vector<set<Person*, PerPtrComp>> targetedPeople, Community* community);
@@ -533,10 +525,9 @@ class Vac_Campaign {
 
         vector<Vaccinee_Pool> potential_vaccinees;      // pool of potential people to be vaccinated indexed by [VaccinationQueueType][next dose to give][age bin]
 
-        // outer vector indexed by next dose dose to be given
+        // outer vector indexed by [VaccinationQueueType][next dose dose to be given]
         // each queue holds the list of eligibility groups ordered by date of next dose
-        Eligibility_Q std_eligibility_queue;
-        Eligibility_Q urg_eligibility_queue;
+        vector<Eligibility_Q> eligibility_queue;
 
         std::vector<int> age_bin_lookup;
         std::vector<int> unique_age_bins;

@@ -303,11 +303,10 @@ void Vac_Campaign::reactive_strategy(int day, vector<set<Person*, PerPtrComp>> t
 }
 
 void Vac_Campaign::init_eligibility_queue(const Community* community) {
-    std_eligibility_queue.clear();
-    std_eligibility_queue.resize(_par->numVaccineDoses);
-
-    urg_eligibility_queue.clear();
-    urg_eligibility_queue.resize(_par->numVaccineDoses);
+    for (Eligibility_Q eq : eligibility_queue) {
+        eq.clear();
+        eq.resize(_par->numVaccineDoses);
+    }
 
     Eligibility_Group* first_eg = new Eligibility_Group();
     first_eg->eligibility_day = 0;
@@ -316,7 +315,7 @@ void Vac_Campaign::init_eligibility_queue(const Community* community) {
     for (Person* p : community->getPeople()) {
         first_eg->eligible_people[age_bin_lookup[p->getAge()]].push_back(p);
     }
-    std_eligibility_queue[0].push(first_eg);
+    eligibility_queue[STANDARD_QUEUE][0].push(first_eg);
 }
 
 // generates and saves comprehensive, mutually exclusive age bins for the entire population
@@ -489,11 +488,11 @@ void Vac_Campaign::copy_doses_available(Vac_Campaign* ovc) {
 
 Vac_Campaign* Vac_Campaign::quick_cache() {
     Vac_Campaign* vc       = new Vac_Campaign(*this);
-    Eligibility_Q other_sq = this->get_std_eligibility_queue();
-    Eligibility_Q other_uq = this->get_urg_eligibility_queue();
+    Eligibility_Q other_sq = this->get_eligibility_queue(STANDARD_QUEUE);
+    Eligibility_Q other_uq = this->get_eligibility_queue(URGENT_QUEUE);
 
-    Eligibility_Q sq = vc->get_std_eligibility_queue();
-    Eligibility_Q uq = vc->get_urg_eligibility_queue();
+    Eligibility_Q sq = vc->get_eligibility_queue(STANDARD_QUEUE);
+    Eligibility_Q uq = vc->get_eligibility_queue(URGENT_QUEUE);
     sq.clear(); sq.resize(_par->numVaccineDoses);
     uq.clear(); uq.resize(_par->numVaccineDoses);
 
@@ -526,8 +525,8 @@ Vac_Campaign* Vac_Campaign::quick_cache() {
     }
 
     vc->copy_doses_available(this);
-    vc->set_std_eligibility_queue(sq);
-    vc->set_urg_eligibility_queue(uq);
+    vc->set_eligibility_queue(STANDARD_QUEUE, sq);
+    vc->set_eligibility_queue(URGENT_QUEUE, uq);
 
     return vc;
 }

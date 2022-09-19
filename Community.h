@@ -260,11 +260,11 @@ class Community {
                 Vaccinee_Pool psv = vac_campaign->get_potential_vaccinees(STANDARD_QUEUE);
                 Vaccinee_Pool puv = vac_campaign->get_potential_vaccinees(URGENT_QUEUE);
 
-                Eligibility_Q other_sq = o.vac_campaign->get_std_eligibility_queue();
-                Eligibility_Q other_uq = o.vac_campaign->get_urg_eligibility_queue();
+                Eligibility_Q other_sq = o.vac_campaign->get_eligibility_queue(STANDARD_QUEUE);
+                Eligibility_Q other_uq = o.vac_campaign->get_eligibility_queue(URGENT_QUEUE);
 
-                Eligibility_Q sq = vac_campaign->get_std_eligibility_queue();
-                Eligibility_Q uq = vac_campaign->get_urg_eligibility_queue();
+                Eligibility_Q sq = vac_campaign->get_eligibility_queue(STANDARD_QUEUE);
+                Eligibility_Q uq = vac_campaign->get_eligibility_queue(URGENT_QUEUE);
                 sq.clear(); sq.resize(_par->numVaccineDoses);
                 uq.clear(); uq.resize(_par->numVaccineDoses);
 
@@ -306,8 +306,8 @@ class Community {
 
                 vac_campaign->set_potential_vaccinees(STANDARD_QUEUE, psv);
                 vac_campaign->set_potential_vaccinees(URGENT_QUEUE, puv);
-                vac_campaign->set_std_eligibility_queue(sq);
-                vac_campaign->set_urg_eligibility_queue(uq);
+                vac_campaign->set_eligibility_queue(STANDARD_QUEUE, sq);
+                vac_campaign->set_eligibility_queue(URGENT_QUEUE, uq);
             }
         }
 
