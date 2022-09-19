@@ -223,20 +223,32 @@ class Vac_Campaign {
         int get_end_of_campaign(int campaignType) { return end_of_campaign[campaignType]; }
         void set_end_of_campaign(int campaignType, int day) { end_of_campaign[campaignType] = day; }
 
-        void set_prioritize_first_doses(bool val)    { prioritize_first_doses = val; }
-        void set_flexible_queue_allocation(bool val) { flexible_queue_allocation = val; }
-        void set_unlim_urgent_doses(bool val)        { unlim_urgent_doses = val; }
-        void set_pool_urg_doses(bool val)            { pool_urg_doses = val; }
-        void set_pool_std_doses(bool val)            { pool_std_doses = val; }
-        void set_pool_all_doses(bool val)            { pool_all_doses = val; }
+        bool get_prioritize_first_doses() const   { return prioritize_first_doses; }
+        void set_prioritize_first_doses(bool val) { prioritize_first_doses = val; }
 
+        bool get_flexible_queue_allocation() const   { return flexible_queue_allocation; }
+        void set_flexible_queue_allocation(bool val) { flexible_queue_allocation = val; }
+
+        bool get_unlim_urgent_doses() const   { return unlim_urgent_doses; }
+        void set_unlim_urgent_doses(bool val) { unlim_urgent_doses = val; }
+
+        bool get_pool_urg_doses() const   { return pool_urg_doses; }
+        void set_pool_urg_doses(bool val) { pool_urg_doses = val; }
+
+        bool get_pool_std_doses() const   { return pool_std_doses; }
+        void set_pool_std_doses(bool val) { pool_std_doses = val; }
+
+        bool get_pool_all_doses() const   { return pool_all_doses; }
+        void set_pool_all_doses(bool val) { pool_all_doses = val; }
+
+        GroupedRiskDef get_grouped_risk_def() const   { return grouped_risk_def; }
         void set_grouped_risk_def(GroupedRiskDef val) { grouped_risk_def = val; }
 
-        void set_reactive_vac_strategy(VacCampaignType vct) { reactive_vac_strategy = vct; }
         VacCampaignType get_reactive_vac_strategy() { return reactive_vac_strategy; }
+        void set_reactive_vac_strategy(VacCampaignType vct) { reactive_vac_strategy = vct; }
 
-        void set_reactive_vac_dose_allocation(double val) { reactive_vac_dose_allocation = val; }
         double get_reactive_vac_dose_allocation() { return reactive_vac_dose_allocation; }
+        void set_reactive_vac_dose_allocation(double val) { reactive_vac_dose_allocation = val; }
 
         Eligibility_Q get_urg_eligibility_queue() const { return urg_eligibility_queue; }
         void set_urg_eligibility_queue(Eligibility_Q uq) { urg_eligibility_queue = uq; }
