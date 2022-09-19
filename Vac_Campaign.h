@@ -145,8 +145,7 @@ class Vac_Campaign {
 
             doses_used = vector<Dose_Vals>(NUM_OF_VACCINE_ALLOCATION_TYPES, Dose_Vals(par->runLength, vector< map<int, int> >(par->numVaccineDoses)));
 
-            potential_std_vaccinees = Vaccinee_Pool(par->numVaccineDoses);
-            potential_urg_vaccinees = Vaccinee_Pool(par->numVaccineDoses);
+            potential_vaccinees = vector<Vaccinee_Pool>(NUM_OF_VACCINATION_QUEUE_TYPES, Vaccinee_Pool(par->numVaccineDoses));
 
             std_eligibility_queue.clear();
             std_eligibility_queue.resize(_par->numVaccineDoses);
@@ -162,8 +161,7 @@ class Vac_Campaign {
 
             doses_used = o.doses_used;
 
-            potential_std_vaccinees = o.potential_std_vaccinees;
-            potential_urg_vaccinees = o.potential_urg_vaccinees;
+            potential_vaccinees = o.potential_vaccinees;
 
             std_eligibility_queue = o.std_eligibility_queue;
             urg_eligibility_queue = o.urg_eligibility_queue;
@@ -321,16 +319,14 @@ class Vac_Campaign {
 
         bool is_age_eligible_on(int age, int day) { return age >= min_age.at(day); }
 
-        Vaccinee_Pool get_potential_std_vaccinees() const { return potential_std_vaccinees; }
-        std::vector<Person*> get_potential_std_vaccinees(int dose, int age_bin) { return potential_std_vaccinees[dose][age_bin]; }
+        Vaccinee_Pool get_potential_vaccinees(VaccinationQueueType vqt) const { return potential_vaccinees[vqt]; }
+        std::vector<Person*> get_potential_vaccinees(VaccinationQueueType vqt, int dose, int age_bin) const { return potential_vaccinees[vqt][dose].at(age_bin); }
 
-        void set_potential_std_vaccinees(Vaccinee_Pool pv) { potential_std_vaccinees = pv; }
-        void set_potential_std_vaccinees(int dose, int age_bin, std::vector<Person*> pv) { potential_std_vaccinees[dose][age_bin] = pv; }
+        void set_potential_vaccinees(VaccinationQueueType vqt, Vaccinee_Pool pv) { potential_vaccinees[vqt] = pv; }
+        void set_potential_vaccinees(VaccinationQueueType vqt, int dose, int age_bin, std::vector<Person*> pv ) { potential_vaccinees[vqt][dose][age_bin] = pv; }
 
-        Vaccinee_Pool get_potential_urg_vaccinees() const { return potential_urg_vaccinees; }
-        void set_potential_urg_vaccinees(Vaccinee_Pool uv) { potential_urg_vaccinees = uv; }
+        void add_potential_vaccinee(VaccinationQueueType vqt, int dose, int age_bin, Person* p) { potential_vaccinees[vqt][dose][age_bin].push_back(p); }
 
-        void add_potential_std_vaccinee(int dose, int age_bin, Person* p) { potential_std_vaccinees[dose][age_bin].push_back(p); }
         int get_pool_size(Vaccinee_Pool vp) {
             int tot = 0;
             for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
@@ -360,8 +356,8 @@ class Vac_Campaign {
                 urg_eg = _if_valid_eligibility_group_today(urg_eligibility_queue, dose, today);
 
                 for (int bin : unique_age_bins) {
-                    if (std_eg) { _insert_eligible_people(std_eg, potential_std_vaccinees, dose, bin); }
-                    if (urg_eg) { _insert_eligible_people(urg_eg, potential_urg_vaccinees, dose, bin); }
+                    if (std_eg) { _insert_eligible_people(std_eg, potential_vaccinees[STANDARD_QUEUE], dose, bin); }
+                    if (urg_eg) { _insert_eligible_people(urg_eg, potential_vaccinees[URGENT_QUEUE], dose, bin); }
                 }
 
                 // as we sim, Eligibility_Groups will be deleted (some will be left to be cleaned by the dtor)
@@ -397,8 +393,8 @@ class Vac_Campaign {
             const int urg_doses = *doses_available[URGENT_ALLOCATION][day][dose][age_bin];
             const int std_doses = *doses_available[STANDARD_ALLOCATION][day][dose][age_bin];
 
-            std::vector<Person*>& urg_pool = potential_urg_vaccinees[dose][age_bin];
-            std::vector<Person*>& std_pool = potential_std_vaccinees[dose][age_bin];
+            std::vector<Person*>& urg_pool = potential_vaccinees[URGENT_QUEUE][dose][age_bin];
+            std::vector<Person*>& std_pool = potential_vaccinees[STANDARD_QUEUE][dose][age_bin];
 
             // only continue if there are any doses available for this day, dose, bin combination
             if (std_doses + urg_doses) {
@@ -426,13 +422,10 @@ class Vac_Campaign {
 
         void remove_from_pool(int dose, int bin, Vaccinee* v) {
             Person* p = v->get_person();
-            if (v->get_status() == STANDARD_QUEUE) {
-                assert((not potential_std_vaccinees[dose][bin].empty()) and (p == potential_std_vaccinees[dose][bin].back()));
-                potential_std_vaccinees[dose][bin].pop_back();
-            } else if (v->get_status() == URGENT_QUEUE) {
-                assert((not potential_urg_vaccinees[dose][bin].empty()) and (p == potential_urg_vaccinees[dose][bin].back()));
-                potential_urg_vaccinees[dose][bin].pop_back();
-            }
+            VaccinationQueueType status = v->get_status();
+
+            assert((not potential_vaccinees[status][dose][bin].empty()) and (p == potential_vaccinees[status][dose][bin].back()));
+            potential_vaccinees[status][dose][bin].pop_back();
         }
 
         bool vaccinate(Vaccinee* v, int day) { return is_age_eligible_on(v->get_person()->getAge(), day) and v->vaccinate(day); }
@@ -534,13 +527,11 @@ class Vac_Campaign {
         }
 
     private:
-        std::vector<int> _doses;                                  // doses that other data structures will point to (depending on the pooling set by the user)
-        vector<Dose_Ptrs> doses_available;                           // daily dose availability indexed by [VaccineAllocationType][day][dose][age bin]
+        std::vector<int> _doses;                        // doses that other data structures will point to (depending on the pooling set by the user)
+        vector<Dose_Ptrs> doses_available;              // daily dose availability indexed by [VaccineAllocationType][day][dose][age bin]
+        vector<Dose_Vals> doses_used;                   // daily doses used indexed by [allocation][day][dose][age bin]
 
-        vector<Dose_Vals> doses_used;                            // daily doses used indexed by [allocation][day][dose][age bin]
-
-        Vaccinee_Pool potential_std_vaccinees;                   // pool of potential people to be vaccinated indexed by [next dose to give][age bin]
-        Vaccinee_Pool potential_urg_vaccinees;                   // pool of potential people to be urgently vaccinated indexed by [next dose to give][age bin]
+        vector<Vaccinee_Pool> potential_vaccinees;      // pool of potential people to be vaccinated indexed by [VaccinationQueueType][next dose to give][age bin]
 
         // outer vector indexed by next dose dose to be given
         // each queue holds the list of eligibility groups ordered by date of next dose
@@ -611,10 +602,10 @@ class Vac_Campaign {
         // specialty method for group risk strategy
         // adds the next group from the deque if the stopping criteria was met
         void _add_ppl_from_risk_groups(int today) {
-            if (_ready_to_add_next_group(potential_urg_vaccinees, URGENT_ALLOCATION, today) and _grouped_risk_deque.size()) {
+            if (_ready_to_add_next_group(potential_vaccinees[URGENT_QUEUE], URGENT_ALLOCATION, today) and _grouped_risk_deque.size()) {
                 for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
                     for (int bin : unique_age_bins) {
-                        _insert_eligible_people(_grouped_risk_deque.front().second[dose], potential_urg_vaccinees, dose, bin);
+                        _insert_eligible_people(_grouped_risk_deque.front().second[dose], potential_vaccinees[URGENT_QUEUE], dose, bin);
                     }
                     delete _grouped_risk_deque.front().second[dose];
                 }

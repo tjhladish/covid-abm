@@ -259,7 +259,7 @@ void Vac_Campaign::grouped_risk_scheduling(int day, Community* community) {
         // add first group to pool
         for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
             for (int bin : unique_age_bins) {
-                _insert_eligible_people(_grouped_risk_deque.front().second[dose], potential_urg_vaccinees, dose, bin);
+                _insert_eligible_people(_grouped_risk_deque.front().second[dose], potential_vaccinees[URGENT_QUEUE], dose, bin);
             }
             delete _grouped_risk_deque.front().second[dose];
         }

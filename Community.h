@@ -257,8 +257,8 @@ class Community {
             }
 
             if (vac_campaign) {
-                Vaccinee_Pool psv = vac_campaign->get_potential_std_vaccinees();
-                Vaccinee_Pool puv = vac_campaign->get_potential_urg_vaccinees();
+                Vaccinee_Pool psv = vac_campaign->get_potential_vaccinees(STANDARD_QUEUE);
+                Vaccinee_Pool puv = vac_campaign->get_potential_vaccinees(URGENT_QUEUE);
 
                 Eligibility_Q other_sq = o.vac_campaign->get_std_eligibility_queue();
                 Eligibility_Q other_uq = o.vac_campaign->get_urg_eligibility_queue();
@@ -304,8 +304,8 @@ class Community {
                 // TODO: copy doses available and pointers to them
                 vac_campaign->copy_doses_available(o.vac_campaign);
 
-                vac_campaign->set_potential_std_vaccinees(psv);
-                vac_campaign->set_potential_urg_vaccinees(puv);
+                vac_campaign->set_potential_vaccinees(STANDARD_QUEUE, psv);
+                vac_campaign->set_potential_vaccinees(URGENT_QUEUE, puv);
                 vac_campaign->set_std_eligibility_queue(sq);
                 vac_campaign->set_urg_eligibility_queue(uq);
             }
