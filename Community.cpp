@@ -580,18 +580,22 @@ void Community::vaccinate() {
     vector<Eligibility_Group*> urg_revaccinations = vac_campaign->init_new_eligible_groups(_day);
     vector<Eligibility_Group*> std_revaccinations = vac_campaign->init_new_eligible_groups(_day);
 
+    // if doses are pooled, multinomially distribute them across dose/bin groups based on the groups' populations
+    // if there is no pooling, the structure will hold 0s for each std/urg dose/bin group
+    vector< map<int, map<int, int> > > daily_sampled_doses_available = vac_campaign->multinomially_distribute_pooled_doses(_day);
+
     // for each age bin, dose combination, select new vaccinees until there are no more doses available
-    vector<int> rev_age_bins = vac_campaign->get_unique_age_bins();
-    sort(rev_age_bins.begin(), rev_age_bins.end(), std::greater<int>()); // ensures oldest to youngest
     for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
-        for (int bin : rev_age_bins) {
-            Vaccinee* v = vac_campaign->next_vaccinee(_day, dose, bin);
+        for (int bin : vac_campaign->get_unique_age_bins()) {
+            Vaccinee* v = vac_campaign->next_vaccinee(_day, dose, bin, daily_sampled_doses_available);
+            // if there is pooling, vax a maximum of the num of sampled doses for this dose/bin group
+            // if there is no pooling, keep vaxing unitl there is no vaccinee to draw
+            // continue if v is valid and if pooling there are doses available
             while (v) {
                 const Person* p = v->get_person();
-                // if (((v->get_person()->getNumVaccinations() < _par->numVaccineDoses) and v->get_person()->isSeroEligible()) // not completely vaccinated & eligible
                 if (((p->getNumVaccinations() == dose) and p->isSeroEligible() and p->isInfEligible(_day)) // not completely vaccinated & eligible
-                  and vac_campaign->vaccinate(v, _day)) {                       // and person isn't dead, so got vaccinated
-                    vac_campaign->tally_dose(_day, dose, bin, v);                  // tally dose used
+                  and vac_campaign->vaccinate(v, _day)) {                                           // and person isn't dead, so got vaccinated
+                    vac_campaign->tally_dose(_day, dose, bin, v, daily_sampled_doses_available);    // tally dose used
 
                     // add people who are not fully vaccinated to proper eligible group for revaccination
                     if ((dose + 1) < _par->numVaccineDoses) {
@@ -602,7 +606,7 @@ void Community::vaccinate() {
                 // either was vaccinated, or was not eliglbe to be vaccinated (fully vaxd, not sero eligible, not alive)
                 vac_campaign->remove_from_pool(dose, bin, v);
                 delete v;
-                v = vac_campaign->next_vaccinee(_day, dose, bin);
+                v = vac_campaign->next_vaccinee(_day, dose, bin, daily_sampled_doses_available);
             }
 
             // roll over unused doses to tomorrow

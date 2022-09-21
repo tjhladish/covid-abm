@@ -220,8 +220,8 @@ void Vac_Campaign::grouped_risk_scheduling(int day, Community* community) {
             }
             iss.close();
         } else if (grouped_risk_def == BY_QUANTILE) {
-            const size_t nbin = 10; // TODO - probably move this out so it can be adjusted by user somehow
-            generate_risk_quantiles(community, grouped_ppl, grouped_risk, nbin);
+            //const size_t nbin = 10; // TODO - probably move this out so it can be adjusted by user somehow
+            generate_risk_quantiles(community, grouped_ppl, grouped_risk, risk_quantile_nbins);
         }
 
         // special comparator to sort the groups by per capita risk

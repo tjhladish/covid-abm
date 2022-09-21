@@ -7,6 +7,8 @@
 #include <map>
 #include <queue>
 #include <set>
+#include "Utility.h"
+#include <gsl/gsl_randist.h>
 
 class Person;
 
@@ -73,6 +75,9 @@ inline std::ostream& operator<<(std::ostream& out, const VacCampaignType value){
 
 class Vac_Campaign;
 class Community;
+
+using covid::util::weighted_choice;
+using covid::util::uniform_choice;
 
 // will hold people scheduled to become eleigible for a certain vaccine dose
 class Eligibility_Group {
@@ -216,6 +221,8 @@ class Vac_Campaign {
         int get_end_of_campaign(int campaignType) { return end_of_campaign[campaignType]; }
         void set_end_of_campaign(int campaignType, int day) { end_of_campaign[campaignType] = day; }
 
+        bool is_campaign_active(int campaignType, const int day) const { return (day >= start_of_campaign[campaignType]) and (day <= end_of_campaign[campaignType]); }
+
         bool get_prioritize_first_doses() const   { return prioritize_first_doses; }
         void set_prioritize_first_doses(bool val) { prioritize_first_doses = val; }
 
@@ -245,6 +252,9 @@ class Vac_Campaign {
 
         Eligibility_Q get_eligibility_queue(VaccinationQueueType vqt) const { return eligibility_queue[vqt]; }
         void set_eligibility_queue(VaccinationQueueType vqt, Eligibility_Q uq) { eligibility_queue[vqt] = uq; }
+
+        int get_risk_quantile_nbins() const { return risk_quantile_nbins; }
+        void set_risk_quantile_nbins(int n) { risk_quantile_nbins = n; }
 
         void init_doses_available(Dose_Vals urg_in, Dose_Vals std_in);
 
@@ -323,10 +333,8 @@ class Vac_Campaign {
                     if (pool_urg_doses) {
                         tot_doses += *doses_available[URGENT_ALLOCATION][day][dose][unique_age_bins.front()];
                     } else {
-                        for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
-                            for (int bin : unique_age_bins) {
-                                tot_doses += *doses_available[URGENT_ALLOCATION][day][dose][bin];
-                            }
+                        for (int bin : unique_age_bins) {
+                            tot_doses += *doses_available[URGENT_ALLOCATION][day][dose][bin];
                         }
                     }
                     break;
@@ -335,10 +343,8 @@ class Vac_Campaign {
                     if (pool_std_doses) {
                         tot_doses += *doses_available[STANDARD_ALLOCATION][day][dose][unique_age_bins.front()];
                     } else {
-                        for (int dose = 0; dose < _par->numVaccineDoses; ++dose) {
-                            for (int bin : unique_age_bins) {
-                                tot_doses += *doses_available[STANDARD_ALLOCATION][day][dose][bin];
-                            }
+                        for (int bin : unique_age_bins) {
+                            tot_doses += *doses_available[STANDARD_ALLOCATION][day][dose][bin];
                         }
                     }
                     break;
@@ -347,6 +353,64 @@ class Vac_Campaign {
             }
 
             return tot_doses;
+        }
+
+        vector< map<int, map<int, int> > > multinomially_distribute_pooled_doses(int day) {
+            // if doses are pooled, multinomially sample doses available doses based on the pops of the dose/bin combinations saved in 2D map
+            // set up weights for multinomial dose sampling
+            const int D = _par->numVaccineDoses;
+            const int A = unique_age_bins.size();
+            vector< vector<double> > pool_weights(NUM_OF_VACCINATION_QUEUE_TYPES, vector<double>((double)D * A));
+
+            if (get_pool_std_doses()) {
+                for (int dose = 0; dose < D; ++dose) {
+                    for (int bin = 0; bin < A; ++bin) {
+                        Vaccinee_Pool std_pool = get_potential_vaccinees(STANDARD_QUEUE);
+                        pool_weights[STANDARD_QUEUE][bin + (dose * A)] = std_pool[dose].count(unique_age_bins[bin]) ? std_pool[dose][unique_age_bins[bin]].size() : 0;
+                    }
+                }
+            }
+
+            if (get_pool_urg_doses()) {
+                for (int dose = 0; dose < D; ++dose) {
+                    for (int bin = 0; bin < A; ++bin) {
+                        Vaccinee_Pool urg_pool = get_potential_vaccinees(URGENT_QUEUE);
+                        pool_weights[URGENT_QUEUE][bin + (dose * A)] = urg_pool[dose].count(unique_age_bins[bin]) ? urg_pool[dose][unique_age_bins[bin]].size() : 0;
+                    }
+                }
+            }
+
+            // set up return structure and sample is necessary
+            vector< vector<unsigned int> > sampled_doses(NUM_OF_VACCINE_ALLOCATION_TYPES, vector<unsigned int>(D * A));
+            vector< map<int, map<int, int> > > daily_sampled_doses_available(NUM_OF_VACCINE_ALLOCATION_TYPES);
+            for (int dose = 0; dose < D; ++dose) {
+                for (int bin = 0; bin < A; ++bin) {
+                    daily_sampled_doses_available[STANDARD_ALLOCATION][dose][unique_age_bins[bin]] = 0;
+                    daily_sampled_doses_available[URGENT_ALLOCATION][dose][unique_age_bins[bin]]   = 0;
+                }
+            }
+
+            if (get_pool_std_doses()) {
+                const int N = get_all_doses_available(STANDARD_ALLOCATION, day);
+                gsl_ran_multinomial(_VAX_RNG, D * A, N, pool_weights[STANDARD_QUEUE].data(), sampled_doses[STANDARD_ALLOCATION].data());
+                for (int dose = 0; dose < D; ++dose) {
+                    for (int bin = 0; bin < A; ++bin) {
+                        daily_sampled_doses_available[STANDARD_ALLOCATION][dose][unique_age_bins[bin]] = sampled_doses[STANDARD_ALLOCATION][bin + (dose * A)];
+                    }
+                }
+            }
+
+            if (get_pool_urg_doses()) {
+                const int N = get_all_doses_available(URGENT_ALLOCATION, day);
+                gsl_ran_multinomial(_VAX_RNG, D * A, N, pool_weights[URGENT_QUEUE].data(), sampled_doses[URGENT_ALLOCATION].data());
+                for (int dose = 0; dose < D; ++dose) {
+                    for (int bin = 0; bin < A; ++bin) {
+                        daily_sampled_doses_available[URGENT_ALLOCATION][dose][unique_age_bins[bin]] = sampled_doses[URGENT_ALLOCATION][bin + (dose * A)];
+                    }
+                }
+            }
+
+            return daily_sampled_doses_available;
         }
 
         void set_doses_available(Dose_Ptrs da, VaccineAllocationType vat) { doses_available[vat] = da; }
@@ -440,31 +504,31 @@ class Vac_Campaign {
         }
 
         // main function that controls who will be vaccinated next
-        // implicit urgent > standard heirarchy
-        Vaccinee* next_vaccinee(size_t day, int dose, int age_bin) {
+        // implicit standard > urgent heirarchy
+        Vaccinee* next_vaccinee(size_t day, int dose, int age_bin, const vector< map<int, map<int, int> > >& daily_sampled_doses_available) {
             Person* person = nullptr;
             VaccineAllocationType source_of_dose = NUM_OF_VACCINE_ALLOCATION_TYPES;
             VaccinationQueueType  vaccinee_queue = NUM_OF_VACCINATION_QUEUE_TYPES;
 
             // TODO: handle first dose prioritization and flexible dose allocation
 
-            const int urg_doses = *doses_available[URGENT_ALLOCATION][day][dose][age_bin];
-            const int std_doses = *doses_available[STANDARD_ALLOCATION][day][dose][age_bin];
+            const int std_doses = pool_std_doses ? daily_sampled_doses_available[STANDARD_ALLOCATION].at(dose).at(age_bin) : *doses_available[STANDARD_ALLOCATION][day][dose][age_bin];
+            const int urg_doses = pool_urg_doses ? daily_sampled_doses_available[URGENT_ALLOCATION].at(dose).at(age_bin) : *doses_available[URGENT_ALLOCATION][day][dose][age_bin];
 
-            std::vector<Person*>& urg_pool = potential_vaccinees[URGENT_QUEUE][dose][age_bin];
             std::vector<Person*>& std_pool = potential_vaccinees[STANDARD_QUEUE][dose][age_bin];
+            std::vector<Person*>& urg_pool = potential_vaccinees[URGENT_QUEUE][dose][age_bin];
 
             // only continue if there are any doses available for this day, dose, bin combination
-            if (std_doses + urg_doses) {
+            if (std_doses or urg_doses) {
                 std::vector<Person*>* pool = nullptr;
-                if (urg_doses and urg_pool.size()) {
-                    pool = &urg_pool;
-                    source_of_dose = URGENT_ALLOCATION;
-                    vaccinee_queue = URGENT_QUEUE;
-                } else if (std_doses and std_pool.size()) {
+                if (std_doses and std_pool.size()) {
                     pool = &std_pool;
                     source_of_dose = STANDARD_ALLOCATION;
                     vaccinee_queue = STANDARD_QUEUE;
+                } else if (urg_doses and urg_pool.size()) {
+                    pool = &urg_pool;
+                    source_of_dose = URGENT_ALLOCATION;
+                    vaccinee_queue = URGENT_QUEUE;
                 }
 
                 if (pool) {
@@ -488,10 +552,13 @@ class Vac_Campaign {
 
         bool vaccinate(Vaccinee* v, int day) { return is_age_eligible_on(v->get_person()->getAge(), day) and v->vaccinate(day); }
 
-        void tally_dose(int day, int dose, int age_bin, Vaccinee* v) {
+        void tally_dose(int day, int dose, int age_bin, Vaccinee* v, vector< map<int, map<int, int> > >& daily_sampled_doses_available) {
             VaccineAllocationType vat = v->get_dose_source();
             --(*doses_available[vat][day][dose][age_bin]);
             ++doses_used[vat][day][dose][age_bin];
+
+            if (get_pool_std_doses() and (vat == STANDARD_ALLOCATION)) { --daily_sampled_doses_available[STANDARD_ALLOCATION][dose][age_bin]; }
+            if (get_pool_urg_doses() and (vat == URGENT_ALLOCATION))   { --daily_sampled_doses_available[URGENT_ALLOCATION][dose][age_bin]; }
         }
 
         vector<Dose_Vals> get_doses_used() { return doses_used; }
@@ -672,6 +739,8 @@ class Vac_Campaign {
         }
 
         void generate_risk_quantiles(Community* community, map<int, vector<Person*>>& grouped_ppl, map<int, double>& grouped_risk, size_t nbin);
+
+        int risk_quantile_nbins;
 };
 
 
