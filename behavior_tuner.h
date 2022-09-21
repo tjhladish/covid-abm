@@ -608,7 +608,7 @@ void init_behavioral_vals_from_file(const Parameters* par, Community* community)
 void write_anchors_to_file(const Parameters* par, vector<TimeSeriesAnchorPoint> anchors) {
     ofstream ofs(par->behaviorOutputFilename);
     ofs << "date,anchor_val" << endl;
-    for (const TimeSeriesAnchorPoint tsap : anchors) {
+    for (const TimeSeriesAnchorPoint &tsap : anchors) {
         ofs << tsap.date << "," << setprecision(20) << tsap.value << setprecision(6) << endl;
     }
     ofs.close();

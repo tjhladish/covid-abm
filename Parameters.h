@@ -483,8 +483,8 @@ public:
     double IEI;                                             // prior infection efficacy to reduce infectiousness
 
     template<typename T>
-    inline T stretchy_vector (const vector<T> &data, size_t idx) const {
-        idx = idx < 0 ? 0 : min(idx, data.size() - 1);      // shift idx to be within valid range if outside
+    inline T stretchy_vector (const vector<T> &data, int idx) const {
+        idx = idx < 0 ? 0 : min(idx, (int) data.size() - 1);      // shift idx to be within valid range if outside
         return data.at(idx);                                // using at() to force bounds checking, in case data vector is empty
     }
 
