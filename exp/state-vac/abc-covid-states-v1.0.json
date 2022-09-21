@@ -4,7 +4,7 @@
     "predictive_prior_fraction" : 1.0,
     "pls_training_fraction"     : 1.0,
 
-    "database_filename"         : "/home/tjhladish/work/covid-abm/exp/state-vac/covid-state-v1.0.sqlite",
+    "database_filename"         : "/blue/longini/tjhladish/covid-abm/exp/state-vac/covid-state-v1.0.sqlite",
 
     "parameters" : [
         {"name"       : "realization",

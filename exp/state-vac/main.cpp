@@ -675,6 +675,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 //    }
 
 // comment out this block if simvis.R is not needed
+
 {
     vector<pair<size_t, double>> Rt = community->getMeanNumSecondaryInfections();
     vector<double> Rt_ma = calc_Rt_moving_average(Rt, 7);
@@ -686,17 +687,18 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     }
     bool overwrite = true;
     // this output filename needs to be adjusted for each experiment, so as to not overwrite files
-    string filename = "plot_log" + to_string(serial) + ".csv";
+    //string filename = "plot_log" + to_string(serial) + ".csv";
     //string filename = "/blue/longini/tjhladish/covid-abm/exp/active-vac/plot_log" + to_string(serial) + ".csv";
-    //string filename = "/blue/longini/tjhladish/covid-abm/exp/active-vac/v4.0/plot_log" + to_string(serial) + ".csv";
+    string filename = "/blue/longini/tjhladish/covid-abm/exp/state-vac/v1.0/plot_log" + to_string(serial) + ".csv";
     write_daily_buffer(plot_log_buffer, process_id, filename, overwrite);
 
-    stringstream ss;
-    ss << "Rscript expanded_simvis.R " << serial;
-    string cmd_str = ss.str();
-    int retval = system(cmd_str.c_str());
-    if (retval == -1) { cerr << "System call to `Rscript expanded_simvis.R` failed\n"; }
+    //stringstream ss;
+    //ss << "Rscript expanded_simvis.R " << serial;
+    //string cmd_str = ss.str();
+    //int retval = system(cmd_str.c_str());
+    //if (retval == -1) { cerr << "System call to `Rscript expanded_simvis.R` failed\n"; }
 }
+
     time (&end);
     double dif = difftime (end,start);
 
