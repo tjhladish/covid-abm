@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 
-.pkgs <- c("data.table", "ggplot2", "ggrepel", "patchwork", "scales")
+.pkgs <- c("data.table", "ggplot2", "ggrepel", "patchwork", "scales", "cabputils")
 
 stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 
@@ -8,13 +8,15 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 #' though makefile will be invoked from w/in fig dir
 .args = if (interactive()) c(
   file.path("fig", "vis_support.rda"),
-  "fig/input/validation.rds",
-  "fig/input/outcomes.rds",
-  "fig/input/vaccines.rds",
-  "fig/input/hospitals.rds",
-  "fig/input/seroprev.rds",
-  "fig/input/FLvaccines.rds",
-  "fig/input/detection.rds",
+  file.path("fig", "process", c(
+    "validation.rds",
+    "outcomes.rds",
+    "vaccines.rds",
+    "hospitals.rds",
+    "seroprev.rds",
+    "FLvaccines.rds",
+    "detection.rds"
+  )),
   file.path("fig", "validation_review.png")
 ) else commandArgs(trailingOnly=TRUE)
 
@@ -26,49 +28,59 @@ hhsHosp = readRDS(.args[5])
 seroprev = readRDS(.args[6])
 vax = readRDS(.args[7])
 
+# conserved <- list(
+#   scale_x_null(),
+#   scale_color_measure(),
+#   scale_shape_measure(),
+#   scale_alpha_measure(guide = guide_legend(
+#     breaks = c("observed", "sample", "central"),
+#     labels = measlbls[c("observed", "sample", "central")],
+#     values = c(observed = 0.6, sample = 0.05, quantile = 0.5, central = 1)[c("observed", "sample", "central")],
+#     override.aes = list(
+#       linetype = c("blank", "solid", "solid"),
+#       size = c(10, 1, 3)
+#     )
+#   )),
+#   theme_minimal(),
+#   theme(text = element_text(face = "bold"))
+# )
+
 conserved <- list(
   scale_x_null(),
   scale_color_measure(),
   scale_shape_measure(),
-  scale_alpha_measure(guide = guide_legend(
-    breaks = c("observed", "sample", "central"),
-    labels = measlbls[c("observed", "sample", "central")],
-    values = c(observed = 0.6, sample = 0.05, quantile = 0.5, central = 1)[c("observed", "sample", "central")],
-    override.aes = list(
-      linetype = c("blank", "solid", "solid"),
-      size = c(10, 1, 3)
-    )
-  )),
   theme_minimal(),
   theme(text = element_text(face = "bold"))
 )
 
-p.core <- function(dt, ymax = NA, ymin = NA, ylog = FALSE, aesc = aes(color = measure)) ggplot(dt) +
-  aes(date, value) + aesc +
-  geom_month_background(dt, by = NULL, ymax = ymax, ymin = ymin, ylog = ylog) +
-  geom_spaghetti(
-    aes(y = value, group = interaction(measure, realization)),
-    dt[!is.na(realization)]
+p.core <- function(dt, ymax = NA, ymin = NA, ytrans = "identity") ggplot(dt) +
+  aes(date, value, color = measure) +
+  geom_month_background(
+    dt, by = NULL, ymax = ymax, ymin = ymin, ytrans = ytrans
+  ) +
+  stat_spaghetti(
+    aes(sample = realization),
+    data = \(d) d[!is.na(realization)],
+    show.legend = TRUE
   )
 
 sero.dt <- prepare(d[, .(realization, date, seroprev) ])
 
 geom_liner <- function(datafn) geom_text(
-  aes(label = lbl, vjust = vj, hjust = hj),
+  aes(label = lbl, vjust = vj, hjust = hj, shape = NULL),
   data = datafn,
   fontface = "bold", size = 5
 )
 
 p.sero <- p.core(
-  sero.dt, ymin = 0, ymax = 1,
-  aesc = aes(color = "infection")
-) + geom_crosshair(
+  sero.dt[, measure := "infection"], ymin = 0.01, ymax = .99
+) + aes(shape = after_stat(spaghetti)) + geom_crosshair(
   mapping = aes(
     x = start + (end+1-start)/2, xmin = start, xmax = end+1,
     ymax = upper, y = est, ymin = lower,
     shape = "observed"
   ),
-  data = seroprev
+  data = seroprev[, measure := "infection"]
 ) +
   geom_liner(function(dt) dt[
     date == "2021-11-01",
@@ -77,9 +89,12 @@ p.sero <- p.core(
       vj = 1, hj = 0
     ), by = measure
   ]) +
-  scale_y_fraction() +
+  scale_y_fraction(
+    #    breaks = c(0.01, 0.03, 0.1, 0.3, 0.5, 0.7, 0.9, 0.97, 0.99), limits = c(0.01, 0.99)
+  ) +
   conserved +
-#  scale_shape_discrete(guide = "none") +
+  #  coord_trans(y="logit") +
+  scale_alpha(guide = "none") +
   theme(
     legend.position = c(0+0.05, 1-0.175), legend.justification = c(0, 1),
     legend.background = element_rect(fill = alpha("white", 0.5), color = NA),
@@ -98,7 +113,7 @@ inc.dt <- prepare(
 )[date < "2022-04-01"][!is.na(value)]
 
 p.inc <- p.core(
-  inc.dt, ymin = 1e-2, ymax = 1e2, ylog = TRUE
+  inc.dt, ymin = 1e-2, ymax = 1e2, ytrans = "log10"
 ) + geom_observation() +
   geom_liner(
     data = function(dt) dt[date == "2021-04-17", .(
@@ -118,8 +133,7 @@ cum.dt <- prepare(
 )[date < "2022-04-01"][!is.na(value)]
 
 p.cum.combo <- p.core(
-  cum.dt, ymin = 1, ymax = 1e4, ylog = TRUE,
-  aesc = aes(color = measure)
+  cum.dt, ymin = 1, ymax = 1e4, ytrans = "log10"
 ) + geom_observation() +
   geom_liner(
     function(dt) dt[date == "2021-04-17", .(
@@ -142,19 +156,19 @@ hinc.dt <- prepare(
 )[date < "2022-04-01"][!is.na(value)]
 
 p.hosp <- p.core(
-  hinc.dt, ylog = TRUE, ymin = 1e-2, ymax = 3,
-  aesc = aes(color = measure)
+  hinc.dt, ytrans = "log10", ymin = 1e-2, ymax = 3
 ) + geom_observation() +
   geom_liner(function(dt) dt[date == "2021-03-17", .(
     measure = measure[1], date = date[1], value = max(mean(value), 1e-2)*(10^(fifelse(.BY == "hospInc", -1, 1)/3)),
     lbl = c(hospPrev = "Hospital Occupancy,\nDaily", hospInc = "Hospital Admissions,\nDaily", vaxHosp = "Vaccinated Admissions,\nDaily")[unlist(.BY)],
     vj = 1, hj = 0.5
-    ), by=.(as.character(measure))
+  ), by=.(as.character(measure))
   ]) +
   scale_y_incidence(trans = "log10", breaks = 10^sort(c((-2):0, log10(3)-(2:0))), labels = c("0.01", "0.03", "0.1", "0.3", "1", "3")) +#, )
   conserved +
   coord_cartesian(ylim = c(1e-2, 3), expand = FALSE) +
-  theme(legend.position = "none")
+  theme(legend.position = "none") +
+  scale_alpha_continuous(range = c(0.01, 1))
 
 # min.breakthrough <- d[order(date),.SD[which.max(tot_std_doses + tot_urg_doses > 0)][1, date], by=realization][, min(V1)]
 
@@ -164,8 +178,7 @@ brk.dt <- prepare(
 )[date < "2022-04-01"][!is.na(value)]
 
 p.brk <- p.core(
-  brk.dt, ymin = 0, ymax = 1,
-  aesc = aes(color = measure)
+  brk.dt, ymin = 0, ymax = 1
 ) + geom_observation() +
   geom_liner(function(dt) dt[date == "2021-08-01", .(
     date = date[1], value = mean(value)+0.15,
@@ -176,18 +189,6 @@ p.brk <- p.core(
   scale_y_fraction(name = "Fraction of Cases") +
   conserved +
   theme(legend.position = "none")
-
-# plot(d$date, d$brkthruRatio, type='n', xlab='', ylab='', xaxt='n', ylim=c(0,1), bty='n')
-# shading()
-# lines(cdc$date, cdc$brkthruRatio)
-# lines(d$date, d$brkthruRatio, col='tan')
-# lines(d$date, d$brkthruRatioAvg, col='tan4', lwd = 2)
-# annotate('Breakthrough ratio')
-
-
-
-
-
 
 p.res <- p.sero + p.inc + p.cum.combo + p.hosp + p.brk + plot_layout(nrow = 5)
 
