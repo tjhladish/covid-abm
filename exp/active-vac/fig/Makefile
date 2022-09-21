@@ -1,13 +1,14 @@
 
 default: res_fig1.png res_fig1_noq.png
 
--include local.mk
+-include local.make
 
 # setup definitions
 
 DATADIR ?= ..
 DLDIR ?= ~/Downloads
 RESDIR := process
+# for CABP, now overriden to point to GDRIVE fig dir
 OUTDIR ?= output
 SIMFILES ?= $(patsubst %,covid-active-%.sqlite,v4.0)
 
@@ -45,9 +46,6 @@ INPUTS := $(patsubst %,${RESDIR}/%.rds,validation outcomes vaccines hospitals se
 allinputs: ${INPUTS}
 cleaninputs:
 	cd ${RESDIR} && rm *.rds
-
-${OUTDIR}:
-	mkdir $@
 
 PLOTINS := $(addprefix ${RESDIR}/,digest.rds digest-key.rds digest-ref.rds)
 
@@ -92,9 +90,9 @@ allfigs: $(patsubst %,${OUTDIR}/%.png,model_input validation_review everything)
 vis_support.rda: vis_support.R
 	$(call R)
 
-plotlog: ${DATADIR}/active_vac_logs-v3.0-FL_ref_only.tgz
+plotlog:
 	mkdir $@
-	tar -xf $< --strip-components=1 -C $@
+	tar -xf ${DATADIR}/active_vac_logs-v3.0-FL_ref_only.tgz --strip-components=1 -C $@
 
 ${OUTDIR}/fullpage_%.png: fullpage.R vis_support.rda ${RESDIR}/digest.rds ${RESDIR}/digest-key.rds ${RESDIR}/digest-ref.rds
 	$(call R)
