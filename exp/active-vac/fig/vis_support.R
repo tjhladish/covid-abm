@@ -240,7 +240,7 @@ scale_shape_measure <- gg_scale_wrapper(
   guide = guide_legend(
     override.aes = list(
       linetype = c("blank", "solid", "solid"),
-      alpha = c(1, 1, 1/20)
+      alpha = c(1, 1/20, 1)
     )
   )
 )

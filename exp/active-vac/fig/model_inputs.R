@@ -1,5 +1,5 @@
 
-.pkgs <- c("data.table", "ggplot2", "ggrepel", "patchwork")
+.pkgs <- c("data.table", "scales", "ggplot2", "ggrepel", "patchwork", "cabputils")
 
 stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 
@@ -30,12 +30,15 @@ detect.dt <- readRDS(.args[8])[, date := day + ref.day0][date <= endday]
 
 sd.dt <- d[realization == 1, .(date, value = sd, closed) ]
 
+sd.dt <- d[realization == 1, .(date, value = sd, closed) ]
+
 p.core <- function(
-  dt, ymin = NA, ymax = NA, ylog = FALSE,
-  aesc = aes(color = measure)
+    dt, ymin = NA, ymax = NA, ytrans = "identity"
 ) ggplot(dt) +
-  aes(date, value) + aesc +
-  geom_month_background(dt, ymin = ymin, ymax = ymax, ylog = ylog)
+  aes(date, value, color = measure) +
+  geom_month_background(dt, ymin = ymin, ymax = ymax, ytrans = ytrans) +
+  theme_minimal() + theme(text = element_text(face = "bold")) +
+  scale_x_null()
 
 ed.xform <- ed[, .(date, value = {
   tmp <- log10(rcase)
@@ -49,8 +52,7 @@ ed.xform <- ed[, .(date, value = {
 #' TODO school terms?
 #' weekends?
 p.sd <- p.core(
-  sd.dt, ymin = 0, ymax = 1,
-  aesc = aes(color = "socialdist")
+  sd.dt[, measure := "socialdist"], ymin = 0, ymax = 1
 ) +
   geom_point(data = ed.xform[date < "2022-04-01"], color = "black", alpha = 0.5) +
   geom_line() +
@@ -69,11 +71,10 @@ p.sd <- p.core(
     sec.axis = sec_axis(
       name = "Per 10k, Daily Cases Reported",
       trans = function(x) 4*(x-0.5),
-#      breaks = seq(0, 1, by=.25),
+      #      breaks = seq(0, 1, by=.25),
       labels = c("0.01", "0.1", "1", "10", "100")
     )
-  ) + theme_minimal() + scale_x_null() +
-  scale_color_inputs()
+  ) + scale_color_inputs()
 
 seas.dt <- prepare(d[realization == 1, .(realization, date, seasonality) ])
 
@@ -87,7 +88,7 @@ scale_y_seasonality <- gg_scale_wrapper(
 )
 
 p.seas <- p.core(seas.dt, ymin = 0.8, ymax = 1.2) +
-  geom_line() + theme_minimal() + scale_x_null() +
+  geom_line() +
   scale_y_seasonality() +
   scale_color_inputs()
 
@@ -98,16 +99,11 @@ voc.dt <- prepare(
 #' TODO make geom_month_background work for logit
 p.voc <- p.core(
   voc.dt[!is.na(value)], ymin = 0, ymax = 1
-) +
-  geom_spaghetti(
-    aes(y = value, group = interaction(measure, realization))
-  ) +
+) + stat_spaghetti(aes(sample = realization)) +
   scale_y_fraction(
     name = "Variant Fraction"
   ) +
-  scale_alpha_measure(guide = "none") +
-  scale_x_null() +
-  scale_color_inputs() + theme_minimal()
+  scale_color_inputs()
 
 vax.mlt <- dcast(vax, date ~ dose, value.var = "cov")
 setnames(vax.mlt, 2:4, paste0("cov", 1:3))
@@ -118,17 +114,17 @@ vax.dt <- prepare(
 
 vlbls <- c(cov1="First", cov2="Second", cov3="Booster")
 
+setnames(vax.dt, "measure", "event")
+vax.dt[, measure := "coverage"]
 p.vax <- p.core(
   vax.dt,
-  ymin = 0, ymax = 1, aesc = aes(color = "coverage")
+  ymin = 0, ymax = 1
 ) +
-  aes(linetype = measure, shape = measure) +
+  aes(linetype = event, shape = event) +
   geom_point(data = function (dt) dt[realization == 0][value > 0], alpha = 0.2) +
   geom_line(data = function(dt) dt[realization == 1][value > 0]) +
   scale_color_inputs() +
-  scale_x_null() +
   scale_y_fraction() +
-  theme_minimal() +
   scale_linetype_manual(
     name = "Simulated Doses",
     values = c(cov1="dotted", cov2="dashed", cov3="solid"),
@@ -151,16 +147,17 @@ p.vax <- p.core(
   )
 
 det.dt <- prepare(detect.dt[, .(
-  realization = 1, date, asymp, mild, severe, crit
+  realization = 1, date = day + ref.day0, asymp, mild, severe, crit
 )])
 
+setnames(det.dt, "measure", "outcome")
+det.dt[, measure := "detection"]
+
 p.detect <- p.core(
-  det.dt, ymin = 0, ymax = 1, aesc = aes(color = "detection")
-) + aes(linetype = measure) +
+  det.dt, ymin = 0, ymax = 1
+) + aes(linetype = outcome) +
   geom_line() +
-  scale_x_null() +
   scale_y_fraction(name = "P(Detect) Individual with Outcome ...") +
-  theme_minimal() +
   scale_linetype_manual(
     name = NULL, breaks = rev(c("asymp", "mild", "severe", "crit")),
     labels = c(asymp = "Asymptomic", mild = "Mild", severe = "Severe", crit = "Critical"),

@@ -190,7 +190,7 @@ p.brk <- p.core(
   conserved +
   theme(legend.position = "none")
 
-p.res <- p.sero + p.inc + p.cum.combo + p.hosp + p.brk + plot_layout(nrow = 5)
+p.res <- p.sero + p.inc + p.cum.combo + p.hosp + p.brk + plot_layout(nrow = 5) & theme(axis.title.y = element_blank())
 
 ggsave(tail(.args, 1), p.res, width = 14, height = 13.5, bg = "white")
 

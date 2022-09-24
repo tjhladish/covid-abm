@@ -1,5 +1,5 @@
 
-default: res_fig1.png res_fig1_noq.png
+default: vfig
 
 -include local.make
 
@@ -14,6 +14,8 @@ SIMFILES ?= $(patsubst %,covid-active-%.sqlite,v4.0)
 
 R = $(strip Rscript $^ $(1) $@)
 
+vfig: $(addprefix ${OUTDIR}/,model_inputs.png validation_review.png)
+
 ${DATADIR}/${SIMFILES}:
 	mv $(subst ${DATADIR},${DLDIR},$@) $@
 
@@ -25,7 +27,7 @@ ${RESDIR}/vaccines.rds: ${DATADIR}/Rates_of_COVID-19_Cases_or_Deaths_by_Age_Grou
 ${RESDIR}/hospitals.rds: ${DATADIR}/COVID-19_Reported_Patient_Impact_and_Hospital_Capacity_by_State_Timeseries.csv
 ${RESDIR}/seroprev.rds: ${DATADIR}/CDC_seroprev_long.csv
 ${RESDIR}/FLvaccines.rds: ${DATADIR}/population-pseudo-300K.csv ${DATADIR}/state_based_counterfactual_doses.csv
-${RESDIR}/detection.rds: ${DATADIR}/reporting_dump.csv
+${RESDIR}/detection.rds: ${DATADIR}/reporting_by_day.txt
 ${RESDIR}/validation.rds: plotlog
 
 ${RESDIR}/%.rds: ${RESDIR}/%.R vis_support.rda | ${RESDIR}
@@ -49,7 +51,7 @@ cleaninputs:
 
 PLOTINS := $(addprefix ${RESDIR}/,digest.rds digest-key.rds digest-ref.rds)
 
-${OUTDIR}/model_input.png: ${INPUTS}
+${OUTDIR}/model_inputs.png: ${INPUTS}
 ${OUTDIR}/validation_review.png: ${INPUTS}
 ${OUTDIR}/everything.png: ${INPUTS}
 ${OUTDIR}/avertvis.png: ${PLOTINS}
@@ -90,9 +92,12 @@ allfigs: $(patsubst %,${OUTDIR}/%.png,model_input validation_review everything)
 vis_support.rda: vis_support.R
 	$(call R)
 
-plotlog:
+${DATADIR}/active_vac_logs-v4.0-FL_ref_only.tgz:
+	mv $(subst ${DATADIR},${DLDIR},$@) $@
+
+plotlog: | ${DATADIR}/active_vac_logs-v4.0-FL_ref_only.tgz
 	mkdir $@
-	tar -xf ${DATADIR}/active_vac_logs-v3.0-FL_ref_only.tgz --strip-components=1 -C $@
+	tar -xf $| --strip-components=1 -C $@
 
 ${OUTDIR}/fullpage_%.png: fullpage.R vis_support.rda ${RESDIR}/digest.rds ${RESDIR}/digest-key.rds ${RESDIR}/digest-ref.rds
 	$(call R)
