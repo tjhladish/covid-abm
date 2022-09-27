@@ -40,28 +40,39 @@ plt.dt <- setkeyv(
 rm(eff.dt)
 gc()
 
-plt.dt[, talloc := factor(
+plt.qs <- quantile(
+  plt.dt,
+  j = .(c.averted), sampleby = "realization",
+  probs = qprobs(c(`90`=.9), mid = TRUE, extent = FALSE)
+)[, talloc := factor(
   fifelse(
     pas_alloc == "none", as.character(act_alloc), fifelse(
-    pas_alloc == "FL", "FL+", as.character(pas_alloc)
-  )), levels = c("COVAX", "MIC", "FL+"), ordered = TRUE
+      pas_alloc == "FL", "FL+", as.character(pas_alloc)
+    )), levels = c("COVAX", "MIC", "FL+"), ordered = TRUE
 )][, qfac := factor(c("No Additional NPI", "Quarantine Contacts")[quar+1]) ]
 
-p <- ggplot(plt.dt) + aes(
-  x = date, y = c.averted,
+p <- ggplot(plt.qs) + aes(
+  x = date,
   color = act_vac,
-  linetype = factor(c("unconditional", "conditional")[inf_con+1]),
-  sample = realization
+  linetype = factor(c("unconditional", "conditional")[inf_con+1])
 ) +
   facet_nested(rows = vars(qfac), cols = vars(talloc)) +
   geom_month_background(
-    plt.dt, by = c("qfac", "talloc"),
-    font.size = 3, value.col = "c.averted",
-    ymax = plt.dt[, max(c.averted)],
-    ymin = plt.dt[, min(c.averted)]
+    plt.qs, by = c("qfac", "talloc"),
+    font.size = 3, value.col = "qmed",
+    ymax = plt.qs[, max(q90h)],
+    ymin = plt.qs[, min(q90l)]
   ) +
-  stat_spaghetti(
-    aes(alpha = after_stat(sampleN^-1))
+  geom_ribbon(aes(ymin=q90l, ymax=q90h, fill=act_vac, color=NULL), alpha=0.25) +
+  geom_line(aes(y=qmed)) +
+  scale_color_discrete(
+    "Vaccine Program",
+    breaks = c("risk", "ring"),
+    labels = c(
+      ring="Ring Vaccination",
+      risk="Risk-Based Strategy"
+    ),
+    aesthetics = c("color", "fill")
   ) +
   geom_texthline(
     aes(yintercept = 0, color = "none", label = "Standard\nProgram"),
@@ -75,18 +86,13 @@ p <- ggplot(plt.dt) + aes(
     )
   ) +
   scale_x_null() +
-  scale_color_discrete(
-    "Vaccine Program",
-    breaks = c("risk", "ring"),
-    labels = c(
-      ring="Infection-risk Prioritization",
-      risk="Disease-risk Prioritization"
-    )) +
   scale_linetype_manual("Vaccinate...", labels = c(conditional="Condtional on\nCase History", unconditional = "Unconditionally"), values = c(conditional="dashed", unconditional="solid")) +
   scale_alpha(range = c(0.02, 1)) +
   theme_minimal() +
   theme(
-    legend.position = c(0, 1), legend.justification = c(0, 1), strip.placement = "outside"
+    legend.position = c(0, 1),
+    legend.justification = c(0, 1), strip.placement = "outside",
+    legend.direction = "horizontal"
   )
 
 ggsave(tail(.args, 1), p, height = 6, width = 10, bg = "white")

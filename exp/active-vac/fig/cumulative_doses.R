@@ -76,8 +76,8 @@ p <- ggplot(plt.dt) + aes(
     "Vaccine Program",
     breaks = c("risk", "ring", "none"),
     labels = c(
-      ring="Infection-risk Prioritization",
-      risk="Disease-risk Prioritization",
+      ring="Ring Vaccination",
+      risk="Risk-Based Strategy",
       none="Standard Only"
     )) +
   scale_linetype_manual("Vaccinate...", labels = c(conditional="Condtional on\nCase History", unconditional = "Unconditionally"), values = c(conditional="dashed", unconditional="solid")) +

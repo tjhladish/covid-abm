@@ -40,35 +40,54 @@ plt.dt <- setkeyv(
   union(key(eff.dt), colnames(scn.dt))
 )
 
+dt2 <- plt.dt[, .(
+  act_vac="none", c.value = i.c.value[1]
+), by=setdiff(key(plt.dt), "act_vac") ]
+setkeyv(dt2, key(plt.dt))
+
 rm(eff.dt)
 gc()
 
-plt.dt[, talloc := factor(
+plt.qs <- rbind(quantile(
+  plt.dt,
+  j = .(c.value), sampleby = "realization",
+  probs = qprobs(c(`90`=.9), mid = TRUE, extent = FALSE)
+  ),
+  quantile(
+    dt2,
+    j = .(c.value), sampleby = "realization",
+    probs = qprobs(c(`90`=.9), mid = TRUE, extent = FALSE)
+  )
+)[, talloc := factor(
   fifelse(
     pas_alloc == "none", as.character(act_alloc), fifelse(
-    pas_alloc == "FL", "FL+", as.character(pas_alloc)
-  )), levels = c("COVAX", "MIC", "FL+"), ordered = TRUE
+      pas_alloc == "FL", "FL+", as.character(pas_alloc)
+    )), levels = c("COVAX", "MIC", "FL+"), ordered = TRUE
 )][, qfac := factor(c("No Additional NPI", "Quarantine Contacts")[quar+1]) ]
 
-p <- ggplot(plt.dt) + aes(
-  x = date, y = c.value,
+p <- ggplot(plt.qs) + aes(
+  x = date,
   color = act_vac,
-  linetype = factor(c("unconditional", "conditional")[inf_con+1]),
-  sample = realization
+  linetype = factor(c("unconditional", "conditional")[inf_con+1])
 ) +
   facet_nested(rows = vars(qfac), cols = vars(talloc)) +
   geom_month_background(
-    plt.dt, by = c("qfac", "talloc"),
-    font.size = 3, value.col = "c.value",
-    ymax = plt.dt[, max(c.value)],
-    ymin = plt.dt[, min(c.value)]
+    plt.qs, by = c("qfac", "talloc"),
+    font.size = 3, value.col = "qmed",
+    ymax = plt.qs[, max(q90h)],
+    ymin = plt.qs[, min(q90l)]
   ) +
-  stat_spaghetti(
-    aes(alpha = after_stat(sampleN^-1))
-  ) +
-  stat_spaghetti(
-    aes(alpha = after_stat(sampleN^-1)),
-    data = \(dt) dt[,.(act_vac="none", c.value = i.c.value[1]),by=.(qfac, talloc, inf_con, realization, date)]
+  geom_ribbon(aes(ymin=q90l, ymax=q90h, fill=act_vac, color=NULL), alpha=0.25) +
+  geom_line(aes(y=qmed)) +
+  scale_color_discrete(
+    "Vaccine Program",
+    breaks = c("none", "risk", "ring"),
+    labels = c(
+      none = "Standard Program",
+      ring="Ring Vaccination",
+      risk="Risk-Based Strategy"
+    ),
+    aesthetics = c("color", "fill")
   ) +
   scale_y_continuous(
     name = sprintf(
@@ -77,13 +96,6 @@ p <- ggplot(plt.dt) + aes(
     )
   ) +
   scale_x_null() +
-  scale_color_discrete(
-    "Vaccine Program",
-    breaks = c("risk", "ring"),
-    labels = c(
-      ring="Infection-risk Prioritization",
-      risk="Disease-risk Prioritization"
-    )) +
   scale_linetype_manual("Vaccinate...", labels = c(conditional="Condtional on\nCase History", unconditional = "Unconditionally"), values = c(conditional="dashed", unconditional="solid")) +
   scale_alpha(range = c(0.02, 1)) +
   theme_minimal() +
