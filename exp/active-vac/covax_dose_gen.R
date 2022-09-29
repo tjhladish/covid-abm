@@ -56,11 +56,15 @@ wb.dt[country == "Türkiye", iso3 := 792]
 dose_file[wb.dt, on=.(iso3), category := category]
 covax.only <- dose_file[variable != "COVAX", sum(doses), by=.(iso3)][V1 == 0, iso3]
 MIC.only <- wb.dt[!(category %in% c("HIC", "LIC")), iso3]
+LIC.only <- wb.dt[category == "LIC", iso3]
+HIC.only <- wb.dt[category == "HIC", iso3]
 # mixed.frac <- dose_file[, sum(doses[variable == "COVAX"])/sum(doses), by=.(iso3)]
 
 globalpop10k <- refpop[country_code %in% unique(dose_file$iso3), sum(pop10k)]
 covaxpop10k <- refpop[country_code %in% covax.only, sum(pop10k)]
 MICpop10k <- refpop[country_code %in% MIC.only, sum(pop10k)]
+LICpop10k <- refpop[country_code %in% LIC.only, sum(pop10k)]
+HICpop10k <- refpop[country_code %in% HIC.only, sum(pop10k)]
 
 covax.dt <- rbind(
   dose_file[iso3 %in% covax.only,
@@ -68,12 +72,20 @@ covax.dt <- rbind(
   ],
   dose_file[iso3 %in% MIC.only,
     .(dp10k = sum(doses)/MICpop10k, grp = "MIConly"), keyby=.(date)
+  ],
+  dose_file[iso3 %in% LIC.only,
+            .(dp10k = sum(doses)/LICpop10k, grp = "LIConly"), keyby=.(date)
+  ],
+  dose_file[iso3 %in% HIC.only,
+            .(dp10k = sum(doses)/HICpop10k, grp = "HIConly"), keyby=.(date)
   ]
 )[CJ(
-  date = seq(min(date), as.Date("2022-03-31"), by="day"), grp = c("covaxonly", "MIConly")
+  date = seq(min(date), as.Date("2022-03-31"), by="day"), grp = c("covaxonly", "MIConly", "LIConly", "HIConly")
 ), .(
   date, grp, dp10k
-), on=.(date, grp)][order(grp, date), dp10k := nafill(dp10k, "locf") ][,.(
+), on=.(date, grp)][order(date), dp10k := nafill(
+  nafill(dp10k, "locf"), "nocb"
+), by=.(grp) ][,.(
   date, provisioned = dp10k/with(rle(dp10k), rep(lengths, lengths))
 ), by=grp][which.max(provisioned > 0):.N] |> dcast(date ~ grp, value.var = "provisioned")
 
