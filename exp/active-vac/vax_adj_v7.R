@@ -2,6 +2,7 @@ library(data.table)
 library(lubridate)
 library(ggplot2)
 library(viridis)
+library(dplyr)
 
 if (interactive()) { setwd("~/documents/work/covid-abm/exp/active-vac/") }
 
@@ -275,8 +276,16 @@ fwrite(active_dosing[,.(date, ref_location, bin_min, bin_max, dose, is_urg, n_do
 #' 	name = "Location", end = 0.9
 #' )
 
+label_first_mth_and_januarys <- function(x) {
+  ifelse(is.na(lag(x)) | year(lag(x)) != year(x),
+         paste0(month(x, label = T), "\n", year(x)),
+         paste0(month(x, label = T))
+  )
+}
+
 shr <- list(
-	scale_x_date(date_breaks = "months", date_labels = "%b"),
+	# scale_x_date(date_breaks = "months", date_labels = "%b"),
+	scale_x_date(date_breaks = "3 months", labels = label_first_mth_and_januarys, limits = c(ymd(NA, NA))),
 	xlab("Date (2021-2022)"),
 	ylab("Vaccination coverage"),
 	theme_light(),
@@ -319,19 +328,28 @@ tot_cov_comparison <- ggplot() +
   ggtitle("Total coverage per state per dose (empirical vs. adjusted)") +
   shr
 
-bin.labs <- c("5-11", "12-17", "18-64", "65+")
-names(bin.labs) <- c(5, 12, 18, 65)
+# bin.labs <- c("5-11", "12-17", "18-64", "65+")
+# names(bin.labs) <- c(5, 12, 18, 65)
+
+bin.labs <- c("65+", "18-64", "12-17", "5-11")
+names(bin.labs) <- c(65, 18, 12, 5)
+
+dose.labs <- c("Dose 1", "Dose 2", "Dose 3")
+names(dose.labs) <- c(1, 2, 3)
 
 dose_delivery <- ggplot() +
-  geom_line(data = prepended_doses.dt[, .(date, cumsum=cumsum(n_doses_p10k)), by=.(location, bin_min, dose)], aes(x = date, y = cumsum, color=location), linetype='dashed') +
-  geom_line(data = exp.dt[, .(date, cumsum=cumsum(value_p10k)), by=.(location=ref_loc, bin_min, dose)], aes(x = date, y = cumsum, color=location)) +
+  geom_line(data = prepended_doses.dt[, .(date, cumsum=cumsum(n_doses_p10k)), by=.(location, bin_min, dose)][, bin_min := factor(bin_min, levels = c(65, 18, 12, 5))],
+            aes(x = date, y = cumsum, color=location), linetype="21", size = 1) +
+  geom_line(data = exp.dt[, .(date, cumsum=cumsum(value_p10k)), by=.(location=ref_loc, bin_min, dose)][, bin_min := factor(bin_min, levels = c(65, 18, 12, 5))][cumsum == 0, cumsum := NA],
+            aes(x = date, y = cumsum, color=location), size = 1) +
   geom_hline(yintercept = 1e4, linetype = 'dotted') +
-  facet_grid(rows=vars(dose), cols=vars(bin_min), labeller = labeller(bin_min = bin.labs)) +
+  facet_grid(cols=vars(dose), rows=vars(bin_min), labeller = labeller(bin_min = bin.labs, dose = dose.labs)) +
   shr +
-  scale_color_discrete(name = "Reference location") +
-  xlab("Date (2020-2022)") + 
-  ylab("Total doses delivered per 10K") +
-  ggtitle("Cumulative administered doses (with prepending adjustemt)")
+  theme(text = element_text(size = 20), panel.grid.minor.x = element_line()) +
+  scale_color_manual(name = "Reference location", breaks = c("MS", "FL", "VT"), values = c("#F8766D", "#00BA38", "#619CFF")) +
+  scale_y_continuous(breaks = c(0, 5000, 10000)) +
+  xlab("") + 
+  ylab("Total doses delivered per 10K")
 
 # ggplot() +
 #   geom_line(data = prepended_doses.dt[, .(sum=sum(n_doses_p10k)), by=.(date, location, dose)][,.(date, cumsum=cumsum(sum)), by=.(location, dose)],
@@ -368,4 +386,4 @@ ggsave(filename = file.path(output_path, "tot_cov_comparison_v2.png"),        pl
 ggsave(filename = file.path(output_path, "adj_binned_cov_comparison_v2.png"), plot = adj_binned_cov_fig,
     device = 'png', units = 'in', height = 6, width = 15, dpi = 300)
 ggsave(filename = file.path(output_path, "dosing_adjustment_v2.png"),         plot = dose_delivery,
-    device = 'png', units = 'in', height = 6, width = 15, dpi = 300)
+    device = 'png', units = 'in', height = 10, width = 15, dpi = 300)
