@@ -620,12 +620,14 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         if (do_passive_vac) {
             if (not active_vac) {
                 if (passive_alloc == 1) {                // passive baseline FL (incl MS, VT dosing; not used)
+                    pool_std_doses = true;
                     par->vaccinationFilename = "./state_based_counterfactual_doses.txt";
                 } else if (passive_alloc == 2) {         // passive augmented with number of doses used by ring vac
                     string prefix = "";//"/blue/longini/tjhladish/covid-abm/exp/active-vac/ring_ctfl_dose_files/";
                     prefix += quarantine_ctrl ? to_string(379000 + realization) : to_string(378000 + realization);
                     par->vaccinationFilename = prefix + "_ring_vax_deployment_counterfactual_doses.txt";
                     pool_urg_doses = true;
+                    pool_std_doses = true;
 
                     cerr << "WARNING: reassigning active_vac to GROUPED_RISK_VACCINATION for passive-plus strategy" << endl;
                     active_vac = GROUPED_RISK_VACCINATION;
@@ -642,10 +644,12 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
             } else if (active_vac == RING_VACCINATION) {                // + ring vac
                 assert(active_alloc == 1);
                 pool_urg_doses = true;
+                pool_std_doses = true;
                 par->vaccinationFilename = "./active_vax_counterfactual_doses_25.txt";             // passive + 25 doses (per 10k) daily for ring vax
             } else if (active_vac == GROUPED_RISK_VACCINATION) {                // + risk vac
                 assert(active_alloc == 2);
                 pool_urg_doses = true;
+                pool_std_doses = true;
                 group_risk_quantile_bins = 10;
                 string prefix = "";//"/blue/longini/tjhladish/covid-abm/exp/active-vac/ring_ctfl_dose_files/";
                 prefix += quarantine_ctrl ? to_string(379000 + realization) : to_string(378000 + realization);
