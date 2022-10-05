@@ -552,8 +552,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     const bool quarantine_ctrl                      = (bool) args[1];                 // 0 = off; 1 = on
     const bool do_passive_vac                       = (bool) args[2];                 // 0 = off; 1 = on
     VacCampaignType active_vac                      = act_vc_lookup.at(args[3]);      // 0 = off; 1 = ring; 2 = risk
-    const size_t passive_alloc                      = args[4];                        // 0 = 0;   1 = FL;   2 = FL + ring; 3 = COVAX; 4 = MIC
-    const size_t active_alloc                       = args[5];                        // 0 = 0;   1 = 25;   2 = ring/30; 3 = COVAX; 4 = MIC
+    const size_t passive_alloc                      = args[4];                        // 0 = 0;   1 = USA;   2 = HIC; 3 = MIC; 4 = LIC
+    const size_t active_alloc                       = args[5];                        // 0 = 0;   1 = USA;   2 = HIC; 3 = MIC; 4 = LIC
     const VaccineInfConstraint vac_constraint       = (VaccineInfConstraint) args[6]; // 2 = non-case only; 4 = any status
   //const bool ppb_fitting                          = (bool) args[7];
 
@@ -619,46 +619,26 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         //                                               : Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-12-14");
 
         if (do_passive_vac) {
-            if (not active_vac) {
-                if (passive_alloc == 1) {                // passive baseline FL (incl MS, VT dosing; not used)
-                    par->vaccinationFilename = "active_vac_doses_HIC_std.txt"; //"./state_based_counterfactual_doses.txt";
-                } else if (passive_alloc == 2) {         // passive augmented with number of doses used by ring vac
-                    // string prefix = "";//"/blue/longini/tjhladish/covid-abm/exp/active-vac/ring_ctfl_dose_files/";
-                    // prefix += quarantine_ctrl ? to_string(379000 + realization) : to_string(378000 + realization);
-                    // par->vaccinationFilename = "active_vac_doses_HIC_only.txt"; //prefix + "_ring_vax_deployment_counterfactual_doses.txt";
-                    // pool_urg_doses = true;
-                    // pool_std_doses = true;
-                    //
-                    // cerr << "WARNING: reassigning active_vac to GROUPED_RISK_VACCINATION for passive-plus strategy" << endl;
-                    // active_vac = GROUPED_RISK_VACCINATION;
-                    // group_risk_quantile_bins = 1;
-                    //
-                    // par->beginContactTracing = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-05-01");
-                } else if (passive_alloc == 3) {         // limited passive (COVAX scenario)
-                    par->vaccinationFilename = "active_vac_doses_LIC_std.txt"; //"./covax_doses_COVAX_only.txt";
-                    pool_urg_doses = false;
-                    pool_all_doses = true;
-                }else if (passive_alloc == 4) {         // limited passive (MIC scenario)
-                    par->vaccinationFilename = "active_vac_doses_MIC_std.txt"; //"./covax_doses_MIC_only.txt";
-                    pool_urg_doses = false;
-                    pool_all_doses = true;
-                }
-            } else if (active_vac == RING_VACCINATION) {                // + ring vac
-                assert(active_alloc == 1);;
-                par->vaccinationFilename = "active_vac_doses_HIC_urg.txt"; //"./active_vax_counterfactual_doses_25.txt";             // passive + 25 doses (per 10k) daily for ring vax
-            } else if (active_vac == GROUPED_RISK_VACCINATION) {                // + risk vac
-                assert(active_alloc == 2);
-                group_risk_quantile_bins = 10;
-                string prefix = "";//"/blue/longini/tjhladish/covid-abm/exp/active-vac/ring_ctfl_dose_files/";
-                prefix += quarantine_ctrl ? to_string(379000 + realization) : to_string(378000 + realization);
-                par->vaccinationFilename = "active_vac_doses_HIC_urg.txt"; //prefix + "_ring_vax_deployment_counterfactual_doses.txt"; // passive + total doses used by ring vax, distributed over 30d (for risk strat)
+            assert(active_vac == NO_CAMPAIGN);
+            if (passive_alloc == 1) {                // passive for USA context
+                par->vaccinationFilename = "active_vac_doses_USA_std.txt";
+            } else if (passive_alloc == 2) {         // passive for HIC context
+                par->vaccinationFilename = "active_vac_doses_HIC_std.txt";
+            } else if (passive_alloc == 3) {         // passive for MIC context
+                par->vaccinationFilename = "active_vac_doses_MIC_std.txt";
+            } else if (passive_alloc == 4) {        // passive for LIC context
+                par->vaccinationFilename = "active_vac_doses_LIC_std.txt";
             }
-        } else if (active_vac == RING_VACCINATION or active_vac == GROUPED_RISK_VACCINATION) { // ring or risk, without passive vac
-            assert(active_alloc == 3 or active_alloc == 4);
-            if (active_alloc == 3) {
-                par->vaccinationFilename = "active_vac_doses_LIC_urg.txt"; //"./covax_doses_COVAX_only.txt";
-            } else if (active_alloc == 4) {
-                par->vaccinationFilename = "active_vac_doses_MIC_urg.txt"; //"./covax_doses_MIC_only.txt";
+        } else if (not active_vac == NO_CAMPAIGN) {
+            assert(do_passive_vac == NO_CAMPAIGN);
+            if (active_alloc == 1) {                // passive for USA context
+                par->vaccinationFilename = "active_vac_doses_USA_urg.txt";
+            } else if (active_alloc == 2) {         // passive for HIC context
+                par->vaccinationFilename = "active_vac_doses_HIC_urg.txt";
+            } else if (active_alloc == 3) {         // passive for MIC context
+                par->vaccinationFilename = "active_vac_doses_MIC_urg.txt";
+            } else if (active_alloc == 4) {        // passive for LIC context
+                par->vaccinationFilename = "active_vac_doses_LIC_urg.txt";
             }
         }
 
