@@ -35,9 +35,9 @@ dose_file <- dose_file[, .SD, .SDcols = -c(dropcols)]
 # despite e.g. Janssen being by label a 1-dose vaccine
 dose_file <- dose_file[,
   doses := rowSums(.SD, na.rm = TRUE), .SDcols = -c("Country/territory", "mmm Year", "variable")
-][!(`Country/territory` %in% c("Kosovo", "Humanitarian Buffer")), .(
+][!(`Country/territory` %in% c("Kosovo", "Humanitarian Buffer", "Hong Kong SAR and Macao")), .(
   name = `Country/territory`,
-  date = as.Date(paste0("01 ",`mmm Year`), "%d %b %Y"),
+  date = as.Date.character(`mmm Year`, format = "%m/%d/%Y"),
   variable,
   iso3 = countrycode(`Country/territory`, "country.name", "iso3n"),
   doses
@@ -83,7 +83,7 @@ doses.dt <- rbindlist(
 )
 
 covax.dt <- doses.dt[CJ(
-  date = seq(min(date), as.Date("2022-03-31"), by="day"),
+  date = seq(min(date, na.rm = TRUE), as.Date("2022-03-31"), by="day"),
   grp = unique(grp)
 ), .(
   date, grp, dp10k
@@ -116,8 +116,8 @@ fwrite(covax.dt, file = tail(.args, 1), sep = " ")
 #' require(ggplot2)
 #' ggplot(melt(covax.dt, id.var = "date")[, cvalue := cumsum(value), by=variable]) +
 #'  aes(date, cvalue, color = variable) +
-#'  geom_line() +
-#'  theme_minimal() +
+#'  geom_line(data = \(dt) dt[variable %in% c("US","HIC","MIC","LIC", "COVAX")]) +
+#'  theme_minimal() + theme(legend.pos = c(0, 1), legend.jus = c(0, 1)) +
 #'  scale_x_date()
 
 dose_file_overwrite <- fread(.args[2])
