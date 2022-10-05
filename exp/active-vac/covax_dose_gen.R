@@ -53,41 +53,45 @@ refpop <- as.data.table(popF)[
 wb.dt <- fread(.args[3])[!(country %in% c("Kosovo", "Channel Islands")), iso3 := countrycode(`country`, "country.name", "iso3n")]
 wb.dt[country == "Türkiye", iso3 := 792]
 
-dose_file[wb.dt, on=.(iso3), category := category]
+scens <- list(
+  US = expression(country == "United States"),
+  HIC = expression(category == "HIC"),
+  LIC = expression(category == "LIC"),
+  UMIC = expression(category == "UMIC"),
+  LMIC = expression(category == "LMIC"),
+  MIC = expression(!(category %in% c("HIC", "LIC")))
+)
+
 covax.only <- dose_file[variable != "COVAX", sum(doses), by=.(iso3)][V1 == 0, iso3]
-MIC.only <- wb.dt[!(category %in% c("HIC", "LIC")), iso3]
-LIC.only <- wb.dt[category == "LIC", iso3]
-HIC.only <- wb.dt[category == "HIC", iso3]
-# mixed.frac <- dose_file[, sum(doses[variable == "COVAX"])/sum(doses), by=.(iso3)]
+
+isos <- c(
+  lapply(scens, function(e) wb.dt[eval(e), iso3]),
+  list(COVAX = covax.only)
+)
+
+pop10k <- lapply(
+  isos, function(is) refpop[country_code %in% is, sum(pop10k)]
+)
 
 globalpop10k <- refpop[country_code %in% unique(dose_file$iso3), sum(pop10k)]
-covaxpop10k <- refpop[country_code %in% covax.only, sum(pop10k)]
-MICpop10k <- refpop[country_code %in% MIC.only, sum(pop10k)]
-LICpop10k <- refpop[country_code %in% LIC.only, sum(pop10k)]
-HICpop10k <- refpop[country_code %in% HIC.only, sum(pop10k)]
 
-covax.dt <- rbind(
-  dose_file[iso3 %in% covax.only,
-    .(dp10k = sum(doses)/covaxpop10k, grp = "covaxonly"), keyby=.(date)
-  ],
-  dose_file[iso3 %in% MIC.only,
-    .(dp10k = sum(doses)/MICpop10k, grp = "MIConly"), keyby=.(date)
-  ],
-  dose_file[iso3 %in% LIC.only,
-            .(dp10k = sum(doses)/LICpop10k, grp = "LIConly"), keyby=.(date)
-  ],
-  dose_file[iso3 %in% HIC.only,
-            .(dp10k = sum(doses)/HICpop10k, grp = "HIConly"), keyby=.(date)
-  ]
-)[CJ(
-  date = seq(min(date), as.Date("2022-03-31"), by="day"), grp = c("covaxonly", "MIConly", "LIConly", "HIConly")
+doses.dt <- rbindlist(
+  mapply(function(isogrp, pop) dose_file[
+    iso3 %in% isogrp, .(dp10k = sum(doses)/pop), keyby=.(date)
+  ], isogrp = isos, pop = pop10k, SIMPLIFY = FALSE),
+  idcol = "grp"
+)
+
+covax.dt <- doses.dt[CJ(
+  date = seq(min(date), as.Date("2022-03-31"), by="day"),
+  grp = unique(grp)
 ), .(
   date, grp, dp10k
 ), on=.(date, grp)][order(date), dp10k := nafill(
   nafill(dp10k, "locf"), "nocb"
 ), by=.(grp) ][,.(
   date, provisioned = dp10k/with(rle(dp10k), rep(lengths, lengths))
-), by=grp][which.max(provisioned > 0):.N] |> dcast(date ~ grp, value.var = "provisioned")
+), by=grp] |> dcast(date ~ grp, value.var = "provisioned")
 
 # vs 10ks of 5+ used in Sindh model
 sindh10k <- 4444.124
@@ -107,6 +111,14 @@ covax.dt[
 ]
 
 fwrite(covax.dt, file = tail(.args, 1), sep = " ")
+
+#' @examples
+#' require(ggplot2)
+#' ggplot(melt(covax.dt, id.var = "date")[, cvalue := cumsum(value), by=variable]) +
+#'  aes(date, cvalue, color = variable) +
+#'  geom_line() +
+#'  theme_minimal() +
+#'  scale_x_date()
 
 dose_file_overwrite <- fread(.args[2])
 dose_file_overwrite[, n_doses_p10k := 0]
