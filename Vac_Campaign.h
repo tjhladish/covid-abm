@@ -7,7 +7,6 @@
 #include <map>
 #include <queue>
 #include <set>
-#include "Utility.h"
 #include <gsl/gsl_randist.h>
 
 class Person;
@@ -75,9 +74,6 @@ inline std::ostream& operator<<(std::ostream& out, const VacCampaignType value){
 
 class Vac_Campaign;
 class Community;
-
-using covid::util::weighted_choice;
-using covid::util::uniform_choice;
 
 // will hold people scheduled to become eleigible for a certain vaccine dose
 class Eligibility_Group {

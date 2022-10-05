@@ -588,8 +588,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
             - TTF: pool std and urg independently
             - FFT: pool std and urg together       // use for expanded passive & covax passive
         */
-        bool pool_std_doses = false;
-        bool pool_urg_doses = false; // true;
+        bool pool_std_doses = true;
+        bool pool_urg_doses = true;
         bool pool_all_doses = false;
 
 //sqlite> select min(serial), max(serial), quar from par where pas_vac = 1 and act_vac = 1 and pas_alloc = 1 and act_alloc = 1 and inf_con = 4 group by quar;
@@ -621,7 +621,6 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         if (do_passive_vac) {
             if (not active_vac) {
                 if (passive_alloc == 1) {                // passive baseline FL (incl MS, VT dosing; not used)
-                    pool_std_doses = true;
                     par->vaccinationFilename = "active_vac_doses_HIC_std.txt"; //"./state_based_counterfactual_doses.txt";
                 } else if (passive_alloc == 2) {         // passive augmented with number of doses used by ring vac
                     // string prefix = "";//"/blue/longini/tjhladish/covid-abm/exp/active-vac/ring_ctfl_dose_files/";
@@ -645,14 +644,10 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
                     pool_all_doses = true;
                 }
             } else if (active_vac == RING_VACCINATION) {                // + ring vac
-                assert(active_alloc == 1);
-                pool_urg_doses = true;
-                pool_std_doses = true;
+                assert(active_alloc == 1);;
                 par->vaccinationFilename = "active_vac_doses_HIC_urg.txt"; //"./active_vax_counterfactual_doses_25.txt";             // passive + 25 doses (per 10k) daily for ring vax
             } else if (active_vac == GROUPED_RISK_VACCINATION) {                // + risk vac
                 assert(active_alloc == 2);
-                pool_urg_doses = true;
-                pool_std_doses = true;
                 group_risk_quantile_bins = 10;
                 string prefix = "";//"/blue/longini/tjhladish/covid-abm/exp/active-vac/ring_ctfl_dose_files/";
                 prefix += quarantine_ctrl ? to_string(379000 + realization) : to_string(378000 + realization);
@@ -661,10 +656,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         } else if (active_vac == RING_VACCINATION or active_vac == GROUPED_RISK_VACCINATION) { // ring or risk, without passive vac
             assert(active_alloc == 3 or active_alloc == 4);
             if (active_alloc == 3) {
-                pool_urg_doses = true;
                 par->vaccinationFilename = "active_vac_doses_LIC_urg.txt"; //"./covax_doses_COVAX_only.txt";
             } else if (active_alloc == 4) {
-                pool_urg_doses = true;
                 par->vaccinationFilename = "active_vac_doses_MIC_urg.txt"; //"./covax_doses_MIC_only.txt";
             }
         }
