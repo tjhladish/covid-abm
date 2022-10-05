@@ -9,7 +9,7 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 
 #' assumed to accessed via Rproj file, which puts at exp/active-vac
 .args <- if (interactive()) c(
-  "SES_stratified_doses.txt",
+  "SES_stratified_doses_v2.txt",
   "active_vax_counterfactual_doses.txt",
   "active_vac_doses"
 ) else commandArgs(trailingOnly = TRUE)
@@ -24,21 +24,25 @@ cut_col <- function(urg, col) {
   return(tmp)
 }
 
-cut_col(1, "HIConly")[is_urg == 1 & bin_min == 5 & dose == 1]
+covax_usa_std = cut_col(0, "US")
+covax_usa_urg = cut_col(1, "US")
 
-covax_hic_std = cut_col(0, "HIConly")
-covax_hic_urg = cut_col(1, "HIConly")
+covax_hic_std = cut_col(0, "HIC")
+covax_hic_urg = cut_col(1, "HIC")
 
-covax_mic_std = cut_col(0, "MIConly")
-covax_mic_urg = cut_col(1, "MIConly")
+covax_mic_std = cut_col(0, "MIC")
+covax_mic_urg = cut_col(1, "MIC")
 
-covax_lic_std = cut_col(0, "LIConly")
-covax_lic_urg = cut_col(1, "LIConly")
+covax_lic_std = cut_col(0, "LIC")
+covax_lic_urg = cut_col(1, "LIC")
 
 write_out <- function(dt, suffix) {
   fwrite(dt[,.(date, ref_location, bin_min, bin_max, dose, is_urg, n_doses_p10k)],
          file = paste0(base::strsplit(tail(.args, 1), split = '\\.')[[1]][1], suffix), sep = " ")
 }
+
+write_out(covax_usa_std, "_USA_std.txt")
+write_out(covax_usa_urg, "_USA_urg.txt")
 
 write_out(covax_hic_std, "_HIC_std.txt")
 write_out(covax_hic_urg, "_HIC_urg.txt")
