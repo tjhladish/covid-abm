@@ -10,8 +10,7 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 #' assumed to accessed via Rproj file, which puts at exp/active-vac
 .args <- if (interactive()) c(
   "SES_stratified_doses_v2.txt",
-  "active_vax_counterfactual_doses.txt",
-  "active_vac_doses"
+  "active_vax_counterfactual_doses.txt"
 ) else commandArgs(trailingOnly = TRUE)
 
 doses.in <- fread(.args[1])
@@ -38,7 +37,7 @@ covax_lic_urg = cut_col(1, "LIC")
 
 write_out <- function(dt, suffix) {
   fwrite(dt[,.(date, ref_location, bin_min, bin_max, dose, is_urg, n_doses_p10k)],
-         file = paste0(base::strsplit(tail(.args, 1), split = '\\.')[[1]][1], suffix), sep = " ")
+         file = paste0("active_vac_doses", suffix), sep = " ")
 }
 
 write_out(covax_usa_std, "_USA_std.txt")
