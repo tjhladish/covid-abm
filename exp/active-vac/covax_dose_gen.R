@@ -9,7 +9,7 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 
 #' assumed to accessed via Rproj file, which puts at exp/active-vac
 .args <- if (interactive()) c(
-  "covax_raw.csv",
+  "unicef_raw.csv",
   "active_vax_counterfactual_doses.txt",
   "wb_inc.csv",
   "covax_doses.txt"
