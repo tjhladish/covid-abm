@@ -613,7 +613,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 //219000           219999           0.0         1.0
 //311000           311999           2.0         1.0
 
-        par->beginContactTracing = passive_alloc == 1 ? Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-05-01")
+        par->beginContactTracing = (passive_alloc == 1 or passive_alloc == 2) ? Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-05-01")
                                                       : Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-12-14");
 
         if (do_passive_vac) {
