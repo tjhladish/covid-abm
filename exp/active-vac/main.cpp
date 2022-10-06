@@ -551,9 +551,9 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     const size_t realization                        = (size_t) args[0];
     const bool quarantine_ctrl                      = (bool) args[1];                 // 0 = off; 1 = on
     const bool do_passive_vac                       = (bool) args[2];                 // 0 = off; 1 = on
-    const VacCampaignType active_vac                = act_vc_lookup.at(args[3]);      // 0 = off; 1 = ring; 2 = risk
-    const size_t passive_alloc                      = args[4];                        // 0 = 0;   1 = FL;   2 = FL + ring; 3 = COVAX; 4 = MIC
-    const size_t active_alloc                       = args[5];                        // 0 = 0;   1 = 25;   2 = ring/30; 3 = COVAX; 4 = MIC
+    VacCampaignType active_vac                      = act_vc_lookup.at(args[3]);      // 0 = off; 1 = ring; 2 = risk
+    const size_t passive_alloc                      = args[4];                        // 0 = 0;   1 = USA;   2 = HIC; 3 = MIC; 4 = LIC
+    const size_t active_alloc                       = args[5];                        // 0 = 0;   1 = USA;   2 = HIC; 3 = MIC; 4 = LIC
     const VaccineInfConstraint vac_constraint       = (VaccineInfConstraint) args[6]; // 2 = non-case only; 4 = any status
   //const bool ppb_fitting                          = (bool) args[7];
 
@@ -588,9 +588,9 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
             - TTF: pool std and urg independently
             - FFT: pool std and urg together       // use for expanded passive & covax passive
         */
-        bool pool_std_doses    = false;
-        bool pool_urg_doses    = true;
-        bool pool_all_doses    = false;
+        bool pool_std_doses = true;
+        bool pool_urg_doses = true;
+        bool pool_all_doses = false;
 
 //sqlite> select min(serial), max(serial), quar from par where pas_vac = 1 and act_vac = 1 and pas_alloc = 1 and act_alloc = 1 and inf_con = 4 group by quar;
 //min(serial)  max(serial)  quar
@@ -613,43 +613,32 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 //219000           219999           0.0         1.0
 //311000           311999           2.0         1.0
 
-        par->beginContactTracing = (passive_alloc == 1 or passive_alloc == 2) ? Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-05-01")
-                                                      : Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-12-14");
+        int group_risk_quantile_bins = -1;
+        par->beginContactTracing = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-12-14");
+        // par->beginContactTracing = passive_alloc == 1 ? Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-05-01")
+        //                                               : Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-12-14");
 
         if (do_passive_vac) {
-            if (not active_vac) {
-                if (passive_alloc == 1) {                // passive baseline FL (incl MS, VT dosing; not used)
-                    par->vaccinationFilename = "./state_based_counterfactual_doses.txt";
-                } else if (passive_alloc == 2) {         // passive augmented with number of doses used by ring vac
-                    string prefix = "/blue/longini/tjhladish/covid-abm/exp/active-vac/ring_ctfl_dose_files/";
-                    prefix += quarantine_ctrl ? to_string(379000 + realization) : to_string(378000 + realization);
-                    par->vaccinationFilename = prefix + "_ring_vax_deployment_counterfactual_doses.txt";
-                    pool_urg_doses = false;
-                    pool_all_doses = true;
-                } else if (passive_alloc == 3) {         // limited passive (COVAX scenario)
-                    par->vaccinationFilename = "./covax_doses_COVAX_only.txt";
-                    pool_urg_doses = false;
-                    pool_all_doses = true;
-                }else if (passive_alloc == 4) {         // limited passive (MIC scenario)
-                    par->vaccinationFilename = "./covax_doses_MIC_only.txt";
-                    pool_urg_doses = false;
-                    pool_all_doses = true;
-                }
-            } else if (active_vac == RING_VACCINATION) {                // + ring vac
-                assert(active_alloc == 1);
-                par->vaccinationFilename = "./active_vax_counterfactual_doses_25.txt";             // passive + 25 doses (per 10k) daily for ring vax
-            } else if (active_vac == GROUPED_RISK_VACCINATION) {                // + risk vac
-                assert(active_alloc == 2);
-                string prefix = "/blue/longini/tjhladish/covid-abm/exp/active-vac/ring_ctfl_dose_files/";
-                prefix += quarantine_ctrl ? to_string(379000 + realization) : to_string(378000 + realization);
-                par->vaccinationFilename = prefix + "_ring_vax_deployment_counterfactual_doses.txt"; // passive + total doses used by ring vax, distributed over 30d (for risk strat)
+            assert(active_vac == NO_CAMPAIGN);
+            if (passive_alloc == 1) {                // passive for USA context
+                par->vaccinationFilename = "active_vac_doses_USA_std.txt";
+            } else if (passive_alloc == 2) {         // passive for HIC context
+                par->vaccinationFilename = "active_vac_doses_HIC_std.txt";
+            } else if (passive_alloc == 3) {         // passive for MIC context
+                par->vaccinationFilename = "active_vac_doses_MIC_std.txt";
+            } else if (passive_alloc == 4) {        // passive for LIC context
+                par->vaccinationFilename = "active_vac_doses_LIC_std.txt";
             }
-        } else if (active_vac == RING_VACCINATION or active_vac == GROUPED_RISK_VACCINATION) { // ring or risk, without passive vac
-            assert(active_alloc == 3 or active_alloc == 4);
-            if (active_alloc == 3) {
-                par->vaccinationFilename = "./covax_doses_COVAX_only.txt";
-            } else if (active_alloc == 4) {
-                par->vaccinationFilename = "./covax_doses_MIC_only.txt";
+        } else if (not active_vac == NO_CAMPAIGN) {
+            assert(do_passive_vac == NO_CAMPAIGN);
+            if (active_alloc == 1) {                // passive for USA context
+                par->vaccinationFilename = "active_vac_doses_USA_urg.txt";
+            } else if (active_alloc == 2) {         // passive for HIC context
+                par->vaccinationFilename = "active_vac_doses_HIC_urg.txt";
+            } else if (active_alloc == 3) {         // passive for MIC context
+                par->vaccinationFilename = "active_vac_doses_MIC_urg.txt";
+            } else if (active_alloc == 4) {        // passive for LIC context
+                par->vaccinationFilename = "active_vac_doses_LIC_urg.txt";
             }
         }
 
@@ -660,7 +649,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 // TODO - maybe assert that if vac_req == 2, file = covax
         // control whether to adjust to bin pops or total pop
         // pop adjustment occurs before any dose pooling
-        bool adjust_std_to_bin_pop = true;
+        bool adjust_std_to_bin_pop = false;
         bool adjust_urg_to_bin_pop = false;
 
        if ((pool_std_doses or pool_urg_doses) and pool_all_doses) { cerr << "ERROR: Cannot set std or urg dose pooling AND all dose pooling" << endl; exit(-1); }
@@ -673,6 +662,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
         par->vaccineInfConstraint = vac_constraint;
         vc->set_reactive_vac_strategy(active_vac);
+
+        vc->set_risk_quantile_nbins(group_risk_quantile_bins);  // TODO: make sure that if GROUPED_RISK_VACCINATION is on and this value is -1, fail
         // vc->set_reactive_vac_dose_allocation(0.0);
 
         // the GROUPED_RISK_VACCINATION strategies starts alongside the GENERAL_CAMPAIGN
@@ -692,23 +683,23 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
         if (active_vac == GROUPED_RISK_VACCINATION) { vc->set_grouped_risk_def(Vac_Campaign::BY_QUANTILE); }
 
-//        cerr << "Vaccination scenario:\n"
-//             << GENERAL_CAMPAIGN << "\n"
-//                                 << "\tduration " << vc->get_start_of_campaign(GENERAL_CAMPAIGN) << "--" << vc->get_end_of_campaign(GENERAL_CAMPAIGN) << "\n"
-//                                 << "\tnum doses " << par->numVaccineDoses << "\n"
-//                                 << "\tdose intervals "; cerr_vector(par->vaccineDoseInterval); cerr << "\n"
-//                                 << "\tdose protection lag " << par->vaccine_dose_to_protection_lag << "\n"
-//             << active_vax_strat   << "\n"
-//                                 << "\tduration " << vc->get_start_of_campaign(active_vax_strat) << "--" << vc->get_end_of_campaign(active_vax_strat) << "\n"
-//                                 << "\trequires contact tracing? " << boolalpha << vc->contact_tracing_required(active_vax_strat) << noboolalpha << "\n"
-//             << "other details"  << "\n"
-//                                 << "\tdose file " << par->vaccinationFilename << "\n"
-//                                 << "\tdose pooling (urg,std,all)? " << boolalpha << pool_urg_doses << ' ' << pool_std_doses << ' ' << pool_all_doses << noboolalpha << "\n"
-//                                 << "\tadj std doses to bin pop? " << boolalpha << adjust_std_to_bin_pop << noboolalpha << "\n"
-//                                 << "\tadj urg doses to bin pop? " << boolalpha << adjust_urg_to_bin_pop << noboolalpha << "\n"
-//                                 << "\tcontact tracing start " << par->beginContactTracing << "\n"
-//                                 << "\tself quarantining probs "; cerr_vector(par->quarantineProbability); cerr << "\n"
-//                                 << "\tself quarantining duration " << par->quarantineDuration << "\n" << endl;
+       // cerr << "Vaccination scenario:\n"
+       //      << GENERAL_CAMPAIGN << "\n"
+       //                          << "\tduration " << vc->get_start_of_campaign(GENERAL_CAMPAIGN) << "--" << vc->get_end_of_campaign(GENERAL_CAMPAIGN) << "\n"
+       //                          << "\tnum doses " << par->numVaccineDoses << "\n"
+       //                          << "\tdose intervals "; cerr_vector(par->vaccineDoseInterval); cerr << "\n"
+       //                          << "\tdose protection lag " << par->vaccine_dose_to_protection_lag << "\n"
+       //      << active_vac   << "\n"
+       //                          << "\tduration " << vc->get_start_of_campaign(active_vac) << "--" << vc->get_end_of_campaign(active_vac) << "\n"
+       //                          << "\trequires contact tracing? " << boolalpha << vc->contact_tracing_required(active_vac) << noboolalpha << "\n"
+       //      << "other details"  << "\n"
+       //                          << "\tdose file " << par->vaccinationFilename << "\n"
+       //                          << "\tdose pooling (urg,std,all)? " << boolalpha << pool_urg_doses << ' ' << pool_std_doses << ' ' << pool_all_doses << noboolalpha << "\n"
+       //                          << "\tadj std doses to bin pop? " << boolalpha << adjust_std_to_bin_pop << noboolalpha << "\n"
+       //                          << "\tadj urg doses to bin pop? " << boolalpha << adjust_urg_to_bin_pop << noboolalpha << "\n"
+       //                          << "\tcontact tracing start " << par->beginContactTracing << "\n"
+       //                          << "\tself quarantining probs "; cerr_vector(par->quarantineProbability); cerr << "\n"
+       //                          << "\tself quarantining duration " << par->quarantineDuration << "\n" << endl;
     }
     // probability of self-quarantining for index cases and subsequent contacts
     if (quarantine_ctrl) {
@@ -762,7 +753,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     // this output filename needs to be adjusted for each experiment, so as to not overwrite files
     //string filename = "plot_log" + to_string(serial) + ".csv";
     //string filename = "/blue/longini/tjhladish/covid-abm/exp/active-vac/plot_log" + to_string(serial) + ".csv";
-    string filename = "/blue/longini/tjhladish/covid-abm/exp/active-vac/v4.0/plot_log" + to_string(serial) + ".csv";
+    string filename = "plot_log" + to_string(serial) + ".csv";
     write_daily_buffer(plot_log_buffer, process_id, filename, overwrite);
 
 //    stringstream ss;
