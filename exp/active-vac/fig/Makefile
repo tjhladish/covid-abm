@@ -10,7 +10,7 @@ DLDIR ?= ~/Downloads
 RESDIR := process
 # for CABP, now overriden to point to GDRIVE fig dir
 OUTDIR ?= output
-SIMFILES ?= $(patsubst %,covid-active-%.sqlite,v4.0)
+SIMFILES ?= $(patsubst %,covid-active-%.sqlite,v5.0)
 
 R = $(strip Rscript $^ $(1) $@)
 

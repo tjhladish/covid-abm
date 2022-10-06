@@ -6,7 +6,7 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 #' assumes R project at the experiment root level
 .args <- if (interactive()) c(
   file.path(c(
-    "covid-active-v3.1.sqlite"
+    "covid-active-v5.0.sqlite"
   )),
   file.path("fig", "process", "digest.rds")
 ) else commandArgs(trailingOnly = TRUE)
@@ -75,7 +75,7 @@ rm(dts)
 gc()
 
 # WARNING: MAGIC NUMBER
-basescnid <- 13
+basescnid <- 1
 
 ref.dt <- meta.dt[(scenario == basescnid) & (outcome != "doses")]
 int.dt <- meta.dt[
@@ -126,8 +126,8 @@ funs <- list(
   quar = as.logical,
   pas_vac = as.logical,
   act_vac = genordfac(c("none", "ring", "risk")),
-  pas_alloc = genordfac(c("none", "FL", "FL+ring", "COVAX", "MIC")),
-  act_alloc = genordfac(c("none", "ring", "ringmonth", "COVAX", "MIC")),
+  pas_alloc = genordfac(c("none", "LIC", "MIC", "HIC", "USA")),
+  act_alloc = genordfac(c("none", "LIC", "MIC", "HIC", "USA")),
   inf_con = \(x) x == 2
 )
 
