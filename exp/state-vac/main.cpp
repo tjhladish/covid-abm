@@ -687,7 +687,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     }
     bool overwrite = true;
     // this output filename needs to be adjusted for each experiment, so as to not overwrite files
-    //string filename = "plot_log" + to_string(serial) + ".csv";
+    //string filename = "./v1.0/plot_log" + to_string(serial) + ".csv";
     //string filename = "/blue/longini/tjhladish/covid-abm/exp/active-vac/plot_log" + to_string(serial) + ".csv";
     string filename = "/blue/longini/tjhladish/covid-abm/exp/state-vac/v1.0/plot_log" + to_string(serial) + ".csv";
     write_daily_buffer(plot_log_buffer, process_id, filename, overwrite);
