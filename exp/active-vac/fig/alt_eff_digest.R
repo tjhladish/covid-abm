@@ -15,7 +15,7 @@ magicdate <- as.Date("2020-12-01")
 
 abcreader <- function(
   pth,
-  pmcols = c("serial", "realization", "quar", "pas_vac", "act_vac", "pas_alloc", "act_alloc", "inf_con", "ppb_ctrl"),
+  pmcols = c("serial", "realization", "quar", "pas_vac", "act_vac", "pas_alloc", "act_alloc", "inf_con"),
   metacols = c("serial", "date", "inf", "sev", "deaths", "std_doses + urg_doses AS doses"),
   datelim = magicdate,
   reallimit = if (interactive()) 10,

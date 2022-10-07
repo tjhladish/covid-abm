@@ -11,24 +11,43 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
   file.path("fig", "process", "digest.rds")
 ) else commandArgs(trailingOnly = TRUE)
 
+magicdate <- as.Date("2020-12-01")
+
 abcreader <- function(
-  pth,
-  pmcols = c("serial", "realization", "quar", "pas_vac", "act_vac", "pas_alloc", "act_alloc", "inf_con", "ppb_ctrl"),
-  metacols = c("serial", "date", "inf", "sev", "deaths", "std_doses + urg_doses AS doses")
+    pth,
+    pmcols = c("serial", "realization", "quar", "pas_vac", "act_vac", "pas_alloc", "act_alloc", "inf_con"),
+    metacols = c("serial", "date", "inf", "sev", "deaths", "std_doses + urg_doses AS doses"),
+    datelim = magicdate,
+    reallimit = if (interactive()) 10,
+    verbose = interactive()
 ) {
 
-  db <- dbConnect(SQLite(), pth)
-  stmt <- pmcols |> paste(collapse=", ") |> sprintf(
-    fmt = "SELECT %s FROM par JOIN met USING(serial) ORDER BY serial;"
+  wherelim <- if (!is.null(reallimit)) sprintf(" WHERE realization < %i", reallimit) else ""
+  stmt <- sprintf(
+    "SELECT %s FROM par JOIN met USING(serial)%s ORDER BY serial;",
+    paste(pmcols, collapse=", "),
+    wherelim
   )
+  if (verbose) warning("Issuing: ", stmt)
+
+  db <- dbConnect(SQLite(), pth)
   dt <- db |> dbGetQuery(stmt) |> as.data.table()
   dt[, realization := as.integer(realization) ]
 
-  mstmt <- metacols |> paste(collapse=", ") |> sprintf(
-    fmt = "SELECT %s FROM meta ORDER BY serial, date;"
+  if (wherelim != "") {
+    srls <- dt[, unique(serial)]
+    wherelim <- sprintf(" WHERE serial IN (%s)", paste(srls, collapse = ","))
+  }
+
+  mstmt <- sprintf(
+    "SELECT %s FROM meta%s ORDER BY serial, date;",
+    metacols |> paste(collapse=", "),
+    wherelim
   )
+
+  if (verbose) warning("Issuing: ", mstmt)
   meta.dt <- db |> dbGetQuery(mstmt) |> as.data.table()
-  meta.dt[, date := as.Date(date) ]
+  meta.dt[, date := as.Date(date) ][ date >= datelim ]
 
   dbDisconnect(db)
   return(list(pars = dt, meta = meta.dt))
