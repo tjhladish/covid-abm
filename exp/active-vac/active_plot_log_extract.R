@@ -24,12 +24,13 @@ pb = txtProgressBar(min = 0, max = length(plotlogs), initial = 0, style = 3)
 cols_to_extract = c(
   "date",
   "inf",
-  "symp_infs",
+#  "symp_infs",
   "sevr_infs",
-  "crit_infs",
+#  "crit_infs",
   "all_deaths",
   "std_doses",
-  "urg_doses"
+  "urg_doses",
+  "Rt"
 )
 
 # CREATE TABLE meta ( serial int not null, date text not null, inf real, symp real, sev real, crit real, deaths real, std_doses real, urg_doses real, primary key(serial, date));
@@ -41,10 +42,12 @@ for (i in seq_along(plotlogs)) {
     #' if (!file.exists(file.path(input_log_dir, in_plot_log))) { next }
 
     sub.d = fread(in_plot_log, select = cols_to_extract)
-    sub.d = sub.d[, .(serial = in_serial, date, inf, symp_infs, sevr_infs, crit_infs, all_deaths, std_doses, urg_doses)]
+    #sub.d = sub.d[, .(serial = in_serial, date, inf, symp_infs, sevr_infs, crit_infs, all_deaths, std_doses, urg_doses)]
+    sub.d = sub.d[, .(serial = in_serial, date, inf, sevr_infs, all_deaths, std_doses, urg_doses, Rt)]
 
     sub.d[, date := as.character(date)]
-    setnames(sub.d, c('symp_infs', 'sevr_infs', 'crit_infs', 'all_deaths'), c('symp', 'sev', 'crit', 'deaths'))
+    #setnames(sub.d, c('symp_infs', 'sevr_infs', 'crit_infs', 'all_deaths'), c('symp', 'sev', 'crit', 'deaths'))
+    setnames(sub.d, c('sevr_infs', 'all_deaths'), c('sev', 'deaths'))
 
     dbWriteTable(db, "meta", sub.d, append=T)
 
