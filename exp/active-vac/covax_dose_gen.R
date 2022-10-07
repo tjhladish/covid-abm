@@ -10,7 +10,6 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 #' assumed to accessed via Rproj file, which puts at exp/active-vac
 .args <- if (interactive()) c(
   "unicef_raw.csv",
-  "active_vax_counterfactual_doses.txt",
   "wb_inc.csv",
   "covax_doses.txt"
 ) else commandArgs(trailingOnly = TRUE)
@@ -50,7 +49,7 @@ refpop <- as.data.table(popF)[
   age != "0-4", .(pop1k = sum(`2020`)), keyby=.(country_code, name)
 ]][, .(country_code, pop10k = (pop1k + i.pop1k)/10)]
 
-wb.dt <- fread(.args[3])[!(country %in% c("Kosovo", "Channel Islands")), iso3 := countrycode(`country`, "country.name", "iso3n")]
+wb.dt <- fread(.args[2])[!(country %in% c("Kosovo", "Channel Islands")), iso3 := countrycode(`country`, "country.name", "iso3n")]
 wb.dt[country == "Türkiye", iso3 := 792]
 
 scens <- list(
@@ -119,12 +118,3 @@ fwrite(covax.dt, file = tail(.args, 1), sep = " ")
 #'  geom_line(data = \(dt) dt[variable %in% c("US","HIC","MIC","LIC", "COVAX")]) +
 #'  theme_minimal() + theme(legend.pos = c(0, 1), legend.jus = c(0, 1)) +
 #'  scale_x_date()
-
-dose_file_overwrite <- fread(.args[2])
-dose_file_overwrite[, n_doses_p10k := 0]
-covax_mic = copy(covax.dt[dose_file_overwrite, on = .(date)][is_urg == 1 & bin_min == 5 & dose == 1, n_doses_p10k := MIConly])
-covax_covax = copy(covax.dt[dose_file_overwrite, on = .(date)][is_urg == 1 & bin_min == 5 & dose == 1, n_doses_p10k := covaxonly])
-fwrite(covax_mic[,.(date, ref_location, bin_min, bin_max, dose, is_urg, n_doses_p10k)],
-       file = paste0(base::strsplit(tail(.args, 1), split = '\\.')[[1]][1], "_MIC_only.txt"), sep = " ")
-fwrite(covax_covax[,.(date, ref_location, bin_min, bin_max, dose, is_urg, n_doses_p10k)],
-       file = paste0(base::strsplit(tail(.args, 1), split = '\\.')[[1]][1], "_COVAX_only.txt"), sep = " ")
