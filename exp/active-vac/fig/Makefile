@@ -10,7 +10,7 @@ DLDIR ?= ~/Downloads
 RESDIR := process
 # for CABP, now overriden to point to GDRIVE fig dir
 OUTDIR ?= output
-SIMFILES ?= $(patsubst %,covid-active-%.sqlite,v4.0)
+SIMFILES ?= $(patsubst %,covid-active-%.sqlite,v5.0)
 
 R = $(strip Rscript $^ $(1) $@)
 
@@ -143,7 +143,7 @@ mtfigs: combo-low.png combo-low-mt.png combo-low-matched.png
 effectiveness.png: effvis.R $(filter-out digest-ref.rds,$(PLOTINS))
 	$(call R)
 
-doses.png: dosevis.R digest-doses.rds digest-key.rds vis_support.rda
+doses.png: dosevis.R ${RESDIR}/digest-doses.rds ${RESDIR}/digest-key.rds vis_support.rda
 	$(call R)
 
 incidence.png: incvis.R $(PLOTINS)

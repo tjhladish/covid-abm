@@ -6,7 +6,7 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 #' assumes R project at the experiment root level
 .args <- if (interactive()) c(
   file.path(c(
-    "covid-active-v3.1.sqlite"
+    "covid-active-v5.0.sqlite"
   )),
   file.path("fig", "process", "alt_eff.rds")
 ) else commandArgs(trailingOnly = TRUE)
@@ -15,7 +15,7 @@ magicdate <- as.Date("2020-12-01")
 
 abcreader <- function(
   pth,
-  pmcols = c("serial", "realization", "quar", "pas_vac", "act_vac", "pas_alloc", "act_alloc", "inf_con", "ppb_ctrl"),
+  pmcols = c("serial", "realization", "quar", "pas_vac", "act_vac", "pas_alloc", "act_alloc", "inf_con"),
   metacols = c("serial", "date", "inf", "sev", "deaths", "std_doses + urg_doses AS doses"),
   datelim = magicdate,
   reallimit = if (interactive()) 10,
@@ -93,8 +93,8 @@ funs <- list(
   quar = as.logical,
   pas_vac = as.logical,
   act_vac = genordfac(c("none", "ring", "risk")),
-  pas_alloc = genordfac(c("none", "FL", "FL+ring", "COVAX", "MIC")),
-  act_alloc = genordfac(c("none", "ring", "ringmonth", "COVAX", "MIC")),
+  pas_alloc = genordfac(c("none", "LIC", "MIC", "HIC", "USA")),
+  act_alloc = genordfac(c("none", "LIC", "MIC", "HIC", "USA")),
   inf_con = \(x) x == 2
 )
 
@@ -107,7 +107,7 @@ gc()
 
 # WARNING: MAGIC NUMBER
 basescnid <- scn.dt[
-  (act_vac == "none") & (pas_alloc %in% c("COVAX", "MIC", "FL+ring"))
+  (act_vac == "none") & (pas_alloc %in% c("LIC", "MIC", "HIC", "USA"))
 ][,
   unique(scenario)
 ]
@@ -115,7 +115,7 @@ basescnid <- scn.dt[
 excludescns <- scn.dt[
   !(scenario %in% basescnid)
 ][
-  ((pas_alloc == "FL" & act_alloc == "none") | (pas_alloc == "none" & act_alloc == "none"))
+  (pas_alloc == "none" & act_alloc == "none")
 ][,
   unique(scenario)
 ]
@@ -131,13 +131,9 @@ ref.dt <- meta.dt[
 int.dt <- meta.dt[
   !(scenario %in% c(basescnid, excludescns))# & (outcome != "doses")
 ][scn.dt,
-  c("alloc", "inf_con", "quar") := .(
-  fifelse(pas_alloc == "none",
-    (as.integer(act_alloc) - 1L) |> funs$pas_alloc(),
-    fifelse(pas_alloc == "FL", funs$pas_alloc(2), pas_alloc)
-  ),
-  inf_con, quar
-), on=.(scenario)]
+  c("alloc", "inf_con", "quar") := .(act_alloc, inf_con, quar),
+  on=.(scenario)
+]
 
 rm(meta.dt)
 gc()
