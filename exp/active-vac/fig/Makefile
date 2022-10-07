@@ -143,7 +143,7 @@ mtfigs: combo-low.png combo-low-mt.png combo-low-matched.png
 effectiveness.png: effvis.R $(filter-out digest-ref.rds,$(PLOTINS))
 	$(call R)
 
-doses.png: dosevis.R digest-doses.rds digest-key.rds vis_support.rda
+doses.png: dosevis.R ${RESDIR}/digest-doses.rds ${RESDIR}/digest-key.rds vis_support.rda
 	$(call R)
 
 incidence.png: incvis.R $(PLOTINS)
