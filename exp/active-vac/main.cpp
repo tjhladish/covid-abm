@@ -552,8 +552,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     const bool quarantine_ctrl                      = (bool) args[1];                 // 0 = off; 1 = on
     const bool do_passive_vac                       = (bool) args[2];                 // 0 = off; 1 = on
     VacCampaignType active_vac                      = act_vc_lookup.at(args[3]);      // 0 = off; 1 = ring; 2 = risk
-    const size_t passive_alloc                      = args[4];                        // 0 = 0;   1 = USA;   2 = HIC; 3 = MIC; 4 = LIC
-    const size_t active_alloc                       = args[5];                        // 0 = 0;   1 = USA;   2 = HIC; 3 = MIC; 4 = LIC
+    const size_t passive_alloc                      = args[4];                        // 0 = 0;  1 = LIC;  2 = MIC;  3 = HIC;  4 = USA
+    const size_t active_alloc                       = args[5];                        // 0 = 0;  1 = LIC;  2 = MIC;  3 = HIC;  4 = USA
     const VaccineInfConstraint vac_constraint       = (VaccineInfConstraint) args[6]; // 2 = non-case only; 4 = any status
   //const bool ppb_fitting                          = (bool) args[7];
 
@@ -613,33 +613,20 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 //219000           219999           0.0         1.0
 //311000           311999           2.0         1.0
 
-        int group_risk_quantile_bins = -1;
         par->beginContactTracing = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-12-14");
         // par->beginContactTracing = passive_alloc == 1 ? Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-05-01")
         //                                               : Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-12-14");
 
+        vector<string> SES_string = {"NONE", "LIC", "MIC", "HIC", "USA"};
+        string dose_filename = "active_vac_doses_";
         if (do_passive_vac) {
             assert(active_vac == NO_CAMPAIGN);
-            if (passive_alloc == 1) {                // passive for USA context
-                par->vaccinationFilename = "active_vac_doses_USA_std.txt";
-            } else if (passive_alloc == 2) {         // passive for HIC context
-                par->vaccinationFilename = "active_vac_doses_HIC_std.txt";
-            } else if (passive_alloc == 3) {         // passive for MIC context
-                par->vaccinationFilename = "active_vac_doses_MIC_std.txt";
-            } else if (passive_alloc == 4) {        // passive for LIC context
-                par->vaccinationFilename = "active_vac_doses_LIC_std.txt";
-            }
+            dose_filename += SES_string.at(passive_alloc) + "_std.txt";
+            par->vaccinationFilename = dose_filename;
         } else if (not active_vac == NO_CAMPAIGN) {
             assert(do_passive_vac == NO_CAMPAIGN);
-            if (active_alloc == 1) {                // passive for USA context
-                par->vaccinationFilename = "active_vac_doses_USA_urg.txt";
-            } else if (active_alloc == 2) {         // passive for HIC context
-                par->vaccinationFilename = "active_vac_doses_HIC_urg.txt";
-            } else if (active_alloc == 3) {         // passive for MIC context
-                par->vaccinationFilename = "active_vac_doses_MIC_urg.txt";
-            } else if (active_alloc == 4) {        // passive for LIC context
-                par->vaccinationFilename = "active_vac_doses_LIC_urg.txt";
-            }
+            dose_filename += SES_string.at(active_alloc) + "_urg.txt";
+            par->vaccinationFilename = dose_filename;
         }
 
         if (par->vaccinationFilename == "") {
@@ -663,6 +650,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         par->vaccineInfConstraint = vac_constraint;
         vc->set_reactive_vac_strategy(active_vac);
 
+        int group_risk_quantile_bins = 10;
         vc->set_risk_quantile_nbins(group_risk_quantile_bins);  // TODO: make sure that if GROUPED_RISK_VACCINATION is on and this value is -1, fail
         // vc->set_reactive_vac_dose_allocation(0.0);
 
@@ -752,8 +740,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     bool overwrite = true;
     // this output filename needs to be adjusted for each experiment, so as to not overwrite files
     //string filename = "plot_log" + to_string(serial) + ".csv";
-    //string filename = "/blue/longini/tjhladish/covid-abm/exp/active-vac/plot_log" + to_string(serial) + ".csv";
-    string filename = "plot_log" + to_string(serial) + ".csv";
+    string filename = "/blue/longini/tjhladish/covid-abm/exp/active-vac/v5.0/plot_log" + to_string(serial) + ".csv";
+    //string filename = "plot_log" + to_string(serial) + ".csv";
     write_daily_buffer(plot_log_buffer, process_id, filename, overwrite);
 
 //    stringstream ss;
