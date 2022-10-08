@@ -16,7 +16,7 @@ magicdate <- as.Date("2020-12-01")
 abcreader <- function(
   pth,
   pmcols = c("serial", "realization", "quar", "pas_vac", "act_vac", "pas_alloc", "act_alloc", "inf_con"),
-  metacols = c("serial", "date", "inf", "sev", "deaths", "std_doses + urg_doses AS doses"),
+  metacols = c("serial", "date", "inf", "sev", "deaths"),
   datelim = magicdate,
   reallimit = if (interactive()) 10,
   verbose = interactive()
@@ -85,6 +85,7 @@ meta.dt <- meta.dt |>
   (\(dt) melt.data.table(dt, key(dt), variable.name = "outcome"))() |>
   setkey(scenario, realization, outcome, date)
 
+
 meta.dt[, c.value := cumsum(value), by=setdiff(key(meta.dt), "date")]
 
 genordfac <- \(lvl) return(\(x) lvl[x+1] |> factor(levels = lvl, ordered = TRUE))
@@ -151,3 +152,18 @@ saveRDS(
   int.dt[,c(key(int.dt), "value", "averted", "c.effectiveness"), with = FALSE],
   tail(.args, 1)
 )
+
+dts <- head(.args, -1) |> abcreader(metacols = c("serial","date","Rt"))
+
+reserialize(dts)
+scenarize(dts)
+
+setkey(dts$pars, serial, realization)
+
+meta.dt <- dts$meta[, .SD, .SDcols = -c("serial")] |>
+  setkey(scenario, realization, date)
+
+saveRDS(meta.dt, gsub("\\.rds","-rt.rds", tail(.args, 1)))
+
+rm(meta.dt)
+gc()
