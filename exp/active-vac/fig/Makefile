@@ -43,6 +43,12 @@ $(patsubst %,${RESDIR}/digest-%.rds,key doses ref): ${RESDIR}/digest.rds
 ${RESDIR}/alt_eff.rds: alt_eff_digest.R $(addprefix ${DATADIR}/,${SIMFILES}) | ${RESDIR}
 	Rscript --min-vsize=12G $^ $@
 
+${RESDIR}/alt_q_eff.rds: alt_q_eff_digest.R $(addprefix ${DATADIR}/,${SIMFILES}) | ${RESDIR}
+	Rscript --min-vsize=12G $^ $@
+
+${RESDIR}/alt_i_eff.rds: alt_i_eff_digest.R $(addprefix ${DATADIR}/,${SIMFILES}) | ${RESDIR}
+	Rscript --min-vsize=12G $^ $@
+
 ${RESDIR}/alt_eff-rt.rds: ${RESDIR}/alt_eff.rds
 
 INPUTS := $(patsubst %,${RESDIR}/%.rds,validation outcomes vaccines hospitals seroprev FLvaccines detection digest alt_eff)
