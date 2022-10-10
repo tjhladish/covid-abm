@@ -85,6 +85,14 @@ ${OUTDIR}/alt_ave_%.png: alt_ave_outcome.R vis_support.rda ${RESDIR}/alt_eff.rds
 ${RESDIR}/digest-key.rds | ${OUTDIR}
 	$(call R)
 
+${OUTDIR}/alt_eff_all.png: alt_eff_all.R vis_support.rda ${RESDIR}/alt_eff.rds \
+${RESDIR}/digest-key.rds | ${OUTDIR}
+	$(call R)
+
+${OUTDIR}/alt_ave_all.png: alt_ave_all.R vis_support.rda ${RESDIR}/alt_eff.rds \
+${RESDIR}/digest-key.rds | ${OUTDIR}
+	$(call R)
+
 ${OUTDIR}/alt_inc_%.png: alt_inc_outcome.R vis_support.rda ${RESDIR}/alt_eff.rds \
 ${RESDIR}/digest-key.rds | ${OUTDIR}
 	$(call R)

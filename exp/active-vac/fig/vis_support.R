@@ -285,25 +285,25 @@ tsref.dt <- function(
     #' TODO by doesn't currently handle nested facets
     date.col = "date",
     mcycle = c("off", "on"),
-    ymax = NA, ymin = NA
+    ymax = NA, ymin = NA, max.col = value.col, min.col = value.col
 ) {
   dt <- as.data.table(dt)
   maxer <- function(x) min(max(x, ymax, na.rm = TRUE), ymax, na.rm = TRUE)
   miner <- function(x) max(min(x, ymin, na.rm = TRUE), ymin, na.rm = TRUE)
   if(!is.null(by)) { if ("col" %in% names(by)) {
     #' need to consider ymax across rows if by["col"] exists
-    ymref <- dt[, .(mx = maxer(get(value.col)), mn = miner(get(value.col))), by = eval(unname(by["row"]))]
+    ymref <- dt[, .(mx = maxer(get(max.col)), mn = miner(get(min.col))), by = eval(unname(by["row"]))]
     dt[ymref, c("ym", "yn") := .(mx, mn), on=unname(by["row"])]
     dt <- dt[!is.na(get(by["col"]))]
   } else {
     dt[, c("ym","yn") := .(
-      maxer(get(value.col)),
-      miner(get(value.col))
+      maxer(get(max.col)),
+      miner(get(min.col))
     ), by = eval(unname(by)) ]
   } } else {
     dt[, c("ym","yn") := .(
-      maxer(get(value.col)),
-      miner(get(value.col))
+      maxer(get(max.col)),
+      miner(get(min.col))
     ) ]
   }
   dt[, {
