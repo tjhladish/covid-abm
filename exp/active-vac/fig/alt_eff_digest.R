@@ -106,9 +106,12 @@ dts$pars <- NULL
 rm(dts)
 gc()
 
-# WARNING: MAGIC NUMBER
+#' the baseline scenarios are:
+#'  - non "active" distribution scenarios
+#'  - with some passive allocation
+#'  - with no additional NPIs (i.e. quarantine program)
 basescnid <- scn.dt[
-  (act_vac == "none") & (pas_alloc %in% c("LIC", "MIC", "HIC", "USA"))
+  (act_vac == "none") & (pas_vac == TRUE) & (quar == FALSE)
 ][,
   unique(scenario)
 ]
@@ -116,7 +119,7 @@ basescnid <- scn.dt[
 excludescns <- scn.dt[
   !(scenario %in% basescnid)
 ][
-  (pas_alloc == "none" & act_alloc == "none")
+  ((pas_vac == FALSE) & (act_vac == "none")) | ((act_vac == "none") & (quar == TRUE))
 ][,
   unique(scenario)
 ]
@@ -125,7 +128,7 @@ ref.dt <- meta.dt[
   (scenario %in% basescnid)# & (outcome != "doses")
 ][
   scn.dt,
-  c("alloc", "inf_con", "quar") := .(pas_alloc, inf_con, quar),
+  c("alloc", "inf_con") := .(pas_alloc, inf_con),
   on=.(scenario)
 ]
 
@@ -142,7 +145,7 @@ gc()
 int.dt[
   ref.dt[, .SD, .SDcols = -c("scenario")],
   c("averted", "c.effectiveness") := .(i.value-value, fifelse(c.value == i.c.value, 0, (i.c.value-c.value)/i.c.value)),
-  on=.(alloc, inf_con, quar, realization, outcome, date)
+  on=.(alloc, inf_con, realization, outcome, date)
 ]
 
 rm(ref.dt)

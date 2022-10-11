@@ -381,66 +381,6 @@ geom_month_background <- function(
   )
 }
 
-
-#' @title Quantile [data.table] Groups
-#'
-#' @description Applies [quantile()] to [data.table] groups,
-#' across sample column, for target column(s). Returns results by
-#' group and (when more than one target column) measure.
-#'
-#' @param dt a [data.table]
-#'
-#' @param col the column(s) to quantile
-#'
-#' @param samplecol the sample-defining column (i.e., what gets
-#' quantiled over)
-#'
-#' @param keyby the grouping definition
-#'
-#' @param ... arguments to [stats::quantile()]. If `probs` provided
-#' with names, those names will be used for the resulting quantile columns
-#'
-#' @return a [data.table], cols for:
-#'  * the keys
-#'  * optionally, `measure` if `length(col) > 1`
-#'  * a column for each quantile returned; if `probs` in `...` and named,
-#'  those are the column names
-# quantile.data.table <- function(
-#   dt, col = "value",
-#   samplecol,
-#   keyby = setdiff(key(dt), samplecol),
-#   ...
-# ) {
-#
-#   if (!all(col %in% colnames(dt))) {
-#     stop("`colnames(dt)` and `col` mismatch")
-#   }
-#
-#   if (length(col) > 1) {
-#     idcol <- "measure"
-#     names(col) <- col
-#   } else {
-#     idcol <- NULL
-#   }
-#
-#   dots <- list(...)
-#   curryq <- if (!is.null(dots$probs) && !is.null(names(dots$probs))) {
-#     function(x) quantile |> do.call(c(list(x), dots)) |> setNames(names(dots$probs))
-#   } else {
-#     function(x) quantile |> do.call(c(list(x), dots))
-#   }
-#
-#   return(
-#     col |> lapply(\(tarcol) {
-#       dt[,{
-#         get(tarcol) |> curryq() |> as.list()
-#       }, keyby = keyby]
-#     }) |> rbindlist(idcol = idcol) |>
-#     setkeyv(cols = c(idcol, keyby))
-#   )
-#
-# }
-
 geom_spaghetti <- function(
   mapping,
   data,
