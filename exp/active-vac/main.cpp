@@ -669,7 +669,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         vector<int> min_ages(par->runLength, 5);
         vc->set_min_age(min_ages);       // needed for e.g. urgent vaccinations
 
-        if (active_vac == GROUPED_RISK_VACCINATION) { vc->set_grouped_risk_def(Vac_Campaign::BY_QUANTILE); }
+        if (active_vac == GROUPED_RISK_VACCINATION) { vc->set_grouped_risk_def(Vac_Campaign::BY_RISK_QUANTILE); }
 
        // cerr << "Vaccination scenario:\n"
        //      << GENERAL_CAMPAIGN << "\n"
