@@ -147,7 +147,7 @@ void Vac_Campaign::location_scheduling(int day, vector<set<Person*, PerPtrComp>>
     }
 }
 
-void Vac_Campaign::generate_risk_quantiles(Community* community, map<int, vector<Person*>>& grouped_ppl, map<int, double>& grouped_risk, size_t nbin) {
+void Vac_Campaign::generate_risk_quantiles(Community* community, map<int, vector<Person*>>& grouped_ppl, map<int, double>& grouped_risk, size_t nbin, GroupedRiskDef grd = BY_RISK_QUANTILE) {
     // index for these maps is arbitrary group id (int)
     grouped_ppl.clear();
     grouped_risk.clear();
@@ -155,7 +155,20 @@ void Vac_Campaign::generate_risk_quantiles(Community* community, map<int, vector
     // created a vector of people sorted by their risk of severe outcome
     vector< pair<Person*, double> > pop_with_risk; // pairs of person and their risk
 
-    for (Person* p : community->getPeople()) { pop_with_risk.push_back({p, p->getBaselineRiskSevOutcome()}); }
+    double val;
+    size_t eligible_pop_size = 0;
+    for (Person* p : community->getPeople()) {
+        // assuming that vax age eligibilty is most generous at the end of the sim
+        if (is_age_eligible_on(p->getAge(), (_par->runLength - 1))) {
+            ++eligible_pop_size;
+            switch (grd) {
+                case BY_RISK_QUANTILE: val = p->getBaselineRiskSevOutcome(); break;
+                case BY_AGE_QUANTILE:  val = p->getAge(); break;
+                default: cerr << "must pass GroupedRiskDef that isnt BY_FILE" << endl; exit(-1);
+            }
+            pop_with_risk.push_back({p, val});
+        }
+    }
 
     // highest risk at the end
     std::sort(pop_with_risk.begin(), pop_with_risk.end(), [](pair<Person*, double> a, pair<Person*, double> b) {
@@ -163,10 +176,9 @@ void Vac_Campaign::generate_risk_quantiles(Community* community, map<int, vector
     });
 
     // splits the sorted pop in to nbin groups, from the back
-    const size_t pop_size = community->getNumPeople();
     for (size_t group = 0; group < nbin; ++group) {
-        size_t group_size = (size_t) (pop_size / nbin);
-        group_size += (group < (pop_size % nbin)) ? 1 : 0; // distribute the remainder
+        size_t group_size = (size_t) (eligible_pop_size / nbin);
+        group_size += (group < (eligible_pop_size % nbin)) ? 1 : 0; // distribute the remainder
 
         // take group_size number of people off the back of pop_with_risk, and populate the passed-in data structures
         for (size_t j = 0; j < group_size; ++j) {
@@ -219,9 +231,10 @@ void Vac_Campaign::grouped_risk_scheduling(int day, Community* community) {
                 }
             }
             iss.close();
-        } else if (grouped_risk_def == BY_QUANTILE) {
-            //const size_t nbin = 10; // TODO - probably move this out so it can be adjusted by user somehow
-            generate_risk_quantiles(community, grouped_ppl, grouped_risk, risk_quantile_nbins);
+        } else if (grouped_risk_def == BY_RISK_QUANTILE) {
+            generate_risk_quantiles(community, grouped_ppl, grouped_risk, risk_quantile_nbins, BY_RISK_QUANTILE);
+        } else if (grouped_risk_def == BY_AGE_QUANTILE) {
+            generate_risk_quantiles(community, grouped_ppl, grouped_risk, risk_quantile_nbins, BY_AGE_QUANTILE);
         }
 
         // special comparator to sort the groups by per capita risk

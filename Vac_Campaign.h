@@ -204,7 +204,8 @@ class Vac_Campaign {
 
         enum GroupedRiskDef {
             BY_FILE,
-            BY_QUANTILE,
+            BY_RISK_QUANTILE,
+            BY_AGE_QUANTILE,
             NUM_OF_GROUPED_RISK_DEF_TYPES
         };
 
@@ -734,7 +735,7 @@ class Vac_Campaign {
             }
         }
 
-        void generate_risk_quantiles(Community* community, map<int, vector<Person*>>& grouped_ppl, map<int, double>& grouped_risk, size_t nbin);
+        void generate_risk_quantiles(Community* community, map<int, vector<Person*>>& grouped_ppl, map<int, double>& grouped_risk, size_t nbin, GroupedRiskDef grd);
 
         int risk_quantile_nbins;
 };
