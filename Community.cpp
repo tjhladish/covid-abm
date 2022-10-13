@@ -561,16 +561,14 @@ void Community::vaccinate() {
     }
 
 //    {
-//      cerr << vac_campaign->get_all_doses_available(vac_campaign->get_doses_available(STANDARD_ALLOCATION), _day, 0) << ' '
-//           << vac_campaign->get_all_doses_available(vac_campaign->get_doses_available(STANDARD_ALLOCATION), _day, 1) << ' '
-//           << vac_campaign->get_all_doses_available(vac_campaign->get_doses_available(STANDARD_ALLOCATION), _day, 2) << " | "
-//           << vac_campaign->get_all_doses_available(vac_campaign->get_doses_available(URGENT_ALLOCATION), _day)/15 << " | "
-//           << vac_campaign->get_pool_size_by_dose(vac_campaign->get_potential_std_vaccinees(), 0) << ' '
-//           << vac_campaign->get_pool_size_by_dose(vac_campaign->get_potential_std_vaccinees(), 1) << ' '
-//           << vac_campaign->get_pool_size_by_dose(vac_campaign->get_potential_std_vaccinees(), 2) << " | "
-//           << vac_campaign->get_pool_size_by_dose(vac_campaign->get_potential_urg_vaccinees(), 0) << ' '
-//           << vac_campaign->get_pool_size_by_dose(vac_campaign->get_potential_urg_vaccinees(), 1) << ' '
-//           << vac_campaign->get_pool_size_by_dose(vac_campaign->get_potential_urg_vaccinees(), 2) << endl;
+//      cerr << vac_campaign->get_all_doses_available(STANDARD_ALLOCATION, _day) << " | "
+//           << vac_campaign->get_all_doses_available(URGENT_ALLOCATION, _day) << " | "
+//           << vac_campaign->get_pool_size_by_dose(vac_campaign->get_potential_vaccinees(STANDARD_QUEUE), 0) << ' '
+//           << vac_campaign->get_pool_size_by_dose(vac_campaign->get_potential_vaccinees(STANDARD_QUEUE), 1) << ' '
+//           << vac_campaign->get_pool_size_by_dose(vac_campaign->get_potential_vaccinees(STANDARD_QUEUE), 2) << " | "
+//           << vac_campaign->get_pool_size_by_dose(vac_campaign->get_potential_vaccinees(URGENT_QUEUE), 0) << ' '
+//           << vac_campaign->get_pool_size_by_dose(vac_campaign->get_potential_vaccinees(URGENT_QUEUE), 1) << ' '
+//           << vac_campaign->get_pool_size_by_dose(vac_campaign->get_potential_vaccinees(URGENT_QUEUE), 2) << endl;
 //    }
 
     // only continue if any doses are available today
