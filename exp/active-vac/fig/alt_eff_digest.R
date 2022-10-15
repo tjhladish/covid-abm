@@ -6,7 +6,7 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 #' assumes R project at the experiment root level
 .args <- if (interactive()) c(
   file.path(c(
-    "covid-active-v5.0.sqlite"
+    "covid-active-v5.1.sqlite"
   )),
   file.path("fig", "process", "alt_eff.rds")
 ) else commandArgs(trailingOnly = TRUE)
@@ -93,7 +93,7 @@ genordfac <- \(lvl) return(\(x) lvl[x+1] |> factor(levels = lvl, ordered = TRUE)
 funs <- list(
   quar = as.logical,
   pas_vac = as.logical,
-  act_vac = genordfac(c("none", "ring", "risk")),
+  act_vac = genordfac(c("none", "ring", "risk", "age")),
   pas_alloc = genordfac(c("none", "LIC", "MIC", "HIC", "USA")),
   act_alloc = genordfac(c("none", "LIC", "MIC", "HIC", "USA")),
   inf_con = \(x) x == 2
