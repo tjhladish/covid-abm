@@ -67,47 +67,9 @@ plt.qs <- quantile(
   ), levels = c("LIC", "MIC", "HIC", "USA"), ordered = TRUE
 )][, qfac := factor(c("No Additional NPI", "Quarantine Contacts")[quar+1]) ]
 
-p <- ggplot(plt.qs) + aes(
-  x = date,
-  color = act_vac,
-  linetype = factor(c("nonpi", "wquar")[quar+1])
-) +
-  facet_nested(
-    rows = vars(outcome), cols = vars(talloc), switch = "y",
-    scales = "free_y", labeller = labeller(
-      outcome = c(inf = "Infection", sev="Severe Disease", deaths = "Deaths")
-    )
-  ) +
-  geom_month_background(
-    plt.qs, by = c(row="outcome", col="talloc"),
-    font.size = 3, value.col = "qmed", max.col = "q90h", min.col = "q90l"
-  ) +
-  geom_ribbon(aes(ymin=q90l, ymax=q90h, fill=act_vac, color=NULL), alpha=0.25) +
-  geom_line(aes(y=qmed)) +
-  scale_color_discrete(
-    "Vaccine Program",
-    breaks = c("none", "risk", "ring"),
-    labels = c(
-      none="Standard Program",
-      ring="Ring Vaccination",
-      risk="Risk-Based Strategy"
-    ),
-    aesthetics = c("color", "fill")
-  ) +
-  scale_y_continuous(
-    name = "Per 10k, Cumulative\nIncidence of ..."
-  ) +
-  scale_x_null() +
-  scale_linetype_manual(
-    "Extra NPI", labels = c(nonpi="None", wquar = "Quarantine Contacts"),
-    values = c(nonpi="dashed", wquar="solid")
-  ) +
-  scale_alpha(range = c(0.02, 1)) +
-  theme_minimal() +
-  theme(
-    legend.position = "bottom",
-    strip.placement = "outside",
-    legend.direction = "horizontal"
-  )
+p <- allplot(
+  plt.qs, ylab = "Per 10k, Cumulative\nIncidence of ...",
+  withRef = FALSE
+)
 
 ggsave(tail(.args, 1), p, height = 6, width = 10, bg = "white")

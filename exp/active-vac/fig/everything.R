@@ -227,7 +227,7 @@ p.sd <- p.core(
 
 seas.dt <- prepare(d[realization == 1, .(realization, date, seasonality) ])
 
-scale_y_seasonality <- gg_scale_wrapper(
+scale_y_seasonality <- rejig(
   scale_y_continuous,
   name = "Seasonal Transmission Multiplier",
   limits = c(0.8, 1.2), breaks = seq(0.8, 1.2, by=.1),

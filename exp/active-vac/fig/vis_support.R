@@ -5,7 +5,7 @@
 #' TODO: do via creating and saving an environment, rather than everything
 rm(list = ls())
 
-.pkgs <- c("data.table", "ggplot2", "ggrepel")
+.pkgs <- c("data.table", "ggplot2", "ggrepel", "cabputils")
 
 stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 
@@ -19,53 +19,33 @@ startday <- as.Date("2020-12-01")
 datefilter <- expression(between(date, startday, endday))
 pop <- c(florida = 21538187, escambia = 312212, dade = 2794464)
 
-gg_scale_wrapper <- function(
-    scale_fun,
-    ...
-) {
-  stopifnot(!missing(scale_fun))
-  defs <- list(...)
-  if (!length(defs)) warning(
-    "provided no default arguments; consider using scale_fun directly."
-  )
-
-  return(function(...) {
-    # this different ... is how you get a function back that let's you
-    # override defaults, set other arguments to scale_... functions
-    .ellipsis <- list(...)
-    .args <- defs
-    .args[names(.ellipsis)] <- .ellipsis
-    do.call(scale_fun, .args)
-  })
-}
-
-scale_y_effectiveness <- gg_scale_wrapper(
+scale_y_effectiveness <- rejig(
   scale_y_continuous,
   name = "Cumulative Effectiveness Against ...",
   breaks = seq(0, 1, by=0.25)
 )
 
-scale_y_doses <- gg_scale_wrapper(
+scale_y_doses <- rejig(
   scale_y_continuous,
   name = "Per 10k, Daily Doses Administered"
 )
 
-scale_y_cdoses <- gg_scale_wrapper(
+scale_y_cdoses <- rejig(
   scale_y_continuous,
   name = "Per 10k, Cumulative Doses Administered"
 )
 
-scale_y_incidence <- gg_scale_wrapper(
+scale_y_incidence <- rejig(
   scale_y_continuous,
   name = "Per 10k, Incidence of ..."
 )
 
-scale_y_averted <- gg_scale_wrapper(
+scale_y_averted <- rejig(
   scale_y_continuous,
   name = "Per 10k, Averted Incidence of ..."
 )
 
-scale_x_null <- gg_scale_wrapper(
+scale_x_null <- rejig(
   scale_x_continuous,
   name = NULL, breaks = NULL, minor_breaks = NULL,
   expand = expansion(
@@ -73,7 +53,7 @@ scale_x_null <- gg_scale_wrapper(
   )
 )
 
-scale_y_fraction <- gg_scale_wrapper(
+scale_y_fraction <- rejig(
   scale_y_continuous,
   name = "Fraction of Population",
   breaks = (0:4)/4,
@@ -83,7 +63,26 @@ scale_y_fraction <- gg_scale_wrapper(
   )
 )
 
-scale_linetype_scenario <- gg_scale_wrapper(
+scale_linetype_quar <- rejig(
+  scale_linetype_manual,
+  name = "Extra NPI", labels = c(nonpi="None", wquar = "Quarantine Contacts"),
+  values = c(nonpi="dashed", wquar="solid")
+)
+
+scale_color_strategy <- rejig(
+  scale_color_manual,
+  name = "Vaccine Program",
+  breaks = c("risk", "age", "ring"),
+  labels = c(
+    ring="Ring Vaccination",
+    age = "Age-Based Strategy",
+    risk="Risk-Based Strategy"
+  ),
+  aesthetics = c("color", "fill"),
+  values = c(none = "darkgrey", ring = "firebrick", risk = "dodgerblue", age = "#edae49")
+)
+
+scale_linetype_scenario <- rejig(
   scale_linetype_manual,
   name = "Intervention",
   breaks = c("none", "qonly", "vonly", "vandq"),
@@ -93,7 +92,7 @@ scale_linetype_scenario <- gg_scale_wrapper(
   guide = guide_legend(override.aes = list(color = "grey"))
 )
 
-scale_color_scenario <- gg_scale_wrapper(
+scale_color_scenario <- rejig(
   scale_color_manual,
   name = "Vaccine Distr.",
   breaks = c("none", "passive", "ring", "risk"),
@@ -166,7 +165,7 @@ fullscncolors <- c(
   none = "black"
 )
 
-scale_linetype_fullscenario <- gg_scale_wrapper(
+scale_linetype_fullscenario <- rejig(
   scale_linetype_manual,
   name = "Intervention",
   breaks = fullscnbreaks,
@@ -176,7 +175,7 @@ scale_linetype_fullscenario <- gg_scale_wrapper(
   , guide = guide_legend(override.aes = list(fill = NA))
 )
 
-scale_color_fullscenario <- gg_scale_wrapper(
+scale_color_fullscenario <- rejig(
   scale_color_manual,
   name = "Intervention",
   breaks = fullscnbreaks,
@@ -187,7 +186,7 @@ scale_color_fullscenario <- gg_scale_wrapper(
   , guide = guide_legend(override.aes = list(fill = NA))
 )
 
-scale_color_measure <- gg_scale_wrapper(
+scale_color_measure <- rejig(
   scale_color_manual,
   name = NULL,
   values = c(
@@ -198,7 +197,7 @@ scale_color_measure <- gg_scale_wrapper(
   guide = "none"
 )
 
-scale_color_inputs <- gg_scale_wrapper(
+scale_color_inputs <- rejig(
   scale_color_manual,
   name = NULL,
   values = c(
@@ -216,7 +215,7 @@ measlbls <- c(
   quantile = "90% Prediction Interval"
 )
 
-scale_alpha_measure <- gg_scale_wrapper(
+scale_alpha_measure <- rejig(
   scale_alpha_manual,
   name = NULL,
   breaks = c("observed", "sample", "central", "quantile"),
@@ -231,7 +230,7 @@ scale_alpha_measure <- gg_scale_wrapper(
   )
 )
 
-scale_shape_measure <- gg_scale_wrapper(
+scale_shape_measure <- rejig(
   scale_shape_manual,
   name = NULL,
   breaks = c("observed", "sample", "central"),
@@ -245,7 +244,7 @@ scale_shape_measure <- gg_scale_wrapper(
   )
 )
 
-geom_observation <- gg_scale_wrapper(
+geom_observation <- rejig(
   geom_point,
   mapping = aes(shape = "observed"),
   data = function(dt) subset(dt, is.na(realization)),
@@ -638,6 +637,50 @@ prepare <- function(...) setkey(melt(
   id.vars = c("realization", "date"),
   variable.name = "measure", variable.factor = FALSE
 ), measure, realization, date)
+
+allplot <- function(data.qs, ylab, withRef = FALSE) {
+  res <- ggplot(data.qs) + aes(
+  x = date,
+  color = act_vac,
+  linetype = factor(c("nonpi", "wquar")[quar+1])
+) +
+  facet_nested(
+    rows = vars(outcome), cols = vars(talloc), switch = "y",
+    scales = "free_y", labeller = labeller(
+      outcome = c(inf = "Infection", sev = "Severe Disease", deaths = "Deaths")
+    )
+  ) +
+  geom_month_background(
+    plt.qs, by = c(row="outcome", col="talloc"),
+    font.size = 3, value.col = "qmed", max.col = "q90h", min.col = "q90l"
+  ) +
+  geom_ribbon(aes(ymin=q90l, ymax=q90h, fill=act_vac, color=NULL), alpha=0.25) +
+  geom_line(aes(y=qmed)) +
+  scale_color_strategy() +
+  scale_y_continuous(name = ylab) +
+  scale_x_null() +
+  scale_linetype_quar() +
+  scale_alpha(range = c(0.02, 1)) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    strip.placement = "outside",
+    legend.direction = "horizontal"
+  )
+  if (withRef) {
+    res <- res +
+      geom_hline(
+        aes(yintercept = 0, color = "none"),
+        show.legend = FALSE, data = \(dt) dt[,.SD[1],by=.(outcome, talloc)]
+      ) +
+      geom_texthline(
+        aes(yintercept = 0, color = "none", label = "Standard\nProgram"),
+        inherit.aes = FALSE, show.legend = FALSE, data = \(dt) dt[outcome == "sev"][talloc == "LIC",.SD[1],by=.(outcome, talloc)],
+        hjust = 0, gap = FALSE
+      )
+  }
+  return(res)
+}
 
 save(list=ls(), file = tail(.args, 1))
 
