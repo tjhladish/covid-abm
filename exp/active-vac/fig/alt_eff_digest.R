@@ -24,7 +24,7 @@ abcreader <- function(
 
   wherelim <- if (!is.null(reallimit)) sprintf(" WHERE realization < %i", reallimit) else ""
   stmt <- sprintf(
-    "SELECT %s FROM par JOIN met USING(serial)%s ORDER BY serial;",
+    "SELECT %s FROM par JOIN met USING(serial)%s;",
     paste(pmcols, collapse=", "),
     wherelim
   )
@@ -32,7 +32,7 @@ abcreader <- function(
 
   db <- dbConnect(SQLite(), pth)
   dt <- db |> dbGetQuery(stmt) |> as.data.table()
-  dt[, realization := as.integer(realization) ]
+  dt[, realization := as.integer(realization) ] |> setkey(serial)
 
   if (wherelim != "") {
     srls <- dt[, unique(serial)]
@@ -40,14 +40,14 @@ abcreader <- function(
   }
 
   mstmt <- sprintf(
-    "SELECT %s FROM meta%s ORDER BY serial, date;",
+    "SELECT %s FROM meta%s;",
     metacols |> paste(collapse=", "),
     wherelim
   )
 
   if (verbose) warning("Issuing: ", mstmt)
   meta.dt <- db |> dbGetQuery(mstmt) |> as.data.table()
-  meta.dt[, date := as.Date(date) ][ date >= datelim ]
+  meta.dt[, date := as.Date(date) ][ date >= datelim ] |> setkey(serial, date)
 
   dbDisconnect(db)
   return(list(pars = dt, meta = meta.dt))
@@ -68,7 +68,7 @@ scenarize <- function(dt, offset = 0L) {
   dt
 }
 
-dts <- head(.args, -1) |> abcreader()
+dts <- head(.args, -1) |> abcreader(verbose = FALSE)
 
 reserialize(dts)
 scenarize(dts)
@@ -96,12 +96,13 @@ funs <- list(
   act_vac = genordfac(c("none", "ring", "risk", "age")),
   pas_alloc = genordfac(c("none", "LIC", "MIC", "HIC", "USA")),
   act_alloc = genordfac(c("none", "LIC", "MIC", "HIC", "USA")),
-  inf_con = \(x) x == 2
+  inf_con = \(x) x == 2,
+  scenario = \(x) x
 )
 
 scn.dt <- dts$pars[
   realization == 0, .SD, .SDcols = -c("serial", "realization")
-][, sapply(names(funs), \(nm) funs[[nm]](.SD[[nm]]), USE.NAMES = TRUE, simplify = FALSE)][, scenario := 1:.N ]
+][, sapply(names(funs), \(nm) funs[[nm]](.SD[[nm]]), USE.NAMES = TRUE, simplify = FALSE)]
 dts$pars <- NULL
 rm(dts)
 gc()

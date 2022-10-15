@@ -12,9 +12,11 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 
 load(.args[1])
 
+intfilter <- if (interactive()) expression(realization < 10) else expression(realization >= 0)
+
 #' comes key'd
 inc.dt <- readRDS(.args[2])[
-  eval(datefilter)
+  eval(datefilter) & eval(intfilter)
 ][
   outcome %in% c("inf", "sev", "deaths")
 ][, .(
@@ -37,7 +39,7 @@ refscn.dt <- scn.dt[quar == FALSE & pas_vac == TRUE & act_vac == "none"]
 
 incref.dt <- inc.dt[
   intscn.dt, on=.(scenario)
-][
+][(act_vac == "ring") & (quar == FALSE)][ # only need to go from one reference
   refscn.dt, on =.(act_alloc = pas_alloc, inf_con)
 ][,.(
   c.value = i.c.value[1]

@@ -72,8 +72,9 @@ scale_linetype_quar <- rejig(
 scale_color_strategy <- rejig(
   scale_color_manual,
   name = "Vaccine Program",
-  breaks = c("risk", "age", "ring"),
+  breaks = c("none", "risk", "age", "ring"),
   labels = c(
+    none="Standard Program",
     ring="Ring Vaccination",
     age = "Age-Based Strategy",
     risk="Risk-Based Strategy"
@@ -638,7 +639,10 @@ prepare <- function(...) setkey(melt(
   variable.name = "measure", variable.factor = FALSE
 ), measure, realization, date)
 
-allplot <- function(data.qs, ylab, withRef = FALSE) {
+allplot <- function(
+  data.qs, ylab, withRef = FALSE,
+  col.breaks = if (withRef) c("risk", "age", "ring") else c("none", "risk", "age", "ring")
+) {
   res <- ggplot(data.qs) + aes(
   x = date,
   color = act_vac,
