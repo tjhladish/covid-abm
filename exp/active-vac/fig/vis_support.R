@@ -655,7 +655,7 @@ allplot <- function(
     )
   ) +
   geom_month_background(
-    plt.qs, by = c(row="outcome", col="talloc"),
+    data.qs, by = c(row="outcome", col="talloc"),
     font.size = 3, value.col = "qmed", max.col = "q90h", min.col = "q90l"
   ) +
   geom_ribbon(aes(ymin=q90l, ymax=q90h, fill=act_vac, color=NULL), alpha=0.25) +
