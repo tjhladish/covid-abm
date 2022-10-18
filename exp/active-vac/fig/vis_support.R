@@ -17,6 +17,7 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 endday <- as.Date("2022-03-31")
 startday <- as.Date("2020-12-01")
 datefilter <- expression(between(date, startday, endday))
+outfilter <- expression(outcome %in% c("inf", "deaths"))
 pop <- c(florida = 21538187, escambia = 312212, dade = 2794464)
 
 scale_y_effectiveness <- rejig(
@@ -640,7 +641,7 @@ prepare <- function(...) setkey(melt(
 ), measure, realization, date)
 
 allplot <- function(
-  data.qs, ylab, withRef = FALSE,
+  data.qs, yl, withRef = FALSE,
   col.breaks = if (withRef) c("risk", "age", "ring") else c("none", "risk", "age", "ring")
 ) {
   res <- ggplot(data.qs) + aes(
@@ -658,10 +659,11 @@ allplot <- function(
     data.qs, by = c(row="outcome", col="talloc"),
     font.size = 3, value.col = "qmed", max.col = "q90h", min.col = "q90l"
   ) +
-  geom_ribbon(aes(ymin=q90l, ymax=q90h, fill=act_vac, color=NULL), alpha=0.25) +
+  geom_ribbon(aes(ymin=q90l, ymax=q90h, fill=act_vac, color=NULL), alpha=0.10) +
+  geom_ribbon(aes(ymin=q50l, ymax=q50h, fill=act_vac, color=NULL), alpha=0.25) +
   geom_line(aes(y=qmed)) +
   scale_color_strategy() +
-  scale_y_continuous(name = ylab) +
+  scale_y_continuous(name = yl) +
   scale_x_null() +
   scale_linetype_quar() +
   scale_alpha(range = c(0.02, 1)) +
@@ -678,8 +680,8 @@ allplot <- function(
         show.legend = FALSE, data = \(dt) dt[,.SD[1],by=.(outcome, talloc)]
       ) +
       geom_texthline(
-        aes(yintercept = 0, color = "none", label = "Standard\nProgram"),
-        inherit.aes = FALSE, show.legend = FALSE, data = \(dt) dt[outcome == "sev"][talloc == "LIC",.SD[1],by=.(outcome, talloc)],
+        aes(yintercept = 0, color = "none", label = "Reference\nProgram"),
+        inherit.aes = FALSE, show.legend = FALSE, data = \(dt) dt[outcome == "inf"][talloc == "LIC",.SD[1],by=.(outcome, talloc)],
         hjust = 0, gap = FALSE
       )
   }

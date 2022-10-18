@@ -14,9 +14,7 @@ load(.args[1])
 
 #' comes key'd
 eff.dt <- readRDS(.args[2])[
-  eval(datefilter)
-][
-  outcome %in% c("inf", "sev", "deaths")
+  eval(datefilter) & eval(outfilter)
 ][, .(
   scenario, realization, date, outcome, averted
 )]
@@ -38,7 +36,7 @@ gc()
 plt.qs <- quantile(
   plt.dt,
   j = .(c.averted), sampleby = "realization",
-  probs = qprobs(c(`90`=.9), mid = TRUE, extent = FALSE)
+  probs = qprobs(c(`90`=.9, `50`=.5), mid = TRUE, extent = FALSE)
 )[, talloc := factor(
   fifelse(
     pas_alloc == "none",
@@ -47,7 +45,7 @@ plt.qs <- quantile(
 )][, qfac := factor(c("No Additional NPI", "Quarantine Contacts")[quar+1]) ]
 
 p <- allplot(
-  plt.qs, ylab = "Per 10k, Cumulative Averted\nIncidence of ... Beyond Standard Program",
+  plt.qs, yl = "Per 10k, Cumulative Averted\nIncidence of ... Beyond Standard Program",
   withRef = TRUE
 )
 

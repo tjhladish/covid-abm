@@ -16,9 +16,7 @@ intfilter <- if (interactive()) expression(realization < 10) else expression(rea
 
 #' comes key'd
 inc.dt <- readRDS(.args[2])[
-  eval(datefilter) & eval(intfilter)
-][
-  outcome %in% c("inf", "sev", "deaths")
+  eval(datefilter) & eval(intfilter) & eval(outfilter)
 ][, .(
   scenario, realization, date, outcome, value, averted
 )]
@@ -61,7 +59,7 @@ gc()
 plt.qs <- quantile(
   plt.dt,
   j = .(c.value), sampleby = "realization",
-  probs = qprobs(c(`90`=.9), mid = TRUE, extent = FALSE)
+  probs = qprobs(c(`90`=.9, `50`=.5), mid = TRUE, extent = FALSE)
 )[, talloc := factor(
   fifelse(
     pas_alloc == "none",
@@ -70,7 +68,7 @@ plt.qs <- quantile(
 )][, qfac := factor(c("No Additional NPI", "Quarantine Contacts")[quar+1]) ]
 
 p <- allplot(
-  plt.qs, ylab = "Per 10k, Cumulative\nIncidence of ...",
+  plt.qs, yl = "Per 10k, Cumulative\nIncidence of ...",
   withRef = FALSE
 )
 
