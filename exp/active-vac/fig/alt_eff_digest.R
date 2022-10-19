@@ -47,31 +47,59 @@ abcreader <- function(
 
   if (verbose) warning("Issuing: ", mstmt)
   meta.dt <- db |> dbGetQuery(mstmt) |> as.data.table()
-  meta.dt[, date := as.Date(date) ][ date >= datelim ] |> setkey(serial, date)
+
+  meta.dt <- meta.dt[, date := as.Date(date) ] |> setkey(serial, date)
+  if (!is.null(datelim)) meta.dt <- meta.dt[ date >= datelim ]
+
+  ret <- list(pars = dt, meta = meta.dt)
+
+  if (verbose) { # also fetch out met table
+    metstmt <- sprintf(
+      "SELECT * FROM met%s;",
+      wherelim
+    )
+    mets.dt <- db |> dbGetQuery(metstmt) |> as.data.table()
+    ret$ms <- mets.dt
+  }
 
   dbDisconnect(db)
-  return(list(pars = dt, meta = meta.dt))
+
+  return(ret)
 }
 
 reserialize <- function(dt, offset = 0L) {
-  dt$pars[, serial := offset + .GRP, by=serial]
-  dt$meta[, serial := offset + .GRP, by=serial]
+  lapply(dt, function(sdt) sdt[, serial := offset + .GRP, by=serial])
   dt
 }
 
 scenarize <- function(dt, offset = 0L) {
   dt$pars[, scenario := offset + 1L:.N, by=.(realization)]
-  dt$meta[
+  lapply(dt[-(names(dt) == "pars")], function(sdt) sdt[
     dt$pars, on =.(serial),
     c("scenario", "realization") := .(scenario, realization)
-  ]
+  ])
   dt
 }
 
-dts <- head(.args, -1) |> abcreader(verbose = FALSE)
+dts <- head(.args, -1) |> abcreader(datelim = NULL)
 
 reserialize(dts)
 scenarize(dts)
+
+#' @examples
+#' cmp.dt <- rbind(
+#'   dts$meta[, .(cdeath = sum(deaths)*37.5, source = "meta"), by=.(scenario, realization)],
+#'   dts$ms[, .(cdeath = tot_cumul_deaths, source = "mets"), by=.(scenario, realization)]
+#' )[
+#'   ,.(value = median(cdeath)), by=.(scenario, source)
+#' ][scn.dt, on=.(scenario)][inf_con == FALSE][,
+#'   .(source, quar, pas_vac, act_vac, alloc = fifelse(pas_vac, pas_alloc, act_alloc), value)
+#' ]
+#'
+#' require(ggplot2); require(ggh4x)
+#' ggplot(cmp.dt) + aes(x=alloc, y=value, shape = source, color = act_vac) +
+#'   facet_nested("Quar" + quar ~ .) +
+#'   geom_point() + theme_minimal() + scale_y_continuous("Tot. Deaths")
 
 setkey(dts$pars, serial, realization)
 
