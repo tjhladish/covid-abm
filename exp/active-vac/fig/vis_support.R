@@ -67,7 +67,7 @@ scale_y_fraction <- rejig(
 scale_linetype_quar <- rejig(
   scale_linetype_manual,
   name = "Extra NPI", labels = c(nonpi="None", wquar = "Quarantine Contacts"),
-  values = c(nonpi="dashed", wquar="solid")
+  values = c(wquar="dashed", nonpi="solid")
 )
 
 scale_color_strategy <- rejig(
@@ -81,7 +81,7 @@ scale_color_strategy <- rejig(
     risk="Risk-Based Strategy"
   ),
   aesthetics = c("color", "fill"),
-  values = c(none = "darkgrey", ring = "firebrick", risk = "dodgerblue", age = "#edae49")
+  values = c(none = "black", ring = "#00529b", risk = "#006b35", age = "#fb6502")
 )
 
 scale_linetype_scenario <- rejig(
@@ -337,15 +337,15 @@ m.abb <- gsub("^(.).+$","\\1", month.abb)
 #'  - label first fully enclosed month
 geom_month_background <- function(
     data,
-    col.cycle = c(off = NA, on = alpha("lightgrey", 0.75)),
+    col.cycle = c(off = NA, on = alpha("grey95", 0.75)),
     m.labels = m.abb,
     font.size = 8, font.face = "bold",
     ytrans = "identity",
     datafn = tsref.dt,
     m.y = 0.85, y.y = 0.81,
+    text.col = rep("darkgrey", length(col.cycle)),
     ...
 ) {
-  text.col <- alpha(col.cycle, 1)
   names(text.col) <- c(tail(names(col.cycle), -1), names(col.cycle)[1])
   text.col[is.na(text.col)] <- "white"
   dt <- datafn(data, ...)
@@ -642,7 +642,8 @@ prepare <- function(...) setkey(melt(
 
 allplot <- function(
   data.qs, yl, withRef = FALSE,
-  col.breaks = if (withRef) c("risk", "age", "ring") else c("none", "risk", "age", "ring")
+  col.breaks = if (withRef) c("risk", "age", "ring") else c("none", "risk", "age", "ring"),
+  withBands = NULL
 ) {
   res <- ggplot(data.qs) + aes(
   x = date,
@@ -659,29 +660,33 @@ allplot <- function(
     data.qs, by = c(row="outcome", col="talloc"),
     font.size = 3, value.col = "qmed", max.col = "q90h", min.col = "q90l"
   ) +
-  geom_ribbon(aes(ymin=q90l, ymax=q90h, fill=act_vac, color=NULL), alpha=0.10) +
-  geom_ribbon(aes(ymin=q50l, ymax=q50h, fill=act_vac, color=NULL), alpha=0.25) +
+  geom_ribbon(aes(ymin=q90l, ymax=q90h, fill=act_vac, color=NULL), alpha=0.15) +
+#  geom_ribbon(aes(ymin=q50l, ymax=q50h, fill=act_vac, color=NULL), alpha=0.25) +
   geom_line(aes(y=qmed)) +
   scale_color_strategy() +
-  scale_y_continuous(name = yl) +
+  scale_y_continuous(name = yl, expand = c(0, 0)) +
   scale_x_null() +
   scale_linetype_quar() +
-  scale_alpha(range = c(0.02, 1)) +
+#  scale_alpha(range = c(0.02, 1)) +
   theme_minimal() +
   theme(
     legend.position = "bottom",
     strip.placement = "outside",
     legend.direction = "horizontal"
   )
+  if (!is.null(withBands)) {
+# TODO start-end, era
+
+  }
   if (withRef) {
     res <- res +
       geom_hline(
-        aes(yintercept = 0, color = "none"),
+        aes(yintercept = 0, color = "none", linetype = "nonpi"),
         show.legend = FALSE, data = \(dt) dt[,.SD[1],by=.(outcome, talloc)]
       ) +
       geom_texthline(
         aes(yintercept = 0, color = "none", label = "Reference\nProgram"),
-        inherit.aes = FALSE, show.legend = FALSE, data = \(dt) dt[outcome == "inf"][talloc == "LIC",.SD[1],by=.(outcome, talloc)],
+        inherit.aes = FALSE, show.legend = FALSE, data = \(dt) dt[talloc == "LIC",.SD[1],by=.(outcome, talloc)],
         hjust = 0, gap = FALSE
       )
   }
