@@ -147,7 +147,7 @@ void Vac_Campaign::location_scheduling(int day, vector<set<Person*, PerPtrComp>>
     }
 }
 
-void Vac_Campaign::generate_risk_quantiles(Community* community, map<int, vector<Person*>>& grouped_ppl, map<int, double>& grouped_risk, size_t nbin, GroupedRiskDef grd = BY_RISK_QUANTILE) {
+void Vac_Campaign::generate_risk_quantiles(Community* community, map<int, vector<Person*>>& grouped_ppl, map<int, double>& grouped_risk, size_t nbin, GroupedRiskDef grd = BY_HOSP_QUANTILE) {
     // index for these maps is arbitrary group id (int)
     grouped_ppl.clear();
     grouped_risk.clear();
@@ -162,7 +162,7 @@ void Vac_Campaign::generate_risk_quantiles(Community* community, map<int, vector
         if (is_age_eligible_on(p->getAge(), (_par->runLength - 1))) {
             ++eligible_pop_size;
             switch (grd) {
-                case BY_RISK_QUANTILE: val = p->getBaselineRiskSevOutcome(); break;
+                case BY_HOSP_QUANTILE: val = p->getBaselineRiskSevOutcome(); break;
                 case BY_AGE_QUANTILE:  val = p->getAge(); break;
                 default: cerr << "must pass GroupedRiskDef that isnt BY_FILE" << endl; exit(-1);
             }
@@ -231,10 +231,8 @@ void Vac_Campaign::grouped_risk_scheduling(int day, Community* community) {
                 }
             }
             iss.close();
-        } else if (grouped_risk_def == BY_RISK_QUANTILE) {
-            generate_risk_quantiles(community, grouped_ppl, grouped_risk, risk_quantile_nbins, BY_RISK_QUANTILE);
-        } else if (grouped_risk_def == BY_AGE_QUANTILE) {
-            generate_risk_quantiles(community, grouped_ppl, grouped_risk, risk_quantile_nbins, BY_AGE_QUANTILE);
+        } else if (grouped_risk_def == BY_HOSP_QUANTILE or grouped_risk_def == BY_AGE_QUANTILE) {
+            generate_risk_quantiles(community, grouped_ppl, grouped_risk, risk_quantile_nbins, grouped_risk_def);
         }
 
         // special comparator to sort the groups by per capita risk

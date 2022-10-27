@@ -518,8 +518,8 @@ if (sim_day == 0) { seed_epidemic(par, community, WILDTYPE); }
 
 cerr_vector(community->getTimedIntervention(SOCIAL_DISTANCING)); cerr << endl;
 
-    if (RNG) { gsl_rng_free(RNG); }
-    if (REPORTING_RNG) { gsl_rng_free(REPORTING_RNG); }
+    if (RNG) { gsl_rng_free(RNG); RNG = nullptr; }
+    if (REPORTING_RNG) { gsl_rng_free(REPORTING_RNG); REPORTING_RNG = nullptr; }
 
     vector<string> plot_log_buffer = ledger->plot_log_buffer;
     if (ledger) { delete ledger; }

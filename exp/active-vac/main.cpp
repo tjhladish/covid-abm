@@ -522,6 +522,10 @@ vector<double> tally_counts(const Parameters* par, Community* community, int dis
 
 vector<double> simulator(vector<double> args, const unsigned long int rng_seed, const unsigned long int serial, const ABC::MPI_par* mp = nullptr) {
     cerr << "rng seed: " << rng_seed << endl;
+    if (not RNG)           {cerr << "realloc RNG1\n"; RNG = gsl_rng_alloc(gsl_rng_taus2);}
+    if (not REPORTING_RNG) {cerr << "realloc RNG2\n"; REPORTING_RNG = gsl_rng_alloc(gsl_rng_mt19937);}
+    if (not VAX_RNG)       {cerr << "realloc RNG3\n"; VAX_RNG = gsl_rng_alloc(gsl_rng_mt19937);}
+
     gsl_rng_set(RNG, rng_seed);
     gsl_rng_set(VAX_RNG, rng_seed);
     gsl_rng_set(REPORTING_RNG, rng_seed);
@@ -546,12 +550,18 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     cerr << "SCENARIO " << rng_seed;
     for (auto _p: args) { cerr << " " << _p; } cerr << endl;
 
-    const vector<VacCampaignType> act_vc_lookup = {NO_CAMPAIGN, RING_VACCINATION, GROUPED_RISK_VACCINATION};
+    const vector<VacCampaignType> act_vc_lookup = {NO_CAMPAIGN, RING_VACCINATION, GROUPED_RISK_VACCINATION, NUM_OF_VAC_CAMPAIGN_TYPES};
 
     const size_t realization                        = (size_t) args[0];
     const bool quarantine_ctrl                      = (bool) args[1];                 // 0 = off; 1 = on
     const bool do_passive_vac                       = (bool) args[2];                 // 0 = off; 1 = on
-    VacCampaignType active_vac                      = act_vc_lookup.at(args[3]);      // 0 = off; 1 = ring; 2 = risk
+
+                                                      // argument 3 now represents two dimensions within the simulator
+    VacCampaignType active_vac                      = args[3] < 3 ? act_vc_lookup.at(args[3]) :
+                                                      args[3] == 3 ? act_vc_lookup[2] : NUM_OF_VAC_CAMPAIGN_TYPES;      // 0 = off; 1 = ring; 2,3 = {risk_hosp, risk_age}
+    const Vac_Campaign::GroupedRiskDef grd_type     = args[3] == 2 ? Vac_Campaign::BY_HOSP_QUANTILE :
+                                                      args[3] == 3 ? Vac_Campaign::BY_AGE_QUANTILE : Vac_Campaign::NUM_OF_GROUPED_RISK_DEF_TYPES;
+
     const size_t passive_alloc                      = args[4];                        // 0 = 0;  1 = LIC;  2 = MIC;  3 = HIC;  4 = USA
     const size_t active_alloc                       = args[5];                        // 0 = 0;  1 = LIC;  2 = MIC;  3 = HIC;  4 = USA
     const VaccineInfConstraint vac_constraint       = (VaccineInfConstraint) args[6]; // 2 = non-case only; 4 = any status
@@ -572,7 +582,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     par->seropositivityThreshold = 0.0;
 
     // handle all vac campaign setup
-    if (do_passive_vac or active_vac) { // active_vac can take on NO_CAMPAIGN, RING_VACCINATION, or GROUPED_RISK_VACCINATION
+    if (do_passive_vac or active_vac) { // active_vac can take on NO_CAMPAIGN, RING_VACCINATION, GROUPED_RISK_VACCINATION, or GROUPED_AGE_VACCINATION
         par->numVaccineDoses       = 3;             // total doses in series
         par->vaccineDoseInterval   = {21, 240};     // intervals between dose 1-->2, dose 2-->3, etc.
         // par->vaccineTargetCoverage = 0.60;          // for healthcare workers only
@@ -649,6 +659,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
         par->vaccineInfConstraint = vac_constraint;
         vc->set_reactive_vac_strategy(active_vac);
+        vc->set_grouped_risk_def(grd_type);
 
         int group_risk_quantile_bins = 10;
         vc->set_risk_quantile_nbins(group_risk_quantile_bins);  // TODO: make sure that if GROUPED_RISK_VACCINATION is on and this value is -1, fail
@@ -668,8 +679,6 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
         vector<int> min_ages(par->runLength, 5);
         vc->set_min_age(min_ages);       // needed for e.g. urgent vaccinations
-
-        if (active_vac == GROUPED_RISK_VACCINATION) { vc->set_grouped_risk_def(Vac_Campaign::BY_RISK_QUANTILE); }
 
        // cerr << "Vaccination scenario:\n"
        //      << GENERAL_CAMPAIGN << "\n"
@@ -740,7 +749,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     bool overwrite = true;
     // this output filename needs to be adjusted for each experiment, so as to not overwrite files
     //string filename = "plot_log" + to_string(serial) + ".csv";
-    string filename = "/blue/longini/tjhladish/covid-abm/exp/active-vac/v5.0/plot_log" + to_string(serial) + ".csv";
+    string filename = "/blue/longini/tjhladish/covid-abm/exp/active-vac/v5.1/plot_log" + to_string(serial) + ".csv";
     //string filename = "plot_log" + to_string(serial) + ".csv";
     write_daily_buffer(plot_log_buffer, process_id, filename, overwrite);
 
@@ -806,7 +815,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     }
 
     // if (vc)      { delete vc; }           // should this be here? MOVED INTO COMMUNITY DESTRUCTOR
-    if (VAX_RNG) { gsl_rng_free(VAX_RNG); }
+    if (VAX_RNG) { gsl_rng_free(VAX_RNG); VAX_RNG = nullptr; }
     delete community;
     delete par;
 

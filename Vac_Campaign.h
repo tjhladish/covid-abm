@@ -204,7 +204,7 @@ class Vac_Campaign {
 
         enum GroupedRiskDef {
             BY_FILE,
-            BY_RISK_QUANTILE,
+            BY_HOSP_QUANTILE,
             BY_AGE_QUANTILE,
             NUM_OF_GROUPED_RISK_DEF_TYPES
         };
@@ -485,7 +485,7 @@ class Vac_Campaign {
 
                 if (std_eg or urg_eg) { group_added = true; }
             }
-            if (reactive_vac_strategy == GROUPED_RISK_VACCINATION and (today > start_of_campaign[GROUPED_RISK_VACCINATION])) {
+            if (reactive_vac_strategy == GROUPED_RISK_VACCINATION and today > start_of_campaign[reactive_vac_strategy]) {
                 _add_ppl_from_risk_groups(today);
             }
             return group_added;
