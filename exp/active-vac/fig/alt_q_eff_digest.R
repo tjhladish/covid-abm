@@ -6,9 +6,9 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 #' assumes R project at the experiment root level
 .args <- if (interactive()) c(
   file.path(c(
-    "covid-active-v5.1.sqlite"
+    "covid-active-v5.0.sqlite"
   )),
-  file.path("fig", "process", "alt_eff.rds")
+  file.path("fig", "process", "alt_q_eff.rds")
 ) else commandArgs(trailingOnly = TRUE)
 
 magicdate <- as.Date("2020-12-01")
@@ -24,7 +24,7 @@ abcreader <- function(
 
   wherelim <- if (!is.null(reallimit)) sprintf(" WHERE realization < %i", reallimit) else ""
   stmt <- sprintf(
-    "SELECT %s FROM par JOIN met USING(serial)%s;",
+    "SELECT %s FROM par JOIN met USING(serial)%s ORDER BY serial;",
     paste(pmcols, collapse=", "),
     wherelim
   )
@@ -32,7 +32,7 @@ abcreader <- function(
 
   db <- dbConnect(SQLite(), pth)
   dt <- db |> dbGetQuery(stmt) |> as.data.table()
-  dt[, realization := as.integer(realization) ] |> setkey(serial)
+  dt[, realization := as.integer(realization) ]
 
   if (wherelim != "") {
     srls <- dt[, unique(serial)]
@@ -40,66 +40,38 @@ abcreader <- function(
   }
 
   mstmt <- sprintf(
-    "SELECT %s FROM meta%s;",
+    "SELECT %s FROM meta%s ORDER BY serial, date;",
     metacols |> paste(collapse=", "),
     wherelim
   )
 
   if (verbose) warning("Issuing: ", mstmt)
   meta.dt <- db |> dbGetQuery(mstmt) |> as.data.table()
-
-  meta.dt <- meta.dt[, date := as.Date(date) ] |> setkey(serial, date)
-  if (!is.null(datelim)) meta.dt <- meta.dt[ date >= datelim ]
-
-  ret <- list(pars = dt, meta = meta.dt)
-
-  if (verbose) { # also fetch out met table
-    metstmt <- sprintf(
-      "SELECT * FROM met%s;",
-      wherelim
-    )
-    mets.dt <- db |> dbGetQuery(metstmt) |> as.data.table()
-    ret$ms <- mets.dt
-  }
+  meta.dt[, date := as.Date(date) ][ date >= datelim ]
 
   dbDisconnect(db)
-
-  return(ret)
+  return(list(pars = dt, meta = meta.dt))
 }
 
 reserialize <- function(dt, offset = 0L) {
-  lapply(dt, function(sdt) sdt[, serial := offset + .GRP, by=serial])
+  dt$pars[, serial := offset + .GRP, by=serial]
+  dt$meta[, serial := offset + .GRP, by=serial]
   dt
 }
 
 scenarize <- function(dt, offset = 0L) {
   dt$pars[, scenario := offset + 1L:.N, by=.(realization)]
-  lapply(dt[-(names(dt) == "pars")], function(sdt) sdt[
+  dt$meta[
     dt$pars, on =.(serial),
     c("scenario", "realization") := .(scenario, realization)
-  ])
+  ]
   dt
 }
 
-dts <- head(.args, -1) |> abcreader(datelim = NULL)
+dts <- head(.args, -1) |> abcreader()
 
 reserialize(dts)
 scenarize(dts)
-
-#' @examples
-#' cmp.dt <- rbind(
-#'   dts$meta[, .(cdeath = sum(deaths)*37.5, source = "meta"), by=.(scenario, realization)],
-#'   dts$ms[, .(cdeath = tot_cumul_deaths, source = "mets"), by=.(scenario, realization)]
-#' )[
-#'   ,.(value = median(cdeath)), by=.(scenario, source)
-#' ][scn.dt, on=.(scenario)][inf_con == FALSE][,
-#'   .(source, quar, pas_vac, act_vac, alloc = fifelse(pas_vac, pas_alloc, act_alloc), value)
-#' ]
-#'
-#' require(ggplot2); require(ggh4x)
-#' ggplot(cmp.dt) + aes(x=alloc, y=value, shape = source, color = act_vac) +
-#'   facet_nested("Quar" + quar ~ .) +
-#'   geom_point() + theme_minimal() + scale_y_continuous("Tot. Deaths")
 
 setkey(dts$pars, serial, realization)
 
@@ -121,34 +93,22 @@ genordfac <- \(lvl) return(\(x) lvl[x+1] |> factor(levels = lvl, ordered = TRUE)
 funs <- list(
   quar = as.logical,
   pas_vac = as.logical,
-  act_vac = genordfac(c("none", "ring", "risk", "age")),
+  act_vac = genordfac(c("none", "ring", "risk")),
   pas_alloc = genordfac(c("none", "LIC", "MIC", "HIC", "USA")),
   act_alloc = genordfac(c("none", "LIC", "MIC", "HIC", "USA")),
-  inf_con = \(x) x == 2,
-  scenario = \(x) x
+  inf_con = \(x) x == 2
 )
 
 scn.dt <- dts$pars[
   realization == 0, .SD, .SDcols = -c("serial", "realization")
-][, sapply(names(funs), \(nm) funs[[nm]](.SD[[nm]]), USE.NAMES = TRUE, simplify = FALSE)]
+][, sapply(names(funs), \(nm) funs[[nm]](.SD[[nm]]), USE.NAMES = TRUE, simplify = FALSE)][, scenario := 1:.N ]
 dts$pars <- NULL
 rm(dts)
 gc()
 
-#' the baseline scenarios are:
-#'  - non "active" distribution scenarios
-#'  - with some passive allocation
-#'  - with no additional NPIs (i.e. quarantine program)
+# WARNING: MAGIC NUMBER
 basescnid <- scn.dt[
-  (act_vac == "none") & (pas_vac == TRUE) & (quar == FALSE)
-][,
-  unique(scenario)
-]
-
-excludescns <- scn.dt[
-  !(scenario %in% basescnid)
-][
-  ((pas_vac == FALSE) & (act_vac == "none")) | ((act_vac == "none") & (quar == TRUE))
+  quar == FALSE
 ][,
   unique(scenario)
 ]
@@ -157,14 +117,31 @@ ref.dt <- meta.dt[
   (scenario %in% basescnid)# & (outcome != "doses")
 ][
   scn.dt,
-  c("alloc", "inf_con") := .(pas_alloc, inf_con),
+  c(
+    "pas_vac", "pas_alloc",
+    "act_vac", "act_alloc",
+    "inf_con"
+  ) := .(
+    pas_vac, pas_alloc,
+    act_vac, act_alloc,
+    inf_con
+  ),
   on=.(scenario)
 ]
 
 int.dt <- meta.dt[
-  !(scenario %in% c(basescnid, excludescns))# & (outcome != "doses")
-][scn.dt,
-  c("alloc", "inf_con", "quar") := .(act_alloc, inf_con, quar),
+  !(scenario %in% basescnid)# & (outcome != "doses")
+][
+  scn.dt,
+  c(
+    "pas_vac", "pas_alloc",
+    "act_vac", "act_alloc",
+    "inf_con"
+  ) := .(
+    pas_vac, pas_alloc,
+    act_vac, act_alloc,
+    inf_con
+  ),
   on=.(scenario)
 ]
 
@@ -174,7 +151,12 @@ gc()
 int.dt[
   ref.dt[, .SD, .SDcols = -c("scenario")],
   c("averted", "c.effectiveness") := .(i.value-value, fifelse(c.value == i.c.value, 0, (i.c.value-c.value)/i.c.value)),
-  on=.(alloc, inf_con, realization, outcome, date)
+  on=.(
+    pas_vac, pas_alloc,
+    act_vac, act_alloc,
+    inf_con, realization,
+    outcome, date
+  )
 ]
 
 rm(ref.dt)
@@ -184,18 +166,3 @@ saveRDS(
   int.dt[,c(key(int.dt), "value", "averted", "c.effectiveness"), with = FALSE],
   tail(.args, 1)
 )
-
-dts <- head(.args, -1) |> abcreader(metacols = c("serial","date","Rt"))
-
-reserialize(dts)
-scenarize(dts)
-
-setkey(dts$pars, serial, realization)
-
-meta.dt <- dts$meta[, .SD, .SDcols = -c("serial")] |>
-  setkey(scenario, realization, date)
-
-saveRDS(meta.dt, gsub("\\.rds","-rt.rds", tail(.args, 1)))
-
-rm(meta.dt)
-gc()

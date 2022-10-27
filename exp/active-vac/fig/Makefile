@@ -10,7 +10,7 @@ DLDIR ?= ~/Downloads
 RESDIR := process
 # for CABP, now overriden to point to GDRIVE fig dir
 OUTDIR ?= output
-SIMFILES ?= $(patsubst %,covid-active-%.sqlite,v5.0)
+SIMFILES ?= $(patsubst %,covid-active-%.sqlite,v5.1)
 
 R = $(strip Rscript $^ $(1) $@)
 
@@ -42,6 +42,14 @@ $(patsubst %,${RESDIR}/digest-%.rds,key doses ref): ${RESDIR}/digest.rds
 
 ${RESDIR}/alt_eff.rds: alt_eff_digest.R $(addprefix ${DATADIR}/,${SIMFILES}) | ${RESDIR}
 	Rscript --min-vsize=12G $^ $@
+
+${RESDIR}/alt_q_eff.rds: alt_q_eff_digest.R $(addprefix ${DATADIR}/,${SIMFILES}) | ${RESDIR}
+	Rscript --min-vsize=12G $^ $@
+
+${RESDIR}/alt_i_eff.rds: alt_i_eff_digest.R $(addprefix ${DATADIR}/,${SIMFILES}) | ${RESDIR}
+	Rscript --min-vsize=12G $^ $@
+
+${RESDIR}/alt_eff-rt.rds: ${RESDIR}/alt_eff.rds
 
 INPUTS := $(patsubst %,${RESDIR}/%.rds,validation outcomes vaccines hospitals seroprev FLvaccines detection digest alt_eff)
 
@@ -77,6 +85,18 @@ ${OUTDIR}/alt_ave_%.png: alt_ave_outcome.R vis_support.rda ${RESDIR}/alt_eff.rds
 ${RESDIR}/digest-key.rds | ${OUTDIR}
 	$(call R)
 
+${OUTDIR}/alt_eff_all.png: alt_eff_all.R vis_support.rda ${RESDIR}/alt_eff.rds \
+${RESDIR}/digest-key.rds | ${OUTDIR}
+	$(call R)
+
+${OUTDIR}/alt_ave_all.png: alt_ave_all.R vis_support.rda ${RESDIR}/alt_eff.rds \
+${RESDIR}/digest-key.rds | ${OUTDIR}
+	$(call R)
+
+${OUTDIR}/alt_ci_all.png: alt_ci_all.R vis_support.rda ${RESDIR}/alt_eff.rds \
+${RESDIR}/digest-key.rds | ${OUTDIR}
+	$(call R)
+
 ${OUTDIR}/alt_inc_%.png: alt_inc_outcome.R vis_support.rda ${RESDIR}/alt_eff.rds \
 ${RESDIR}/digest-key.rds | ${OUTDIR}
 	$(call R)
@@ -88,6 +108,7 @@ altave: $(addprefix ${OUTDIR}/,$(patsubst %,alt_ave_%.png,inf sev deaths))
 altinc: $(addprefix ${OUTDIR}/,$(patsubst %,alt_inc_%.png,inf sev deaths))
 allfigs: $(patsubst %,${OUTDIR}/%.png,model_input validation_review everything)
 
+altall: $(addprefix ${OUTDIR}/,$(patsubst %,alt_%_all.png,eff ave ci))
 
 vis_support.rda: vis_support.R
 	$(call R)
