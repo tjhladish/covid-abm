@@ -278,6 +278,7 @@ vector<double> Person::calculate_event_probabilities(const int time, const Strai
     const bool crossProtected   = isCrossProtected(time, strain);         // no infection-based cross-immunity
     const bool vaccineProtected = isVaccineProtected(time, strain);       // no vaccine-based immunity
     Prob[INFECTION_EVENT] = crossProtected or vaccineProtected ? 0.0 :_par->susceptibilityByAge[age];
+
     // current assumption is that only VES/IES wanes, other types of efficacy do not
     const size_t dose = vaccineHistory.size() - 1;
     const double effective_VEP = isVaccinated() ? _par->VEP_at(dose, strain) : 0.0;        // reduced pathogenicity due to vaccine
@@ -315,25 +316,12 @@ vector<double> Person::calculate_event_probabilities(const int time, const Strai
 // returns non-null pointer if infection occurs
 Infection* Person::infect(Community* community, Person* source, const Date* date, Location* sourceloc, StrainType strain, bool /*check_susceptibility*/) {
     const int time = date->day();
-    //Pr[INFECTION_EVENT] = _par->susceptibilityByAge[age];
-
-
-    if (isInfected(time) or gsl_rng_uniform(RNG) > _par->susceptibilityByAge[age]) {
-        return nullptr;
-    }
-
     const vector<double> Pr = calculate_event_probabilities(time, strain);
-    //const bool crossProtected   = isCrossProtected(time, strain);         // no infection-based cross-immunity
-    //const bool vaccineProtected = isVaccineProtected(time, strain);       // no vaccine-based immunity
-    //if (crossProtected or vaccineProtected) { return nullptr; }
-    if (Pr[INFECTION_EVENT] == 0.0) {
-        return nullptr;
-    }
 
     // Bail now if this person can not become infected
     // Not quite the same as "susceptible"--this person may be e.g. partially immune
     // due to natural infection or vaccination
-    //if (isInfected(time) or gsl_rng_uniform(RNG) > Pr[INFECTION_EVENT]) { return nullptr; }
+    if (isInfected(time) or gsl_rng_uniform(RNG) > Pr[INFECTION_EVENT]) { return nullptr; }
 
     // Create a new infection record
     const size_t incubation_period = _par->symptom_onset(strain); // may not be symptomatic, but this is used to determine infectiousness onset
