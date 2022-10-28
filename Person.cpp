@@ -285,12 +285,12 @@ vector<double> Person::calculate_event_probabilities(const int time, const Strai
     const double effective_VEF = isVaccinated() ? _par->VEF_at(dose, strain) : 0.0;        // reduced fatality due to vaccine
 
     double symptomatic_probability     = _par->pathogenicityByAge[age] * _par->strainPars[strain].relPathogenicity;
-    symptomatic_probability           *= getNumNaturalInfections() > 1 ? (1.0 - _par->IEP) : 1.0;
+    symptomatic_probability           *= getNumNaturalInfections() ? (1.0 - _par->IEP) : 1.0;
     symptomatic_probability           *= 1.0 - effective_VEP;
     Prob[SYMPTOMATIC_EVENT] = symptomatic_probability;
 
     double severe_given_case           = _par->probSeriousOutcome.at(SEVERE)[comorbidity][age] * _par->strainPars[strain].relSeverity;
-    severe_given_case                 *= getNumNaturalInfections() > 1 ? (1.0 - _par->IEH) : 1.0;
+    severe_given_case                 *= getNumNaturalInfections() ? (1.0 - _par->IEH) : 1.0;
     severe_given_case                 *= 1.0 - effective_VEH;
     Prob[SEVERE_EVENT] = severe_given_case;
 
@@ -301,7 +301,7 @@ vector<double> Person::calculate_event_probabilities(const int time, const Strai
     Prob[CRITICAL_EVENT] = critical_given_severe;
 
     double mortalityCoef               = _par->strainPars[strain].relMortality;
-    mortalityCoef                     *= getNumNaturalInfections() > 1 ? (1.0 - _par->IEF) : 1.0;
+    mortalityCoef                     *= getNumNaturalInfections() ? (1.0 - _par->IEF) : 1.0;
     mortalityCoef                     *= 1.0 - effective_VEF;
 
     const double nonIcuMotality        = NON_ICU_CRITICAL_MORTALITY * mortalityCoef;        // icu mortality calculated later, as it depends on timing
@@ -318,18 +318,22 @@ Infection* Person::infect(Community* community, Person* source, const Date* date
     //Pr[INFECTION_EVENT] = _par->susceptibilityByAge[age];
 
 
-    if (isInfected(time) or gsl_rng_uniform(RNG) > _par->susceptibilityByAge[age]) { return nullptr; }
+    if (isInfected(time) or gsl_rng_uniform(RNG) > _par->susceptibilityByAge[age]) {
+        return nullptr;
+    }
 
     const vector<double> Pr = calculate_event_probabilities(time, strain);
     //const bool crossProtected   = isCrossProtected(time, strain);         // no infection-based cross-immunity
     //const bool vaccineProtected = isVaccineProtected(time, strain);       // no vaccine-based immunity
     //if (crossProtected or vaccineProtected) { return nullptr; }
-    if (Pr[INFECTION_EVENT] == 0.0) { return nullptr; }
+    if (Pr[INFECTION_EVENT] == 0.0) {
+        return nullptr;
+    }
 
     // Bail now if this person can not become infected
     // Not quite the same as "susceptible"--this person may be e.g. partially immune
     // due to natural infection or vaccination
-    if (isInfected(time) or gsl_rng_uniform(RNG) > Pr[INFECTION_EVENT]) { return nullptr; }
+    //if (isInfected(time) or gsl_rng_uniform(RNG) > Pr[INFECTION_EVENT]) { return nullptr; }
 
     // Create a new infection record
     const size_t incubation_period = _par->symptom_onset(strain); // may not be symptomatic, but this is used to determine infectiousness onset
@@ -340,7 +344,7 @@ Infection* Person::infect(Community* community, Person* source, const Date* date
     const size_t dose = vaccineHistory.size() - 1;
     const double effective_VEI = isVaccinated() ? _par->VEI_at(dose, strain) : 0.0;        // reduced infectiousness
     infection.relInfectiousness       *= _par->strainPars[strain].relInfectiousness;
-    infection.relInfectiousness       *= getNumNaturalInfections() > 1 ? (1.0 - _par->IEI) : 1.0;
+    infection.relInfectiousness       *= getNumNaturalInfections() > 1 ? (1.0 - _par->IEI) : 1.0; // getNumNaturalInfections() counts this infection too
     infection.relInfectiousness       *= 1.0 - effective_VEI;
 
     const double highly_infectious_threshold = 8.04; // 80th %ile for overall SARS-CoV-2 from doi: 10.7554/eLife.65774, "Fig 4-Fig Sup 3"
