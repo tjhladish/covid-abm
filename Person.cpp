@@ -270,20 +270,58 @@ void Person::processDeath(Community* community, Infection &infection, const int 
     infection.criticalEnd       = min(infection.criticalEnd, deathTime);
 }
 
+enum EventProbabilityType { INFECTION_EVENT, SYMPTOMATIC_EVENT, SEVERE_EVENT, HOSPITALIZATION_EVENT, CRITICAL_EVENT, ICU_DEATH_EVENT_COEF, NON_ICU_DEATH_EVENT, NUM_OF_EVENT_PROBABILITY_TYPES };
 
+// NOTE: PRNGs may be called (e.g., if immunity is leaky).  This function must be called for each unique exposure event.
+vector<double> Person::calculate_event_probabilities(const int time, const StrainType strain) {
+    vector<double> Prob(NUM_OF_EVENT_PROBABILITY_TYPES, 0.0);
+    const bool crossProtected   = isCrossProtected(time, strain);         // no infection-based cross-immunity
+    const bool vaccineProtected = isVaccineProtected(time, strain);       // no vaccine-based immunity
+    Prob[INFECTION_EVENT] = crossProtected or vaccineProtected ? 0.0 :_par->susceptibilityByAge[age];
+
+    // current assumption is that only VES/IES wanes, other types of efficacy do not
+    const size_t dose = vaccineHistory.size() - 1;
+    const double effective_VEP = isVaccinated() ? _par->VEP_at(dose, strain) : 0.0;        // reduced pathogenicity due to vaccine
+    const double effective_VEH = isVaccinated() ? _par->VEH_at(dose, strain) : 0.0;        // reduced severity (hospitalization) due to vaccine
+    const double effective_VEF = isVaccinated() ? _par->VEF_at(dose, strain) : 0.0;        // reduced fatality due to vaccine
+
+    double symptomatic_probability     = _par->pathogenicityByAge[age] * _par->strainPars[strain].relPathogenicity;
+    symptomatic_probability           *= getNumNaturalInfections() ? (1.0 - _par->IEP) : 1.0;
+    symptomatic_probability           *= 1.0 - effective_VEP;
+    Prob[SYMPTOMATIC_EVENT] = symptomatic_probability;
+
+    double severe_given_case           = _par->probSeriousOutcome.at(SEVERE)[comorbidity][age] * _par->strainPars[strain].relSeverity;
+    severe_given_case                 *= getNumNaturalInfections() ? (1.0 - _par->IEH) : 1.0;
+    severe_given_case                 *= 1.0 - effective_VEH;
+    Prob[SEVERE_EVENT] = severe_given_case;
+
+    const float hosp_prob = long_term_care ? LTC_SEVERE_TO_HOSPITAL : SEVERE_TO_HOSPITAL;
+    Prob[HOSPITALIZATION_EVENT] = hosp_prob;
+
+    const double critical_given_severe = _par->probSeriousOutcome.at(CRITICAL)[comorbidity][age];
+    Prob[CRITICAL_EVENT] = critical_given_severe;
+
+    double mortalityCoef               = _par->strainPars[strain].relMortality;
+    mortalityCoef                     *= getNumNaturalInfections() ? (1.0 - _par->IEF) : 1.0;
+    mortalityCoef                     *= 1.0 - effective_VEF;
+
+    const double nonIcuMotality        = NON_ICU_CRITICAL_MORTALITY * mortalityCoef;        // icu mortality calculated later, as it depends on timing
+    Prob[NON_ICU_DEATH_EVENT] = nonIcuMotality;
+
+    Prob[ICU_DEATH_EVENT_COEF] = _par->strainPars[strain].relIcuMortality * mortalityCoef;
+    return Prob;
+}
 
 // infect - infect this individual
 // returns non-null pointer if infection occurs
 Infection* Person::infect(Community* community, Person* source, const Date* date, Location* sourceloc, StrainType strain, bool /*check_susceptibility*/) {
     const int time = date->day();
+    const vector<double> Pr = calculate_event_probabilities(time, strain);
+
     // Bail now if this person can not become infected
     // Not quite the same as "susceptible"--this person may be e.g. partially immune
     // due to natural infection or vaccination
-    if (isInfected(time) or gsl_rng_uniform(RNG) > _par->susceptibilityByAge[age]) { return nullptr; }
-    const bool crossProtected   = isCrossProtected(time, strain);         // no infection-based cross-immunity
-    const bool vaccineProtected = isVaccineProtected(time, strain);       // no vaccine-based immunity
-    if (crossProtected or vaccineProtected) { return nullptr; }
-    //const double remaining_efficacy = remainingEfficacy(time);  // due to vaccination; needs to be called before initializing new infection (still true?)
+    if (isInfected(time) or gsl_rng_uniform(RNG) > Pr[INFECTION_EVENT]) { return nullptr; }
 
     // Create a new infection record
     const size_t incubation_period = _par->symptom_onset(strain); // may not be symptomatic, but this is used to determine infectiousness onset
@@ -291,31 +329,10 @@ Infection* Person::infect(Community* community, Person* source, const Date* date
     community->tallyOutcome(ASYMPTOMATIC);
     if (not source) { infection.strain = strain; }
 
-    // current assumption is that only VES/IES wanes, other types of efficacy do not
     const size_t dose = vaccineHistory.size() - 1;
-    const double effective_VEP = isVaccinated() ? _par->VEP_at(dose, strain) : 0.0;        // reduced pathogenicity due to vaccine
-    const double effective_VEH = isVaccinated() ? _par->VEH_at(dose, strain) : 0.0;        // reduced severity (hospitalization) due to vaccine
-    const double effective_VEF = isVaccinated() ? _par->VEF_at(dose, strain) : 0.0;        // reduced fatality due to vaccine
     const double effective_VEI = isVaccinated() ? _par->VEI_at(dose, strain) : 0.0;        // reduced infectiousness
-
-    double symptomatic_probability     = _par->pathogenicityByAge[age] * _par->strainPars[strain].relPathogenicity;
-    symptomatic_probability           *= getNumNaturalInfections() > 1 ? (1.0 - _par->IEP) : 1.0;
-    symptomatic_probability           *= 1.0 - effective_VEP;
-
-    double severe_given_case           = _par->probSeriousOutcome.at(SEVERE)[comorbidity][age] * _par->strainPars[strain].relSeverity;
-    severe_given_case                 *= getNumNaturalInfections() > 1 ? (1.0 - _par->IEH) : 1.0;
-    severe_given_case                 *= 1.0 - effective_VEH;
-
-    const double critical_given_severe = _par->probSeriousOutcome.at(CRITICAL)[comorbidity][age];
-
-    double mortalityCoef               = _par->strainPars[strain].relMortality;
-    mortalityCoef                     *= getNumNaturalInfections() > 1 ? (1.0 - _par->IEF) : 1.0;
-    mortalityCoef                     *= 1.0 - effective_VEF;
-
-    const double nonIcuMotality        = NON_ICU_CRITICAL_MORTALITY * mortalityCoef;        // icu mortality calculated later, as it depends on timing
-
     infection.relInfectiousness       *= _par->strainPars[strain].relInfectiousness;
-    infection.relInfectiousness       *= getNumNaturalInfections() > 1 ? (1.0 - _par->IEI) : 1.0;
+    infection.relInfectiousness       *= getNumNaturalInfections() > 1 ? (1.0 - _par->IEI) : 1.0; // getNumNaturalInfections() counts this infection too
     infection.relInfectiousness       *= 1.0 - effective_VEI;
 
     const double highly_infectious_threshold = 8.04; // 80th %ile for overall SARS-CoV-2 from doi: 10.7554/eLife.65774, "Fig 4-Fig Sup 3"
@@ -328,7 +345,7 @@ Infection* Person::infect(Community* community, Person* source, const Date* date
     const double symp_weibull_exp    = 3.81;
 
     // determine disease outcome and timings
-    if ( gsl_rng_uniform(RNG) > symptomatic_probability ) {
+    if ( gsl_rng_uniform(RNG) > Pr[SYMPTOMATIC_EVENT]) {
        // asymptomatic; est mean relInfectiousness = 6.03
         infection.relInfectiousness *= gsl_ran_weibull(RNG, asymp_weibull_scale, asymp_weibull_exp) > highly_infectious_threshold ? rel_infectiousness_high : rel_infectiousness_norm;
     } else {
@@ -337,7 +354,7 @@ Infection* Person::infect(Community* community, Person* source, const Date* date
         //const size_t symptom_onset = _par->symptom_onset();
         community->tallyOutcome(MILD);
         infection.symptomBegin = time + incubation_period;
-        if ( not (gsl_rng_uniform(RNG) < severe_given_case) ) {
+        if ( not (gsl_rng_uniform(RNG) < Pr[SEVERE_EVENT]) ) {
             // It does not become severe
             infection.symptomEnd = infection.symptomBegin + _par->symptom_duration_mild();
         } else {
@@ -346,15 +363,14 @@ Infection* Person::infect(Community* community, Person* source, const Date* date
             infection.severeBegin = infection.symptomBegin + _par->pre_severe_symptomatic();
 
             // Is this person hospitalized when their severe symptoms begin?
-            const float hosp_prob = long_term_care ? LTC_SEVERE_TO_HOSPITAL : SEVERE_TO_HOSPITAL;
             bool hosp = false;
-            if (gsl_rng_uniform(RNG) < hosp_prob) {
+            if (gsl_rng_uniform(RNG) < Pr[HOSPITALIZATION_EVENT]) {
                 // This person is hospitalized when symptoms become severe
                 hosp = true;
                 infection.hospitalizedBegin = infection.severeBegin;
             }
 
-            if (not (gsl_rng_uniform(RNG) < critical_given_severe)) {
+            if (not (gsl_rng_uniform(RNG) < Pr[CRITICAL_EVENT])) {
                 // Severe, but does not become critical
                 infection.severeEnd     = infection.severeBegin   + _par->severe_only_duration();
                 infection.symptomEnd    = infection.severeEnd; // TODO - extend symptoms beyond severe period (relevant for e.g. econ analyses)
@@ -375,7 +391,7 @@ Infection* Person::infect(Community* community, Person* source, const Date* date
                 if (gsl_rng_uniform(RNG) < icu_prob) {
                     // Patient goes to intensive care
                     infection.icuBegin = infection.criticalBegin;
-                    const double icuMortality          = _par->icuMortality(comorbidity, age, infection.icuBegin) * _par->strainPars[strain].relIcuMortality * mortalityCoef;
+                    const double icuMortality          = _par->icuMortality(comorbidity, age, infection.icuBegin) * Pr[ICU_DEATH_EVENT_COEF];
 
                     if (not hosp) { infection.hospitalizedBegin = infection.icuBegin; } // if they weren't hospitalized before, they are now
                     death = gsl_rng_uniform(RNG) < icuMortality;
@@ -384,7 +400,7 @@ Infection* Person::infect(Community* community, Person* source, const Date* date
                         processDeath(community, infection, infection.criticalBegin + _par->sampleIcuTimeToDeath());
                     }
                 } else {
-                    death = gsl_rng_uniform(RNG) < nonIcuMotality;
+                    death = gsl_rng_uniform(RNG) < Pr[NON_ICU_DEATH_EVENT];
                     if (death) {
                         // non-icu death, happens when critical symptoms begin, as this person is not receiving care
                         processDeath(community, infection, infection.criticalBegin + _par->sampleCommunityTimeToDeath());
