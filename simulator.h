@@ -307,6 +307,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
     //vector<string> plot_log_buffer = {"date,sd,seasonality,vocprev1,vocprev2,cinf,closed,rcase,rdeath,inf,rhosp,Rt"};
     ledger->plot_log_buffer = {"serial,date,sd,seasonality,vocprev1,vocprev2,vocprev3,cinf,closed,rcase,rdeath,inf,rhosp,VES,brkthruRatio,vaxInfs,unvaxInfs,hospInc,hospPrev,icuInc,icuPrev,vaxHosp,unvaxHosp,std_doses,urg_doses,cov1,cov2,cov3,seroprev,ped_seroprev,symp_infs,sevr_infs,crit_infs,all_deaths,dose1_ct,dose2_ct,dose3_ct,Rt"};
     //ledger->plot_log_buffer = {"date,sd,seasonality,vocprev1,vocprev2,cinf,closed,rcase,rdeath,inf,rhosp,Rt"};
+    vector<string> vac_log_buffer = {"serial,day,dose1_ct,dose2_ct,dose3_ct,dose1_risk,dose2_risk,dose3_risk"};
 
     Date* date = community->get_date();
     ledger->strains = {50.0, 0.0, 0.0, 0.0}; // initially all WILDTYPE
@@ -394,6 +395,26 @@ if (sim_day == 0) { seed_epidemic(par, community, WILDTYPE); }
         const int dose1_ct  = vc ? vc->get_doses_used_by_dose(sim_day, 0, STANDARD_ALLOCATION) : 0;
         const int dose2_ct  = vc ? vc->get_doses_used_by_dose(sim_day, 1, STANDARD_ALLOCATION) : 0;
         const int dose3_ct  = vc ? vc->get_doses_used_by_dose(sim_day, 2, STANDARD_ALLOCATION) : 0;
+
+//        vector<double> strain_prev(NUM_OF_STRAIN_TYPES);
+//        for (size_t s = 0; s < strain_prev.size(); ++s) {
+//            strain_prev[i] = community->getNumNewInfections((StrainType) s)[sim_day]/infections[sim_day];
+//        }
+//
+//        vector<vector<double>> death_risks(3); // size == max number of doses someone could receive
+//        for (const Person* p: community->getPeople()) {
+//            const int vac_n = p->getNumVaccinations();
+//            if (vac_n > 0) {
+//                // prob of death, weighted by current strain prevalence, given exposure
+//                // need to take into account chance of infection, symptoms, severe, critical, and fatal
+//                double mortalityCoef               = _par->strainPars[strain].relMortality;
+//                mortalityCoef                     *= getNumNaturalInfections() > 1 ? (1.0 - _par->IEF) : 1.0;
+//                mortalityCoef                     *= 1.0 - effective_VEF;
+//
+//                const double nonIcuMotality        = NON_ICU_CRITICAL_MORTALITY * mortalityCoef;        // icu mortality calculated later, as it depends on timing
+//                const double death_risk = 
+//            }
+//        }
 
         const size_t rc_ct = accumulate(all_reported_cases.begin(), all_reported_cases.begin()+sim_day+1, 0);
         map<string, double> VE_data = community->calculate_vax_stats(sim_day);

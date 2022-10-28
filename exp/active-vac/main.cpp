@@ -708,6 +708,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 
     // seed_epidemic(par, community, WILDTYPE);
     vector<string> plot_log_buffer = simulate_epidemic(par, community, process_id, mutant_intro_dates);//, social_contact_map);
+//vector<string> plot_log_buffer = simulate_epidemic(par, community, serial, mutant_intro_dates);//, social_contact_map);
     vc = community->getVac_Campaign();
 
     vector<double> cases(par->runLength, 0.0);
@@ -749,8 +750,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     bool overwrite = true;
     // this output filename needs to be adjusted for each experiment, so as to not overwrite files
     //string filename = "plot_log" + to_string(serial) + ".csv";
-    string filename = "/blue/longini/tjhladish/covid-abm/exp/active-vac/v5.1/plot_log" + to_string(serial) + ".csv";
-    //string filename = "plot_log" + to_string(serial) + ".csv";
+//    string filename = "/blue/longini/tjhladish/covid-abm/exp/active-vac/v5.1/plot_log" + to_string(serial) + ".csv";
+    string filename = "plot_log" + to_string(serial) + ".csv";
     write_daily_buffer(plot_log_buffer, process_id, filename, overwrite);
 
 //    stringstream ss;
@@ -818,7 +819,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     if (VAX_RNG) { gsl_rng_free(VAX_RNG); VAX_RNG = nullptr; }
     delete community;
     delete par;
-
+exit(1);
     return metrics;
 }
 
