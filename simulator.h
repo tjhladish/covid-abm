@@ -307,7 +307,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
     //vector<string> plot_log_buffer = {"date,sd,seasonality,vocprev1,vocprev2,cinf,closed,rcase,rdeath,inf,rhosp,Rt"};
     ledger->plot_log_buffer = {"serial,date,sd,seasonality,vocprev1,vocprev2,vocprev3,cinf,closed,rcase,rdeath,inf,rhosp,VES,brkthruRatio,vaxInfs,unvaxInfs,hospInc,hospPrev,icuInc,icuPrev,vaxHosp,unvaxHosp,std_doses,urg_doses,cov1,cov2,cov3,seroprev,ped_seroprev,symp_infs,sevr_infs,crit_infs,all_deaths,dose1_ct,dose2_ct,dose3_ct,Rt"};
     //ledger->plot_log_buffer = {"date,sd,seasonality,vocprev1,vocprev2,cinf,closed,rcase,rdeath,inf,rhosp,Rt"};
-    vector<string> vac_log_buffer = {"serial,day,dose1_ct,dose2_ct,dose3_ct,dose1_risk,dose2_risk,dose3_risk"};
+    vector<string> vac_log_buffer = {"serial,day,dose1_risk,dose2_risk,dose3_risk,dose1_ct,dose2_ct,dose3_ct"};
 
     Date* date = community->get_date();
     ledger->strains = {50.0, 0.0, 0.0, 0.0}; // initially all WILDTYPE
@@ -392,29 +392,43 @@ if (sim_day == 0) { seed_epidemic(par, community, WILDTYPE); }
         const int std_doses = vc ? vc->get_doses_used(sim_day, STANDARD_ALLOCATION) : 0;
         const int urg_doses = vc ? vc->get_doses_used(sim_day, URGENT_ALLOCATION) : 0;
         const int all_doses = std_doses + urg_doses;
-        const int dose1_ct  = vc ? vc->get_doses_used_by_dose(sim_day, 0, STANDARD_ALLOCATION) : 0;
-        const int dose2_ct  = vc ? vc->get_doses_used_by_dose(sim_day, 1, STANDARD_ALLOCATION) : 0;
-        const int dose3_ct  = vc ? vc->get_doses_used_by_dose(sim_day, 2, STANDARD_ALLOCATION) : 0;
+        const int dose1_ct  = vc ? vc->get_doses_used_by_dose(sim_day, 0, STANDARD_ALLOCATION) + vc->get_doses_used_by_dose(sim_day, 0, URGENT_ALLOCATION) : 0;
+        const int dose2_ct  = vc ? vc->get_doses_used_by_dose(sim_day, 1, STANDARD_ALLOCATION) + vc->get_doses_used_by_dose(sim_day, 1, URGENT_ALLOCATION) : 0;
+        const int dose3_ct  = vc ? vc->get_doses_used_by_dose(sim_day, 2, STANDARD_ALLOCATION) + vc->get_doses_used_by_dose(sim_day, 2, URGENT_ALLOCATION) : 0;
 
-//        vector<double> strain_prev(NUM_OF_STRAIN_TYPES);
-//        for (size_t s = 0; s < strain_prev.size(); ++s) {
-//            strain_prev[i] = community->getNumNewInfections((StrainType) s)[sim_day]/infections[sim_day];
-//        }
-//
-//        vector<vector<double>> death_risks(3); // size == max number of doses someone could receive
-//        for (const Person* p: community->getPeople()) {
-//            const int vac_n = p->getNumVaccinations();
-//            if (vac_n > 0) {
-//                // prob of death, weighted by current strain prevalence, given exposure
-//                // need to take into account chance of infection, symptoms, severe, critical, and fatal
-//                double mortalityCoef               = _par->strainPars[strain].relMortality;
-//                mortalityCoef                     *= getNumNaturalInfections() > 1 ? (1.0 - _par->IEF) : 1.0;
-//                mortalityCoef                     *= 1.0 - effective_VEF;
-//
-//                const double nonIcuMotality        = NON_ICU_CRITICAL_MORTALITY * mortalityCoef;        // icu mortality calculated later, as it depends on timing
-//                const double death_risk = 
-//            }
-//        }
+{
+        vector<double> strain_foi(NUM_OF_STRAIN_TYPES);
+        double total_foi = 0.0;
+        for (size_t s = 0; s < strain_foi.size(); ++s) {
+            const StrainType st = (StrainType) s;
+            strain_foi[st] = par->strainPars[st].relInfectiousness * community->getNumNewInfections(st)[sim_day];
+            total_foi += strain_foi[st];
+        }
+
+        vector<vector<double>> vac_pop_death_risks(3); // size == max number of doses someone could receive
+        for (const Person* p: community->getPeople()) {
+            const int vac_n = p->getNumVaccinations();
+            if (vac_n > 0 and p->daysSinceVaccination(sim_day) == 0) {
+                // prob of death, weighted by current strain prevalence, given exposure
+                // need to take into account chance of infection, symptoms, severe, critical, and fatal
+                vector<double> death_risks(NUM_OF_STRAIN_TYPES, 0.0);
+                for (size_t s = 0; s < strain_foi.size(); ++s) {
+                    if (strain_foi[s] > 0) {
+                        vector<double> Pr = p->calculate_event_probabilities(sim_day, (StrainType) s);
+                        // INFECTION_EVENT, SYMPTOMATIC_EVENT, SEVERE_EVENT, CRITICAL_EVENT, NON_ICU_DEATH_EVENT
+                        death_risks[s] = strain_foi[s] * Pr[INFECTION_EVENT] * Pr[SYMPTOMATIC_EVENT] * Pr[SEVERE_EVENT] * Pr[CRITICAL_EVENT] * Pr[NON_ICU_DEATH_EVENT];
+                    }
+                }
+                const double dr = accumulate(death_risks.begin(), death_risks.end(), 0.0) / total_foi;
+                vac_pop_death_risks.at(vac_n - 1).push_back(dr);
+            }
+        }
+        stringstream ss_vpdr;
+        ss_vpdr << process_id << "," << sim_day;
+        for (auto& vpdr: vac_pop_death_risks) { ss_vpdr  << "," << mean(vpdr); }
+        ss_vpdr << "," << dose1_ct << "," << dose2_ct << "," << dose3_ct;
+        vac_log_buffer.push_back(ss_vpdr.str());
+}
 
         const size_t rc_ct = accumulate(all_reported_cases.begin(), all_reported_cases.begin()+sim_day+1, 0);
         map<string, double> VE_data = community->calculate_vax_stats(sim_day);
@@ -500,6 +514,9 @@ if (sim_day == 0) { seed_epidemic(par, community, WILDTYPE); }
            << dose3_ct;
         ledger->plot_log_buffer.push_back(ss.str());
     }
+
+    const string vpdr_dir = "/red/longini/tjhladish/covid-abm/exp/active-vac/v5.1r-vaclogs/";
+    write_daily_buffer(vac_log_buffer, process_id, vpdr_dir + "vpdr" + to_string(process_id) + ".csv", true);
 
     const vector<size_t> sim_reported_cases = community->getNumDetectedCasesReport();
     if (par->behavioral_autotuning) {
