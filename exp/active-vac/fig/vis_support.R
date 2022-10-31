@@ -67,7 +67,8 @@ scale_y_fraction <- rejig(
 scale_linetype_quar <- rejig(
   scale_linetype_manual,
   name = "Extra NPI", labels = c(nonpi="None", wquar = "Quarantine Contacts"),
-  values = c(wquar="dashed", nonpi="solid")
+  values = c(wquar="dashed", nonpi="solid"),
+  guide = guide_legend(title.position = "top", title.hjust = 0.5)
 )
 
 scale_color_strategy <- rejig(
@@ -81,7 +82,8 @@ scale_color_strategy <- rejig(
     risk="Risk-Based Strategy"
   ),
   aesthetics = c("color", "fill"),
-  values = c(none = "black", ring = "#00529b", risk = "#006b35", age = "#fb6502")
+  values = c(none = "black", ring = "#00529b", risk = "#006b35", age = "#fb6502"),
+  guide = guide_legend(title.position = "top", title.hjust = 0.5)
 )
 
 scale_linetype_scenario <- rejig(
