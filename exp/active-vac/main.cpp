@@ -707,8 +707,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     par->quarantineDuration = 10;
 
     // seed_epidemic(par, community, WILDTYPE);
-    vector<string> plot_log_buffer = simulate_epidemic(par, community, process_id, mutant_intro_dates);//, social_contact_map);
-//vector<string> plot_log_buffer = simulate_epidemic(par, community, serial, mutant_intro_dates);//, social_contact_map);
+//    vector<string> plot_log_buffer = simulate_epidemic(par, community, process_id, mutant_intro_dates);//, social_contact_map);
+vector<string> plot_log_buffer = simulate_epidemic(par, community, to_string(serial), mutant_intro_dates);//, social_contact_map);
     vc = community->getVac_Campaign();
 
     vector<double> cases(par->runLength, 0.0);
