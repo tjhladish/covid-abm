@@ -148,6 +148,17 @@ inline std::ostream& operator<<(std::ostream& out, const OutcomeType value){
     return out << s;
 }
 
+enum EventProbabilityType {
+    INFECTION_EVENT,
+    SYMPTOMATIC_EVENT,
+    SEVERE_EVENT,
+    HOSPITALIZATION_EVENT,
+    CRITICAL_EVENT,
+    ICU_DEATH_EVENT_COEF,
+    NON_ICU_DEATH_EVENT,
+    NUM_OF_EVENT_PROBABILITY_TYPES
+};
+
 enum ComorbidType{
     HEALTHY,
     COMORBID,
