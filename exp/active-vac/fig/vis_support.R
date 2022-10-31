@@ -82,7 +82,7 @@ scale_color_strategy <- rejig(
     risk="Risk-Based Strategy"
   ),
   aesthetics = c("color", "fill"),
-  values = c(none = "black", ring = "#00529b", risk = "#006b35", age = "#fb6502"),
+  values = c(none = "black", ring = "#fb6502", risk = "#00529b", age = "#006b35"),
   guide = guide_legend(title.position = "top", title.hjust = 0.5)
 )
 
@@ -384,101 +384,6 @@ geom_month_background <- function(
   )
 }
 
-geom_spaghetti <- function(
-  mapping,
-  data,
-  spaghetti = {
-    grouptree <- as.character(rlang::get_expr(mapping$group))
-    res <- list(sample = tail(grouptree, 1))
-    if (grouptree[1] == "interaction") {
-      if (length(grouptree) == 3) { # group = interaction(something, samplevar)
-        res$subgroup <- rlang::parse_expr(grouptree[2])
-      } else { # group = interaction(...somethings..., samplevar)
-        res$subgroup <- rlang::parse_expr(head(grouptree, -1))
-      }
-    } else { # group = samplevar
-      res$subgroup <- NULL
-    }
-    res
-  },
-  datafn = \(dt) dt |> quantile(
-    col = rlang::as_name(mapping$y),
-    samplecol = spaghetti$sample,
-    probs = c(md = 0.5)
-  ) |> setnames("md", rlang::as_name(mapping$y)),
-  sample.size = 0.1,
-  center.size = 3*sample.size,
-  max.lines = if (interactive()) 10 else 150,
-  geom = geom_line,
-  ...
-) {
-  show.end <- !is.null(mapping$label)
-  # split mapping ...
-  aesmany <- mapping; aesone <- mapping
-  # ignore specific elements
-  aesmany$linetype <- aesmany$label <- aesone$label <- NULL
-
-  if(is.null(mapping$alpha)) {
-    aesmany$alpha <- "sample"
-    aesone$alpha <- "central"
-  }
-
-  if (!is.null(spaghetti$subgroup)) {
-    aesone$group <- spaghetti$subgroup
-  }
-
-  if (!is.null(max.lines)) {
-    datamany <- \(dt) dt[get(spaghetti$sample) < max.lines]
-  } else {
-    datamany <- NULL
-  }
-  dataone <- datafn
-
-  if (!missing(data)) {
-    dataone <- dataone(data)
-    if (!is.null(datamany)) datamany <- datamany(data)
-  }
-
-  ret <- list(
-    geom(aesmany, data = datamany, size = sample.size, ...),
-    geom(aesone, data = dataone, size = center.size, ...)
-  )
-
-  if (show.end) {
-    aesend <- mapping
-    aesend$group <- aesone$group
-    aesend$alpha <- aesone$alpha
-    aesend$linetype <- NULL
-
-    if (is.function(dataone)) {
-      datalbl <- \(dt) {
-        res <- dataone(dt)
-        res[order(get(rlang::as_name(aesend$x))),
-          .SD[.N], by = setdiff(key(res), rlang::as_name(aesend$x))
-        ]
-      }
-    } else {
-      datalbl <- dataone[
-        order(get(rlang::as_name(aesend$x))),
-        .SD[.N],
-        by = setdiff(key(dataone), rlang::as_name(aesend$x))
-      ]
-    }
-
-    # aesend$label <- str2lang(paste0("sprintf('%.2f',", rlang::as_name(aesend$y),")"))
-
-    ret[[length(ret)+1]] <- geom_text_repel(
-      aesend, data = datalbl,
-      hjust = "left", direction = "y",
-      nudge_x = 7, size = 2,
-      segment.size = sample.size,
-      min.segment.length = 0,
-      show.legend = FALSE
-    )
-  }
-  ret
-}
-
 geom_river <- function(
     mapping,
     data,
@@ -575,27 +480,7 @@ geom_river <- function(
   ret
 }
 
-gg_facet_wrapper <- function(
-    facet_fun,
-    ...
-) {
-  stopifnot(!missing(facet_fun))
-  defs <- list(...)
-  if (!length(defs)) warning(
-    "provided no default arguments; consider using facet_fun directly."
-  )
-
-  return(function(...) {
-    # this different ... is how you get a function back that let's you
-    # override defaults, set other arguments to scale_... functions
-    .ellipsis <- list(...)
-    .args <- defs
-    .args[names(.ellipsis)] <- .ellipsis
-    do.call(facet_fun, .args)
-  })
-}
-
-facet_typical <- gg_facet_wrapper(
+facet_typical <- rejig(
   facet_grid,
   rows = vars(outcome),
   cols = vars(stockpile),
@@ -666,7 +551,10 @@ allplot <- function(
 #  geom_ribbon(aes(ymin=q50l, ymax=q50h, fill=act_vac, color=NULL), alpha=0.25) +
   geom_line(aes(y=qmed)) +
   scale_color_strategy() +
-  scale_y_continuous(name = yl, expand = c(0, 0)) +
+  scale_y_continuous(
+    name = yl, expand = c(0, 0),
+    labels = scales::label_number(scale_cut = scales::cut_short_scale())
+  ) +
   scale_x_null() +
   scale_linetype_quar() +
 #  scale_alpha(range = c(0.02, 1)) +

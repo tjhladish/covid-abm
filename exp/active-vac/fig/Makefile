@@ -63,7 +63,7 @@ ${OUTDIR}/model_inputs.png: ${INPUTS}
 ${OUTDIR}/validation_review.png: ${INPUTS}
 ${OUTDIR}/everything.png: ${INPUTS}
 ${OUTDIR}/avertvis.png: ${PLOTINS}
-${OUTDIR}/cumulative_doses.png: ${RESDIR}/digest-doses.rds ${RESDIR}/digest-key.rds ${RESDIR}/alt_eff.rds
+${OUTDIR}/cumulative_doses.png: ${RESDIR}/digest-doses.rds ${RESDIR}/digest-key.rds
 
 ${OUTDIR}/%.png: %.R vis_support.rda | ${OUTDIR}
 	$(call R)
@@ -108,7 +108,7 @@ altave: $(addprefix ${OUTDIR}/,$(patsubst %,alt_ave_%.png,inf sev deaths))
 altinc: $(addprefix ${OUTDIR}/,$(patsubst %,alt_inc_%.png,inf sev deaths))
 allfigs: $(patsubst %,${OUTDIR}/%.png,model_input validation_review everything)
 
-altall: $(addprefix ${OUTDIR}/,$(patsubst %,alt_%_all.png,eff ave ci))
+altall: $(addprefix ${OUTDIR}/,$(patsubst %,alt_%_all.png,eff ave ci) cumulative_doses.png)
 
 vis_support.rda: vis_support.R
 	$(call R)

@@ -45,7 +45,7 @@ plt.qs <- quantile(
 )][, qfac := factor(c("No Additional NPI", "Quarantine Contacts")[quar+1]) ]
 
 p <- allplot(
-  plt.qs, yl = "Per 10k, Cumulative Averted\nIncidence of ... Beyond Standard Program",
+  plt.qs, yl = "Per 10k, Cumulative Averted\nIncidence of ... Relative to Reference",
   withRef = TRUE
 )
 
