@@ -270,10 +270,8 @@ void Person::processDeath(Community* community, Infection &infection, const int 
     infection.criticalEnd       = min(infection.criticalEnd, deathTime);
 }
 
-enum EventProbabilityType { INFECTION_EVENT, SYMPTOMATIC_EVENT, SEVERE_EVENT, HOSPITALIZATION_EVENT, CRITICAL_EVENT, ICU_DEATH_EVENT_COEF, NON_ICU_DEATH_EVENT, NUM_OF_EVENT_PROBABILITY_TYPES };
-
 // NOTE: PRNGs may be called (e.g., if immunity is leaky).  This function must be called for each unique exposure event.
-vector<double> Person::calculate_event_probabilities(const int time, const StrainType strain) {
+vector<double> Person::calculate_event_probabilities(const int time, const StrainType strain) const {
     vector<double> Prob(NUM_OF_EVENT_PROBABILITY_TYPES, 0.0);
     const bool crossProtected   = isCrossProtected(time, strain);         // no infection-based cross-immunity
     const bool vaccineProtected = isVaccineProtected(time, strain);       // no vaccine-based immunity
@@ -317,7 +315,6 @@ vector<double> Person::calculate_event_probabilities(const int time, const Strai
 Infection* Person::infect(Community* community, Person* source, const Date* date, Location* sourceloc, StrainType strain, bool /*check_susceptibility*/) {
     const int time = date->day();
     const vector<double> Pr = calculate_event_probabilities(time, strain);
-
     // Bail now if this person can not become infected
     // Not quite the same as "susceptible"--this person may be e.g. partially immune
     // due to natural infection or vaccination

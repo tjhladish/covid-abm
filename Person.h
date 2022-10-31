@@ -282,7 +282,7 @@ class Person {
         int daysSinceVaccination(int time)                     const { assert( vaccineHistory.size() > 0); return time - vaccineHistory.back(); } // isVaccinated() should be called first
         double vaccineProtection(const int time, const StrainType strain) const;
 
-        vector<double> calculate_event_probabilities(const int time, const StrainType strain);
+        vector<double> calculate_event_probabilities(const int time, const StrainType strain) const;
 
         // strain determined by source, unless source is nullptr
         Infection* infect(Community* community, Person* source, const Date* date, Location* sourceloc, StrainType strain = NUM_OF_STRAIN_TYPES, bool check_susceptibility = true);
