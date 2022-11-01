@@ -20,11 +20,11 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 
 load(.args[1])
 d <- readRDS(.args[2])[date <= endday]
-ed <- readRDS(.args[3])
-cdc = readRDS(.args[4])
-hhsHosp = readRDS(.args[5])
+ed <- readRDS(.args[3])[date <= endday]
+cdc = readRDS(.args[4])[date <= endday]
+hhsHosp = readRDS(.args[5])[date <= endday][, .(date, hospInc) ]
 seroprev = readRDS(.args[6])
-vax = readRDS(.args[7])
+vax = readRDS(.args[7])[date <= endday]
 
 ref.day0 <- d[, min(date)]
 
@@ -139,7 +139,7 @@ p.cum.combo <- p.core(
 
 hinc.dt <- prepare(
   d[, .(realization, date = as.Date(date), hospInc) ], # vaxHosp, hospPrev, unvaxHosp,
-  hhsHosp[, .(date, hospInc) ]
+  hhsHosp
 )[date < "2022-04-01"][!is.na(value)]
 
 p.hosp <- p.core(

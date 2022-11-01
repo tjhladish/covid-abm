@@ -504,11 +504,11 @@ geom_crosshair <- function(mapping, data, ...) {
   maph <- mapping
   maph$ymax <- NULL; maph$ymin <- NULL
   maph$shape <- quo(NULL)
-  showpoint <- !is.null(mapping$shape)
   res <- list(
     geom_linerange(mapv, data = data, show.legend = FALSE),
     geom_linerange(maph, data = data, show.legend = FALSE)
   )
+  showpoint <- !is.null(mapping$shape)
   if (showpoint) {
     mapp <- mapping
     mapp$xmax <- NULL
@@ -516,7 +516,7 @@ geom_crosshair <- function(mapping, data, ...) {
     mapp$ymax <- NULL
     mapp$ymin <- NULL
     # mapp$alpha <- mapp$shape
-    res[[length(res)+1]] <- geom_observation(mapping = mapp, data = seroprev)
+    res[[length(res)+1]] <- force(geom_observation(mapping = mapp, data = seroprev))
   }
   return(res)
 }
