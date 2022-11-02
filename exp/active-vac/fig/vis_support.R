@@ -14,7 +14,8 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 } else commandArgs(trailingOnly = TRUE)
 
 # MAGIC DATE
-endday <- as.Date("2022-03-31")
+endday <- as.Date("2022-03-07")
+vendday <- as.Date("2022-03-31")
 startday <- as.Date("2020-12-01")
 datefilter <- expression(between(date, startday, endday))
 outfilter <- expression(outcome %in% c("inf", "deaths"))
@@ -540,17 +541,32 @@ allplot <- function(
   facet_nested(
     rows = vars(outcome), cols = vars(talloc), switch = "y",
     scales = "free_y", labeller = labeller(
-      outcome = c(inf = "Infection", sev = "Severe Disease", deaths = "Deaths")
+      outcome = c(inf = "Infection", sev = "Severe Disease", deaths = "Deaths", vaccine = "Per 10K,\nVaccine Doses Administered")
     )
   ) +
   geom_month_background(
     data.qs, by = c(row="outcome", col="talloc"),
     font.size = 3, value.col = "qmed", max.col = "q90h", min.col = "q90l"
-  ) +
-  geom_ribbon(aes(ymin=q90l, ymax=q90h, fill=act_vac, color=NULL), alpha=0.15) +
+  )
+
+  if (withRef) {
+    res <- res +
+      geom_hline(
+        aes(yintercept = 0, color = "none", linetype = "nonpi"),
+        show.legend = FALSE, data = \(dt) dt[,.SD[1],by=.(outcome, talloc)]
+      ) +
+      geom_texthline(
+        aes(yintercept = 0, color = "none", label = "Reference\nProgram"),
+        inherit.aes = FALSE, show.legend = FALSE, data = \(dt) dt[talloc == "LIC",.SD[1],by=.(outcome, talloc)],
+        hjust = 0, gap = FALSE
+      )
+  }
+
+  res <- res + geom_ribbon(aes(ymin=q90l, ymax=q90h, fill=act_vac, color=NULL), alpha=0.15) +
 #  geom_ribbon(aes(ymin=q50l, ymax=q50h, fill=act_vac, color=NULL), alpha=0.25) +
   geom_line(aes(y=qmed)) +
   scale_color_strategy() +
+  coord_cartesian(clip = "off") +
   scale_y_continuous(
     name = yl, expand = c(0, 0),
     labels = scales::label_number(scale_cut = scales::cut_short_scale())
@@ -567,18 +583,6 @@ allplot <- function(
   if (!is.null(withBands)) {
 # TODO start-end, era
 
-  }
-  if (withRef) {
-    res <- res +
-      geom_hline(
-        aes(yintercept = 0, color = "none", linetype = "nonpi"),
-        show.legend = FALSE, data = \(dt) dt[,.SD[1],by=.(outcome, talloc)]
-      ) +
-      geom_texthline(
-        aes(yintercept = 0, color = "none", label = "Reference\nProgram"),
-        inherit.aes = FALSE, show.legend = FALSE, data = \(dt) dt[talloc == "LIC",.SD[1],by=.(outcome, talloc)],
-        hjust = 0, gap = FALSE
-      )
   }
   return(res)
 }

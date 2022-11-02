@@ -13,7 +13,7 @@ load(.args[1])
 
 #' comes key'd
 #' TODO: identify proper reference point?
-doses.dt <- readRDS(.args[2])[date > startday]
+doses.dt <- readRDS(.args[2])[eval(datefilter)]
 
 scn.dt <- readRDS(.args[3])[inf_con == FALSE]
 
@@ -31,11 +31,12 @@ plt.qs <- quantile(
     pas_vac == FALSE,
     as.character(act_alloc), as.character(pas_alloc)
   ), levels = c("LIC", "MIC", "HIC", "USA"), ordered = TRUE
-)][, qfac := factor(c("No Additional NPI", "Quarantine Contacts")[quar+1]) ]
+)][, qfac := factor(c("No Additional NPI", "Quarantine Contacts")[quar+1]) ][,
+  outcome := "vaccine"
+]
 
 p <- allplot(
-  plt.qs, yl = "Per 10K,\nVaccine Doses Administered", withRef = FALSE
-) + theme(strip.text = element_blank(), strip.background = element_blank())
-
+  plt.qs, yl = NULL, withRef = FALSE
+) + theme(strip.text.y = element_text(size = rel(1.25)))
 
 store(.args, p, height = 3, width = 10, bg = "white")

@@ -19,16 +19,16 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 ))
 
 load(.args[1])
-d <- readRDS(.args[2])[date <= endday]
-ed <- readRDS(.args[3])[date <= endday]
-cdc = readRDS(.args[4])[date <= endday]
-hhsHosp = readRDS(.args[5])[date <= endday][, .(date, hospInc) ]
+d <- readRDS(.args[2])[date <= vendday]
+ed <- readRDS(.args[3])[date <= vendday]
+cdc = readRDS(.args[4])[date <= vendday]
+hhsHosp = readRDS(.args[5])[date <= vendday][, .(date, hospInc) ]
 seroprev = readRDS(.args[6])
-vax = readRDS(.args[7])[date <= endday]
+vax = readRDS(.args[7])[date <= vendday]
 
 ref.day0 <- d[, min(date)]
 
-detect.dt <- readRDS(.args[8])[, date := day + ref.day0][date <= endday]
+detect.dt <- readRDS(.args[8])[, date := day + ref.day0][date <= vendday]
 
 sd.dt <- d[realization == 1, .(date, value = sd, closed) ]
 
@@ -59,16 +59,20 @@ geom_liner <- function(datafn) geom_text(
   fontface = "bold", size = 5
 )
 
+seroprev[, measure := "infection"]
+
 p.sero <- p.core(
   sero.dt[, measure := "infection"], ymin = 0.01, ymax = .99
 ) + aes(shape = after_stat(spaghetti)) + geom_crosshair(
   mapping = aes(
     x = start + (end+1-start)/2, xmin = start, xmax = end+1,
-    ymax = upper, y = est, ymin = lower,
-    shape = "observed"
+    ymax = upper, y = est, ymin = lower
   ),
-  data = seroprev[, measure := "infection"]
-) +
+  data = seroprev
+) + geom_observation(aes(
+    x = start + (end+1-start)/2,
+    y = est, shape="observation"
+  ), data = seroprev) +
   geom_liner(function(dt) dt[
     date == "2021-11-01",
     .(date = date[1], value = mean(value)+.05*(fifelse(.BY == "cinf", 1, -1)),
@@ -319,4 +323,4 @@ p.detect <- p.core(
 
 p.res <- p.vis + p.sd + p.seas + p.voc + p.vax + p.detect + plot_layout(nrow = 10)
 
-ggsave(tail(.args, 1), p.res, width = 14, height = 20, bg = "white")
+store(.args, p.res, width = 14, height = 20, bg = "white")
