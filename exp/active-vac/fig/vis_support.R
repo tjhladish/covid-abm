@@ -29,22 +29,22 @@ scale_y_effectiveness <- rejig(
 
 scale_y_doses <- rejig(
   scale_y_continuous,
-  name = "Per 10k, Daily Doses Administered"
+  name = "Per 10k,\nDaily Doses Administered"
 )
 
 scale_y_cdoses <- rejig(
   scale_y_continuous,
-  name = "Per 10k, Cumulative Doses Administered"
+  name = "Per 10k,\nCumulative Doses Administered"
 )
 
 scale_y_incidence <- rejig(
   scale_y_continuous,
-  name = "Per 10k, Incidence of ..."
+  name = "Per 10k,\nIncidence of ..."
 )
 
 scale_y_averted <- rejig(
   scale_y_continuous,
-  name = "Per 10k, Averted Incidence of ..."
+  name = "Per 10k,\nAverted Incidence of ..."
 )
 
 scale_x_null <- rejig(
@@ -541,7 +541,7 @@ allplot <- function(
   facet_nested(
     rows = vars(outcome), cols = vars(talloc), switch = "y",
     scales = "free_y", labeller = labeller(
-      outcome = c(inf = "Infection", sev = "Severe Disease", deaths = "Deaths", vaccine = "Per 10K,\nVaccine Doses Administered")
+      outcome = c(inf = "Infection", sev = "Severe Disease", deaths = "Deaths", vaccine = "Per 10K,\nDoses Administered")
     )
   ) +
   geom_month_background(

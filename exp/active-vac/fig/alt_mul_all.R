@@ -7,7 +7,7 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 .args <- commandArgs(args = c(
   file.path("fig", "vis_support.rda"),
   file.path("fig", "process", c("alt_eff.rds", "digest-key.rds")),
-  file.path("fig", "output", "alt_eff_all.png")
+  file.path("fig", "output", "alt_mul_all.png")
 ))
 
 load(.args[1])
@@ -55,52 +55,13 @@ plt.qs <- quantile(
   ), levels = c("LIC", "MIC", "HIC", "USA"), ordered = TRUE
 )][, qfac := factor(c("No Additional NPI", "Quarantine Contacts")[quar+1]) ]
 
-muls <- c(1, 5/4, 4/3, 3/2)
-muls <- log(unique(c(rev(1/muls), muls)), 2)
-
-p <- ggplot(plt.qs) + aes(
-  x = date,
-  color = act_vac,
-  linetype = factor(c("nonpi", "wquar")[quar+1])
-) +
-  facet_nested(
-    rows = vars(outcome), cols = vars(talloc), switch = "y",
-    labeller = labeller(
-      outcome = c(inf = "Infection", sev = "Severe Disease", deaths = "Deaths")
-    )
-  ) +
-  geom_month_background(
-    plt.qs, by = c(row="outcome", col="talloc"),
-    font.size = 3, value.col = "qmed", max.col = "q90h", min.col = "q90l",
-    ymax = .6, ymin = -.6, m.y = 0.95, y.y = 0.91
-  ) +
-  geom_ribbon(aes(ymin=q90l, ymax=q90h, fill=act_vac, color=NULL), alpha=0.15) +
-  #  geom_ribbon(aes(ymin=q50l, ymax=q50h, fill=act_vac, color=NULL), alpha=0.25) +
-  geom_line(aes(y=qmed)) +
-  scale_color_strategy() +
+p <- allplot(
+  plt.qs, yl = "Cumulative Relative\nOutcome Multiplier of ...",
+  withRef = TRUE
+) + coord_cartesian(ylim = c(-0.75, 0.75), clip = "off") +
   scale_y_continuous(
-    name = "Cumulative Relative\nMultiplier in Incidence of ... (log scale)",
-    breaks = muls,
-    labels = c("3/2x", "4/3x", "5/4x", "1x", "4/5x", "3/4x", "2/3x")
-  ) +
-  coord_cartesian(ylim = c(-.6, .6), expand = FALSE) +
-  scale_x_null() +
-  scale_linetype_quar() +
-  #  scale_alpha(range = c(0.02, 1)) +
-  theme_minimal() +
-  theme(
-    legend.position = "bottom",
-    strip.placement = "outside",
-    legend.direction = "horizontal"
-  ) +
-  geom_hline(
-    aes(yintercept = 0, color = "none", linetype = "nonpi"),
-    show.legend = FALSE, data = \(dt) dt[,.SD[1],by=.(outcome, talloc)]
-  ) +
-  geom_texthline(
-    aes(yintercept = 0, color = "none", label = "Reference\nProgram"),
-    inherit.aes = FALSE, show.legend = FALSE, data = \(dt) dt[talloc == "LIC",.SD[1],by=.(outcome, talloc)],
-    hjust = 0, gap = FALSE
+    name = "Cumulative Relative\nMultiple of ...", breaks = (-3:3)/4,
+    labels = \(x) sprintf("%.1fx",(2^-x))
   )
 
 ggsave(tail(.args, 1), p, height = 6, width = 10, bg = "white")

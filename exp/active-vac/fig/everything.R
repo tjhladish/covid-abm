@@ -135,7 +135,7 @@ p.cum.combo <- p.core(
     ]
   ) +
   scale_y_log10(
-    name = "Per 10k, Cumulative Incidence of ...",
+    name = "Per 10k,\nCumulative Incidence of ...",
     labels = number_format(scale_cut = cut_short_scale())) +
   conserved +
   coord_cartesian(ylim = c(1, 1e4), expand = FALSE) +
@@ -222,7 +222,7 @@ p.sd <- p.core(
   ) + scale_y_fraction(
     name = "Risk Threshold",
     sec.axis = sec_axis(
-      name = "Per 10k, Daily Cases Reported",
+      name = "Per 10k,\nDaily Cases Reported",
       trans = function(x) 4*(x-0.5),
 #      breaks = seq(0, 1, by=.25),
       labels = c("0.01", "0.1", "1", "10", "100")
@@ -310,7 +310,7 @@ p.detect <- p.core(
   det.dt, ymin = 0, ymax = 1
 ) + aes(linetype = outcome) +
   geom_line() +
-  scale_y_fraction(name = "P(Detect) Individual with Outcome ...") +
+  scale_y_fraction(name = "P(Detect) Individual\nwith Outcome ...") +
   scale_linetype_manual(
     name = NULL, breaks = rev(c("asymp", "mild", "severe", "crit")),
     labels = c(asymp = "Asymptomic", mild = "Mild", severe = "Severe", crit = "Critical"),
