@@ -332,6 +332,8 @@ Infection* Person::infect(Community* community, Person* source, const Date* date
     infection.relInfectiousness       *= getNumNaturalInfections() > 1 ? (1.0 - _par->IEI) : 1.0; // getNumNaturalInfections() counts this infection too
     infection.relInfectiousness       *= 1.0 - effective_VEI;
 
+    infection.deathProb = Pr[SYMPTOMATIC_EVENT] * Pr[SEVERE_EVENT] * Pr[CRITICAL_EVENT] * Pr[NON_ICU_DEATH_EVENT];
+
     const double highly_infectious_threshold = 8.04; // 80th %ile for overall SARS-CoV-2 from doi: 10.7554/eLife.65774, "Fig 4-Fig Sup 3"
     const double rel_infectiousness_high     = 4.0;
     const double rel_infectiousness_norm     = 0.25;

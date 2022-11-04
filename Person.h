@@ -107,6 +107,7 @@ class Infection {
     double relInfectiousness;
     Detection* _detection;
 
+    double deathProb;                       // probability of death given infection, at time of infection
     static const Parameters* _par;
 
   public:
@@ -133,6 +134,7 @@ class Infection {
     int getCriticalEndTime()      const { return criticalEnd; }
     int getIcuTime()              const { return icuBegin; }
     int getDeathTime()            const { return deathTime; }
+    int getDeathProb()            const { return deathProb; }
     StrainType getStrain()        const { return strain; }
     double getRelInfectiousness() const { return relInfectiousness; }            // Could be time-varying in the future
 

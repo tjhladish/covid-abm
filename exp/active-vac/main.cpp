@@ -750,8 +750,8 @@ vector<string> plot_log_buffer = simulate_epidemic(par, community, to_string(ser
     bool overwrite = true;
     // this output filename needs to be adjusted for each experiment, so as to not overwrite files
     //string filename = "plot_log" + to_string(serial) + ".csv";
-//    string filename = "/blue/longini/tjhladish/covid-abm/exp/active-vac/v5.1/plot_log" + to_string(serial) + ".csv";
-    string filename = "plot_log" + to_string(serial) + ".csv";
+    string filename = "/red/longini/tjhladish/covid-abm/exp/active-vac/v5.1r/plot_log" + to_string(serial) + ".csv";
+//    string filename = "plot_log" + to_string(serial) + ".csv";
     write_daily_buffer(plot_log_buffer, process_id, filename, overwrite);
 
 //    stringstream ss;
@@ -819,7 +819,6 @@ vector<string> plot_log_buffer = simulate_epidemic(par, community, to_string(ser
     if (VAX_RNG) { gsl_rng_free(VAX_RNG); VAX_RNG = nullptr; }
     delete community;
     delete par;
-exit(1);
     return metrics;
 }
 

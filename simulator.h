@@ -307,7 +307,7 @@ vector<string> simulate_epidemic(const Parameters* par, Community* &community, c
     //vector<string> plot_log_buffer = {"date,sd,seasonality,vocprev1,vocprev2,cinf,closed,rcase,rdeath,inf,rhosp,Rt"};
     ledger->plot_log_buffer = {"serial,date,sd,seasonality,vocprev1,vocprev2,vocprev3,cinf,closed,rcase,rdeath,inf,rhosp,VES,brkthruRatio,vaxInfs,unvaxInfs,hospInc,hospPrev,icuInc,icuPrev,vaxHosp,unvaxHosp,std_doses,urg_doses,cov1,cov2,cov3,seroprev,ped_seroprev,symp_infs,sevr_infs,crit_infs,all_deaths,dose1_ct,dose2_ct,dose3_ct,Rt"};
     //ledger->plot_log_buffer = {"date,sd,seasonality,vocprev1,vocprev2,cinf,closed,rcase,rdeath,inf,rhosp,Rt"};
-    vector<string> vac_log_buffer = {"serial,day,dose1_risk,dose2_risk,dose3_risk,dose1_ct,dose2_ct,dose3_ct"};
+    vector<string> vac_log_buffer = {"serial,day,infectee_risk,dose1_risk,dose2_risk,dose3_risk,dose1_ct,dose2_ct,dose3_ct"};
 
     Date* date = community->get_date();
     ledger->strains = {50.0, 0.0, 0.0, 0.0}; // initially all WILDTYPE
@@ -405,8 +405,13 @@ if (sim_day == 0) { seed_epidemic(par, community, WILDTYPE); }
             total_foi += strain_foi[st];
         }
 
+        vector<double> infectee_death_prob;
         vector<vector<double>> vac_pop_death_risks(3); // size == max number of doses someone could receive
         for (const Person* p: community->getPeople()) {
+            if (p->isNewlyInfected(sim_day)) {
+                infectee_death_prob.push_back(p->getInfection()->getDeathProb());
+            }
+
             const int vac_n = p->getNumVaccinations();
             if (vac_n > 0 and p->daysSinceVaccination(sim_day) == 0) {
                 // prob of death, weighted by current strain prevalence, given exposure
@@ -423,8 +428,9 @@ if (sim_day == 0) { seed_epidemic(par, community, WILDTYPE); }
                 vac_pop_death_risks.at(vac_n - 1).push_back(dr);
             }
         }
+
         stringstream ss_vpdr;
-        ss_vpdr << process_id << "," << sim_day;
+        ss_vpdr << process_id << "," << sim_day << "," << mean(infectee_death_prob);
         for (auto& vpdr: vac_pop_death_risks) { ss_vpdr  << "," << mean(vpdr); }
         ss_vpdr << "," << dose1_ct << "," << dose2_ct << "," << dose3_ct;
         vac_log_buffer.push_back(ss_vpdr.str());
