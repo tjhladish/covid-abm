@@ -74,6 +74,7 @@ reserialize <- function(dt, offset = 0L) {
 
 scenarize <- function(dt, offset = 0L) {
   dt$pars[, scenario := offset + 1L:.N, by=.(realization)]
+  setkey(dts$pars, serial, realization)
   lapply(dt[-(names(dt) == "pars")], function(sdt) sdt[
     dt$pars, on =.(serial),
     c("scenario", "realization") := .(scenario, realization)
@@ -85,36 +86,6 @@ dts <- head(.args, -1) |> abcreader(datelim = NULL)
 
 reserialize(dts)
 scenarize(dts)
-
-#' @examples
-#' cmp.dt <- rbind(
-#'   dts$meta[, .(cdeath = sum(deaths)*37.5, source = "meta"), by=.(scenario, realization)],
-#'   dts$ms[, .(cdeath = tot_cumul_deaths, source = "mets"), by=.(scenario, realization)]
-#' )[
-#'   ,.(value = median(cdeath)), by=.(scenario, source)
-#' ][scn.dt, on=.(scenario)][inf_con == FALSE][,
-#'   .(source, quar, pas_vac, act_vac, alloc = fifelse(pas_vac, pas_alloc, act_alloc), value)
-#' ]
-#'
-#' require(ggplot2); require(ggh4x)
-#' ggplot(cmp.dt) + aes(x=alloc, y=value, shape = source, color = act_vac) +
-#'   facet_nested("Quar" + quar ~ .) +
-#'   geom_point() + theme_minimal() + scale_y_continuous("Tot. Deaths")
-
-setkey(dts$pars, serial, realization)
-
-meta.dt <- dts$meta[, .SD, .SDcols = -c("serial")] |>
-  setkey(scenario, realization, date)
-
-dts$meta <- NULL
-gc()
-
-meta.dt <- meta.dt |>
-  (\(dt) melt.data.table(dt, key(dt), variable.name = "outcome"))() |>
-  setkey(scenario, realization, outcome, date)
-
-
-meta.dt[, c.value := cumsum(value), by=setdiff(key(meta.dt), "date")]
 
 genordfac <- \(lvl) return(\(x) lvl[x+1] |> factor(levels = lvl, ordered = TRUE))
 
@@ -132,6 +103,34 @@ scn.dt <- dts$pars[
   realization == 0, .SD, .SDcols = -c("serial", "realization")
 ][, sapply(names(funs), \(nm) funs[[nm]](.SD[[nm]]), USE.NAMES = TRUE, simplify = FALSE)]
 dts$pars <- NULL
+
+#' @examples
+#' cmp.dt <- rbind(
+#'   dts$meta[, .(cdeath = sum(deaths)*37.5, source = "meta"), by=.(scenario, realization)],
+#'   dts$ms[, .(cdeath = tot_cumul_deaths, source = "mets"), by=.(scenario, realization)]
+#' )[
+#'   ,.(value = median(cdeath)), by=.(scenario, source)
+#' ][scn.dt, on=.(scenario)][inf_con == FALSE][,
+#'   .(scenario, source, quar, pas_vac, act_vac, alloc = fifelse(pas_vac, pas_alloc, act_alloc), value)
+#' ]
+#'
+#' require(ggplot2); require(ggh4x)
+#' ggplot(cmp.dt) + aes(x=alloc, y=value, shape = source, color = act_vac) +
+#'   facet_nested("Quar" + quar ~ .) +
+#'   geom_point() + theme_minimal() + scale_y_continuous("Tot. Deaths")
+
+meta.dt <- dts$meta[, .SD, .SDcols = -c("serial")] |>
+  setkey(scenario, realization, date)
+
+dts$meta <- NULL
+gc()
+
+meta.dt <- meta.dt |>
+  (\(dt) melt.data.table(dt, key(dt), variable.name = "outcome"))() |>
+  setkey(scenario, realization, outcome, date)
+
+meta.dt[, c.value := cumsum(value), by=setdiff(key(meta.dt), "date")]
+
 rm(dts)
 gc()
 
@@ -145,10 +144,11 @@ basescnid <- scn.dt[
   unique(scenario)
 ]
 
+#' for this comparison, also remove the do-nothing scenarios
 excludescns <- scn.dt[
   !(scenario %in% basescnid)
 ][
-  ((pas_vac == FALSE) & (act_vac == "none")) | ((act_vac == "none") & (quar == TRUE))
+  ((pas_vac == FALSE) & (act_vac == "none"))
 ][,
   unique(scenario)
 ]
@@ -164,7 +164,7 @@ ref.dt <- meta.dt[
 int.dt <- meta.dt[
   !(scenario %in% c(basescnid, excludescns))# & (outcome != "doses")
 ][scn.dt,
-  c("alloc", "inf_con", "quar") := .(act_alloc, inf_con, quar),
+  c("alloc", "inf_con", "quar") := .(fifelse(pas_vac, pas_alloc, act_alloc), inf_con, quar),
   on=.(scenario)
 ]
 
@@ -189,8 +189,6 @@ dts <- head(.args, -1) |> abcreader(metacols = c("serial","date","Rt"))
 
 reserialize(dts)
 scenarize(dts)
-
-setkey(dts$pars, serial, realization)
 
 meta.dt <- dts$meta[, .SD, .SDcols = -c("serial")] |>
   setkey(scenario, realization, date)

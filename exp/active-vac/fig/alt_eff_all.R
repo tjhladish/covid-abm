@@ -38,16 +38,7 @@ plt.dt[, talloc := factor(
   ), levels = c("LIC", "MIC", "HIC", "USA"), ordered = TRUE
 )][, qfac := factor(c("No Additional NPI", "Quarantine Contacts")[quar+1]) ]
 
-plt.qs <- quantile(
-  plt.dt,
-  j = .(c.effectiveness), sampleby = "realization",
-  probs = qprobs(c(`90`=.9, `50`=.5), mid = TRUE, extent = FALSE)
-)[, talloc := factor(
-  fifelse(
-    pas_alloc == "none",
-    as.character(act_alloc), as.character(pas_alloc)
-  ), levels = c("LIC", "MIC", "HIC", "USA"), ordered = TRUE
-)][, qfac := factor(c("No Additional NPI", "Quarantine Contacts")[quar+1]) ]
+plt.qs <- plt.prep(plt.dt, j = .(c.effectiveness))
 
 p <- allplot(
   plt.qs, yl = "Cumulative Effectiveness\nAgainst Incidence of ...",

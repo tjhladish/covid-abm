@@ -528,6 +528,13 @@ prepare <- function(...) setkey(melt(
   variable.name = "measure", variable.factor = FALSE
 ), measure, realization, date)
 
+plt.prep <- function(dt, j) eval(substitute(quantile(
+  dt, j, sampleby = "realization",
+  probs = qprobs(c(`90`=.9, `50`=.5), mid = TRUE, extent = FALSE)
+)))[, talloc := fifelse(
+  pas_vac, pas_alloc, act_alloc
+)][, qfac := factor(c("No Additional NPI", "Quarantine Contacts")[quar+1]) ]
+
 allplot <- function(
   data.qs, yl, withRef = FALSE,
   col.breaks = if (withRef) c("risk", "age", "ring") else c("none", "risk", "age", "ring"),
@@ -579,6 +586,9 @@ allplot <- function(
     legend.position = "bottom",
     strip.placement = "outside",
     legend.direction = "horizontal"
+  ) + guides(
+    color = guide_legend(title.position = "top", title.hjust = 0.5),
+    linetype = guide_legend(title.position = "top", title.hjust = 0.5)
   )
   if (!is.null(withBands)) {
 # TODO start-end, era
