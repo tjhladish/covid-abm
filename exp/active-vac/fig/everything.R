@@ -18,8 +18,10 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
   file.path("fig", "output", "everything.png")
 ))
 
+intfilter <- if (interactive()) expression(realization < 10) else expression(realization >= 0)
+
 load(.args[1])
-d <- readRDS(.args[2])[date <= vendday]
+d <- readRDS(.args[2])[date <= vendday][eval(intfilter)]
 ed <- readRDS(.args[3])[date <= vendday]
 cdc = readRDS(.args[4])[date <= vendday]
 hhsHosp = readRDS(.args[5])[date <= vendday][, .(date, hospInc) ]
@@ -246,17 +248,66 @@ p.seas <- p.core(seas.dt, ymin = 0.8, ymax = 1.2) +
   scale_color_inputs()
 
 voc.dt <- prepare(
-  d[, .(realization, date, vocprev1, vocprev2, vocprev3) ]
+  d[, .(realization, date, vocprev1, vocprev2, vocprev3, vocprevWT = pmax(1 - (vocprev1 + vocprev2 + vocprev3), 0)) ]
 )
+
+takeover.win <- voc.dt[measure != "vocprevWT"][, .(
+  s50 = date[which.max(value > 0.25)],
+  e50 = date[which.max(value > 0.75)],
+  s90 = date[which.max(value > 0.05)],
+  e90 = date[which.max(value > 0.95)],
+  s95 = date[which.max(value > 0.025)],
+  e95 = date[which.max(value > 0.975)]
+), by=.(measure, realization)][,
+  .(
+    start = c(
+      mean(s50), mean(s90), mean(s95)
+    ),
+    end = c(
+      mean(e50), mean(e90), mean(e95)
+    ),
+    mids = c(mean(s50 + (e50-s50)/2), mean(s90 + (e90-s90)/2), mean(s95+ (e95-s95)/2)),
+    q = c(.5, .9, .95)
+  ),
+  by = .(measure)
+]
 
 #' TODO make geom_month_background work for logit
 p.voc <- p.core(
-  voc.dt[!is.na(value)], ymin = 0, ymax = 1
-) + stat_spaghetti(aes(sample = realization)) +
+  voc.dt[!is.na(value)][value != 0], ymin = 0, ymax = 1
+) +
+  voc.wins(takeover.win) +
+  stat_spaghetti(aes(sample = realization)) +
   scale_y_fraction(
     name = "Variant Fraction"
   ) +
-  scale_color_inputs()
+  scale_color_inputs() +
+  coord_cartesian(clip = "off")
+
+# geom_rect(
+#   aes(
+#     y = NULL, x = NULL,
+#     ymin = 0, ymax = 1, xmin = start, xmax = end,
+#     color = NULL, fill = measure
+#   ),
+#   data = takeover.win[q==.95], alpha = 0.2
+# ) +
+#   geom_rect(
+#     aes(
+#       y = NULL, x = NULL,
+#       ymin = 0, ymax = 1, xmin = start, xmax = end,
+#       color = NULL, fill = measure
+#     ),
+#     data = takeover.win[q==.90], alpha = 0.2
+#   ) +
+#   geom_rect(
+#     aes(
+#       y = NULL, x = NULL,
+#       ymin = 0, ymax = 1, xmin = start, xmax = end,
+#       color = NULL, fill = measure
+#     ),
+#     data = takeover.win[q==.5], alpha = 0.2
+#   )
 
 vax.mlt <- dcast(vax, date ~ dose, value.var = "cov")
 setnames(vax.mlt, 2:4, paste0("cov", 1:3))

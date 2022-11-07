@@ -597,40 +597,29 @@ allplot <- function(
   return(res)
 }
 
-save(list=ls(), file = tail(.args, 1))
+voc.wins <- function(
+  dt, al = 0.2,
+  varcols = list(
+    vocprev1 = 'royalblue3', vocprev2 = 'turquoise4', vocprev3 = 'darkorchid3'
+  ),
+  qs = list(0.95, 0.9, 0.5),
+  vocs = c("Alpha Takeover", "Delta Takeover", "Omicron Takeover")
+) {
+  c(mapply(function(vc, tarq) geom_rect(
+      aes(
+        ymin = 0, ymax = 1, xmin = start, xmax = end
+      ), data = dt[measure == vc & q == tarq],
+      alpha = al, inherit.aes = FALSE,
+      fill = varcols[[vc]]
+    ), vc = rep(names(varcols), each = length(qs)), tarq = rep(qs, times = length(varcols)), SIMPLIFY = FALSE
+  ) |> do.call(c, args = _),
+  mapply(function(vc, lab) geom_text(
+    aes(y = 0, x = mean(mids)),
+    data = dt[measure == vc],
+    label = lab, color = varcols[[vc]], hjust = 0,
+    angle = 90
+  ), vc = rep(names(varcols)), lab = vocs, SIMPLIFY = FALSE)
+  )
+}
 
-# TODO figure out if this could work?
-# geom_month_background_alt <- function(
-    #     data,
-#     col.cycle = c(off = NA, on = alpha("lightgrey", 0.75)),
-#     labels = m.abb,
-#     font.size = 5,
-#     ylog = FALSE,
-#     datafn = tsref.dt,
-#     ...
-# ) {
-#   text.col <- alpha(col.cycle, 1)
-#   names(text.col) <- c(tail(names(col.cycle), -1), names(col.cycle)[1])
-#   text.col[is.na(text.col)] <- "white"
-#   dt <- datafn(data, ...)
-#   dt[, fill := col.cycle[mtype] ]
-#   dt[, col := text.col[mtype] ]
-#
-#   list(
-#     geom_rect(
-#       mapping = aes(xmin = start - 0.5, xmax = end + 0.5, ymin = after_scale(0), ymax = after_scale(1)),
-#       data = dt, inherit.aes = FALSE, show.legend = FALSE, fill = dt$fill
-#     ),
-#     geom_text(
-#       mapping = aes(x = mid, y = after_scale(.9), label = labels[mon]),
-#       data = dt, inherit.aes = FALSE, show.legend = FALSE, color = dt$col,
-#       size = font.size, vjust = "bottom"
-#     ),
-#     geom_text(
-#       mapping = aes(x = mid, y = after_scale(.85), label = yr),
-#       data = dt[yshow == TRUE], angle = 90,
-#       inherit.aes = FALSE, show.legend = FALSE, color = dt[yshow == TRUE]$col,
-#       size = font.size, hjust = "right"
-#     )
-#   )
-# }
+save(list=ls(), file = tail(.args, 1))
