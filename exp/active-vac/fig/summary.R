@@ -67,12 +67,14 @@ p <- ggplot(plt.dt) + aes(
       c.effectiveness="Cumulative Relative\nAverted Incidence"
     ))
   ) +
-  coord_cartesian(ylim = c(0, NA), expand = FALSE, clip = "off") +
+  coord_cartesian(expand = FALSE, clip = "off") +
   theme_minimal() +
   theme(
     strip.placement = "outside", legend.position = "bottom",
     panel.spacing.y = unit(1.5, "line"), panel.spacing.x = unit(1, "line"),
-    legend.text = element_text(size = rel(.75))
+    legend.text = element_text(size = rel(.75)),
+    panel.grid.major.x = element_blank(),
+    panel.border = element_rect(fill = NA, color = "grey")
   ) +
   scale_linetype_quar(
     guide = guide_legend(title.position = "top", title.hjust = 0.5, order = 1)
