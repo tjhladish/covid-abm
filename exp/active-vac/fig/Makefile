@@ -28,8 +28,8 @@ ${RESDIR}/hospitals.rds: ${DATADIR}/COVID-19_Reported_Patient_Impact_and_Hospita
 ${RESDIR}/seroprev.rds: ${DATADIR}/CDC_seroprev_long.csv
 ${RESDIR}/FLvaccines.rds: ${DATADIR}/population-pseudo-300K.csv ${DATADIR}/state_based_counterfactual_doses.csv
 ${RESDIR}/detection.rds: ${DATADIR}/reporting_by_day.txt
-${RESDIR}/vocpattern.rds: ${DATADIR}/validation.rds
-${RESDIR}/vocwindows.rds: ${DATADIR}/vocpattern.rds
+${RESDIR}/vocpattern.rds: ${RESDIR}/validation.rds
+${RESDIR}/vocwindows.rds: ${RESDIR}/vocpattern.rds
 ${RESDIR}/validation.rds: plotlog
 
 ${RESDIR}/%.rds: ${RESDIR}/%.R vis_support.rda | ${RESDIR}
@@ -53,7 +53,7 @@ ${RESDIR}/alt_i_eff.rds: alt_i_eff_digest.R $(addprefix ${DATADIR}/,${SIMFILES})
 
 ${RESDIR}/alt_eff-rt.rds: ${RESDIR}/alt_eff.rds
 
-INPUTS := $(patsubst %,${RESDIR}/%.rds,validation outcomes vaccines hospitals seroprev FLvaccines detection digest alt_eff)
+INPUTS := $(patsubst %,${RESDIR}/%.rds,validation outcomes vaccines hospitals seroprev FLvaccines detection vocpattern vocwindows)
 
 allinputs: ${INPUTS}
 cleaninputs:

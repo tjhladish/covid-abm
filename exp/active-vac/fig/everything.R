@@ -1,7 +1,6 @@
 
 .pkgs <- c("data.table", "scales", "ggplot2", "ggrepel", "patchwork", "cabputils")
-
-stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
+.pkgs |> sapply(require, character.only = TRUE) |> all() |> stopifnot()
 
 .args = commandArgs(
   trailingOnly = TRUE, c(
@@ -13,7 +12,9 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
     "hospitals.rds",
     "seroprev.rds",
     "FLvaccines.rds",
-    "detection.rds"
+    "detection.rds",
+    "vocpattern.rds",
+    "vocwindows.rds"
   )),
   file.path("fig", "output", "everything.png")
 ))
@@ -31,6 +32,8 @@ vax = readRDS(.args[7])[date <= vendday]
 ref.day0 <- d[, min(date)]
 
 detect.dt <- readRDS(.args[8])[, date := day + ref.day0][date <= vendday]
+voc.dt <- readRDS(.args[9])[date <= vendday]
+takeover.win <- readRDS(.args[10])
 
 sd.dt <- d[realization == 1, .(date, value = sd, closed) ]
 
@@ -42,9 +45,107 @@ conserved <- list(
   theme(text = element_text(face = "bold"))
 )
 
+geom_month_end <- function(
+    data,
+    col.cycle = c(off = NA, on = alpha("grey95", 0.75)),
+    m.labels = m.abb,
+    font.size = 4, font.face = "bold",
+    ytrans = "identity",
+    datafn = tsref.dt,
+    m.y = 0.0, y.y = 0.3,
+    text.col = rep("darkgrey", length(col.cycle)),
+    ...
+) {
+  names(text.col) <- c(tail(names(col.cycle), -1), names(col.cycle)[1])
+  text.col[is.na(text.col)] <- "white"
+  dt <- datafn(data, ...)
+  dt[, fill := col.cycle[mtype] ]
+  dt[, col := text.col[mtype] ]
+
+  xformer <- scales::as.trans(ytrans)
+
+  xform <- function(ymax, ymin, dropto) {
+    xformer$inverse(
+      (xformer$transform(ymax)-xformer$transform(ymin))*dropto + xformer$transform(ymin)
+    )
+  }
+
+  # ggplot isn't great on replicating these across facets
+  # would be preferrable to use `annotate`, and let backend recycle fills, but
+  # it won't, so have to tell this how many facets there will be
+  list(
+    geom_rect(
+      mapping = aes(xmin = start - 0.5, xmax = end + 0.5, ymin = if (xformer$name %like% "log") 0 else -Inf, ymax = if (xformer$name %like% "prob") 1 else Inf),
+      data = dt, inherit.aes = FALSE, show.legend = FALSE, fill = dt$fill
+    ),
+    geom_text(
+      mapping = aes(x = mid, y = xform(ymax, ymin, m.y), label = m.abb[mon]),
+      data = dt, inherit.aes = FALSE, show.legend = FALSE, color = dt$col,
+      size = font.size,
+      vjust = if (y.y > 0) "bottom" else "top",
+      fontface = font.face
+    ),
+    geom_text(
+      mapping = aes(x = mid, y = xform(ymax, ymin, y.y), label = yr),
+      data = dt[yshow == TRUE],
+      inherit.aes = FALSE, show.legend = FALSE, color = dt[yshow == TRUE]$col,
+      size = font.size/1.5, hjust = 0.5, fontface = font.face,
+      vjust = if (y.y > 0) "top" else "bottom"
+    )
+  )
+}
+
+p.top <- ggplot() +
+  geom_month_end(
+    d[, .(realization, date, value = cov1) ],
+    ymax = 1, ymin = 0, m.y = 0.05, y.y = 0.2
+  ) + conserved + theme(
+    axis.text = element_blank(), axis.title = element_blank(),
+    panel.grid = element_blank()
+  ) + coord_cartesian(ylim=c(0,0.2))
+
+p.bot <- ggplot() +
+  geom_month_end(
+    d[, .(realization, date, value = cov1) ],
+    ymax = 1, ymin = 0, m.y = -0.05, y.y = -0.2
+  ) + conserved + theme(
+    axis.text = element_blank(), axis.title = element_blank(),
+    panel.grid = element_blank()
+  ) + coord_cartesian(ylim=c(-0.2,0))
+
+geom_month_bars <- function(
+    data,
+    col.cycle = c(off = NA, on = alpha("grey95", 0.75)),
+    ytrans = "identity",
+    datafn = tsref.dt,
+    ...
+) {
+  dt <- datafn(data, ...)
+  dt[, fill := col.cycle[mtype] ]
+
+  xformer <- scales::as.trans(ytrans)
+
+  xform <- function(ymax, ymin, dropto) {
+    xformer$inverse(
+      (xformer$transform(ymax)-xformer$transform(ymin))*dropto + xformer$transform(ymin)
+    )
+  }
+
+  # ggplot isn't great on replicating these across facets
+  # would be preferrable to use `annotate`, and let backend recycle fills, but
+  # it won't, so have to tell this how many facets there will be
+  list(
+    geom_rect(
+      mapping = aes(xmin = start - 0.5, xmax = end + 0.5, ymin = if (xformer$name %like% "log") 0 else -Inf, ymax = if (xformer$name %like% "prob") 1 else Inf),
+      data = dt, inherit.aes = FALSE, show.legend = FALSE, fill = dt$fill
+    )
+  )
+}
+
+
 p.core <- function(dt, ymax = NA, ymin = NA, ytrans = "identity") ggplot(dt) +
   aes(date, value, color = measure) +
-  geom_month_background(
+  geom_month_bars(
     dt, by = NULL, ymax = ymax, ymin = ymin, ytrans = ytrans
   ) +
   stat_spaghetti(
@@ -185,13 +286,15 @@ p.brk <- p.core(
 
 p.vis <- p.sero + p.inc + p.cum.combo + p.hosp + p.brk
 
+# p.vis + plot_layout(ncol = 1, heights = c(0.3, 1, 1, 1, 1, 1))
+
 sd.dt <- d[realization == 1, .(date, value = sd, closed) ]
 
 p.core <- function(
   dt, ymin = NA, ymax = NA, ytrans = "identity"
 ) ggplot(dt) +
   aes(date, value, color = measure) +
-  geom_month_background(dt, ymin = ymin, ymax = ymax, ytrans = ytrans) +
+  geom_month_bars(dt, ymin = ymin, ymax = ymax, ytrans = ytrans) +
   theme_minimal() + theme(text = element_text(face = "bold")) +
   scale_x_null()
 
@@ -246,31 +349,6 @@ p.seas <- p.core(seas.dt, ymin = 0.8, ymax = 1.2) +
   geom_line() +
   scale_y_seasonality() +
   scale_color_inputs()
-
-voc.dt <- prepare(
-  d[, .(realization, date, vocprev1, vocprev2, vocprev3, vocprevWT = pmax(1 - (vocprev1 + vocprev2 + vocprev3), 0)) ]
-)
-
-takeover.win <- voc.dt[measure != "vocprevWT"][, .(
-  s50 = date[which.max(value > 0.25)],
-  e50 = date[which.max(value > 0.75)],
-  s90 = date[which.max(value > 0.05)],
-  e90 = date[which.max(value > 0.95)],
-  s95 = date[which.max(value > 0.025)],
-  e95 = date[which.max(value > 0.975)]
-), by=.(measure, realization)][,
-  .(
-    start = c(
-      mean(s50), mean(s90), mean(s95)
-    ),
-    end = c(
-      mean(e50), mean(e90), mean(e95)
-    ),
-    mids = c(mean(s50 + (e50-s50)/2), mean(s90 + (e90-s90)/2), mean(s95+ (e95-s95)/2)),
-    q = c(.5, .9, .95)
-  ),
-  by = .(measure)
-]
 
 #' TODO make geom_month_background work for logit
 p.voc <- p.core(
@@ -372,6 +450,22 @@ p.detect <- p.core(
     legend.position = c(0.6, 0.6), legend.justification = c(0, 1)
   )
 
-p.res <- p.vis + p.sd + p.seas + p.voc + p.vax + p.detect + plot_layout(nrow = 10)
+p.res <- p.top + p.sero + p.inc + p.cum.combo + p.hosp + p.brk +
+  p.sd + p.seas + p.voc + p.vax + p.detect + p.bot +
+  plot_layout(ncol = 1, heights = c(0.2, rep(1, 10), 0.2)) +
+  plot_annotation(tag_levels = list(c(
+    "", sero = "Fraction of Population", inc = "Per 10k, Incidence of ...",
+    cinc = "Per 10k, Cumulative Incidence of ...",
+    hinc = "Per 10k, Incidence of ...",
+    brk = "Fraction of Cases", sd = "Risk Threshold",
+    seas = "Seasonal Transmission Multiplier",
+    var = "Variant Fraction", doses = "Fraction of Population",
+    det = "P(Detect) Individual with Outcome ...", ""
+  ))) &
+  theme(
+    plot.tag.position = c(0, 0.97),
+    axis.title = element_blank(), axis.text = element_blank(),
+    plot.tag = element_text(hjust = 0, vjust = 1)
+  )
 
 store(.args, p.res, width = 14, height = 20, bg = "white")
