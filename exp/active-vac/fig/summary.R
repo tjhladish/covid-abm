@@ -23,9 +23,9 @@ dt <- readRDS(.args[2])[
 ]
 
 q.dt <- dt |>
-  DT(,c("c.value", "c.averted") := .(cumsum(value), cumsum(averted)), by=scenario) |>
+  DT(,c("c.value", "c.averted") := .(cumsum(value), cumsum(averted)), by=.(scenario, realization)) |>
   DT(date %in% overdates) |>
-  quantile(j=.(c.value, c.averted, c.effectiveness), sampleby = "realization")
+  quantile(j=.(c.value, c.averted, c.effectiveness), sampleby = "realization", probs = qprobs(c(`90`=0.9)))
 
 
 plt.dt <- q.dt[scn.dt, on = .(scenario), nomatch = 0]
@@ -35,14 +35,50 @@ plt.dt[date == overdates[3], variant := "omicron"]
 
 plt.dt$act_vac <- factor(plt.dt$act_vac, levels = c("ring", "none", "age", "risk"))
 
-p <- ggplot(plt.dt) + aes(x=variant, color = act_vac, shape = quar) +
-  geom_point(aes(y=qmed), data = \(dt) dt[quar == FALSE], position = position_dodge(width = 0.5)) +
-  geom_point(aes(y=qmed), data = \(dt) dt[quar == TRUE], position = position_dodge(width = 0.5)) +
-  facet_grid(measure ~ alloc, scales = "free_y", switch = "y") +
+scale_shape_quar <- rejig(
+  scale_shape_manual,
+  name = "Extra NPI", labels = c(nonpi="None", wquar = "Quarantine Contacts"),
+  values = c(wquar=17, nonpi=16),
+  guide = guide_legend(title.position = "top", title.hjust = 0.5, order = 1)
+)
+
+p <- ggplot(plt.dt) + aes(
+  x=variant, color = act_vac,
+  shape = c("nonpi","wquar")[quar+1],
+  linetype = c("nonpi","wquar")[quar+1]
+) +
+  geom_pointrange(
+    aes(y=qmed, ymin=q90l, ymax=q90h),
+    data = \(dt) dt[quar == FALSE],
+    position = position_dodge(width = 0.5),
+    size = .25
+  ) +
+  geom_pointrange(
+    aes(y=qmed, ymin=q90l, ymax=q90h),
+    data = \(dt) dt[quar == TRUE],
+    position = position_dodge(width = 0.5),
+    size = .25
+  ) +
+  facet_grid(
+    measure ~ alloc, scales = "free_y", switch = "y",
+    labeller = labeller(measure = c(
+      c.value="Per 10K, Cumulative\nIncidence",
+      c.averted="Per 10K, Cumulative\nAverted Incidence",
+      c.effectiveness="Cumulative Relative\nAverted Incidence"
+    ))
+  ) +
+  coord_cartesian(ylim = c(0, NA), expand = FALSE, clip = "off") +
   theme_minimal() +
-  theme(strip.placement = "outside") +
+  theme(
+    strip.placement = "outside", legend.position = "bottom",
+    panel.spacing.y = unit(1.5, "line"), panel.spacing.x = unit(1, "line"),
+    legend.text = element_text(size = rel(.75))
+  ) +
+  scale_linetype_quar(
+    guide = guide_legend(title.position = "top", title.hjust = 0.5, order = 1)
+  ) + scale_shape_quar() +
   scale_color_strategy(breaks = c("ring", "none", "age", "risk")) +
   scale_x_discrete("Post Variant Wave Outcome") +
   scale_y_continuous("Relative to Deaths ...")
 
-store(obj = p, args = .args, width = 9, height = 5, bg = "white")
+store(obj = p, args = .args, width = 9, height = 6, bg = "white")
