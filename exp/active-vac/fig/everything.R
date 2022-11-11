@@ -49,7 +49,7 @@ geom_month_end <- function(
     data,
     col.cycle = c(off = NA, on = alpha("grey95", 0.75)),
     m.labels = m.abb,
-    font.size = 4, font.face = "bold",
+    font.size = 8, font.face = "bold",
     ytrans = "identity",
     datafn = tsref.dt,
     m.y = 0.0, y.y = 0.3,
@@ -86,10 +86,10 @@ geom_month_end <- function(
       fontface = font.face
     ),
     geom_text(
-      mapping = aes(x = mid, y = xform(ymax, ymin, y.y), label = yr),
+      mapping = aes(x = start+5, y = xform(ymax, ymin, y.y), label = yr),
       data = dt[yshow == TRUE],
       inherit.aes = FALSE, show.legend = FALSE, color = dt[yshow == TRUE]$col,
-      size = font.size/1.5, hjust = 0.5, fontface = font.face,
+      size = font.size, hjust = 0, fontface = font.face,
       vjust = if (y.y > 0) "top" else "bottom"
     )
   )
@@ -98,20 +98,20 @@ geom_month_end <- function(
 p.top <- ggplot() +
   geom_month_end(
     d[, .(realization, date, value = cov1) ],
-    ymax = 1, ymin = 0, m.y = 0.05, y.y = 0.2
+    ymax = 1, ymin = 0, m.y = 0.05, y.y = 0.6
   ) + conserved + theme(
     axis.text = element_blank(), axis.title = element_blank(),
     panel.grid = element_blank()
-  ) + coord_cartesian(ylim=c(0,0.2))
+  ) + coord_cartesian(ylim=c(0,0.6))
 
 p.bot <- ggplot() +
   geom_month_end(
     d[, .(realization, date, value = cov1) ],
-    ymax = 1, ymin = 0, m.y = -0.05, y.y = -0.2
+    ymax = 1, ymin = 0, m.y = -0.05, y.y = -0.6
   ) + conserved + theme(
     axis.text = element_blank(), axis.title = element_blank(),
     panel.grid = element_blank()
-  ) + coord_cartesian(ylim=c(-0.2,0))
+  ) + coord_cartesian(ylim=c(-0.6,0))
 
 geom_month_bars <- function(
     data,
@@ -149,7 +149,7 @@ p.core <- function(dt, ymax = NA, ymin = NA, ytrans = "identity") ggplot(dt) +
     dt, by = NULL, ymax = ymax, ymin = ymin, ytrans = ytrans
   ) +
   stat_spaghetti(
-    aes(sample = realization),
+    aes(sample = realization, alpha = after_stat(sampleN^-1)),
     data = \(d) d[!is.na(realization)],
     show.legend = TRUE
   )
@@ -188,18 +188,10 @@ p.sero <- p.core(
   ) +
   conserved +
 #  coord_trans(y="logit") +
-  scale_alpha(guide = "none") +
+  scale_alpha_continuous(guide = "none", range = c(0.01, 1)) +
   theme(
-    legend.position = c(0+0.05, 1-0.175), legend.justification = c(0, 1),
-    legend.background = element_rect(fill = alpha("white", 0.5), color = NA),
-    legend.title = element_blank(),
-    legend.margin = margin(0, 1, 1, 1),
-    legend.key.height = unit(1.5, "line"),
-    legend.key.width = unit(2, "line"),
-    legend.spacing.x = unit(0, "mm"),
-    legend.spacing.y = unit(.5, "line"),
-    legend.text = element_text(size = 16)
-  )
+    legend.position = "none"
+  ) + coord_cartesian(clip = "off")
 
 inc.dt <- prepare(
   d[, .(realization, date, case = rcase, death = rdeath)],
@@ -211,7 +203,7 @@ p.inc <- p.core(
 ) + geom_observation() +
   geom_liner(
     data = function(dt) dt[date == "2021-04-17", .(
-      date = date[1], value = mean(value)*(10^(fifelse(.BY == "case", 1, -1)/1.5)),
+      date = date[1], value = mean(value)*(10^(fifelse(.BY == "case", 1, -1)/1.25)),
       lbl = fifelse(.BY == "case", "Reported\nCases, Daily", "Excess\nDeaths, Weekly"),
       vj = 0.5, hj = 0.5
     ), by=.(measure)]
@@ -231,7 +223,7 @@ p.cum.combo <- p.core(
 ) + geom_observation() +
   geom_liner(
     function(dt) dt[date == "2021-04-17", .(
-      date = date[1], value = mean(value)*(10^(-1/1.75)),
+      date = date[1], value = mean(value)*(10^(-1/1.5)),
       lbl = fifelse(.BY == "case", "Cumulative Reported\nCases, Daily", "Cumulative Excess\nDeaths, Weekly"),
       vj = 0.5, hj = 0.5
     ), by=.(measure)
@@ -312,7 +304,7 @@ ed.xform <- ed[, .(date, value = {
 p.sd <- p.core(
   sd.dt[, measure := "socialdist"], ymin = 0, ymax = 1
 ) +
-  geom_point(data = ed.xform[date < "2022-04-01"], color = "black", alpha = 0.5) +
+  geom_point(data = ed.xform[date < "2022-03-31"][!is.na(value)], color = "royalblue3", alpha = 0.2) +
   geom_line() +
   geom_rect(
     aes(
@@ -354,12 +346,12 @@ p.seas <- p.core(seas.dt, ymin = 0.8, ymax = 1.2) +
 p.voc <- p.core(
   voc.dt[!is.na(value)][value != 0], ymin = 0, ymax = 1
 ) +
-  voc.wins(takeover.win) +
-  stat_spaghetti(aes(sample = realization)) +
+  voc.wins(takeover.win, vocs = c("\u03B1", "\u03B4", "\u03BF")) +
+  stat_spaghetti(aes(sample = realization, alpha = after_stat(sampleN^-1))) +
   scale_y_fraction(
     name = "Variant Fraction"
   ) +
-  scale_color_inputs() +
+  scale_color_inputs() + scale_alpha_continuous(range = c(0.01, 1)) +
   coord_cartesian(clip = "off")
 
 # geom_rect(
@@ -405,27 +397,27 @@ p.vax <- p.core(
   aes(linetype = event, shape = event) +
   geom_point(data = function (dt) dt[realization == 0][value > 0], alpha = 0.2) +
   geom_line(data = function(dt) dt[realization == 1][value > 0]) +
+  geom_text(mapping = aes(label=lab, linetype = NULL, shape = NULL), data = data.table(
+    lab = c("Dose 1", "Dose 2", "Dose 3"),
+    date = as.Date(c("2021-05-15", "2021-05-15", "2021-11-15")),
+    value = c(.55, .2, .2),
+    measure = "coverage"
+  ), font.face = "bold") +
   scale_color_inputs() +
   scale_y_fraction() +
   scale_linetype_manual(
-    name = "Simulated Doses",
+    name = "Doses",
     values = c(cov1="dotted", cov2="dashed", cov3="solid"),
-    labels = vlbls
+    labels = vlbls, guide = "none"
   ) +
   scale_shape_manual(
-    name = "Reported Doses",
+    name = "Doses",
     values = c(cov1=1, cov2=10, cov3=19),
     labels = vlbls,
-    guide = guide_legend(order = 1)
+    guide = "none"
   ) +
   theme(
-    legend.position = c(0+0.05, 1-0.175), legend.justification = c(0, 1),
-    legend.direction = "horizontal",
-    legend.margin = margin(),
-    legend.key.height = unit(1.5, "line"),
-    legend.key.width = unit(1.5, "line"),
-    legend.spacing.x = unit(0, "mm"),
-    legend.spacing.y = unit(.5, "line"),
+    legend.position = "none"
   )
 
 det.dt <- prepare(detect.dt[, .(
@@ -450,22 +442,24 @@ p.detect <- p.core(
     legend.position = c(0.6, 0.6), legend.justification = c(0, 1)
   )
 
-p.res <- p.top + p.sero + p.inc + p.cum.combo + p.hosp + p.brk +
-  p.sd + p.seas + p.voc + p.vax + p.detect + p.bot +
-  plot_layout(ncol = 1, heights = c(0.2, rep(1, 10), 0.2)) +
+p.res <- p.top + p.voc + p.seas + p.vax + p.detect + p.sd +
+  p.inc + p.hosp + p.brk + p.sero +
+  #p.cum.combo +
+  p.bot +
+  plot_layout(ncol = 1, heights = c(0.4, rep(1, 9), 0.4)) +
   plot_annotation(tag_levels = list(c(
-    "", sero = "Fraction of Population", inc = "Per 10k, Incidence of ...",
-    cinc = "Per 10k, Cumulative Incidence of ...",
+    "", var = "Variant Fraction", seas = "Seasonal Transmission Multiplier",
+    doses = "Fraction of Population",
+    det = "P(Detect) Individual with Outcome ...", sd = "Risk Threshold",
+    inc = "Per 10k, Incidence of ...",
+  #  cinc = "Per 10k, Cumulative Incidence of ...",
     hinc = "Per 10k, Incidence of ...",
-    brk = "Fraction of Cases", sd = "Risk Threshold",
-    seas = "Seasonal Transmission Multiplier",
-    var = "Variant Fraction", doses = "Fraction of Population",
-    det = "P(Detect) Individual with Outcome ...", ""
+    brk = "Fraction of Cases", sero = "Fraction of Population", ""
   ))) &
   theme(
     plot.tag.position = c(0, 0.97),
     axis.title = element_blank(), axis.text = element_blank(),
-    plot.tag = element_text(hjust = 0, vjust = 1)
+    plot.tag = element_text(size = rel(1.5), hjust = 0, vjust = 1)
   )
 
 store(.args, p.res, width = 14, height = 20, bg = "white")

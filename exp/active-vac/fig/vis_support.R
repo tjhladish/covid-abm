@@ -614,10 +614,9 @@ voc.wins <- function(
     ), vc = rep(names(varcols), each = length(qs)), tarq = rep(qs, times = length(varcols)), SIMPLIFY = FALSE
   ) |> do.call(c, args = _),
   mapply(function(vc, lab) geom_text(
-    aes(y = 0, x = mean(mids)),
-    data = dt[measure == vc],
-    label = lab, color = varcols[[vc]], hjust = 0,
-    angle = 90
+    aes(y = 0.05, x = mean(mids)),
+    data = dt[measure == vc & q == 0.5],
+    label = lab, color = varcols[[vc]], hjust = 0.5, size = 12
   ), vc = rep(names(varcols)), lab = vocs, SIMPLIFY = FALSE)
   )
 }
