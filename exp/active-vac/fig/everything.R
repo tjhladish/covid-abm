@@ -1,5 +1,5 @@
 
-.pkgs <- c("data.table", "scales", "ggplot2", "ggrepel", "patchwork", "cabputils")
+.pkgs <- c("data.table", "scales", "ggplot2", "ggrepel", "patchwork", "cabputils", "geomtextpath")
 .pkgs |> sapply(require, character.only = TRUE) |> all() |> stopifnot()
 
 .args = commandArgs(
@@ -42,8 +42,19 @@ conserved <- list(
   scale_color_measure(),
   scale_shape_measure(),
   theme_minimal(),
-  theme(text = element_text(face = "bold"))
+  theme(text = element_text(face = "bold")),
+  scale_alpha_continuous(guide = "none", range = c(0.025, 1))
 )
+
+geom_grid <- function(
+  ys, FUN = as.character
+) {
+  geom_texthline(
+    aes(yintercept = ys, label = label),
+    data = data.table(ys = ys, label = FUN(ys)), inherit.aes = FALSE,
+    gap = TRUE, hjust = 0.325, color = "grey85", fontface = "bold"
+  )
+}
 
 geom_month_end <- function(
     data,
@@ -143,11 +154,15 @@ geom_month_bars <- function(
 }
 
 
-p.core <- function(dt, ymax = NA, ymin = NA, ytrans = "identity", ins = list()) ggplot(dt) +
+p.core <- function(
+  dt, ymax = NA, ymin = NA, ytrans = "identity", ins = list(), gridy
+) ggplot(dt) +
   aes(date, value, color = measure) +
+  geom_grid(gridy) +
   geom_month_bars(
     dt, by = NULL, ymax = ymax, ymin = ymin, ytrans = ytrans
-  ) + ins +
+  ) +
+  ins +
   stat_spaghetti(
     aes(sample = realization, alpha = after_stat(sampleN^-1)),
     data = \(d) d[!is.na(realization)],
@@ -155,6 +170,7 @@ p.core <- function(dt, ymax = NA, ymin = NA, ytrans = "identity", ins = list()) 
   )
 
 sero.dt <- prepare(d[, .(realization, date, seroprev) ])
+seroprev[, measure := "infection"]
 
 geom_liner <- function(datafn) geom_text(
   aes(label = lbl, vjust = vj, hjust = hj, shape = NULL),
@@ -162,10 +178,9 @@ geom_liner <- function(datafn) geom_text(
   fontface = "bold", size = 5
 )
 
-seroprev[, measure := "infection"]
-
 p.sero <- p.core(
-  sero.dt[, measure := "infection"], ymin = 0.01, ymax = .99
+  sero.dt[, measure := "infection"], ymin = 0.01, ymax = .99,
+  gridy = c(0.25, 0.5, 0.75)
 ) + aes(shape = after_stat(spaghetti)) + geom_crosshair(
   mapping = aes(
     x = start + (end+1-start)/2, xmin = start, xmax = end+1,
@@ -188,9 +203,9 @@ p.sero <- p.core(
   ) +
   conserved +
 #  coord_trans(y="logit") +
-  scale_alpha_continuous(guide = "none", range = c(0.01, 1)) +
+#  scale_alpha_continuous(guide = "none", range = c(0.01, 1)) +
   theme(
-    legend.position = "none"
+    legend.position = "none", panel.grid.major.y = element_blank()
   ) + coord_cartesian(clip = "off")
 
 inc.dt <- prepare(
@@ -203,47 +218,49 @@ p.inc.c <- p.core(
   ins = voc.wins(
     takeover.win, qs = c(0.5, 0.75, 0.95), vocs = c("\u03B1", "\u03B4", "\u03BF"),
     ymin = 0.01, ymax = 100
-  )
+  ),
+  gridy = c(0.1, 1, 10)
 ) + geom_observation() +
   scale_y_incidence(trans = "log10", breaks = 10^((-2):2), labels = c("0.01", "0.1", "1", "10", "100")) +
   conserved +
   coord_cartesian(ylim = c(1e-2, 100), expand = FALSE) +
-  theme(legend.position = "none")
+  theme(legend.position = "none", panel.grid.major.y = element_blank())
 
 p.inc.d <- p.core(
   inc.dt[measure == "death"], ymin = 1e-2, ymax = 1e2, ytrans = "log10",
   ins = voc.wins(
     takeover.win, qs = c(0.5, 0.75, 0.95), vocs = c("\u03B1", "\u03B4", "\u03BF"),
     ymin = 0.01, ymax = 100
-  )
+  ),
+  gridy = c(0.1, 1)
 ) + geom_observation() +
   scale_y_incidence(trans = "log10", breaks = 10^((-2):1), labels = c("0.01", "0.1", "1", "10")) +
   conserved +
   coord_cartesian(ylim = c(1e-2, 10), expand = FALSE) +
-  theme(legend.position = "none")
+  theme(legend.position = "none", panel.grid.major.y = element_blank())
 
-cum.dt <- prepare(
-  d[, .(realization, date, case = crcase, death = crdeath)],
-  ed[, .(date, case = crcase, death = crdeath)]
-)[date < "2022-04-01"][!is.na(value)]
-
-p.cum.combo <- p.core(
-  cum.dt, ymin = 1, ymax = 1e4, ytrans = "log10"
-) + geom_observation() +
-  geom_liner(
-    function(dt) dt[date == "2021-04-17", .(
-      date = date[1], value = mean(value)*(10^(-1/1.5)),
-      lbl = fifelse(.BY == "case", "Cumulative Reported\nCases, Daily", "Cumulative Excess\nDeaths, Weekly"),
-      vj = 0.5, hj = 0.5
-    ), by=.(measure)
-    ]
-  ) +
-  scale_y_log10(
-    name = "Per 10k,\nCumulative Incidence of ...",
-    labels = number_format(scale_cut = cut_short_scale())) +
-  conserved +
-  coord_cartesian(ylim = c(1, 1e4), expand = FALSE) +
-  theme(legend.position = "none")
+# cum.dt <- prepare(
+#   d[, .(realization, date, case = crcase, death = crdeath)],
+#   ed[, .(date, case = crcase, death = crdeath)]
+# )[date < "2022-04-01"][!is.na(value)]
+#
+# p.cum.combo <- p.core(
+#   cum.dt, ymin = 1, ymax = 1e4, ytrans = "log10"
+# ) + geom_observation() +
+#   geom_liner(
+#     function(dt) dt[date == "2021-04-17", .(
+#       date = date[1], value = mean(value)*(10^(-1/1.5)),
+#       lbl = fifelse(.BY == "case", "Cumulative Reported\nCases, Daily", "Cumulative Excess\nDeaths, Weekly"),
+#       vj = 0.5, hj = 0.5
+#     ), by=.(measure)
+#     ]
+#   ) +
+#   scale_y_log10(
+#     name = "Per 10k,\nCumulative Incidence of ...",
+#     labels = number_format(scale_cut = cut_short_scale())) +
+#   conserved +
+#   coord_cartesian(ylim = c(1, 1e4), expand = FALSE) +
+#   theme(legend.position = "none")
 
 hinc.dt <- prepare(
   d[, .(realization, date = as.Date(date), hospInc) ], # vaxHosp, hospPrev, unvaxHosp,
@@ -255,7 +272,8 @@ p.hosp <- p.core(
   ins = voc.wins(
     takeover.win, qs = c(0.5, 0.75, 0.95), vocs = c("\u03B1", "\u03B4", "\u03BF"),
     ymin = 0.01, ymax = 3
-  )
+  ),
+  gridy = c(0.03, 0.1, 0.3, 1)
 ) + geom_observation() +
   # geom_liner(function(dt) dt[date == "2021-03-17", .(
   #   measure = measure[1], date = date[1], value = max(mean(value), 1e-2)*(10^(fifelse(.BY == "hospInc", -1, 1)/3)),
@@ -266,18 +284,21 @@ p.hosp <- p.core(
   scale_y_incidence(trans = "log10", breaks = 10^sort(c((-2):0, log10(3)-(2:0))), labels = c("0.01", "0.03", "0.1", "0.3", "1", "3")) +#, )
   conserved +
   coord_cartesian(ylim = c(1e-2, 3), expand = FALSE) +
-  theme(legend.position = "none") +
-  scale_alpha_continuous(range = c(0.01, 1))
+  theme(legend.position = "none", panel.grid.major.y = element_blank())
 
 # min.breakthrough <- d[order(date),.SD[which.max(tot_std_doses + tot_urg_doses > 0)][1, date], by=realization][, min(V1)]
 
-brk.dt <- prepare(
+brk.dt <- rbind(prepare(
   d[, .(realization, date = as.Date(date), brkthru) ],
   cdc[, .(date = as.Date(date), brkthru = brkthruRatio) ]
-)[date < "2022-04-01"][!is.na(value)]
+)[date < vendday][!is.na(value)],
+  data.table(realization = NA, date = as.Date("2020-02-01"), measure = "brkthru", value = NA)
+)
+brk.dt[!is.na(realization) & date < "2020-12-01", value := NA]
 
 p.brk <- p.core(
-  brk.dt, ymin = 0, ymax = 1
+  brk.dt, ymin = 0, ymax = 1,
+  gridy = c(0.25, 0.5, 0.75)
 ) + geom_observation() +
   # geom_liner(function(dt) dt[date == "2021-08-01", .(
   #   date = date[1], value = mean(value)+0.15,
@@ -287,14 +308,15 @@ p.brk <- p.core(
   # ]) +
   scale_y_fraction(name = "Fraction of Cases") +
   conserved +
-  theme(legend.position = "none")
+  theme(legend.position = "none", panel.grid.major.y = element_blank()) + coord_cartesian(clip = "off")
 
 sd.dt <- d[realization == 1, .(date, value = sd, closed) ]
 
 p.core <- function(
-  dt, ymin = NA, ymax = NA, ytrans = "identity"
+  dt, ymin = NA, ymax = NA, ytrans = "identity", gridy
 ) ggplot(dt) +
   aes(date, value, color = measure) +
+  geom_grid(gridy) +
   geom_month_bars(dt, ymin = ymin, ymax = ymax, ytrans = ytrans) +
   theme_minimal() + theme(text = element_text(face = "bold")) +
   scale_x_null()
@@ -311,7 +333,8 @@ ed.xform <- ed[, .(date, value = {
 #' TODO school terms?
 #' weekends?
 p.sd <- p.core(
-  sd.dt[, measure := "socialdist"], ymin = 0, ymax = 1
+  sd.dt[, measure := "socialdist"], ymin = 0, ymax = 1,
+  gridy = c(0.25, 0.5, 0.75)
 ) +
   geom_line() +
   geom_rect(
@@ -332,7 +355,7 @@ p.sd <- p.core(
 #      breaks = seq(0, 1, by=.25),
       labels = c("0.01", "0.1", "1", "10", "100")
     )
-  ) + scale_color_inputs()
+  ) + scale_color_inputs() + theme(panel.grid.major.y = element_blank())
 
 seas.dt <- prepare(d[realization == 1, .(realization, date, seasonality) ])
 
@@ -345,21 +368,24 @@ scale_y_seasonality <- rejig(
   )
 )
 
-p.seas <- p.core(seas.dt, ymin = 0.8, ymax = 1.2) +
+p.seas <- p.core(
+  seas.dt, ymin = 0.8, ymax = 1.2, gridy = c(0.85, 1, 1.15)
+) +
   geom_line() +
   scale_y_seasonality() +
-  scale_color_inputs()
+  scale_color_inputs() + theme(panel.grid.major.y = element_blank(), panel.grid.minor.y = element_blank())
 
 #' TODO make geom_month_background work for logit
 p.voc <- p.core(
-  voc.dt[!is.na(value)][value != 0], ymin = 0, ymax = 1
+  voc.dt[!is.na(value)][value != 0], ymin = 0, ymax = 1,
+  gridy = c(0.25, 0.5, 0.75)
 ) +
   voc.wins(takeover.win, qs = c(0.5, 0.75, 0.95), vocs = c("\u03B1", "\u03B4", "\u03BF")) +
   stat_spaghetti(aes(sample = realization, alpha = after_stat(sampleN^-1))) +
   scale_y_fraction(
     name = "Variant Fraction"
   ) +
-  scale_color_inputs() + scale_alpha_continuous(range = c(0.01, 1)) +
+  scale_color_inputs() + scale_alpha_continuous(range = c(0.05, 1)) +
   coord_cartesian(clip = "off")
 
 # geom_rect(
@@ -400,7 +426,8 @@ setnames(vax.dt, "measure", "event")
 vax.dt[, measure := "coverage"]
 p.vax <- p.core(
   vax.dt,
-  ymin = 0, ymax = 1
+  ymin = 0, ymax = 1,
+  gridy=c(0.25, 0.5, 0.75)
 ) +
   aes(linetype = event, shape = event) +
   geom_point(data = function (dt) dt[realization == 0][value > 0], alpha = 0.2) +
@@ -408,9 +435,9 @@ p.vax <- p.core(
   geom_text(mapping = aes(label=lab, linetype = NULL, shape = NULL), data = data.table(
     lab = c("Dose 1", "Dose 2", "Dose 3"),
     date = as.Date(c("2021-05-15", "2021-05-15", "2021-11-15")),
-    value = c(.55, .2, .2),
+    value = c(.6, .15, .25),
     measure = "coverage"
-  ), fontface = "bold") +
+  ), size = 6) +
   scale_color_inputs() +
   scale_y_fraction() +
   scale_linetype_manual(
@@ -425,7 +452,7 @@ p.vax <- p.core(
     guide = "none"
   ) +
   theme(
-    legend.position = "none"
+    legend.position = "none", panel.grid.major.y = element_blank()
   )
 
 det.dt <- prepare(detect.dt[, .(
@@ -436,10 +463,17 @@ setnames(det.dt, "measure", "outcome")
 det.dt[, measure := "detection"]
 
 p.detect <- p.core(
-  det.dt, ymin = 0, ymax = 1
+  det.dt, ymin = 0, ymax = 1, gridy = c(0.25, 0.5, 0.75)
 ) + aes(linetype = outcome) +
   geom_line() +
   scale_y_fraction(name = "P(Detect) Individual\nwith Outcome ...") +
+  geom_text(mapping = aes(label=lab, linetype = NULL, shape = NULL, hjust = align), data = data.table(
+    lab = c("Asymptomatic", "Mild", "Severe", "Critical"),
+    date = as.Date(c("2020-07-15", "2020-05-10", "2020-04-15", "2020-08-01")),
+    value = c(.18, .22, .65, .9),
+    align = c(0.5, 1, 0.5, 0.5),
+    measure = "detection"
+  ), size = 6) +
   scale_linetype_manual(
     name = NULL, breaks = rev(c("asymp", "mild", "severe", "crit")),
     labels = c(asymp = "Asymptomic", mild = "Mild", severe = "Severe", crit = "Critical"),
@@ -447,7 +481,7 @@ p.detect <- p.core(
   ) +
   scale_color_manual(name = NULL, values = c("black"), guide = "none") +
   theme(
-    legend.position = c(0.6, 0.6), legend.justification = c(0, 1)
+    legend.position = "none", panel.grid.major.y = element_blank()
   )
 
 p.res <- p.top + p.seas + p.detect + p.vax + p.sd +
