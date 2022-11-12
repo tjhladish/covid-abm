@@ -12,23 +12,33 @@ load(.args[1])
 
 voc.dt <- readRDS(.args[2])
 
-voc.dt[measure != "vocprevWT"][, .(
-  s50 = date[which.max(value > 0.25)],
-  e50 = date[which.max(value > 0.75)],
-  s90 = date[which.max(value > 0.05)],
-  e90 = date[which.max(value > 0.95)],
-  s95 = date[which.max(value > 0.025)],
-  e95 = date[which.max(value > 0.975)]
-), by=.(measure, realization)][, .(
-  start = c(
-    mean(s50), mean(s90), mean(s95)
+fwd.dt <- voc.dt[
+  measure != "vocprevWT", .(
+    start = c(
+      date[which.max(0.5 < value)],
+      date[which.max(0.75 < value)],
+      date[which.max(0.95 < value)]
+    ),
+    q = c(0.5, 0.75, 0.95)
   ),
-  end = c(
-    mean(e50), mean(e90), mean(e95)
+  by=.(measure, realization)
+]
+
+rev.dt <- voc.dt[measure != "vocprevWT"][
+  order(date, decreasing = TRUE), .(
+    end = c(
+      date[which.max(0.5 < value)],
+      date[which.max(0.75 < value)],
+      date[which.max(0.95 < value)]
+    ),
+    q = c(0.5, 0.75, 0.95)
   ),
-  mids = c(
-    mean(s50 + (e50-s50)/2), mean(s90 + (e90-s90)/2), mean(s95+ (e95-s95)/2)
-  ),
-  q = c(.5, .9, .95)
-), by = .(measure)
-] |> store(args = .args, obj = _)
+  by=.(measure, realization)
+]
+
+fwd.dt[
+  rev.dt, on=.(realization, measure, q)
+][,.(start = median(start)+1, end = median(end)-1), by=.(measure, q)][,
+  mids := start + (end - start)/2
+] |>
+  store(args = .args, obj = _)

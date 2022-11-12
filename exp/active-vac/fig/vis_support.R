@@ -602,19 +602,19 @@ voc.wins <- function(
   varcols = list(
     vocprev1 = 'royalblue3', vocprev2 = 'turquoise4', vocprev3 = 'darkorchid3'
   ),
-  qs = list(0.95, 0.9, 0.5),
+  qs = list(0.95, 0.9, 0.5), ymin = 0, ymax = 1, laby = 0.05,
   vocs = c("Alpha Takeover", "Delta Takeover", "Omicron Takeover")
 ) {
   c(mapply(function(vc, tarq) geom_rect(
       aes(
-        ymin = 0, ymax = 1, xmin = start, xmax = end
+        ymin = ymin, ymax = ymax, xmin = start, xmax = end
       ), data = dt[measure == vc & q == tarq],
       alpha = al, inherit.aes = FALSE,
       fill = varcols[[vc]]
     ), vc = rep(names(varcols), each = length(qs)), tarq = rep(qs, times = length(varcols)), SIMPLIFY = FALSE
   ) |> do.call(c, args = _),
   mapply(function(vc, lab) geom_text(
-    aes(y = 0.05, x = mean(mids)),
+    aes(y = laby, x = mean(mids)),
     data = dt[measure == vc & q == 0.5],
     label = lab, color = varcols[[vc]], hjust = 0.5, size = 12
   ), vc = rep(names(varcols)), lab = vocs, SIMPLIFY = FALSE)

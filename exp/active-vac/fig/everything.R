@@ -34,7 +34,7 @@ ref.day0 <- d[, min(date)]
 detect.dt <- readRDS(.args[8])[, date := day + ref.day0][date <= vendday]
 voc.dt <- readRDS(.args[9])[date <= vendday]
 takeover.win <- readRDS(.args[10])
-
+takeover.win[, end := pmin(end, vendday)]
 sd.dt <- d[realization == 1, .(date, value = sd, closed) ]
 
 conserved <- list(
@@ -143,11 +143,11 @@ geom_month_bars <- function(
 }
 
 
-p.core <- function(dt, ymax = NA, ymin = NA, ytrans = "identity") ggplot(dt) +
+p.core <- function(dt, ymax = NA, ymin = NA, ytrans = "identity", ins = list()) ggplot(dt) +
   aes(date, value, color = measure) +
   geom_month_bars(
     dt, by = NULL, ymax = ymax, ymin = ymin, ytrans = ytrans
-  ) +
+  ) + ins +
   stat_spaghetti(
     aes(sample = realization, alpha = after_stat(sampleN^-1)),
     data = \(d) d[!is.na(realization)],
@@ -176,13 +176,13 @@ p.sero <- p.core(
     x = start + (end+1-start)/2,
     y = est, shape="observation"
   ), data = seroprev) +
-  geom_liner(function(dt) dt[
-    date == "2021-11-01",
-    .(date = date[1], value = mean(value)+.05*(fifelse(.BY == "cinf", 1, -1)),
-      lbl = fifelse(.BY == "cinf", "Ever Infected", "Seropositive"),
-      vj = 1, hj = 0
-    ), by = measure
-  ]) +
+  # geom_liner(function(dt) dt[
+  #   date == "2021-11-01",
+  #   .(date = date[1], value = mean(value)+.05*(fifelse(.BY == "cinf", 1, -1)),
+  #     lbl = fifelse(.BY == "cinf", "Ever Infected", "Seropositive"),
+  #     vj = 1, hj = 0
+  #   ), by = measure
+  # ]) +
   scale_y_fraction(
 #    breaks = c(0.01, 0.03, 0.1, 0.3, 0.5, 0.7, 0.9, 0.97, 0.99), limits = c(0.01, 0.99)
   ) +
@@ -198,19 +198,28 @@ inc.dt <- prepare(
   ed[, .(date, case = rcase, death = rdeath)]
 )[date < "2022-04-01"][!is.na(value)]
 
-p.inc <- p.core(
-  inc.dt, ymin = 1e-2, ymax = 1e2, ytrans = "log10"
+p.inc.c <- p.core(
+  inc.dt[measure == "case"], ymin = 1e-2, ymax = 1e2, ytrans = "log10",
+  ins = voc.wins(
+    takeover.win, qs = c(0.5, 0.75, 0.95), vocs = c("\u03B1", "\u03B4", "\u03BF"),
+    ymin = 0.01, ymax = 100
+  )
 ) + geom_observation() +
-  geom_liner(
-    data = function(dt) dt[date == "2021-04-17", .(
-      date = date[1], value = mean(value)*(10^(fifelse(.BY == "case", 1, -1)/1.25)),
-      lbl = fifelse(.BY == "case", "Reported\nCases, Daily", "Excess\nDeaths, Weekly"),
-      vj = 0.5, hj = 0.5
-    ), by=.(measure)]
-  ) +
   scale_y_incidence(trans = "log10", breaks = 10^((-2):2), labels = c("0.01", "0.1", "1", "10", "100")) +
   conserved +
   coord_cartesian(ylim = c(1e-2, 100), expand = FALSE) +
+  theme(legend.position = "none")
+
+p.inc.d <- p.core(
+  inc.dt[measure == "death"], ymin = 1e-2, ymax = 1e2, ytrans = "log10",
+  ins = voc.wins(
+    takeover.win, qs = c(0.5, 0.75, 0.95), vocs = c("\u03B1", "\u03B4", "\u03BF"),
+    ymin = 0.01, ymax = 100
+  )
+) + geom_observation() +
+  scale_y_incidence(trans = "log10", breaks = 10^((-2):1), labels = c("0.01", "0.1", "1", "10")) +
+  conserved +
+  coord_cartesian(ylim = c(1e-2, 10), expand = FALSE) +
   theme(legend.position = "none")
 
 cum.dt <- prepare(
@@ -242,14 +251,18 @@ hinc.dt <- prepare(
 )[date < "2022-04-01"][!is.na(value)]
 
 p.hosp <- p.core(
-  hinc.dt, ytrans = "log10", ymin = 1e-2, ymax = 3
+  hinc.dt, ytrans = "log10", ymin = 1e-2, ymax = 3,
+  ins = voc.wins(
+    takeover.win, qs = c(0.5, 0.75, 0.95), vocs = c("\u03B1", "\u03B4", "\u03BF"),
+    ymin = 0.01, ymax = 3
+  )
 ) + geom_observation() +
-  geom_liner(function(dt) dt[date == "2021-03-17", .(
-    measure = measure[1], date = date[1], value = max(mean(value), 1e-2)*(10^(fifelse(.BY == "hospInc", -1, 1)/3)),
-    lbl = c(hospPrev = "Hospital Occupancy,\nDaily", hospInc = "Hospital Admissions,\nDaily", vaxHosp = "Vaccinated Admissions,\nDaily")[unlist(.BY)],
-    vj = 1, hj = 0.5
-  ), by=.(as.character(measure))
-  ]) +
+  # geom_liner(function(dt) dt[date == "2021-03-17", .(
+  #   measure = measure[1], date = date[1], value = max(mean(value), 1e-2)*(10^(fifelse(.BY == "hospInc", -1, 1)/3)),
+  #   lbl = c(hospPrev = "Hospital Occupancy,\nDaily", hospInc = "Hospital Admissions,\nDaily", vaxHosp = "Vaccinated Admissions,\nDaily")[unlist(.BY)],
+  #   vj = 1, hj = 0.5
+  # ), by=.(as.character(measure))
+  # ]) +
   scale_y_incidence(trans = "log10", breaks = 10^sort(c((-2):0, log10(3)-(2:0))), labels = c("0.01", "0.03", "0.1", "0.3", "1", "3")) +#, )
   conserved +
   coord_cartesian(ylim = c(1e-2, 3), expand = FALSE) +
@@ -266,19 +279,15 @@ brk.dt <- prepare(
 p.brk <- p.core(
   brk.dt, ymin = 0, ymax = 1
 ) + geom_observation() +
-  geom_liner(function(dt) dt[date == "2021-08-01", .(
-    date = date[1], value = mean(value)+0.15,
-    lbl = c(brkthru = "Observed Fraction of Cases\nin Vaccinees, Weekly")[unlist(.BY)],
-    vj = 0, hj = 1
-  ), by=measure
-  ]) +
+  # geom_liner(function(dt) dt[date == "2021-08-01", .(
+  #   date = date[1], value = mean(value)+0.15,
+  #   lbl = c(brkthru = "Observed Fraction of Cases\nin Vaccinees, Weekly")[unlist(.BY)],
+  #   vj = 0, hj = 1
+  # ), by=measure
+  # ]) +
   scale_y_fraction(name = "Fraction of Cases") +
   conserved +
   theme(legend.position = "none")
-
-p.vis <- p.sero + p.inc + p.cum.combo + p.hosp + p.brk
-
-# p.vis + plot_layout(ncol = 1, heights = c(0.3, 1, 1, 1, 1, 1))
 
 sd.dt <- d[realization == 1, .(date, value = sd, closed) ]
 
@@ -304,7 +313,6 @@ ed.xform <- ed[, .(date, value = {
 p.sd <- p.core(
   sd.dt[, measure := "socialdist"], ymin = 0, ymax = 1
 ) +
-  geom_point(data = ed.xform[date < "2022-03-31"][!is.na(value)], color = "royalblue3", alpha = 0.2) +
   geom_line() +
   geom_rect(
     aes(
@@ -346,7 +354,7 @@ p.seas <- p.core(seas.dt, ymin = 0.8, ymax = 1.2) +
 p.voc <- p.core(
   voc.dt[!is.na(value)][value != 0], ymin = 0, ymax = 1
 ) +
-  voc.wins(takeover.win, vocs = c("\u03B1", "\u03B4", "\u03BF")) +
+  voc.wins(takeover.win, qs = c(0.5, 0.75, 0.95), vocs = c("\u03B1", "\u03B4", "\u03BF")) +
   stat_spaghetti(aes(sample = realization, alpha = after_stat(sampleN^-1))) +
   scale_y_fraction(
     name = "Variant Fraction"
@@ -402,7 +410,7 @@ p.vax <- p.core(
     date = as.Date(c("2021-05-15", "2021-05-15", "2021-11-15")),
     value = c(.55, .2, .2),
     measure = "coverage"
-  ), font.face = "bold") +
+  ), fontface = "bold") +
   scale_color_inputs() +
   scale_y_fraction() +
   scale_linetype_manual(
@@ -442,19 +450,20 @@ p.detect <- p.core(
     legend.position = c(0.6, 0.6), legend.justification = c(0, 1)
   )
 
-p.res <- p.top + p.voc + p.seas + p.vax + p.detect + p.sd +
-  p.inc + p.hosp + p.brk + p.sero +
+p.res <- p.top + p.seas + p.detect + p.vax + p.sd +
+  p.inc.c + p.hosp + p.inc.d + p.sero + p.brk +
   #p.cum.combo +
   p.bot +
   plot_layout(ncol = 1, heights = c(0.4, rep(1, 9), 0.4)) +
   plot_annotation(tag_levels = list(c(
-    "", var = "Variant Fraction", seas = "Seasonal Transmission Multiplier",
-    doses = "Fraction of Population",
-    det = "P(Detect) Individual with Outcome ...", sd = "Risk Threshold",
-    inc = "Per 10k, Incidence of ...",
+    "", seas = "Seasonality",
+    det = "Detection Probability", doses = "Vaccine Coverage",
+    sd = "Perceived Risk",
+    incc = "Reported Cases (Daily)",
   #  cinc = "Per 10k, Cumulative Incidence of ...",
-    hinc = "Per 10k, Incidence of ...",
-    brk = "Fraction of Cases", sero = "Fraction of Population", ""
+    hinc = "Hospital Admissions (Daily)",
+  incd = "Excess Deaths (Weekly)",
+    sero = "Seroprevalence (Spike IgG)", brk = "Breakthrough Infections", ""
   ))) &
   theme(
     plot.tag.position = c(0, 0.97),
