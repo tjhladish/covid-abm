@@ -469,7 +469,7 @@ p.detect <- p.core(
   scale_y_fraction(name = "P(Detect) Individual\nwith Outcome ...") +
   geom_text(mapping = aes(label=lab, linetype = NULL, shape = NULL, hjust = align), data = data.table(
     lab = c("Asymptomatic", "Mild", "Severe", "Critical"),
-    date = as.Date(c("2020-07-15", "2020-05-10", "2020-04-15", "2020-08-01")),
+    date = as.Date(c("2020-07-15", "2020-05-10", "2020-04-15", "2020-08-15")),
     value = c(.18, .22, .65, .9),
     align = c(0.5, 1, 0.5, 0.5),
     measure = "detection"
@@ -490,19 +490,19 @@ p.res <- p.top + p.seas + p.detect + p.vax + p.sd +
   p.bot +
   plot_layout(ncol = 1, heights = c(0.4, rep(1, 9), 0.4)) +
   plot_annotation(tag_levels = list(c(
-    "", seas = "Seasonality",
-    det = "Detection Probability", doses = "Vaccine Coverage",
-    sd = "Perceived Risk",
-    incc = "Reported Cases (Daily)",
+    "", seas = "a) Seasonality",
+    det = "b) Detection Probability", doses = "c) Vaccine Coverage",
+    sd = "d) Perceived Risk",
+    incc = "e) Reported Cases (Daily)",
   #  cinc = "Per 10k, Cumulative Incidence of ...",
-    hinc = "Hospital Admissions (Daily)",
-  incd = "Excess Deaths (Weekly)",
-    sero = "Seroprevalence (Spike IgG)", brk = "Breakthrough Infections", ""
+    hinc = "f) Hospital Admissions (Daily)",
+  incd = "g) Excess Deaths (Weekly)",
+    sero = "h) Seroprevalence (Spike IgG)", brk = "i) Breakthrough Infections in Vaccinees", ""
   ))) &
   theme(
     plot.tag.position = c(0, 0.97),
     axis.title = element_blank(), axis.text = element_blank(),
-    plot.tag = element_text(size = rel(1.5), hjust = 0, vjust = 1)
+    plot.tag = element_text(size = rel(1.65), hjust = 0, vjust = 1)
   )
 
 store(.args, p.res, width = 14, height = 20, bg = "white")
