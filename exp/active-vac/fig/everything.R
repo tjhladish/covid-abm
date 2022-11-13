@@ -430,7 +430,7 @@ p.vax <- p.core(
   gridy=c(0.25, 0.5, 0.75)
 ) +
   aes(linetype = event, shape = event) +
-  geom_point(data = function (dt) dt[realization == 0][value > 0], alpha = 0.2) +
+#  geom_point(data = function (dt) dt[realization == 0][value > 0], alpha = 0.2) +
   geom_line(data = function(dt) dt[realization == 1][value > 0]) +
   geom_text(mapping = aes(label=lab, linetype = NULL, shape = NULL), data = data.table(
     lab = c("Dose 1", "Dose 2", "Dose 3"),
