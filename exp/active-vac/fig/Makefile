@@ -89,19 +89,19 @@ ${RESDIR}/digest-key.rds | ${OUTDIR}
 	$(call R)
 
 ${OUTDIR}/alt_eff_all.png: alt_eff_all.R vis_support.rda ${RESDIR}/alt_eff.rds \
-${RESDIR}/digest-key.rds | ${OUTDIR}
+${RESDIR}/digest-key.rds ${RESDIR}/vocwindows.rds | ${OUTDIR}
 	$(call R)
 
 ${OUTDIR}/alt_ave_all.png: alt_ave_all.R vis_support.rda ${RESDIR}/alt_eff.rds \
-${RESDIR}/digest-key.rds | ${OUTDIR}
+${RESDIR}/digest-key.rds ${RESDIR}/vocwindows.rds | ${OUTDIR}
 	$(call R)
 
 ${OUTDIR}/alt_ci_all.png: alt_ci_all.R vis_support.rda ${RESDIR}/alt_eff.rds \
-${RESDIR}/digest-key.rds | ${OUTDIR}
+${RESDIR}/digest-key.rds ${RESDIR}/vocwindows.rds | ${OUTDIR}
 	$(call R)
 
 ${OUTDIR}/alt_inc_all.png: alt_i_all.R vis_support.rda ${RESDIR}/alt_eff.rds \
-${RESDIR}/digest-key.rds | ${OUTDIR}
+${RESDIR}/digest-key.rds ${RESDIR}/vocwindows.rds | ${OUTDIR}
 	$(call R)
 
 

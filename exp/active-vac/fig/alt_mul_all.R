@@ -6,7 +6,7 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 #' assumes R project at the experiment root level
 .args <- commandArgs(args = c(
   file.path("fig", "vis_support.rda"),
-  file.path("fig", "process", c("alt_eff.rds", "digest-key.rds")),
+  file.path("fig", "process", c("alt_eff.rds", "digest-key.rds", "vocwindows.rds")),
   file.path("fig", "output", "alt_mul_all.png")
 ))
 
@@ -22,6 +22,8 @@ eff.dt <- readRDS(.args[2])[
 intscns <- eff.dt[, unique(scenario)]
 
 scn.dt <- readRDS(.args[3])[scenario %in% intscns]
+
+takeover.wins <- readRDS(.args[4])
 
 plt.dt <- setkeyv(
   eff.dt[scn.dt, on=.(scenario)],
@@ -57,7 +59,16 @@ plt.qs <- quantile(
 
 p <- allplot(
   plt.qs, yl = "Cumulative Relative\nOutcome Multiplier of ...",
-  withRef = TRUE
+  withRef = TRUE, ins = list(voc.wins(
+    takeover.wins[, end := pmin(end, vendday)],
+    ymin = -Inf, ymax = Inf, vocs = c()
+  ), geom_text(aes(y = 1, x = mids),
+               data = takeover.wins[q == 0.5][, talloc := factor("LIC", levels = c("LIC", "MIC", "HIC", "USA"), ordered = TRUE)], inherit.aes = FALSE,
+               label = rep(c("\u03B1", "\u03B4", "\u03BF"), 2),
+               color = rep(c(vocprev1 = 'royalblue3', vocprev2 = 'turquoise4', vocprev3 = 'darkorchid3'), 2),
+               hjust = 0.5, size = 8
+  )
+  )
 ) + coord_cartesian(ylim = c(-0.75, 0.75), clip = "off") +
   scale_y_continuous(
     name = "Cumulative Relative\nMultiple of ...", breaks = (-3:3)/4,

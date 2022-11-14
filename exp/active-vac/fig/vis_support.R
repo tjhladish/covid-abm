@@ -538,7 +538,7 @@ plt.prep <- function(dt, j) eval(substitute(quantile(
 allplot <- function(
   data.qs, yl, withRef = FALSE,
   col.breaks = if (withRef) c("risk", "age", "ring") else c("none", "risk", "age", "ring"),
-  withBands = NULL
+  withBands = NULL, ins = list()
 ) {
   res <- ggplot(data.qs) + aes(
   x = date,
@@ -554,7 +554,7 @@ allplot <- function(
   geom_month_background(
     data.qs, by = c(row="outcome", col="talloc"),
     font.size = 3, value.col = "qmed", max.col = "q90h", min.col = "q90l"
-  )
+  ) + ins
 
   if (withRef) {
     res <- res +
@@ -602,8 +602,9 @@ voc.wins <- function(
   varcols = list(
     vocprev1 = 'royalblue3', vocprev2 = 'turquoise4', vocprev3 = 'darkorchid3'
   ),
-  qs = list(0.95, 0.9, 0.5), ymin = 0, ymax = 1, laby = 0.05,
-  vocs = c("Alpha Takeover", "Delta Takeover", "Omicron Takeover")
+  qs = c(0.5, 0.75, 0.95), ymin = 0, ymax = 1, laby = 0.05,
+  vocs = c("\u03B1", "\u03B4", "\u03BF"),
+  font.size = 12
 ) {
   c(mapply(function(vc, tarq) geom_rect(
       aes(
@@ -613,10 +614,10 @@ voc.wins <- function(
       fill = varcols[[vc]]
     ), vc = rep(names(varcols), each = length(qs)), tarq = rep(qs, times = length(varcols)), SIMPLIFY = FALSE
   ) |> do.call(c, args = _),
-  mapply(function(vc, lab) geom_text(
+  if (length(vocs)) mapply(function(vc, lab) geom_text(
     aes(y = laby, x = mean(mids)),
-    data = dt[measure == vc & q == 0.5],
-    label = lab, color = varcols[[vc]], hjust = 0.5, size = 12
+    data = dt[measure == vc & q == 0.5], inherit.aes = FALSE,
+    label = lab, color = varcols[[vc]], hjust = 0.5, size = font.size
   ), vc = rep(names(varcols)), lab = vocs, SIMPLIFY = FALSE)
   )
 }

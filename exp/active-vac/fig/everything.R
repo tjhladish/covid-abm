@@ -236,7 +236,7 @@ p.inc.d <- p.core(
 ) + geom_observation() +
   scale_y_incidence(trans = "log10", breaks = 10^((-2):1), labels = c("0.01", "0.1", "1", "10")) +
   conserved +
-  coord_cartesian(ylim = c(1e-2, 10), expand = FALSE, clip = "off") +
+  coord_cartesian(ylim = c(1e-2, 10), expand = FALSE) +
   theme(legend.position = "none", panel.grid.major.y = element_blank())
 
 # cum.dt <- prepare(
@@ -283,7 +283,7 @@ p.hosp <- p.core(
   # ]) +
   scale_y_incidence(trans = "log10", breaks = 10^sort(c((-2):0, log10(3)-(2:0))), labels = c("0.01", "0.03", "0.1", "0.3", "1", "3")) +#, )
   conserved +
-  coord_cartesian(ylim = c(1e-2, 3), expand = FALSE, clip = "off") +
+  coord_cartesian(ylim = c(1e-2, 3), expand = FALSE) +
   theme(legend.position = "none", panel.grid.major.y = element_blank())
 
 # min.breakthrough <- d[order(date),.SD[which.max(tot_std_doses + tot_urg_doses > 0)][1, date], by=realization][, min(V1)]

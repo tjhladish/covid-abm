@@ -6,7 +6,7 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 #' assumes R project at the experiment root level
 .args <- commandArgs(args = c(
   file.path("fig", "vis_support.rda"),
-  file.path("fig", "process", c("alt_eff.rds", "digest-key.rds")),
+  file.path("fig", "process", c("alt_eff.rds", "digest-key.rds", "vocwindows.rds")),
   file.path("fig", "output", "alt_ci_all.png")
 ))
 
@@ -32,6 +32,8 @@ inc.dt[order(date),
 intscns <- inc.dt[, unique(scenario)]
 
 scn.dt <- readRDS(.args[3])
+
+takeover.wins <- readRDS(.args[4])
 
 intscn.dt <- scn.dt[scenario %in% intscns]
 # reconstructing reference scenarios
@@ -62,7 +64,17 @@ plt.qs <- plt.prep(plt.dt, j = .(c.value))
 
 p <- allplot(
   plt.qs, yl = "Per 10k, Cumulative\nIncidence of ...",
-  withRef = FALSE
+  withRef = FALSE, ins = list(voc.wins(
+    takeover.wins[, end := pmin(end, vendday)],
+    ymin = -Inf, ymax = Inf, vocs = c()
+  ),
+    geom_text(aes(y = 0, x = mids),
+              data = takeover.wins[q == 0.5][, talloc := factor("LIC", levels = c("LIC", "MIC", "HIC", "USA"), ordered = TRUE)], inherit.aes = FALSE,
+              label = rep(c("\u03B1", "\u03B4", "\u03BF"), 2),
+              color = rep(c(vocprev1 = 'royalblue3', vocprev2 = 'turquoise4', vocprev3 = 'darkorchid3'), 2),
+              hjust = 0.5, size = 8
+    )
+  )
 )
 
 ggsave(tail(.args, 1), p, height = 6, width = 10, bg = "white")

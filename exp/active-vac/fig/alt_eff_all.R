@@ -6,7 +6,7 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 #' assumes R project at the experiment root level
 .args <- commandArgs(args = c(
   file.path("fig", "vis_support.rda"),
-  file.path("fig", "process", c("alt_eff.rds", "digest-key.rds")),
+  file.path("fig", "process", c("alt_eff.rds", "digest-key.rds", "vocwindows.rds")),
   file.path("fig", "output", "alt_eff_all.png")
 ))
 
@@ -23,6 +23,8 @@ intscns <- eff.dt[, unique(scenario)]
 
 scn.dt <- readRDS(.args[3])[scenario %in% intscns]
 
+takeover.wins <- readRDS(.args[4])
+
 plt.dt <- setkeyv(
   eff.dt[scn.dt, on=.(scenario)],
   union(key(eff.dt), colnames(scn.dt))
@@ -31,18 +33,21 @@ plt.dt <- setkeyv(
 rm(eff.dt)
 gc()
 
-plt.dt[, talloc := factor(
-  fifelse(
-    pas_alloc == "none",
-    as.character(act_alloc), as.character(pas_alloc)
-  ), levels = c("LIC", "MIC", "HIC", "USA"), ordered = TRUE
-)][, qfac := factor(c("No Additional NPI", "Quarantine Contacts")[quar+1]) ]
-
 plt.qs <- plt.prep(plt.dt, j = .(c.effectiveness))
 
 p <- allplot(
   plt.qs, yl = "Cumulative Effectiveness\nAgainst Incidence of ...",
-  withRef = TRUE
+  withRef = TRUE, ins = list(
+    voc.wins(
+      takeover.wins[, end := pmin(end, vendday)],
+      ymin = -Inf, ymax = Inf, vocs = c()
+    ), geom_text(aes(y = -0.25, x = mids),
+                  data = takeover.wins[q == 0.5][, talloc := factor("LIC", levels = c("LIC", "MIC", "HIC", "USA"), ordered = TRUE)], inherit.aes = FALSE,
+                  label = rep(c("\u03B1", "\u03B4", "\u03BF"), 2),
+                  color = rep(c(vocprev1 = 'royalblue3', vocprev2 = 'turquoise4', vocprev3 = 'darkorchid3'), 2),
+                  hjust = 0.5, size = 8
+    )
+  )
 )
 
 ggsave(tail(.args, 1), p, height = 6, width = 10, bg = "white")
