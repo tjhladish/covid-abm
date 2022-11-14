@@ -223,7 +223,7 @@ p.inc.c <- p.core(
 ) + geom_observation() +
   scale_y_incidence(trans = "log10", breaks = 10^((-2):2), labels = c("0.01", "0.1", "1", "10", "100")) +
   conserved +
-  coord_cartesian(ylim = c(1e-2, 100), expand = FALSE) +
+  coord_cartesian(ylim = c(1e-2, 100), expand = FALSE, clip = "off") +
   theme(legend.position = "none", panel.grid.major.y = element_blank())
 
 p.inc.d <- p.core(
@@ -236,7 +236,7 @@ p.inc.d <- p.core(
 ) + geom_observation() +
   scale_y_incidence(trans = "log10", breaks = 10^((-2):1), labels = c("0.01", "0.1", "1", "10")) +
   conserved +
-  coord_cartesian(ylim = c(1e-2, 10), expand = FALSE) +
+  coord_cartesian(ylim = c(1e-2, 10), expand = FALSE, clip = "off") +
   theme(legend.position = "none", panel.grid.major.y = element_blank())
 
 # cum.dt <- prepare(
@@ -283,7 +283,7 @@ p.hosp <- p.core(
   # ]) +
   scale_y_incidence(trans = "log10", breaks = 10^sort(c((-2):0, log10(3)-(2:0))), labels = c("0.01", "0.03", "0.1", "0.3", "1", "3")) +#, )
   conserved +
-  coord_cartesian(ylim = c(1e-2, 3), expand = FALSE) +
+  coord_cartesian(ylim = c(1e-2, 3), expand = FALSE, clip = "off") +
   theme(legend.position = "none", panel.grid.major.y = element_blank())
 
 # min.breakthrough <- d[order(date),.SD[which.max(tot_std_doses + tot_urg_doses > 0)][1, date], by=realization][, min(V1)]
@@ -355,7 +355,8 @@ p.sd <- p.core(
 #      breaks = seq(0, 1, by=.25),
       labels = c("0.01", "0.1", "1", "10", "100")
     )
-  ) + scale_color_inputs() + theme(panel.grid.major.y = element_blank())
+  ) + scale_color_inputs() + theme(panel.grid.major.y = element_blank()) +
+  coord_cartesian(clip = "off")
 
 seas.dt <- prepare(d[realization == 1, .(realization, date, seasonality) ])
 
@@ -373,7 +374,9 @@ p.seas <- p.core(
 ) +
   geom_line() +
   scale_y_seasonality() +
-  scale_color_inputs() + theme(panel.grid.major.y = element_blank(), panel.grid.minor.y = element_blank())
+  scale_color_inputs() +
+  theme(panel.grid.major.y = element_blank(), panel.grid.minor.y = element_blank()) +
+  coord_cartesian(clip = "off")
 
 #' TODO make geom_month_background work for logit
 p.voc <- p.core(
@@ -453,7 +456,8 @@ p.vax <- p.core(
   ) +
   theme(
     legend.position = "none", panel.grid.major.y = element_blank()
-  )
+  ) +
+  coord_cartesian(clip = "off")
 
 det.dt <- prepare(detect.dt[, .(
   realization = 1, date = day + ref.day0, asymp, mild, severe, crit
@@ -482,7 +486,7 @@ p.detect <- p.core(
   scale_color_manual(name = NULL, values = c("black"), guide = "none") +
   theme(
     legend.position = "none", panel.grid.major.y = element_blank()
-  )
+  ) + coord_cartesian(clip = "off")
 
 p.res <- p.top + p.seas + p.detect + p.vax + p.sd +
   p.inc.c + p.hosp + p.inc.d + p.sero + p.brk +

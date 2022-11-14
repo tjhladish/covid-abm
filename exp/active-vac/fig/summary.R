@@ -67,11 +67,11 @@ p <- ggplot(plt.dt) + aes(
       c.effectiveness="Cumulative Relative\nAverted Incidence"
     ))
   ) +
-  coord_cartesian(expand = FALSE, clip = "off") +
+  coord_cartesian(clip = "off") +
   theme_minimal() +
   theme(
     strip.placement = "outside", legend.position = "bottom",
-    panel.spacing.y = unit(1.5, "line"), panel.spacing.x = unit(1, "line"),
+    #panel.spacing.y = unit(1.5, "line"), panel.spacing.x = unit(1, "line"),
     legend.text = element_text(size = rel(.75)),
     panel.grid.major.x = element_blank(),
     panel.border = element_rect(fill = NA, color = "grey")
