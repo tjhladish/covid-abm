@@ -4,7 +4,7 @@
 
 .args <- commandArgs(args = c(
   file.path("fig", "vis_support.rda"),
-  file.path("fig", "process", "digest.rds"),
+  file.path("fig", "process", "alt_eff.rds"),
   file.path("fig", "process", "digest-key.rds"),
   file.path("fig", "output", "summary.png")
 ))
@@ -19,11 +19,11 @@ scn.dt <- readRDS(.args[3])[inf_con == FALSE][, .(
 )]
 
 dt <- readRDS(.args[2])[
-  (outcome == "deaths") & (scenario %in% scn.dt$scenario)
+  (outcome %in% c("inf", "deaths")) & (scenario %in% scn.dt$scenario)
 ]
 
 q.dt <- dt |>
-  DT(,c("c.value", "c.averted") := .(cumsum(value), cumsum(averted)), by=.(scenario, realization)) |>
+  DT(,c("c.value", "c.averted") := .(cumsum(value), cumsum(averted)), by=setdiff(key(dt), "date")) |>
   DT(date %in% overdates) |>
   quantile(j=.(c.value, c.averted, c.effectiveness), sampleby = "realization", probs = qprobs(c(`90`=0.9)))
 
@@ -42,7 +42,7 @@ scale_shape_quar <- rejig(
   guide = guide_legend(title.position = "top", title.hjust = 0.5, order = 1)
 )
 
-p <- ggplot(plt.dt) + aes(
+p <- ggplot(plt.dt[measure == "c.effectiveness"]) + aes(
   x=variant, color = act_vac,
   shape = c("nonpi","wquar")[quar+1],
   linetype = c("nonpi","wquar")[quar+1]
@@ -60,12 +60,8 @@ p <- ggplot(plt.dt) + aes(
     size = .25
   ) +
   facet_grid(
-    measure ~ alloc, scales = "free_y", switch = "y",
-    labeller = labeller(measure = c(
-      c.value="Per 10K, Cumulative\nIncidence",
-      c.averted="Per 10K, Cumulative\nAverted Incidence",
-      c.effectiveness="Cumulative Relative\nAverted Incidence"
-    ))
+    outcome ~ alloc, scales = "free_y", switch = "y",
+    labeller = labeller(outcome = c(inf = "Infections", deaths = "Deaths"))
   ) +
   coord_cartesian(clip = "off") +
   theme_minimal() +
@@ -80,7 +76,7 @@ p <- ggplot(plt.dt) + aes(
     guide = guide_legend(title.position = "top", title.hjust = 0.5, order = 1)
   ) + scale_shape_quar() +
   scale_color_strategy(breaks = c("ring", "none", "age", "risk")) +
-  scale_x_discrete("Post Variant Wave Outcome") +
-  scale_y_continuous("Relative to Deaths ...")
+  scale_x_discrete("Post Variant Wave Cumulative Effectiveness") +
+  scale_y_continuous(name = NULL)
 
 store(obj = p, args = .args, width = 9, height = 6, bg = "white")
