@@ -42,7 +42,7 @@ conserved <- list(
   scale_shape_measure(),
   theme_minimal(),
   theme(text = element_text(face = "bold")),
-  scale_alpha_continuous(guide = "none", range = c(0.025, 1))
+  scale_alpha_continuous(guide = "none", range = c(0.05, 1))
 )
 
 geom_grid <- function(
@@ -190,12 +190,12 @@ p.sero <- p.core(
     x = start + (end+1-start)/2,
     y = est, shape="observation"
   ), data = seroprev) +
-
   scale_y_fraction() +
   conserved +
   theme(
     legend.position = "none", panel.grid.major.y = element_blank()
-  ) + coord_cartesian(clip = "off")
+  ) + coord_cartesian(clip = "off") +
+  scale_alpha_continuous(guide = "none", range = c(0.05/7, 1))
 
 inc.dt <- prepare(
   d[, .(realization, date, case = rcase, death = rdeath)],
@@ -204,22 +204,23 @@ inc.dt <- prepare(
 
 p.inc.c <- p.core(
   inc.dt[measure == "case"], ymin = 1e-2, ymax = 1e2, ytrans = "log10",
-  ins = voc.wins(
-    takeover.win, qs = c(0.5, 0.75, 0.95), vocs = c("\u03B1", "\u03B4", "\u03BF"),
-    ymin = 0.01, ymax = 100
+  ins = voc.box(
+    takeover.win, qs = c(0.5), vocs = c("\u03B1", "\u03B4", "\u03BF"),
+    ymin = 0.01, ymax = 100, trans = "log10", laby = 0.85
   ),
   gridy = c(0.1, 1, 10)
 ) + geom_observation() +
   scale_y_incidence(trans = "log10", breaks = 10^((-2):2), labels = c("0.01", "0.1", "1", "10", "100")) +
   conserved +
   coord_cartesian(ylim = c(1e-2, 100), expand = FALSE, clip = "off") +
-  theme(legend.position = "none", panel.grid.major.y = element_blank())
+  theme(legend.position = "none", panel.grid.major.y = element_blank()) +
+  scale_alpha_continuous(guide = "none", range = c(0.05/7, 1))
 
 p.inc.d <- p.core(
-  inc.dt[measure == "death"], ymin = 1e-2, ymax = 1e2, ytrans = "log10",
-  ins = voc.wins(
-    takeover.win, qs = c(0.5, 0.75, 0.95), vocs = c("\u03B1", "\u03B4", "\u03BF"),
-    ymin = 0.01, ymax = 100
+  inc.dt[measure == "death"], ymin = 1e-2, ymax = 10, ytrans = "log10",
+  ins = voc.box(
+    takeover.win, qs = c(0.5), vocs = c("\u03B1", "\u03B4", "\u03BF"),
+    ymin = 0.01, ymax = 10, trans = "log10", laby = 0.85
   ),
   gridy = c(0.1, 1)
 ) + geom_observation() +
@@ -235,16 +236,17 @@ hinc.dt <- prepare(
 
 p.hosp <- p.core(
   hinc.dt, ytrans = "log10", ymin = 1e-2, ymax = 3,
-  ins = voc.wins(
-    takeover.win, qs = c(0.5, 0.75, 0.95), vocs = c("\u03B1", "\u03B4", "\u03BF"),
-    ymin = 0.01, ymax = 3
+  ins = voc.box(
+    takeover.win, qs = c(0.5), vocs = c("\u03B1", "\u03B4", "\u03BF"),
+    ymin = 0.01, ymax = 3, trans = "log10", laby = 0.85
   ),
   gridy = c(0.03, 0.1, 0.3, 1)
 ) + geom_observation() +
   scale_y_incidence(trans = "log10", breaks = 10^sort(c((-2):0, log10(3)-(2:0))), labels = c("0.01", "0.03", "0.1", "0.3", "1", "3")) +#, )
   conserved +
   coord_cartesian(ylim = c(1e-2, 3), expand = FALSE) +
-  theme(legend.position = "none", panel.grid.major.y = element_blank())
+  theme(legend.position = "none", panel.grid.major.y = element_blank()) +
+  scale_alpha_continuous(guide = "none", range = c(0.05/7, 1))
 
 brk.dt <- rbind(prepare(
   d[, .(realization, date = as.Date(date), brkthru) ],
@@ -282,14 +284,22 @@ p.sd <- p.core(
   geom_line() +
   geom_rect(
     aes(
-      ymin = 0, ymax = 1, xmin = start, xmax = end,
-      fill = "socialdist"
+      ymin = 0, ymax = 1, xmin = start, xmax = end
     ),
     data = function (dt) d[closed == 1, {
       spn = range(date)
       .(start = spn[1], end = spn[2])
     } ],
-    inherit.aes = FALSE, alpha = 0.3
+    inherit.aes = FALSE, alpha = 0.3, fill = "grey50"
+  ) + geom_text(
+    aes(
+      y = 0.1, x = start+(end-start)/2, label = "lockdown"
+    ),
+    data = function (dt) d[closed == 1, {
+      spn = range(date)
+      .(start = spn[1], end = spn[2])
+    } ],
+    inherit.aes = FALSE, angle = 90, hjust = 0, size = 6
   ) + scale_y_fraction(
     name = "Risk Threshold",
     sec.axis = sec_axis(

@@ -622,4 +622,36 @@ voc.wins <- function(
   )
 }
 
+voc.box <- function(
+    dt, al = 0.2,
+    varcols = list(
+      vocprev1 = 'royalblue3', vocprev2 = 'turquoise4', vocprev3 = 'darkorchid3'
+    ),
+    qs = c(0.5, 0.75, 0.95), ymin = 0, ymax = 1, laby = 0.95,
+    trans = "identity",
+    vocs = c("\u03B1", "\u03B4", "\u03BF"),
+    font.size = 8
+) {
+  xformer <- scales::as.trans(trans)
+  xform <- function(ymax, ymin, dropto) {
+    xformer$inverse(
+      (xformer$transform(ymax)-xformer$transform(ymin))*dropto + xformer$transform(ymin)
+    )
+  }
+  c(mapply(function(vc, tarq) geom_rect(
+    aes(
+      ymin = ymin, ymax = ymax, xmin = start, xmax = end
+    ), data = dt[measure == vc & q == tarq],
+    alpha = al, inherit.aes = FALSE,
+    color = varcols[[vc]], fill = NA
+  ), vc = rep(names(varcols), each = length(qs)), tarq = rep(qs, times = length(varcols)), SIMPLIFY = FALSE
+  ) |> do.call(c, args = _),
+  if (length(vocs)) mapply(function(vc, lab) geom_text(
+    aes(y = xform(ymax, ymin, laby), x = mean(mids)),
+    data = dt[measure == vc & q == 0.5], inherit.aes = FALSE,
+    label = lab, color = varcols[[vc]], hjust = 0.5, size = font.size
+  ), vc = rep(names(varcols)), lab = vocs, SIMPLIFY = FALSE)
+  )
+}
+
 save(list=ls(), file = tail(.args, 1))
