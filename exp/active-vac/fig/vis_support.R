@@ -640,7 +640,7 @@ voc.box <- function(
   }
   c(mapply(function(vc, tarq) geom_rect(
     aes(
-      ymin = ymin, ymax = ymax, xmin = start, xmax = end
+      ymax = Inf, ymin = if (xformer$name %like% "log") 0 else -Inf, xmin = start, xmax = end
     ), data = dt[measure == vc & q == tarq],
     alpha = al, inherit.aes = FALSE,
     color = varcols[[vc]], fill = NA

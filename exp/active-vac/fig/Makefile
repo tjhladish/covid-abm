@@ -105,6 +105,9 @@ ${OUTDIR}/alt_inc_all.png: alt_i_all.R vis_support.rda ${RESDIR}/alt_eff.rds \
 ${RESDIR}/digest-key.rds ${RESDIR}/vocwindows.rds | ${OUTDIR}
 	$(call R)
 
+${OUTDIR}/alt_mul_all.png: alt_mul_all.R vis_support.rda ${RESDIR}/alt_eff.rds \
+${RESDIR}/digest-key.rds ${RESDIR}/vocwindows.rds | ${OUTDIR}
+	$(call R)
 
 ${OUTDIR}/alt_inc_%.png: alt_inc_outcome.R vis_support.rda ${RESDIR}/alt_eff.rds \
 ${RESDIR}/digest-key.rds | ${OUTDIR}
@@ -117,7 +120,7 @@ altave: $(addprefix ${OUTDIR}/,$(patsubst %,alt_ave_%.png,inf sev deaths))
 altinc: $(addprefix ${OUTDIR}/,$(patsubst %,alt_inc_%.png,inf sev deaths))
 allfigs: $(patsubst %,${OUTDIR}/%.png,model_input validation_review everything)
 
-altall: $(addprefix ${OUTDIR}/,$(patsubst %,alt_%_all.png,eff ave ci inc) cumulative_doses.png everything.png everything_bw.png)
+altall: $(addprefix ${OUTDIR}/,$(patsubst %,alt_%_all.png,eff ave ci inc mul) cumulative_doses.png everything.png everything_bw.png)
 
 vis_support.rda: vis_support.R
 	$(call R)

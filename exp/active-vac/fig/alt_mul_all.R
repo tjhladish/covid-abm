@@ -46,28 +46,16 @@ plt.dt[, talloc := factor(
 plt.dt[, c.mult := 1-c.effectiveness ]
 plt.dt[, l.c.mult := -log(c.mult, 2) ]
 
-plt.qs <- quantile(
-  plt.dt,
-  j = .(l.c.mult), sampleby = "realization",
-  probs = qprobs(c(`90`=.9, `50`=.5), mid = TRUE, extent = FALSE)
-)[, talloc := factor(
-  fifelse(
-    pas_alloc == "none",
-    as.character(act_alloc), as.character(pas_alloc)
-  ), levels = c("LIC", "MIC", "HIC", "USA"), ordered = TRUE
-)][, qfac := factor(c("No Additional NPI", "Quarantine Contacts")[quar+1]) ]
+plt.qs <- plt.prep(plt.dt, j = .(l.c.mult))
+
+mm.ref <- plt.qs[,.(ymin = -0.75, ymax = 0.75),by=.(outcome)]
+tw <- takeover.wins[q == 0.5][CJ(measure, outcome = mm.ref$outcome), on=.(measure)][mm.ref, on=.(outcome)]
 
 p <- allplot(
   plt.qs, yl = "Cumulative Relative\nOutcome Multiplier of ...",
-  withRef = TRUE, ins = list(voc.wins(
-    takeover.wins[, end := pmin(end, vendday)],
-    ymin = -Inf, ymax = Inf, vocs = c()
-  ), geom_text(aes(y = 1, x = mids),
-               data = takeover.wins[q == 0.5][, talloc := factor("LIC", levels = c("LIC", "MIC", "HIC", "USA"), ordered = TRUE)], inherit.aes = FALSE,
-               label = rep(c("\u03B1", "\u03B4", "\u03BF"), 2),
-               color = rep(c(vocprev1 = 'royalblue3', vocprev2 = 'turquoise4', vocprev3 = 'darkorchid3'), 2),
-               hjust = 0.5, size = 8
-  )
+  withRef = TRUE, ins = voc.box(
+    tw, qs = c(0.5), vocs = c("\u03B1", "\u03B4", "\u03BF"), laby = 0.1,
+    font.size = 6
   )
 ) + coord_cartesian(ylim = c(-0.75, 0.75), clip = "off") +
   scale_y_continuous(

@@ -35,18 +35,14 @@ gc()
 
 plt.qs <- plt.prep(plt.dt, j = .(c.effectiveness))
 
+mm.ref <- plt.qs[,.(ymin = min(q90l), ymax = max(q90h)),by=.(outcome)]
+tw <- takeover.wins[q == 0.5][CJ(measure, outcome = mm.ref$outcome), on=.(measure)][mm.ref, on=.(outcome)]
+
 p <- allplot(
   plt.qs, yl = "Cumulative Effectiveness\nAgainst Incidence of ...",
-  withRef = TRUE, ins = list(
-    voc.wins(
-      takeover.wins[, end := pmin(end, vendday)],
-      ymin = -Inf, ymax = Inf, vocs = c()
-    ), geom_text(aes(y = -0.25, x = mids),
-                  data = takeover.wins[q == 0.5][, talloc := factor("LIC", levels = c("LIC", "MIC", "HIC", "USA"), ordered = TRUE)], inherit.aes = FALSE,
-                  label = rep(c("\u03B1", "\u03B4", "\u03BF"), 2),
-                  color = rep(c(vocprev1 = 'royalblue3', vocprev2 = 'turquoise4', vocprev3 = 'darkorchid3'), 2),
-                  hjust = 0.5, size = 8
-    )
+  withRef = TRUE, ins = voc.box(
+    tw, qs = c(0.5), vocs = c("\u03B1", "\u03B4", "\u03BF"), laby = 0.1,
+    font.size = 6
   )
 )
 
