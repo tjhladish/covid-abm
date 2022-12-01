@@ -63,14 +63,15 @@ gc()
 plt.qs <- plt.prep(plt.dt, j = .(c.value))
 
 mm.ref <- plt.qs[,.(ymin = min(q90l), ymax = max(q90h)),by=.(outcome)]
+mm.ref[, ymin := ymin - .15*(ymax-ymin) ]
+mm.ref[, yspan := ymax - ymin ]
 tw <- takeover.wins[q == 0.5][CJ(measure, outcome = mm.ref$outcome), on=.(measure)][mm.ref, on=.(outcome)]
+tw[, end := pmin(end, plt.qs[, max(date)])]
+tw[, mid := start + (end-start)/2 ]
 
 p <- allplot(
   plt.qs, yl = "Per 10k, Cumulative\nIncidence of ...",
-  withRef = FALSE, ins = voc.box(
-    tw, qs = c(0.5), vocs = c("\u03B1", "\u03B4", "\u03BF"), laby = 0.1,
-    font.size = 6
-  )
+  withRef = FALSE, ins = voc.band(tw)
 )
 
 ggsave(tail(.args, 1), p, height = 6, width = 10, bg = "white")

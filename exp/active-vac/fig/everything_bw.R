@@ -293,7 +293,7 @@ p.sd <- p.core(
     inherit.aes = FALSE, alpha = 0.3, fill = "grey50"
   ) + geom_text(
     aes(
-      y = 0.1, x = start+(end-start)/2, label = "lockdown"
+      y = 0.1, x = start+(end-start)/2, label = "Lockdown"
     ),
     data = function (dt) d[closed == 1, {
       spn = range(date)

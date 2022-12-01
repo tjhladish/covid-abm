@@ -654,4 +654,31 @@ voc.box <- function(
   )
 }
 
+voc.band <- function(
+    dt, relpos = .05, relh = 2*relpos, al = .2,
+    voccols = c(
+      vocprev1 = 'royalblue3', vocprev2 = 'turquoise4', vocprev3 = 'darkorchid3'
+    ),
+    vocs = c(
+      vocprev1 = "\u03B1", vocprev2 = "\u03B4", vocprev3 = "\u03BF"
+    ), font.size = 4
+) c(
+  lapply(names(voccols), function(vc) geom_rect(
+    aes(
+      ymax = ymin + yspan*relpos + yspan*relh/2,
+      ymin = ymin + yspan*relpos - yspan*relh/2,
+      xmin = start, xmax = end
+    ), data = dt[measure == vc],
+    alpha = al, inherit.aes = FALSE,
+    color = NA, fill = voccols[vc]
+  )),
+  lapply(names(voccols), function(vc) geom_text(
+    aes(x = mid, y = ymin + yspan*relpos),
+    data = dt[measure == vc],
+    color = voccols[vc], label = vocs[vc],
+    inherit.aes = FALSE, hjust = 0.5,
+    size = font.size, vjust = 0.5
+  ))
+)
+
 save(list=ls(), file = tail(.args, 1))
