@@ -83,7 +83,7 @@ scale_color_strategy <- rejig(
     risk="Risk-Based Strategy"
   ),
   aesthetics = c("color", "fill"),
-  values = c(none = "black", ring = "#fb6502", risk = "#00529b", age = "#006b35"),
+  values = c(none = "black", ring = "#fb6502", risk = "#3b90db", age = "#209033"),
   guide = guide_legend(title.position = "top", title.hjust = 0.5)
 )
 
@@ -102,7 +102,7 @@ scale_color_scenario <- rejig(
   name = "Vaccine Distr.",
   breaks = c("none", "passive", "ring", "risk"),
   labels = c(none = "None", passive = "Mass Only", ring = "Mass+Ring", risk = "Mass+High Risk"),
-  values = c(none = "black", passive = "#fb6502",  ring = "#00529b", risk = "#006b35"),
+  values = c(none = "black", passive = "#fb6502",  risk = "#3b90db", age = "#209033"),
   drop = TRUE, limits = force,
   aesthetics = c("color", "fill")
 )

@@ -29,6 +29,14 @@ q.dt <- dt |>
 
 
 plt.dt <- q.dt[scn.dt, on = .(scenario), nomatch = 0]
+ref.dt <- CJ(
+  outcome = c("inf", "deaths"),
+  date = overdates,
+  measure = "c.effectiveness",
+  qmed = 0, quar = FALSE, alloc = c("LIC", "MIC", "HIC", "USA"),
+  act_vac = "none"
+)
+plt.dt <- rbind(plt.dt, ref.dt, fill = TRUE)
 plt.dt[date == overdates[1], variant := "alpha"]
 plt.dt[date == overdates[2], variant := "delta"]
 plt.dt[date == overdates[3], variant := "omicron"]
@@ -75,7 +83,10 @@ p <- ggplot(plt.dt[measure == "c.effectiveness"]) + aes(
   #   guide = guide_legend(title.position = "top", title.hjust = 0.5, order = 1)
   # ) +
   scale_shape_quar() +
-  scale_color_strategy(breaks = c("ring", "none", "age", "risk")) +
+  scale_color_strategy(
+    breaks = c("ring", "none", "age", "risk"),
+    values = c(none = "black", ring = "#fb6502", risk = "#3b90db", age = "#209033")
+  ) +
   scale_x_discrete(name = NULL) +
   scale_y_continuous(name = "Cumulative Effectiveness After Each Variant")
 
