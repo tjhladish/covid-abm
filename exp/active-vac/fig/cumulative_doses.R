@@ -37,6 +37,7 @@ plt.qs <- quantile(
 
 p <- allplot(
   plt.qs, yl = NULL, withRef = FALSE
-) + theme(strip.text.y = element_text(size = rel(1.25)))
+) + theme(strip.text.y = element_text(size = rel(1.25))) +
+  geom_line(aes(y=qmed), data = \(dt) subset(dt, pas_vac == TRUE & quar == FALSE), show.legend = FALSE, size = 0.25)
 
 store(.args, p, height = 3, width = 10, bg = "white")
