@@ -68,6 +68,7 @@ ${OUTDIR}/everything_bw.png: ${INPUTS}
 ${OUTDIR}/avertvis.png: ${PLOTINS}
 ${OUTDIR}/cumulative_doses.png: ${RESDIR}/digest-doses.rds ${RESDIR}/digest-key.rds
 ${OUTDIR}/summary.png: ${RESDIR}/alt_eff.rds ${RESDIR}/digest-key.rds
+${OUTDIR}/con_summary.png: ${RESDIR}/alt_eff.rds ${RESDIR}/digest-key.rds
 
 ${OUTDIR}/%.png: %.R vis_support.rda | ${OUTDIR}
 	$(call R)
@@ -89,7 +90,7 @@ ${OUTDIR}/alt_ave_%.png: alt_ave_outcome.R vis_support.rda ${RESDIR}/alt_eff.rds
 ${RESDIR}/digest-key.rds | ${OUTDIR}
 	$(call R)
 
-${OUTDIR}/alt_eff_all.png: alt_eff_all.R vis_support.rda ${RESDIR}/alt_eff.rds \
+${OUTDIR}/%_eff_all.png: %_eff_all.R vis_support.rda ${RESDIR}/alt_eff.rds \
 ${RESDIR}/digest-key.rds ${RESDIR}/vocwindows.rds | ${OUTDIR}
 	$(call R)
 
@@ -97,11 +98,7 @@ ${OUTDIR}/alt_ave_all.png: alt_ave_all.R vis_support.rda ${RESDIR}/alt_eff.rds \
 ${RESDIR}/digest-key.rds ${RESDIR}/vocwindows.rds | ${OUTDIR}
 	$(call R)
 
-${OUTDIR}/alt_ci_all.png: alt_ci_all.R vis_support.rda ${RESDIR}/alt_eff.rds \
-${RESDIR}/digest-key.rds ${RESDIR}/vocwindows.rds | ${OUTDIR}
-	$(call R)
-
-${OUTDIR}/alt_inc_all.png: alt_i_all.R vis_support.rda ${RESDIR}/alt_eff.rds \
+${OUTDIR}/%_ci_all.png: %_ci_all.R vis_support.rda ${RESDIR}/alt_eff.rds \
 ${RESDIR}/digest-key.rds ${RESDIR}/vocwindows.rds | ${OUTDIR}
 	$(call R)
 
@@ -121,6 +118,7 @@ altinc: $(addprefix ${OUTDIR}/,$(patsubst %,alt_inc_%.png,inf sev deaths))
 allfigs: $(patsubst %,${OUTDIR}/%.png,model_input validation_review everything)
 
 altall: $(addprefix ${OUTDIR}/,$(patsubst %,alt_%_all.png,eff ave ci inc mul) cumulative_doses.png everything.png everything_bw.png)
+conall: $(addprefix ${OUTDIR}/,$(patsubst %,conditioned_%_all.png,eff ci) con_summary.png)
 
 vis_support.rda: vis_support.R
 	$(call R)
