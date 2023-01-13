@@ -561,12 +561,12 @@ allplot <- function(
       geom_hline(
         aes(yintercept = 0, color = "none", linetype = "nonpi"),
         show.legend = FALSE, data = \(dt) dt[,.SD[1],by=.(outcome, talloc)]
-      ) +
-      geom_texthline(
-        aes(yintercept = 0, color = "none", label = "Reference\nProgram"),
-        inherit.aes = FALSE, show.legend = FALSE, data = \(dt) dt[talloc == "LIC",.SD[1],by=.(outcome, talloc)],
-        hjust = 0, gap = FALSE
-      )
+      )# +
+      # geom_texthline(
+      #   aes(yintercept = 0, color = "none", label = "Reference\nProgram"),
+      #   inherit.aes = FALSE, show.legend = FALSE, data = \(dt) dt[talloc == "LIC",.SD[1],by=.(outcome, talloc)],
+      #   hjust = 0, gap = FALSE
+      # )
   }
 
   res <- res + geom_ribbon(aes(ymin=q90l, ymax=q90h, fill=act_vac, color=NULL), alpha=0.15) +

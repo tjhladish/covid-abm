@@ -82,10 +82,6 @@ ${OUTDIR}/cum_averted_%.png: cum_avert_outcome.R vis_support.rda ${PLOTINS} | ${
 ${OUTDIR}/cum_eff_%.png: cum_eff_outcome.R vis_support.rda ${PLOTINS} | ${OUTDIR}
 	$(call R)
 
-${OUTDIR}/alt_eff_%.png: alt_eff_outcome.R vis_support.rda ${RESDIR}/alt_eff.rds \
-${RESDIR}/digest-key.rds | ${OUTDIR}
-	$(call R)
-
 ${OUTDIR}/alt_ave_%.png: alt_ave_outcome.R vis_support.rda ${RESDIR}/alt_eff.rds \
 ${RESDIR}/digest-key.rds | ${OUTDIR}
 	$(call R)
@@ -107,6 +103,10 @@ ${RESDIR}/digest-key.rds ${RESDIR}/vocwindows.rds | ${OUTDIR}
 	$(call R)
 
 ${OUTDIR}/alt_inc_%.png: alt_inc_outcome.R vis_support.rda ${RESDIR}/alt_eff.rds \
+${RESDIR}/digest-key.rds | ${OUTDIR}
+	$(call R)
+
+${OUTDIR}/alt_eff_%.png: alt_eff_outcome.R vis_support.rda ${RESDIR}/alt_eff.rds \
 ${RESDIR}/digest-key.rds | ${OUTDIR}
 	$(call R)
 
