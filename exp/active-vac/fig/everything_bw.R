@@ -419,7 +419,7 @@ p.res <- p.top + p.seas + p.detect + p.vax + p.sd +
   plot_annotation(tag_levels = list(c(
     "", seas = "a) Seasonality",
     det = "b) Detection Probability", doses = "c) Vaccine Coverage",
-    sd = "d) Perceived Risk",
+    sd = "d) Societal Risk Perception",
     incc = "e) Reported Cases (Daily)",
   #  cinc = "Per 10k, Cumulative Incidence of ...",
     hinc = "f) Hospital Admissions (Daily)",
