@@ -16,7 +16,7 @@
     "vocpattern.rds",
     "vocwindows.rds"
   )),
-  file.path("fig", "output", "everything.png")
+  file.path("fig", "output", "everything_bw.png")
 ))
 
 intfilter <- if (interactive()) expression(realization < 10) else expression(realization >= 0)
@@ -432,4 +432,4 @@ p.res <- p.top + p.seas + p.detect + p.vax + p.sd +
     plot.tag = element_text(size = rel(1.65), hjust = 0, vjust = 1)
   )
 
-store(.args, p.res, width = 14, height = 20, bg = "white")
+store(p.res, .args, width = 14, height = 20, bg = "white")
