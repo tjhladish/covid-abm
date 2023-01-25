@@ -417,14 +417,14 @@ p.res <- p.top + p.seas + p.detect + p.vax + p.sd +
   p.bot +
   plot_layout(ncol = 1, heights = c(0.4, rep(1, 9), 0.4)) +
   plot_annotation(tag_levels = list(c(
-    "", seas = "a) Seasonality",
-    det = "b) Detection Probability", doses = "c) Vaccine Coverage",
-    sd = "d) Societal Risk Perception",
-    incc = "e) Reported Cases (Daily)",
+    "", seas = "(a) Seasonality",
+    det = "(b) Detection Probability", doses = "(c) Vaccine Coverage",
+    sd = "(d) Societal Risk Perception",
+    incc = "(e) Reported Cases (Daily)",
   #  cinc = "Per 10k, Cumulative Incidence of ...",
-    hinc = "f) Hospital Admissions (Daily)",
-  incd = "g) Excess Deaths (Weekly)",
-    sero = "h) Seroprevalence (Spike IgG)", brk = "i) Breakthrough Infections in Vaccinees", ""
+    hinc = "(f) Hospital Admissions (Daily)",
+  incd = "(g) Excess Deaths (Weekly)",
+    sero = "(h) Seroprevalence (Spike IgG)", brk = "(i) Breakthrough Infections in Vaccinees", ""
   ))) &
   theme(
     plot.tag.position = c(0, 0.97),
