@@ -51,7 +51,7 @@ geom_grid <- function(
   geom_texthline(
     aes(yintercept = ys, label = label),
     data = data.table(ys = ys, label = FUN(ys)), inherit.aes = FALSE,
-    gap = TRUE, hjust = 0.325, color = "grey85", fontface = "bold"
+    gap = TRUE, hjust = 0.325, color = "grey75", fontface = "bold"
   )
 }
 
@@ -275,13 +275,18 @@ p.core <- function(
   theme_minimal() + theme(text = element_text(face = "bold")) +
   scale_x_null()
 
+schools <- data.table(
+  start = as.Date(c("2020-02-01", "2020-09-01", "2021-08-10")),
+  end = as.Date(c("2020-03-16", "2021-06-16", "2022-03-31")),
+  level = c(0, .5, .2)
+)
+
 #' TODO school terms?
 #' weekends?
 p.sd <- p.core(
   sd.dt[, measure := "socialdist"], ymin = 0, ymax = 1,
   gridy = c(0.25, 0.5, 0.75)
 ) +
-  geom_line() +
   geom_rect(
     aes(
       ymin = 0, ymax = 1, xmin = start, xmax = end
@@ -290,17 +295,32 @@ p.sd <- p.core(
       spn = range(date)
       .(start = spn[1], end = spn[2])
     } ],
-    inherit.aes = FALSE, alpha = 0.3, fill = "grey50"
+    inherit.aes = FALSE, alpha = 0.35, fill = "grey50"
+  ) + geom_rect(
+    aes(
+      ymin = level, ymax = 1, xmin = start - 0.5, xmax = end + 0.5
+    ),
+    data = schools,
+    inherit.aes = FALSE, alpha = 0.25, fill = "dodgerblue"
   ) + geom_text(
     aes(
-      y = 0.1, x = start+(end-start)/2, label = "Lockdown"
+      y = 0.175, x = start+(end-start)/2, label = "Lockdown"
     ),
     data = function (dt) d[closed == 1, {
       spn = range(date)
       .(start = spn[1], end = spn[2])
     } ],
     inherit.aes = FALSE, angle = 90, hjust = 0, size = 6
-  ) + scale_y_fraction(
+  ) +
+  geom_text(
+    aes(
+      y = 0.975, x = start+(end-start)/2, label = "School\nActivity"
+    ),
+    data = schools[2],
+    inherit.aes = FALSE, vjust = 1, hjust = 0.5, size = 6
+  ) +
+  geom_line() +
+  scale_y_fraction(
     name = "Risk Threshold",
     sec.axis = sec_axis(
       name = "Per 10k,\nDaily Cases Reported",
