@@ -16,7 +16,7 @@ INCLUDE = -I$(ABCDIR) -I$(COVDIR) -I$(GSL_PATH)/include/ -I$(ABCDIR)/jsoncpp/inc
 #INCLUDE += -I$$HPC_GSL_INC
 #endif
 
-ABC_LIB = -L$(ABCDIR) -L$(COVDIR) -labc -ljsoncpp -lsqdb $(ABCDIR)/sqlite3.o
+ABC_LIB = -L$(ABCDIR) -L$(COVDIR) -labc
 GSL_LIB = -lm -L$(GSL_PATH)/lib/ -lgsl -lgslcblas -lpthread -ldl
 
 default: libabc covid main.cpp
