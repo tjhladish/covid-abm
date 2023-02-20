@@ -55,6 +55,7 @@ class Infection {
         strain            = WILDTYPE;
         relInfectiousness = 1.0;
         _detection        = nullptr;
+        deathProb         = 0.0;
     };
 
     Infection(const Infection& o) {
@@ -134,7 +135,7 @@ class Infection {
     int getCriticalEndTime()      const { return criticalEnd; }
     int getIcuTime()              const { return icuBegin; }
     int getDeathTime()            const { return deathTime; }
-    int getDeathProb()            const { return deathProb; }
+    double getDeathProb()         const { return deathProb; }
     StrainType getStrain()        const { return strain; }
     double getRelInfectiousness() const { return relInfectiousness; }            // Could be time-varying in the future
 
