@@ -120,7 +120,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
         const double RF_death = 1.0; // overall probability of detecting death, at any point
 
         // probability of being detected while {asymp, mild, severe, crit, dead} if not detected previously
-        vector<vector<double>> first_detection_probs = { {0.0, 0.1, 0.7, 0.1}, // up to "2020-06-01"
+        vector<vector<double>> first_detection_probs = { {0.0, 0.25, 0.7, 0.1}, // up to "2020-06-01"
                                                          {0.1, 0.5, 0.5, 0.1}, // up to "2020-10-01"
                                                          {0.3, 0.9, 0.5, 0.1}, // up to "2021-02-15"
                                                          {0.1, 0.7, 0.75, 0.1},// up to "2021-10-01"
@@ -276,7 +276,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
 
 
 void define_strain_parameters(Parameters* par) {
-    par->IEP                   = 0.75;
+    par->IEP                   = 0.5;
     par->IEH                   = 0.5;
 
     par->VES                   = {{WILDTYPE, {0.40, 0.80}}, {ALPHA, {0.40, 0.80}}, {DELTA, {0.40, 0.80}}, {OMICRON, {0.40, 0.80}}}; // efficacy currently is being reduced in Person.cpp
@@ -287,12 +287,12 @@ void define_strain_parameters(Parameters* par) {
     par->VES_NAIVE             = par->VES;
 
     par->strainPars[ALPHA].relInfectiousness   = 1.5;
-    par->strainPars[ALPHA].relPathogenicity    = 1.1;
+    par->strainPars[ALPHA].relPathogenicity    = 1.2;
     par->strainPars[ALPHA].immuneEscapeProb    = 0.15;
 
     par->strainPars[DELTA].relInfectiousness   = par->strainPars[ALPHA].relInfectiousness * 1.5;
     par->strainPars[DELTA].relPathogenicity    = par->strainPars[ALPHA].relPathogenicity * 2.83;
-    par->strainPars[DELTA].relSeverity         = 1.3; //1.3; // relSeverity only applies if not vaccine protected; CABP - may be more like 1.3 based on mortality increase
+    par->strainPars[DELTA].relSeverity         = 1.4; //1.3; // relSeverity only applies if not vaccine protected; CABP - may be more like 1.3 based on mortality increase
     par->strainPars[DELTA].relIcuMortality     = 4.0; //3.0; // TODO - this is due to icu crowding.  should be represented differently
     par->strainPars[DELTA].immuneEscapeProb    = 0.2;
 
