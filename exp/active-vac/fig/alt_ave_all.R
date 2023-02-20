@@ -6,7 +6,7 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 #' assumes R project at the experiment root level
 .args <- if (interactive()) c(
   file.path("fig", "vis_support.rda"),
-  file.path("fig", "process", c("alt_eff.rds", "digest-key.rds")),
+  file.path("fig", "process", c("alt_eff.rds", "digest-key.rds", "vocwindows.rds")),
   file.path("fig", "output", "alt_ave_all.png")
 ) else commandArgs(trailingOnly = TRUE)
 
@@ -25,6 +25,8 @@ intscns <- eff.dt[, unique(scenario)]
 
 scn.dt <- readRDS(.args[3])[scenario %in% intscns]
 
+takeover.wins <- readRDS(.args[4])
+
 plt.dt <- setkeyv(
   eff.dt[scn.dt, on=.(scenario)],
   union(key(eff.dt), colnames(scn.dt))
@@ -33,20 +35,18 @@ plt.dt <- setkeyv(
 rm(eff.dt)
 gc()
 
-plt.qs <- quantile(
-  plt.dt,
-  j = .(c.averted), sampleby = "realization",
-  probs = qprobs(c(`90`=.9, `50`=.5), mid = TRUE, extent = FALSE)
-)[, talloc := factor(
-  fifelse(
-    pas_alloc == "none",
-    as.character(act_alloc), as.character(pas_alloc)
-  ), levels = c("LIC", "MIC", "HIC", "USA"), ordered = TRUE
-)][, qfac := factor(c("No Additional NPI", "Quarantine Contacts")[quar+1]) ]
+plt.qs <- plt.prep(plt.dt, j = .(c.averted))
+
+mm.ref <- plt.qs[,.(ymin = min(q90l), ymax = max(q90h)),by=.(outcome)]
+mm.ref[, ymin := ymin - .15*(ymax-ymin) ]
+mm.ref[, yspan := ymax - ymin ]
+tw <- takeover.wins[q == 0.5][CJ(measure, outcome = mm.ref$outcome), on=.(measure)][mm.ref, on=.(outcome)]
+tw[, end := pmin(end, plt.qs[, max(date)])]
+tw[, mid := start + (end-start)/2 ]
 
 p <- allplot(
-  plt.qs, yl = "Per 10k, Cumulative Averted\nIncidence of ... Beyond Standard Program",
-  withRef = TRUE
+  plt.qs, yl = "Per 10k, Cumulative Averted\nIncidence of ... Relative to Reference",
+  withRef = TRUE, ins = voc.band(tw)
 )
 
 ggsave(tail(.args, 1), p, height = 6, width = 10, bg = "white")

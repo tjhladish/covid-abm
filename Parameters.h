@@ -601,7 +601,8 @@ public:
         const double AESP = covid::util::logistic(3.097703*(log10(neut_lvl/0.2010885)));
         const double AEP = 0.75;
         //const double VEP = 1 - (1 - 0.93)/(1 - 0.52); // values from https://www.thelancet.com/journals/lancet/article/PIIS0140-6736(21)00675-9/fulltext
-        return 1 - (1 - AESP)/(1 - AEP);
+        const double starting_eff = 1.0 - (1.0 - AESP)/(1.0 - AEP);
+        return starting_eff < 0.0 ? 0.0 : starting_eff;
     }
 
     const double __IMMUNE_DECAY_SLOPE   = 0.2;//0.4148295;

@@ -1,13 +1,12 @@
 
 .pkgs <- c("data.table", "ggplot2", "scales", "ggh4x", "cabputils", "geomtextpath")
-
-stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
+.pkgs |> sapply(require, character.only = TRUE) |> all() |> stopifnot()
 
 #' assumes R project at the experiment root level
 .args <- commandArgs(args = c(
   file.path("fig", "vis_support.rda"),
   file.path("fig", "process", c("alt_eff.rds", "digest-key.rds", "vocwindows.rds")),
-  file.path("fig", "output", "alt_ci_all.png")
+  file.path("fig", "output", "conditioned_ci_all.png")
 ))
 
 load(.args[1])
@@ -55,7 +54,7 @@ plt.dt <- setkeyv(
     incref.dt
   ),
   union(key(inc.dt), colnames(scn.dt))
-)[inf_con == FALSE]
+)[inf_con == TRUE]
 
 rm(inc.dt)
 gc()

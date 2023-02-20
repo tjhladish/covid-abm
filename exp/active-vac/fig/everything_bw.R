@@ -16,7 +16,7 @@
     "vocpattern.rds",
     "vocwindows.rds"
   )),
-  file.path("fig", "output", "everything.png")
+  file.path("fig", "output", "everything_bw.png")
 ))
 
 intfilter <- if (interactive()) expression(realization < 10) else expression(realization >= 0)
@@ -39,11 +39,10 @@ sd.dt <- d[realization == 1, .(date, value = sd, closed) ]
 
 conserved <- list(
   scale_x_null(),
-  scale_color_measure(),
   scale_shape_measure(),
   theme_minimal(),
   theme(text = element_text(face = "bold")),
-  scale_alpha_continuous(guide = "none", range = c(0.025, 1))
+  scale_alpha_continuous(guide = "none", range = c(0.05, 1))
 )
 
 geom_grid <- function(
@@ -52,7 +51,7 @@ geom_grid <- function(
   geom_texthline(
     aes(yintercept = ys, label = label),
     data = data.table(ys = ys, label = FUN(ys)), inherit.aes = FALSE,
-    gap = TRUE, hjust = 0.325, color = "grey85", fontface = "bold"
+    gap = TRUE, hjust = 0.325, color = "grey75", fontface = "bold"
   )
 }
 
@@ -157,7 +156,7 @@ geom_month_bars <- function(
 p.core <- function(
   dt, ymax = NA, ymin = NA, ytrans = "identity", ins = list(), gridy
 ) ggplot(dt) +
-  aes(date, value, color = measure) +
+  aes(date, value) +
   geom_grid(gridy) +
   geom_month_bars(
     dt, by = NULL, ymax = ymax, ymin = ymin, ytrans = ytrans
@@ -191,22 +190,12 @@ p.sero <- p.core(
     x = start + (end+1-start)/2,
     y = est, shape="observation"
   ), data = seroprev) +
-  # geom_liner(function(dt) dt[
-  #   date == "2021-11-01",
-  #   .(date = date[1], value = mean(value)+.05*(fifelse(.BY == "cinf", 1, -1)),
-  #     lbl = fifelse(.BY == "cinf", "Ever Infected", "Seropositive"),
-  #     vj = 1, hj = 0
-  #   ), by = measure
-  # ]) +
-  scale_y_fraction(
-#    breaks = c(0.01, 0.03, 0.1, 0.3, 0.5, 0.7, 0.9, 0.97, 0.99), limits = c(0.01, 0.99)
-  ) +
+  scale_y_fraction() +
   conserved +
-#  coord_trans(y="logit") +
-#  scale_alpha_continuous(guide = "none", range = c(0.01, 1)) +
   theme(
     legend.position = "none", panel.grid.major.y = element_blank()
-  ) + coord_cartesian(clip = "off")
+  ) + coord_cartesian(clip = "off") +
+  scale_alpha_continuous(guide = "none", range = c(0.05/7, 1))
 
 inc.dt <- prepare(
   d[, .(realization, date, case = rcase, death = rdeath)],
@@ -215,22 +204,23 @@ inc.dt <- prepare(
 
 p.inc.c <- p.core(
   inc.dt[measure == "case"], ymin = 1e-2, ymax = 1e2, ytrans = "log10",
-  ins = voc.wins(
-    takeover.win, qs = c(0.5, 0.75, 0.95), vocs = c("\u03B1", "\u03B4", "\u03BF"),
-    ymin = 0.01, ymax = 100
+  ins = voc.box(
+    takeover.win, qs = c(0.5), vocs = c("\u03B1", "\u03B4", "\u03BF"),
+    ymin = 0.01, ymax = 100, trans = "log10", laby = 0.85
   ),
   gridy = c(0.1, 1, 10)
 ) + geom_observation() +
   scale_y_incidence(trans = "log10", breaks = 10^((-2):2), labels = c("0.01", "0.1", "1", "10", "100")) +
   conserved +
   coord_cartesian(ylim = c(1e-2, 100), expand = FALSE, clip = "off") +
-  theme(legend.position = "none", panel.grid.major.y = element_blank())
+  theme(legend.position = "none", panel.grid.major.y = element_blank()) +
+  scale_alpha_continuous(guide = "none", range = c(0.05/7, 1))
 
 p.inc.d <- p.core(
-  inc.dt[measure == "death"], ymin = 1e-2, ymax = 1e2, ytrans = "log10",
-  ins = voc.wins(
-    takeover.win, qs = c(0.5, 0.75, 0.95), vocs = c("\u03B1", "\u03B4", "\u03BF"),
-    ymin = 0.01, ymax = 100
+  inc.dt[measure == "death"], ymin = 1e-2, ymax = 10, ytrans = "log10",
+  ins = voc.box(
+    takeover.win, qs = c(0.5), vocs = c("\u03B1", "\u03B4", "\u03BF"),
+    ymin = 0.01, ymax = 10, trans = "log10", laby = 0.85
   ),
   gridy = c(0.1, 1)
 ) + geom_observation() +
@@ -239,29 +229,6 @@ p.inc.d <- p.core(
   coord_cartesian(ylim = c(1e-2, 10), expand = FALSE) +
   theme(legend.position = "none", panel.grid.major.y = element_blank())
 
-# cum.dt <- prepare(
-#   d[, .(realization, date, case = crcase, death = crdeath)],
-#   ed[, .(date, case = crcase, death = crdeath)]
-# )[date < "2022-04-01"][!is.na(value)]
-#
-# p.cum.combo <- p.core(
-#   cum.dt, ymin = 1, ymax = 1e4, ytrans = "log10"
-# ) + geom_observation() +
-#   geom_liner(
-#     function(dt) dt[date == "2021-04-17", .(
-#       date = date[1], value = mean(value)*(10^(-1/1.5)),
-#       lbl = fifelse(.BY == "case", "Cumulative Reported\nCases, Daily", "Cumulative Excess\nDeaths, Weekly"),
-#       vj = 0.5, hj = 0.5
-#     ), by=.(measure)
-#     ]
-#   ) +
-#   scale_y_log10(
-#     name = "Per 10k,\nCumulative Incidence of ...",
-#     labels = number_format(scale_cut = cut_short_scale())) +
-#   conserved +
-#   coord_cartesian(ylim = c(1, 1e4), expand = FALSE) +
-#   theme(legend.position = "none")
-
 hinc.dt <- prepare(
   d[, .(realization, date = as.Date(date), hospInc) ], # vaxHosp, hospPrev, unvaxHosp,
   hhsHosp
@@ -269,24 +236,17 @@ hinc.dt <- prepare(
 
 p.hosp <- p.core(
   hinc.dt, ytrans = "log10", ymin = 1e-2, ymax = 3,
-  ins = voc.wins(
-    takeover.win, qs = c(0.5, 0.75, 0.95), vocs = c("\u03B1", "\u03B4", "\u03BF"),
-    ymin = 0.01, ymax = 3
+  ins = voc.box(
+    takeover.win, qs = c(0.5), vocs = c("\u03B1", "\u03B4", "\u03BF"),
+    ymin = 0.01, ymax = 3, trans = "log10", laby = 0.85
   ),
   gridy = c(0.03, 0.1, 0.3, 1)
 ) + geom_observation() +
-  # geom_liner(function(dt) dt[date == "2021-03-17", .(
-  #   measure = measure[1], date = date[1], value = max(mean(value), 1e-2)*(10^(fifelse(.BY == "hospInc", -1, 1)/3)),
-  #   lbl = c(hospPrev = "Hospital Occupancy,\nDaily", hospInc = "Hospital Admissions,\nDaily", vaxHosp = "Vaccinated Admissions,\nDaily")[unlist(.BY)],
-  #   vj = 1, hj = 0.5
-  # ), by=.(as.character(measure))
-  # ]) +
   scale_y_incidence(trans = "log10", breaks = 10^sort(c((-2):0, log10(3)-(2:0))), labels = c("0.01", "0.03", "0.1", "0.3", "1", "3")) +#, )
   conserved +
   coord_cartesian(ylim = c(1e-2, 3), expand = FALSE) +
-  theme(legend.position = "none", panel.grid.major.y = element_blank())
-
-# min.breakthrough <- d[order(date),.SD[which.max(tot_std_doses + tot_urg_doses > 0)][1, date], by=realization][, min(V1)]
+  theme(legend.position = "none", panel.grid.major.y = element_blank()) +
+  scale_alpha_continuous(guide = "none", range = c(0.05/7, 1))
 
 brk.dt <- rbind(prepare(
   d[, .(realization, date = as.Date(date), brkthru) ],
@@ -300,12 +260,6 @@ p.brk <- p.core(
   brk.dt, ymin = 0, ymax = 1,
   gridy = c(0.25, 0.5, 0.75)
 ) + geom_observation() +
-  # geom_liner(function(dt) dt[date == "2021-08-01", .(
-  #   date = date[1], value = mean(value)+0.15,
-  #   lbl = c(brkthru = "Observed Fraction of Cases\nin Vaccinees, Weekly")[unlist(.BY)],
-  #   vj = 0, hj = 1
-  # ), by=measure
-  # ]) +
   scale_y_fraction(name = "Fraction of Cases") +
   conserved +
   theme(legend.position = "none", panel.grid.major.y = element_blank()) + coord_cartesian(clip = "off")
@@ -315,20 +269,17 @@ sd.dt <- d[realization == 1, .(date, value = sd, closed) ]
 p.core <- function(
   dt, ymin = NA, ymax = NA, ytrans = "identity", gridy
 ) ggplot(dt) +
-  aes(date, value, color = measure) +
+  aes(date, value) +
   geom_grid(gridy) +
   geom_month_bars(dt, ymin = ymin, ymax = ymax, ytrans = ytrans) +
   theme_minimal() + theme(text = element_text(face = "bold")) +
   scale_x_null()
 
-ed.xform <- ed[, .(date, value = {
-  tmp <- log10(rcase)
-  # going to rescale to -2 to 2
-  tmp[tmp < -2] <- NA
-  tmp[tmp > 2] <- NA
-  # now want 2=>0.5, -2=>0.5, then + 0.5
-  tmp <- tmp/4 + 0.5
-})]
+schools <- data.table(
+  start = as.Date(c("2020-02-01", "2020-09-01", "2021-08-10")),
+  end = as.Date(c("2020-03-16", "2021-06-16", "2022-03-31")),
+  level = c(0, .5, .2)
+)
 
 #' TODO school terms?
 #' weekends?
@@ -336,18 +287,40 @@ p.sd <- p.core(
   sd.dt[, measure := "socialdist"], ymin = 0, ymax = 1,
   gridy = c(0.25, 0.5, 0.75)
 ) +
-  geom_line() +
   geom_rect(
     aes(
-      ymin = 0, ymax = 1, xmin = start, xmax = end,
-      fill = "socialdist"
+      ymin = 0, ymax = 1, xmin = start, xmax = end
     ),
     data = function (dt) d[closed == 1, {
       spn = range(date)
       .(start = spn[1], end = spn[2])
     } ],
-    inherit.aes = FALSE, alpha = 0.3
-  ) + scale_y_fraction(
+    inherit.aes = FALSE, alpha = 0.35, fill = "grey50"
+  ) + geom_rect(
+    aes(
+      ymin = level, ymax = 1, xmin = start - 0.5, xmax = end + 0.5
+    ),
+    data = schools,
+    inherit.aes = FALSE, alpha = 0.25, fill = "dodgerblue"
+  ) + geom_text(
+    aes(
+      y = 0.175, x = start+(end-start)/2, label = "Lockdown"
+    ),
+    data = function (dt) d[closed == 1, {
+      spn = range(date)
+      .(start = spn[1], end = spn[2])
+    } ],
+    inherit.aes = FALSE, angle = 90, hjust = 0, size = 6
+  ) +
+  geom_text(
+    aes(
+      y = 0.975, x = start+(end-start)/2, label = "School\nActivity"
+    ),
+    data = schools[2],
+    inherit.aes = FALSE, vjust = 1, hjust = 0.5, size = 6
+  ) +
+  geom_line() +
+  scale_y_fraction(
     name = "Risk Threshold",
     sec.axis = sec_axis(
       name = "Per 10k,\nDaily Cases Reported",
@@ -355,7 +328,7 @@ p.sd <- p.core(
 #      breaks = seq(0, 1, by=.25),
       labels = c("0.01", "0.1", "1", "10", "100")
     )
-  ) + scale_color_inputs() + theme(panel.grid.major.y = element_blank()) +
+  ) + theme(panel.grid.major.y = element_blank()) +
   coord_cartesian(clip = "off")
 
 seas.dt <- prepare(d[realization == 1, .(realization, date, seasonality) ])
@@ -374,7 +347,6 @@ p.seas <- p.core(
 ) +
   geom_line() +
   scale_y_seasonality() +
-  scale_color_inputs() +
   theme(panel.grid.major.y = element_blank(), panel.grid.minor.y = element_blank()) +
   coord_cartesian(clip = "off")
 
@@ -387,34 +359,8 @@ p.voc <- p.core(
   stat_spaghetti(aes(sample = realization, alpha = after_stat(sampleN^-1))) +
   scale_y_fraction(
     name = "Variant Fraction"
-  ) +
-  scale_color_inputs() + scale_alpha_continuous(range = c(0.05, 1)) +
+  ) + scale_alpha_continuous(range = c(0.05, 1)) +
   coord_cartesian(clip = "off")
-
-# geom_rect(
-#   aes(
-#     y = NULL, x = NULL,
-#     ymin = 0, ymax = 1, xmin = start, xmax = end,
-#     color = NULL, fill = measure
-#   ),
-#   data = takeover.win[q==.95], alpha = 0.2
-# ) +
-#   geom_rect(
-#     aes(
-#       y = NULL, x = NULL,
-#       ymin = 0, ymax = 1, xmin = start, xmax = end,
-#       color = NULL, fill = measure
-#     ),
-#     data = takeover.win[q==.90], alpha = 0.2
-#   ) +
-#   geom_rect(
-#     aes(
-#       y = NULL, x = NULL,
-#       ymin = 0, ymax = 1, xmin = start, xmax = end,
-#       color = NULL, fill = measure
-#     ),
-#     data = takeover.win[q==.5], alpha = 0.2
-#   )
 
 vax.mlt <- dcast(vax, date ~ dose, value.var = "cov")
 setnames(vax.mlt, 2:4, paste0("cov", 1:3))
@@ -433,7 +379,6 @@ p.vax <- p.core(
   gridy=c(0.25, 0.5, 0.75)
 ) +
   aes(linetype = event, shape = event) +
-#  geom_point(data = function (dt) dt[realization == 0][value > 0], alpha = 0.2) +
   geom_line(data = function(dt) dt[realization == 1][value > 0]) +
   geom_text(mapping = aes(label=lab, linetype = NULL, shape = NULL), data = data.table(
     lab = c("Dose 1", "Dose 2", "Dose 3"),
@@ -441,7 +386,6 @@ p.vax <- p.core(
     value = c(.6, .15, .25),
     measure = "coverage"
   ), size = 6) +
-  scale_color_inputs() +
   scale_y_fraction() +
   scale_linetype_manual(
     name = "Doses",
@@ -473,7 +417,7 @@ p.detect <- p.core(
   scale_y_fraction(name = "P(Detect) Individual\nwith Outcome ...") +
   geom_text(mapping = aes(label=lab, linetype = NULL, shape = NULL, hjust = align), data = data.table(
     lab = c("Asymptomatic", "Mild", "Severe", "Critical"),
-    date = as.Date(c("2020-07-15", "2020-05-10", "2020-04-15", "2020-08-15")),
+    date = as.Date(c("2020-07-15", "2020-05-10", "2020-04-15", "2020-08-22")),
     value = c(.18, .22, .65, .9),
     align = c(0.5, 1, 0.5, 0.5),
     measure = "detection"
@@ -483,7 +427,6 @@ p.detect <- p.core(
     labels = c(asymp = "Asymptomic", mild = "Mild", severe = "Severe", crit = "Critical"),
     values = c(asymp = "dotted", mild = "dotdash", severe = "longdash", crit = "solid")
   ) +
-  scale_color_manual(name = NULL, values = c("black"), guide = "none") +
   theme(
     legend.position = "none", panel.grid.major.y = element_blank()
   ) + coord_cartesian(clip = "off")
@@ -494,14 +437,14 @@ p.res <- p.top + p.seas + p.detect + p.vax + p.sd +
   p.bot +
   plot_layout(ncol = 1, heights = c(0.4, rep(1, 9), 0.4)) +
   plot_annotation(tag_levels = list(c(
-    "", seas = "a) Seasonality",
-    det = "b) Detection Probability", doses = "c) Vaccine Coverage",
-    sd = "d) Perceived Risk",
-    incc = "e) Reported Cases (Daily)",
+    "", seas = "(a) Seasonality",
+    det = "(b) Detection Probability", doses = "(c) Vaccine Coverage",
+    sd = "(d) Societal Risk Perception",
+    incc = "(e) Reported Cases (Daily)",
   #  cinc = "Per 10k, Cumulative Incidence of ...",
-    hinc = "f) Hospital Admissions (Daily)",
-  incd = "g) Excess Deaths (Weekly)",
-    sero = "h) Seroprevalence (Spike IgG)", brk = "i) Breakthrough Infections in Vaccinees", ""
+    hinc = "(f) Hospital Admissions (Daily)",
+  incd = "(g) Excess Deaths (Weekly)",
+    sero = "(h) Seroprevalence (Spike IgG)", brk = "(i) Breakthrough Infections in Vaccinees", ""
   ))) &
   theme(
     plot.tag.position = c(0, 0.97),
@@ -509,4 +452,4 @@ p.res <- p.top + p.seas + p.detect + p.vax + p.sd +
     plot.tag = element_text(size = rel(1.65), hjust = 0, vjust = 1)
   )
 
-store(.args, p.res, width = 14, height = 20, bg = "white")
+store(p.res, .args, width = 14, height = 20, bg = "white")

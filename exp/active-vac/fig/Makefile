@@ -28,6 +28,8 @@ ${RESDIR}/hospitals.rds: ${DATADIR}/COVID-19_Reported_Patient_Impact_and_Hospita
 ${RESDIR}/seroprev.rds: ${DATADIR}/CDC_seroprev_long.csv
 ${RESDIR}/FLvaccines.rds: ${DATADIR}/population-pseudo-300K.csv ${DATADIR}/state_based_counterfactual_doses.csv
 ${RESDIR}/detection.rds: ${DATADIR}/reporting_by_day.txt
+${RESDIR}/vocpattern.rds: ${RESDIR}/validation.rds
+${RESDIR}/vocwindows.rds: ${RESDIR}/vocpattern.rds
 ${RESDIR}/validation.rds: plotlog
 
 ${RESDIR}/%.rds: ${RESDIR}/%.R vis_support.rda | ${RESDIR}
@@ -51,7 +53,7 @@ ${RESDIR}/alt_i_eff.rds: alt_i_eff_digest.R $(addprefix ${DATADIR}/,${SIMFILES})
 
 ${RESDIR}/alt_eff-rt.rds: ${RESDIR}/alt_eff.rds
 
-INPUTS := $(patsubst %,${RESDIR}/%.rds,validation outcomes vaccines hospitals seroprev FLvaccines detection digest alt_eff)
+INPUTS := $(patsubst %,${RESDIR}/%.rds,validation outcomes vaccines hospitals seroprev FLvaccines detection vocpattern vocwindows)
 
 allinputs: ${INPUTS}
 cleaninputs:
@@ -62,8 +64,11 @@ PLOTINS := $(addprefix ${RESDIR}/,digest.rds digest-key.rds digest-ref.rds)
 ${OUTDIR}/model_inputs.png: ${INPUTS}
 ${OUTDIR}/validation_review.png: ${INPUTS}
 ${OUTDIR}/everything.png: ${INPUTS}
+${OUTDIR}/everything_bw.png: ${INPUTS}
 ${OUTDIR}/avertvis.png: ${PLOTINS}
-${OUTDIR}/cumulative_doses.png: ${RESDIR}/digest-doses.rds ${RESDIR}/digest-key.rds ${RESDIR}/alt_eff.rds
+${OUTDIR}/cumulative_doses.png: ${RESDIR}/digest-doses.rds ${RESDIR}/digest-key.rds
+${OUTDIR}/summary.png: ${RESDIR}/alt_eff.rds ${RESDIR}/digest-key.rds
+${OUTDIR}/con_summary.png: ${RESDIR}/alt_eff.rds ${RESDIR}/digest-key.rds
 
 ${OUTDIR}/%.png: %.R vis_support.rda | ${OUTDIR}
 	$(call R)
@@ -77,27 +82,31 @@ ${OUTDIR}/cum_averted_%.png: cum_avert_outcome.R vis_support.rda ${PLOTINS} | ${
 ${OUTDIR}/cum_eff_%.png: cum_eff_outcome.R vis_support.rda ${PLOTINS} | ${OUTDIR}
 	$(call R)
 
-${OUTDIR}/alt_eff_%.png: alt_eff_outcome.R vis_support.rda ${RESDIR}/alt_eff.rds \
-${RESDIR}/digest-key.rds | ${OUTDIR}
-	$(call R)
-
 ${OUTDIR}/alt_ave_%.png: alt_ave_outcome.R vis_support.rda ${RESDIR}/alt_eff.rds \
 ${RESDIR}/digest-key.rds | ${OUTDIR}
 	$(call R)
 
-${OUTDIR}/alt_eff_all.png: alt_eff_all.R vis_support.rda ${RESDIR}/alt_eff.rds \
-${RESDIR}/digest-key.rds | ${OUTDIR}
+${OUTDIR}/%_eff_all.png: %_eff_all.R vis_support.rda ${RESDIR}/alt_eff.rds \
+${RESDIR}/digest-key.rds ${RESDIR}/vocwindows.rds | ${OUTDIR}
 	$(call R)
 
 ${OUTDIR}/alt_ave_all.png: alt_ave_all.R vis_support.rda ${RESDIR}/alt_eff.rds \
-${RESDIR}/digest-key.rds | ${OUTDIR}
+${RESDIR}/digest-key.rds ${RESDIR}/vocwindows.rds | ${OUTDIR}
 	$(call R)
 
-${OUTDIR}/alt_ci_all.png: alt_ci_all.R vis_support.rda ${RESDIR}/alt_eff.rds \
-${RESDIR}/digest-key.rds | ${OUTDIR}
+${OUTDIR}/%_ci_all.png: %_ci_all.R vis_support.rda ${RESDIR}/alt_eff.rds \
+${RESDIR}/digest-key.rds ${RESDIR}/vocwindows.rds | ${OUTDIR}
+	$(call R)
+
+${OUTDIR}/alt_mul_all.png: alt_mul_all.R vis_support.rda ${RESDIR}/alt_eff.rds \
+${RESDIR}/digest-key.rds ${RESDIR}/vocwindows.rds | ${OUTDIR}
 	$(call R)
 
 ${OUTDIR}/alt_inc_%.png: alt_inc_outcome.R vis_support.rda ${RESDIR}/alt_eff.rds \
+${RESDIR}/digest-key.rds | ${OUTDIR}
+	$(call R)
+
+${OUTDIR}/alt_eff_%.png: alt_eff_outcome.R vis_support.rda ${RESDIR}/alt_eff.rds \
 ${RESDIR}/digest-key.rds | ${OUTDIR}
 	$(call R)
 
@@ -108,7 +117,8 @@ altave: $(addprefix ${OUTDIR}/,$(patsubst %,alt_ave_%.png,inf sev deaths))
 altinc: $(addprefix ${OUTDIR}/,$(patsubst %,alt_inc_%.png,inf sev deaths))
 allfigs: $(patsubst %,${OUTDIR}/%.png,model_input validation_review everything)
 
-altall: $(addprefix ${OUTDIR}/,$(patsubst %,alt_%_all.png,eff ave ci))
+altall: $(addprefix ${OUTDIR}/,$(patsubst %,alt_%_all.png,eff ave ci inc mul) cumulative_doses.png everything.png everything_bw.png)
+conall: $(addprefix ${OUTDIR}/,$(patsubst %,conditioned_%_all.png,eff ci) con_summary.png)
 
 vis_support.rda: vis_support.R
 	$(call R)

@@ -7,7 +7,7 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 .args <- commandArgs(args = c(
   file.path("fig", "vis_support.rda"),
   file.path("fig", "process", c("alt_eff.rds", "digest-key.rds", "vocwindows.rds")),
-  file.path("fig", "output", "alt_eff_all.png")
+  file.path("fig", "output", "conditioned_eff_all.png")
 ))
 
 load(.args[1])
@@ -28,7 +28,7 @@ takeover.wins <- readRDS(.args[4])
 plt.dt <- setkeyv(
   eff.dt[scn.dt, on=.(scenario)],
   union(key(eff.dt), colnames(scn.dt))
-)[inf_con == FALSE]
+)[inf_con == TRUE]
 
 rm(eff.dt)
 gc()
