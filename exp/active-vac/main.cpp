@@ -85,7 +85,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->yearlyOutput            = true;
     par->abcVerbose              = false; // needs to be false to get WHO daily output
     par->startJulianYear         = JULIAN_START_YEAR;
-    par->startDayOfYear          = Date::to_julian_day("2020-02-10");
+    par->startDayOfYear          = Date::to_julian_day("2020-03-01"); // was Feb 10, 2020
     par->runLength               = TOTAL_DURATION;
 
     par->behavioral_autotuning = (bool) args[7];
@@ -123,9 +123,9 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
         vector<vector<double>> first_detection_probs = { {0.0, 0.25, 0.7, 0.1}, // up to "2020-06-01"
                                                          {0.1, 0.5, 0.5, 0.1}, // up to "2020-10-01"
                                                          {0.3, 0.9, 0.5, 0.1}, // up to "2021-02-15"
-                                                         {0.1, 0.7, 0.75, 0.1},// up to "2021-10-01"
-                                                         {0.1, 0.6, 0.9, 0.1}, // up to "2022-01-19"
-                                                         {0.03, 0.2, 0.95, 0.1} };
+                                                         {0.1, 0.5, 0.9, 0.1},// up to "2021-10-01" -- includes delta
+                                                         {0.1, 0.5, 0.9, 0.1}, // up to "2022-01-19" -- includes omicron
+                                                         {0.03, 0.2, 0.95, 0.1} }; // post omicron
                                                          // {0.1, 0.7, 0.75, 0.1} };
 
         add_death_probabilities(first_detection_probs, RF_death);
@@ -279,7 +279,7 @@ void define_strain_parameters(Parameters* par) {
     par->IEH                   = 0.5;
 
     par->VES                   = {{WILDTYPE, {0.40, 0.80}}, {ALPHA, {0.40, 0.80}}, {DELTA, {0.40, 0.80}}, {OMICRON, {0.40, 0.80}}}; // efficacy currently is being reduced in Person.cpp
-    par->VEP                   = {{WILDTYPE, {0.67, 0.75}}, {ALPHA, {0.67, 0.75}}, {DELTA, {0.67, 0.75}}, {OMICRON, {0.67, 0.75}}};
+    par->VEP                   = {{WILDTYPE, {0.67, 0.75}}, {ALPHA, {0.67, 0.75}}, {DELTA, {0.6, 0.7}}, {OMICRON, {0.6, 0.7}}};
     par->VEH                   = {{WILDTYPE, {0.9,  1.0}},  {ALPHA, {0.9,  1.0}},  {DELTA, {0.9,  0.93}}, {OMICRON, {0.48, 0.96}}};
     par->VEI                   = {{WILDTYPE, {0.4,  0.8}},  {ALPHA, {0.4,  0.8}},  {DELTA, {0.4,  0.8}},  {OMICRON, {0.2,  0.4}}};
     par->VEF                   = {{WILDTYPE, {0.0,  0.0}},  {ALPHA, {0.0,  0.0}},  {DELTA, {0.0,  0.0}},  {OMICRON, {0.0,  0.0}}}; // effect likely captured by VEH
