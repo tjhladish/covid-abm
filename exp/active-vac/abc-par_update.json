@@ -25,8 +25,8 @@
          "short_name" : "pas_vac",
          "dist_type"  : "PSEUDO",
          "num_type"   : "INT",
-         "par1"       : 1,
-         "par2"       : 1,
+         "par1"       : 0,
+         "par2"       : 0,
          "step"       : 0},
 
         {"name"       : "active_vac",
