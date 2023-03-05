@@ -202,16 +202,19 @@ int seed_epidemic(const Parameters* par, Community* community, const Date* date,
     int introduced_infection_ct = 0;
     const int numperson = community->getNumPeople();
     const size_t dailyExposedIdx = date->day() % par->probDailyExposure.size();
-    const double intro_rate_multiplier = *date > "2021-06-15" ? 2.0 : 1.0;
+    const double intro_rate_multiplier = 1.0;//*date > "2021-06-15" ? 2.0 : 1.0;
     const double expected_num_exposed = intro_rate_multiplier * par->probDailyExposure[dailyExposedIdx] * numperson;
     if (expected_num_exposed > 0) {
         assert(expected_num_exposed <= numperson);
         const int num_exposed = gsl_ran_poisson(RNG, expected_num_exposed);
         for (int i=0; i<num_exposed; i++) {
             // gsl_rng_uniform_int returns on [0, numperson-1]
-            int transmit_to_id = gsl_rng_uniform_int(RNG, numperson);
+            size_t id = gsl_rng_uniform_int(RNG, numperson);
+            Person* person = community->getPersonByID(id);
+//if (person->getAge() < 20) { continue; }
+            StrainType strain = (StrainType) weighted_choice(RNG, strain_weights);
 
-            if (community->infect(transmit_to_id, (StrainType) weighted_choice(RNG, strain_weights))) {
+            if (person->infect(community, date, strain)) {
                 introduced_infection_ct++;
             }
         }

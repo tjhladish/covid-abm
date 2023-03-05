@@ -240,10 +240,12 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->VES = {{WILDTYPE, {0.0}}};
 
     //par->hospitalizedFraction = 0.25; // fraction of cases assumed to be hospitalized
-    par->probInitialExposure = {1.0e-04};
-    //par->probDailyExposure   = vector(120, 2.0e-05);        // introductions are initially lower
-    //par->probDailyExposure.resize(par->runLength, 2.0e-04); // and then pick up after ~ 4 months
-    par->probDailyExposure   = {1.0e-04};        // introductions are initially lower
+    //par->probInitialExposure = {1.0e-04};
+    const size_t jun15_2021 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-06-15");
+    par->probDailyExposure   = vector(jun15_2021, 1.0e-04);         // introductions are initially lower
+    par->probDailyExposure.resize(par->runLength, 2.0e-04); // and then pick up leading into delta
+    //par->probDailyExposure   = {1.0e-04};
+
 
     par->populationFilename       = pop_dir    + "/population-"         + SIM_POP + ".txt";
     par->comorbidityFilename      = pop_dir    + "/comorbidity-"        + SIM_POP + ".txt";
