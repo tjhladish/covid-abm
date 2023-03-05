@@ -275,7 +275,12 @@ vector<double> Person::calculate_event_probabilities(const int time, const Strai
     vector<double> Prob(NUM_OF_EVENT_PROBABILITY_TYPES, 0.0);
     const bool crossProtected   = isCrossProtected(time, strain);         // no infection-based cross-immunity
     const bool vaccineProtected = isVaccineProtected(time, strain);       // no vaccine-based immunity
-    Prob[INFECTION_EVENT] = crossProtected or vaccineProtected ? 0.0 :_par->susceptibilityByAge[age];
+    double susceptibility = 1.0;
+
+//    if (time < 180) { // this is an attempt at capturing early immunity due to previous coronavirus infections
+//        susceptibility = _par->susceptibilityByAge[age];
+//    }
+    Prob[INFECTION_EVENT] = crossProtected or vaccineProtected ? 0.0 : susceptibility;
 
     // current assumption is that only VES/IES wanes, other types of efficacy do not
     const size_t dose = vaccineHistory.size() - 1;
