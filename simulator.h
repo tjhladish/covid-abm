@@ -242,21 +242,21 @@ size_t tally_decreases(const vector<T> &vals) {
 
 
 // helper function to call simvis.R when needed
-//void gen_simvis(vector<string> &plot_log_buffer) {
-//    for (size_t i = 1; i < plot_log_buffer.size(); ++i) {
-//        //plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt[i-1].second);
-//        if (i >= (plot_log_buffer.size() - 14)) {
-//            plot_log_buffer[i] = plot_log_buffer[i] + ",0";// + to_string(Rt_ma[i-1]);
-//        } else {
-//            plot_log_buffer[i] = plot_log_buffer[i];// + to_string(Rt_ma[i-1]);
-//        }
-//    }
-//    bool overwrite = true;
-//    write_daily_buffer(plot_log_buffer, "42", "plot_log.csv", overwrite);
-//    //int retval = system("Rscript fitvis.R");
-//    int retval = system("Rscript simvis.R");
-//    if (retval == -1) { cerr << "System call to `Rscript simvis.R` failed\n"; }
-//}
+void gen_simvis(vector<string> &plot_log_buffer) {
+    for (size_t i = 1; i < plot_log_buffer.size(); ++i) {
+        //plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt[i-1].second);
+        if (i >= (plot_log_buffer.size() - 14)) {
+            plot_log_buffer[i] = plot_log_buffer[i] + ",0";// + to_string(Rt_ma[i-1]);
+        } else {
+            plot_log_buffer[i] = plot_log_buffer[i];// + to_string(Rt_ma[i-1]);
+        }
+    }
+    bool overwrite = true;
+    write_daily_buffer(plot_log_buffer, "42", "plot_log.csv", overwrite);
+    //int retval = system("Rscript fitvis.R");
+    int retval = system("Rscript simvis.R");
+    if (retval == -1) { cerr << "System call to `Rscript simvis.R` failed\n"; }
+}
 
 
 vector<string> simulate_epidemic(const Parameters* par, Community* &community, const string process_id, const vector<string> mutant_intro_dates) {
