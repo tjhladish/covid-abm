@@ -598,6 +598,7 @@ void init_behavioral_vals_from_file(const Parameters* par, Community* community)
     vector<TimeSeriesAnchorPoint> tuned_anchors;
 
     for (vector<string> &v : tuning_data) {
+        assert(v.size() == 2);
         if (v[0] == "date") { continue; }
         tuned_anchors.emplace_back(v[0], stod(v[1]));
     }

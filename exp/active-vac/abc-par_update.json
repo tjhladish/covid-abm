@@ -1,0 +1,81 @@
+{
+    "smc_iterations"            : 1,
+    "num_samples"               : 1000,
+    "predictive_prior_fraction" : 1.0,
+    "pls_training_fraction"     : 1.0,
+
+    "database_filename"         : "covid-par_update.sqlite",
+
+    "parameters" : [
+        {"name"       : "realization",
+         "dist_type"  : "PSEUDO",
+         "num_type"   : "INT",
+         "par1"       : 0,
+         "par2"       : 999},
+
+        {"name"       : "quarantine",
+         "short_name" : "quar",
+         "dist_type"  : "PSEUDO",
+         "num_type"   : "INT",
+         "par1"       : 0,
+         "par2"       : 0,
+         "step"       : 0},
+
+        {"name"       : "passive_vac",
+         "short_name" : "pas_vac",
+         "dist_type"  : "PSEUDO",
+         "num_type"   : "INT",
+         "par1"       : 1,
+         "par2"       : 1,
+         "step"       : 0},
+
+        {"name"       : "active_vac",
+         "short_name" : "act_vac",
+         "dist_type"  : "PSEUDO",
+         "num_type"   : "INT",
+         "par1"       : 0,
+         "par2"       : 0,
+         "step"       : 0},
+
+        {"name"       : "passive_allocation",
+         "short_name" : "pas_alloc",
+         "dist_type"  : "PSEUDO",
+         "num_type"   : "INT",
+         "par1"       : 0,
+         "par2"       : 0,
+         "step"       : 0},
+
+        {"name"       : "active_allocation",
+         "short_name" : "act_alloc",
+         "dist_type"  : "PSEUDO",
+         "num_type"   : "INT",
+         "par1"       : 0,
+         "par2"       : 0,
+         "step"       : 0},
+
+        {"name"       : "vac_infection_constraint",
+         "short_name" : "inf_con",
+         "dist_type"  : "PSEUDO",
+         "num_type"   : "INT",
+         "par1"       : 4,
+         "par2"       : 4,
+         "step"       : 0},
+
+        {"name"       : "ppb_autofitting_control",
+         "short_name" : "ppb_ctrl",
+         "dist_type"  : "PSEUDO",
+         "num_type"   : "INT",
+         "par1"       : 0,
+         "par2"       : 0,
+         "step"       : 0}
+    ],
+
+    "metrics" : [
+        {"name" : "tot_cumul_infs",       "num_type" : "INT", "value" : 0},
+        {"name" : "tot_cumul_symp_cases", "num_type" : "INT", "value" : 0},
+        {"name" : "tot_cumul_sev_cases",  "num_type" : "INT", "value" : 0},
+        {"name" : "tot_cumul_crit_cases", "num_type" : "INT", "value" : 0},
+        {"name" : "tot_cumul_deaths",     "num_type" : "INT", "value" : 0},
+        {"name" : "tot_cumul_doses_used", "num_type" : "INT", "value" : 0}
+       ]
+}
