@@ -97,7 +97,8 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->yearlyOutput            = true;
     par->abcVerbose              = false; // needs to be false to get WHO daily output
     par->startJulianYear         = JULIAN_START_YEAR;
-    par->startDayOfYear          = Date::to_julian_day("2020-03-01"); // was Feb 10, 2020
+    par->startDayOfYear          = Date::to_julian_day("2020-02-10"); // was Feb 10, 2020
+    //par->startDayOfYear          = Date::to_julian_day("2020-03-01"); // was Feb 10, 2020
     par->runLength               = TOTAL_DURATION;
 
     par->behavioral_autotuning = (bool) args[7];
@@ -273,7 +274,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
 
     if (par->behavioral_autotuning) {
         par->behaviorInputFilename  = "";
-        par->behaviorOutputFilename = output_dir + "/ppb_fits-v2/behavior_" + to_string(serial) + ".csv";
+        par->behaviorOutputFilename = output_dir + "/ppb_fits-v3/behavior_" + to_string(serial) + ".csv";
         par->vaccinationFilename    = "./state_based_counterfactual_doses.txt"; // Used when trying to reproduce FL empirical data
     } else if (USE_FL_ASSUMPTIONS) {
         par->behaviorInputFilename  = "1k_mean_ppb_adj_v1.csv";

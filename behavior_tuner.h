@@ -571,7 +571,9 @@ void behavior_autotuning(const Parameters* par, Community* &community, Date* &da
                                                                 // are we out of data to fit against
                           or (tuner->tuning_window_ct > 1 and prop_days_w_emp_data == 0)
                                                                 // are the search range min and max equal (can't search more)
-                          or (tuner->bin_search_range_max() == tuner->bin_search_range_min());
+                          or (tuner->bin_search_range_max() == tuner->bin_search_range_min())
+                                                                // is this before people started reacting 
+                          or *date <= "2020-03-01";
 
             if (fit_is_good) {
                 // if the fit is deemed "good" ensure that we will use the best val found
