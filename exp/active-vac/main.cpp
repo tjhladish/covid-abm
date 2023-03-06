@@ -761,6 +761,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     // this output filename needs to be adjusted for each experiment, so as to not overwrite files
     //string filename = "plot_log" + to_string(serial) + ".csv";
     //string version_dir = output_dir.starts_with("/red/longini/tjhladish") ? "/v6" : ""; // bit of a hack, should have multiple output dir vars
+    //string version_dir = output_dir.rfind("/red/longini/tjhladish", 0) == 0 ? "/FL_v1" : ""; // bit of a hack, should have multiple output dir vars
     string version_dir = output_dir.rfind("/red/longini/tjhladish", 0) == 0 ? "/v6" : ""; // bit of a hack, should have multiple output dir vars
     string filename = output_dir + version_dir + "/plot_log" + to_string(serial) + ".csv";
     write_daily_buffer(plot_log_buffer, process_id, filename, overwrite);
