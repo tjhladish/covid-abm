@@ -277,10 +277,10 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
         par->behaviorOutputFilename = output_dir + "/ppb_fits-v3/behavior_" + to_string(serial) + ".csv";
         par->vaccinationFilename    = "./state_based_counterfactual_doses.txt"; // Used when trying to reproduce FL empirical data
     } else if (USE_FL_ASSUMPTIONS) {
-        par->behaviorInputFilename  = "1k_mean_ppb_adj_v1.csv";
+        par->behaviorInputFilename  = "1k_mean_ppb_adj_v2.csv";
         par->vaccinationFilename    = "./state_based_counterfactual_doses.txt"; // Used when trying to reproduce FL empirical data
     } else {
-        par->behaviorInputFilename  = "1k_mean_ppb_adj_v1.csv";
+        par->behaviorInputFilename  = "1k_mean_ppb_adj_v2.csv";
         par->behaviorOutputFilename = "";
     }
 
@@ -308,14 +308,14 @@ void define_strain_parameters(Parameters* par) {
     par->strainPars[DELTA].relInfectiousness   = par->strainPars[ALPHA].relInfectiousness * 1.5;
     par->strainPars[DELTA].relPathogenicity    = par->strainPars[ALPHA].relPathogenicity * 2.83;
     par->strainPars[DELTA].relSeverity         = 1.5; //1.3; // relSeverity only applies if not vaccine protected; CABP - may be more like 1.3 based on mortality increase
-    par->strainPars[DELTA].relIcuMortality     = 3.75; //3.0; // TODO - this is due to icu crowding.  should be represented differently
+    par->strainPars[DELTA].relIcuMortality     = 2.8; //3.0; // TODO - this is due to icu crowding.  should be represented differently
     par->strainPars[DELTA].immuneEscapeProb    = 0.2;
 
     par->strainPars[OMICRON].immuneEscapeProb  = 0.5;   // CABP: should be ~ 0.3-0.5
     par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 3.0; // CABP: 2.148 would be justified
     par->strainPars[OMICRON].relPathogenicity  = par->strainPars[DELTA].relPathogenicity * 0.5;
     par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.5; //0.75;
-    par->strainPars[OMICRON].relIcuMortality   = 1.5; //2.0;
+    par->strainPars[OMICRON].relIcuMortality   = 1.0; //2.0;
     par->strainPars[OMICRON].relSymptomOnset = 0.5;     // roughly based on MMWR Early Release Vol. 70 12/28/2021
 
     cerr << "delta, omicron rel infectiousness: " << par->strainPars[DELTA].relInfectiousness << " " << par->strainPars[OMICRON].relInfectiousness << endl;
