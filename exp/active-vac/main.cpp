@@ -1,6 +1,6 @@
 #include <chrono>
 #include <unistd.h>
-#include "AbcSmc.h"
+#include <AbcSmc/AbcSmc.h>
 #include "simulator.h"
 #include <cstdlib>
 #include "CCRC32.h"
@@ -10,6 +10,7 @@
 
 #if __has_include("local.h")
 #include "local.h"
+#define LOCAL_HEADER true;
 #endif
 
 using namespace std;
@@ -30,14 +31,24 @@ const string SIM_POP = "pseudo-300K"; // recent good T value == 0.042
 //const string SIM_POP = "sim_pop-florida"; // recent good T value == 0.042
 //const string HOME_DIR(std::getenv("HOME")); // commented out to test local path header
 
+// we should get rid of the local header approach
 #ifdef LOCAL_HEADER
-const std::string HOME_DIR = getHOME();
+const std::string WORK_DIR = getHOME();
 #else
-const std::string HOME_DIR = std::getenv("HOME");
+  #ifndef WORKDIR
+  const std::string WORK_DIR = std::getenv("HOME") + "/work";
+  #else
+  const std::string WORK_DIR = WORKDIR;
+  #endif
 #endif
 
-const string pop_dir = HOME_DIR + "/work/covid-abm/pop/" + SIM_POP;
-const string output_dir("/ufrc/longini/tjhladish/");
+#ifndef OUTPUTDIR
+const std::string output_dir = WORK_DIR + "covid-abm/exp/active-vac";
+#else
+const std::string output_dir = OUTPUTDIR;
+#endif
+
+const string pop_dir = WORK_DIR + "/covid-abm/pop/" + SIM_POP;
 //const string imm_dir(output_dir + "");
 //const string vaccination_file = pop_dir + "/../fl_vac/fl_vac_v4.txt";
 
@@ -54,6 +65,7 @@ const size_t JULIAN_START_YEAR    = 2020;
 //const double DEATH_UNDERREPORTING = 11807.0/20100.0; // FL Mar15-Sep5, https://www.nytimes.com/interactive/2020/05/05/us/coronavirus-death-toll-us.html
 bool autotune                     = false;
 const int FL_POP                  = 21538187;   // as of 2020 census
+bool USE_FL_ASSUMPTIONS           = false;
 
 enum VacCampaignScenario {
     FL_LIKE_FL,          // FL_ROLLOUT
@@ -85,7 +97,8 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->yearlyOutput            = true;
     par->abcVerbose              = false; // needs to be false to get WHO daily output
     par->startJulianYear         = JULIAN_START_YEAR;
-    par->startDayOfYear          = Date::to_julian_day("2020-03-01"); // was Feb 10, 2020
+    par->startDayOfYear          = Date::to_julian_day("2020-02-10"); // was Feb 10, 2020
+    //par->startDayOfYear          = Date::to_julian_day("2020-03-01"); // was Feb 10, 2020
     par->runLength               = TOTAL_DURATION;
 
     par->behavioral_autotuning = (bool) args[7];
@@ -240,10 +253,11 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->VES = {{WILDTYPE, {0.0}}};
 
     //par->hospitalizedFraction = 0.25; // fraction of cases assumed to be hospitalized
-    par->probInitialExposure = {1.0e-04};
-    //par->probDailyExposure   = vector(120, 2.0e-05);        // introductions are initially lower
-    //par->probDailyExposure.resize(par->runLength, 2.0e-04); // and then pick up after ~ 4 months
-    par->probDailyExposure   = {1.0e-04};        // introductions are initially lower
+    //par->probInitialExposure = {1.0e-04};
+    const size_t jun15_2021 = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-06-15");
+    par->probDailyExposure   = vector(jun15_2021, 1.0e-04);         // introductions are initially lower
+    par->probDailyExposure.resize(par->runLength, 2.0e-04); // and then pick up leading into delta
+    //par->probDailyExposure   = {1.0e-04};
 
     par->populationFilename       = pop_dir    + "/population-"         + SIM_POP + ".txt";
     par->comorbidityFilename      = pop_dir    + "/comorbidity-"        + SIM_POP + ".txt";
@@ -260,11 +274,13 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
 
     if (par->behavioral_autotuning) {
         par->behaviorInputFilename  = "";
-        par->behaviorOutputFilename = "/blue/longini/tjhladish/covid-abm/exp/active-vac/ppb_fits-v2/behavior_" + to_string(serial) + ".csv";
+        par->behaviorOutputFilename = output_dir + "/ppb_fits-v3/behavior_" + to_string(serial) + ".csv";
+        par->vaccinationFilename    = "./state_based_counterfactual_doses.txt"; // Used when trying to reproduce FL empirical data
+    } else if (USE_FL_ASSUMPTIONS) {
+        par->behaviorInputFilename  = "1k_mean_ppb_adj_v2.csv";
         par->vaccinationFilename    = "./state_based_counterfactual_doses.txt"; // Used when trying to reproduce FL empirical data
     } else {
-        par->behaviorInputFilename  = "1k_mean_ppb-v4.0manual.csv";
-        //par->behaviorInputFilename  = "/blue/longini/tjhladish/covid-abm/exp/active-vac/ppb_fits/behavior_" + to_string(serial) + ".csv";
+        par->behaviorInputFilename  = "1k_mean_ppb_adj_v2.csv";
         par->behaviorOutputFilename = "";
     }
 
@@ -292,14 +308,14 @@ void define_strain_parameters(Parameters* par) {
     par->strainPars[DELTA].relInfectiousness   = par->strainPars[ALPHA].relInfectiousness * 1.5;
     par->strainPars[DELTA].relPathogenicity    = par->strainPars[ALPHA].relPathogenicity * 2.83;
     par->strainPars[DELTA].relSeverity         = 1.5; //1.3; // relSeverity only applies if not vaccine protected; CABP - may be more like 1.3 based on mortality increase
-    par->strainPars[DELTA].relIcuMortality     = 3.75; //3.0; // TODO - this is due to icu crowding.  should be represented differently
+    par->strainPars[DELTA].relIcuMortality     = 2.8; //3.0; // TODO - this is due to icu crowding.  should be represented differently
     par->strainPars[DELTA].immuneEscapeProb    = 0.2;
 
     par->strainPars[OMICRON].immuneEscapeProb  = 0.5;   // CABP: should be ~ 0.3-0.5
     par->strainPars[OMICRON].relInfectiousness = par->strainPars[DELTA].relInfectiousness * 3.0; // CABP: 2.148 would be justified
     par->strainPars[OMICRON].relPathogenicity  = par->strainPars[DELTA].relPathogenicity * 0.5;
     par->strainPars[OMICRON].relSeverity       = par->strainPars[DELTA].relSeverity * 0.5; //0.75;
-    par->strainPars[OMICRON].relIcuMortality   = 1.5; //2.0;
+    par->strainPars[OMICRON].relIcuMortality   = 1.0; //2.0;
     par->strainPars[OMICRON].relSymptomOnset = 0.5;     // roughly based on MMWR Early Release Vol. 70 12/28/2021
 
     cerr << "delta, omicron rel infectiousness: " << par->strainPars[DELTA].relInfectiousness << " " << par->strainPars[OMICRON].relInfectiousness << endl;
@@ -565,7 +581,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     Parameters* par = define_simulator_parameters(args, rng_seed, serial, process_id);
     define_strain_parameters(par);
 
-    if (par->behavioral_autotuning) {
+    if (par->behavioral_autotuning or USE_FL_ASSUMPTIONS) {
         assert(quarantine_ctrl == 0);
         assert(do_passive_vac == 0); // used only to set the correct vaccination filename, which is set elsewhere for PPB fitting
         assert(active_vac == NO_CAMPAIGN);
@@ -680,7 +696,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
        //                          << "\tcontact tracing start " << par->beginContactTracing << "\n"
        //                          << "\tself quarantining probs "; cerr_vector(par->quarantineProbability); cerr << "\n"
        //                          << "\tself quarantining duration " << par->quarantineDuration << "\n" << endl;
-    } else if (par->behavioral_autotuning) {
+    } else if (par->behavioral_autotuning or USE_FL_ASSUMPTIONS) {
         bool adjust_std_to_bin_pop = true;
         bool adjust_urg_to_bin_pop = false;
         bool pool_std_doses = false;
@@ -744,8 +760,10 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     bool overwrite = true;
     // this output filename needs to be adjusted for each experiment, so as to not overwrite files
     //string filename = "plot_log" + to_string(serial) + ".csv";
-    string filename = "/blue/longini/tjhladish/covid-abm/exp/active-vac/v6/plot_log" + to_string(serial) + ".csv";
-    //string filename = "plot_log" + to_string(serial) + ".csv";
+    //string version_dir = output_dir.starts_with("/red/longini/tjhladish") ? "/v6" : ""; // bit of a hack, should have multiple output dir vars
+    //string version_dir = output_dir.rfind("/red/longini/tjhladish", 0) == 0 ? "/FL_v1" : ""; // bit of a hack, should have multiple output dir vars
+    string version_dir = output_dir.rfind("/red/longini/tjhladish", 0) == 0 ? "/v6" : ""; // bit of a hack, should have multiple output dir vars
+    string filename = output_dir + version_dir + "/plot_log" + to_string(serial) + ".csv";
     write_daily_buffer(plot_log_buffer, process_id, filename, overwrite);
 
 //    stringstream ss;
@@ -822,6 +840,7 @@ void usage() {
     cerr << "\t       ./abc_sql abc_config_sql.json --simulate\n\n";
     cerr << "\t       ./abc_sql abc_config_sql.json --simulate -n <number of simulations per database write>\n\n";
     cerr << "\t       ./abc_sql abc_config_sql.json --simulate --serial <serial to run>\n\n";
+    cerr << "\t       ./abc_sql abc_config_sql.json --simulate --serial <serial to run> --doFlorida\n\n";
     cerr << "\t       ./abc_sql abc_config_sql.json --simulate --posterior <index to run>\n\n";
 
 }
@@ -853,6 +872,8 @@ int main(int argc, char* argv[]) {
             TOTAL_DURATION = atoi(argv[++i]);
         } else if ( strcmp(argv[i], "--autotune" ) == 0 ) {
             autotune = true;
+        } else if ( strcmp(argv[i], "--doFlorida" ) == 0 ) {
+            USE_FL_ASSUMPTIONS = true;
         } else {
             usage();
             exit(101);

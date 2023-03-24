@@ -571,7 +571,9 @@ void behavior_autotuning(const Parameters* par, Community* &community, Date* &da
                                                                 // are we out of data to fit against
                           or (tuner->tuning_window_ct > 1 and prop_days_w_emp_data == 0)
                                                                 // are the search range min and max equal (can't search more)
-                          or (tuner->bin_search_range_max() == tuner->bin_search_range_min());
+                          or (tuner->bin_search_range_max() == tuner->bin_search_range_min())
+                                                                // is this before people started reacting 
+                          or *date <= "2020-03-01";
 
             if (fit_is_good) {
                 // if the fit is deemed "good" ensure that we will use the best val found
@@ -598,6 +600,7 @@ void init_behavioral_vals_from_file(const Parameters* par, Community* community)
     vector<TimeSeriesAnchorPoint> tuned_anchors;
 
     for (vector<string> &v : tuning_data) {
+        assert(v.size() == 2);
         if (v[0] == "date") { continue; }
         tuned_anchors.emplace_back(v[0], stod(v[1]));
     }
