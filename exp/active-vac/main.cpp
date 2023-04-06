@@ -8,11 +8,6 @@
 #include <math.h>
 #include "../lib/exp_util.h"
 
-#if __has_include("local.h")
-#include "local.h"
-#define LOCAL_HEADER true;
-#endif
-
 using namespace std;
 
 using covid::util::to_string;
@@ -31,15 +26,10 @@ const string SIM_POP = "pseudo-300K"; // recent good T value == 0.042
 //const string SIM_POP = "sim_pop-florida"; // recent good T value == 0.042
 //const string HOME_DIR(std::getenv("HOME")); // commented out to test local path header
 
-// we should get rid of the local header approach
-#ifdef LOCAL_HEADER
-const std::string WORK_DIR = getHOME();
+#ifndef WORKDIR
+const std::string WORK_DIR = std::getenv("HOME") + "/work";
 #else
-  #ifndef WORKDIR
-  const std::string WORK_DIR = std::getenv("HOME") + "/work";
-  #else
-  const std::string WORK_DIR = WORKDIR;
-  #endif
+const std::string WORK_DIR = WORKDIR;
 #endif
 
 #ifndef OUTPUTDIR
@@ -97,8 +87,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->yearlyOutput            = true;
     par->abcVerbose              = false; // needs to be false to get WHO daily output
     par->startJulianYear         = JULIAN_START_YEAR;
-    par->startDayOfYear          = Date::to_julian_day("2020-02-10"); // was Feb 10, 2020
-    //par->startDayOfYear          = Date::to_julian_day("2020-03-01"); // was Feb 10, 2020
+    par->startDayOfYear          = Date::to_julian_day("2020-02-10");
     par->runLength               = TOTAL_DURATION;
 
     par->behavioral_autotuning = (bool) args[7];
@@ -277,10 +266,10 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
         par->behaviorOutputFilename = output_dir + "/ppb_fits-v3/behavior_" + to_string(serial) + ".csv";
         par->vaccinationFilename    = "./state_based_counterfactual_doses.txt"; // Used when trying to reproduce FL empirical data
     } else if (USE_FL_ASSUMPTIONS) {
-        par->behaviorInputFilename  = "1k_mean_ppb_adj_v2.csv";
+        par->behaviorInputFilename  = "1k_mean_ppb_adj_v3.csv";
         par->vaccinationFilename    = "./state_based_counterfactual_doses.txt"; // Used when trying to reproduce FL empirical data
     } else {
-        par->behaviorInputFilename  = "1k_mean_ppb_adj_v2.csv";
+        par->behaviorInputFilename  = "1k_mean_ppb_adj_v3.csv";
         par->behaviorOutputFilename = "";
     }
 
@@ -308,7 +297,7 @@ void define_strain_parameters(Parameters* par) {
     par->strainPars[DELTA].relInfectiousness   = par->strainPars[ALPHA].relInfectiousness * 1.5;
     par->strainPars[DELTA].relPathogenicity    = par->strainPars[ALPHA].relPathogenicity * 2.83;
     par->strainPars[DELTA].relSeverity         = 1.5; //1.3; // relSeverity only applies if not vaccine protected; CABP - may be more like 1.3 based on mortality increase
-    par->strainPars[DELTA].relIcuMortality     = 2.8; //3.0; // TODO - this is due to icu crowding.  should be represented differently
+    par->strainPars[DELTA].relIcuMortality     = 3.25; //3.0; // TODO - this is due to icu crowding.  should be represented differently
     par->strainPars[DELTA].immuneEscapeProb    = 0.2;
 
     par->strainPars[OMICRON].immuneEscapeProb  = 0.5;   // CABP: should be ~ 0.3-0.5
@@ -606,6 +595,9 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     par->vaccine_dose_to_protection_lag = 10;   // number of days from vaccination to protection
     par->vaccineInfConstraint = vac_constraint;
 
+    vector<int> min_ages(par->runLength, 5);
+    vc->set_min_age(min_ages);       // needed for e.g. urgent vaccinations
+    vc->set_end_of_campaign(GENERAL_CAMPAIGN, par->runLength);
     // handle all vac campaign setup (not for behavior fitting)
     if (do_passive_vac or (active_vac != NO_CAMPAIGN)) { // active_vac can take on NO_CAMPAIGN, RING_VACCINATION, GROUPED_RISK_VACCINATION, or GROUPED_AGE_VACCINATION
         par->urgent_vax_dose_threshold = 1;         // the highest dose in series that will be administered in the active strategy
@@ -673,29 +665,25 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         const int active_strat_start = par->beginContactTracing;
         vc->set_start_of_campaign(active_vac, active_strat_start);
 
-        vc->set_end_of_campaign(GENERAL_CAMPAIGN, par->runLength);
         vc->set_end_of_campaign(active_vac, par->runLength);
 
-        vector<int> min_ages(par->runLength, 5);
-        vc->set_min_age(min_ages);       // needed for e.g. urgent vaccinations
-
-       // cerr << "Vaccination scenario:\n"
-       //      << GENERAL_CAMPAIGN << "\n"
-       //                          << "\tduration " << vc->get_start_of_campaign(GENERAL_CAMPAIGN) << "--" << vc->get_end_of_campaign(GENERAL_CAMPAIGN) << "\n"
-       //                          << "\tnum doses " << par->numVaccineDoses << "\n"
-       //                          << "\tdose intervals "; cerr_vector(par->vaccineDoseInterval); cerr << "\n"
-       //                          << "\tdose protection lag " << par->vaccine_dose_to_protection_lag << "\n"
-       //      << active_vac   << "\n"
-       //                          << "\tduration " << vc->get_start_of_campaign(active_vac) << "--" << vc->get_end_of_campaign(active_vac) << "\n"
-       //                          << "\trequires contact tracing? " << boolalpha << vc->contact_tracing_required(active_vac) << noboolalpha << "\n"
-       //      << "other details"  << "\n"
-       //                          << "\tdose file " << par->vaccinationFilename << "\n"
-       //                          << "\tdose pooling (urg,std,all)? " << boolalpha << pool_urg_doses << ' ' << pool_std_doses << ' ' << pool_all_doses << noboolalpha << "\n"
-       //                          << "\tadj std doses to bin pop? " << boolalpha << adjust_std_to_bin_pop << noboolalpha << "\n"
-       //                          << "\tadj urg doses to bin pop? " << boolalpha << adjust_urg_to_bin_pop << noboolalpha << "\n"
-       //                          << "\tcontact tracing start " << par->beginContactTracing << "\n"
-       //                          << "\tself quarantining probs "; cerr_vector(par->quarantineProbability); cerr << "\n"
-       //                          << "\tself quarantining duration " << par->quarantineDuration << "\n" << endl;
+//        cerr << "Vaccination scenario:\n"
+//             << GENERAL_CAMPAIGN << "\n"
+//                                 << "\tduration " << vc->get_start_of_campaign(GENERAL_CAMPAIGN) << "--" << vc->get_end_of_campaign(GENERAL_CAMPAIGN) << "\n"
+//                                 << "\tnum doses " << par->numVaccineDoses << "\n"
+//                                 << "\tdose intervals "; cerr_vector(par->vaccineDoseInterval); cerr << "\n"
+//                                 << "\tdose protection lag " << par->vaccine_dose_to_protection_lag << "\n"
+//             << active_vac   << "\n"
+//                                 << "\tduration " << vc->get_start_of_campaign(active_vac) << "--" << vc->get_end_of_campaign(active_vac) << "\n"
+//                                 << "\trequires contact tracing? " << boolalpha << vc->contact_tracing_required(active_vac) << noboolalpha << "\n"
+//             << "other details"  << "\n"
+//                                 << "\tdose file " << par->vaccinationFilename << "\n"
+//                                 << "\tdose pooling (urg,std,all)? " << boolalpha << pool_urg_doses << ' ' << pool_std_doses << ' ' << pool_all_doses << noboolalpha << "\n"
+//                                 << "\tadj std doses to bin pop? " << boolalpha << adjust_std_to_bin_pop << noboolalpha << "\n"
+//                                 << "\tadj urg doses to bin pop? " << boolalpha << adjust_urg_to_bin_pop << noboolalpha << "\n"
+//                                 << "\tcontact tracing start " << par->beginContactTracing << "\n"
+//                                 << "\tself quarantining probs "; cerr_vector(par->quarantineProbability); cerr << "\n"
+//                                 << "\tself quarantining duration " << par->quarantineDuration << "\n" << endl;
     } else if (par->behavioral_autotuning or USE_FL_ASSUMPTIONS) {
         bool adjust_std_to_bin_pop = true;
         bool adjust_urg_to_bin_pop = false;
@@ -704,9 +692,6 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         bool pool_all_doses = false;
 
         vc = generateVac_Campaign(par, community, FL_LIKE_FL, {pool_urg_doses, pool_std_doses, pool_all_doses}, adjust_std_to_bin_pop, adjust_urg_to_bin_pop);
-        vc->set_end_of_campaign(GENERAL_CAMPAIGN, par->runLength);
-        vector<int> min_ages(par->runLength, 5);
-        vc->set_min_age(min_ages);       // needed for e.g. urgent vaccinations
     }
 
     // probability of self-quarantining for index cases and subsequent contacts
@@ -761,7 +746,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     // this output filename needs to be adjusted for each experiment, so as to not overwrite files
     //string filename = "plot_log" + to_string(serial) + ".csv";
     //string version_dir = output_dir.starts_with("/red/longini/tjhladish") ? "/v6" : ""; // bit of a hack, should have multiple output dir vars
-    //string version_dir = output_dir.rfind("/red/longini/tjhladish", 0) == 0 ? "/FL_v1" : ""; // bit of a hack, should have multiple output dir vars
+    //string version_dir = output_dir.rfind("/red/longini/tjhladish", 0) == 0 ? "/FL_v1-3.25" : ""; // bit of a hack, should have multiple output dir vars
     string version_dir = output_dir.rfind("/red/longini/tjhladish", 0) == 0 ? "/v6" : ""; // bit of a hack, should have multiple output dir vars
     string filename = output_dir + version_dir + "/plot_log" + to_string(serial) + ".csv";
     write_daily_buffer(plot_log_buffer, process_id, filename, overwrite);
