@@ -16,15 +16,15 @@ OUTPUTDIR ?= $(COVDIR)/exp/active-vac
 
 PATHDEFS = -DWORKDIR="\"$(WORKDIR)\"" -DOUTPUTDIR="\"$(OUTPUTDIR)\""
 
-INCLUDE = -I$(ABCDIR) -I$(COVDIR) -I$(GSL_PATH)/include/ -I$(ABCDIR)/jsoncpp/include
+INCLUDE = -I$(ABCDIR)/include -I$(ABCDIR)/lib -I$(ABCDIR)/lib/sqdb/include -I$(ABCDIR)/lib/CCRC32/include -I$(ABCDIR)/lib/PLS/include -I$(ABCDIR)/lib/PLS/lib/eigen -I$(COVDIR) -I$(GSL_PATH)/include/ -I$(ABCDIR)/lib/jsoncpp/include
 #ifdef HPC_GSL_INC
 #INCLUDE += -I$$HPC_GSL_INC
 #endif
 
-ABC_LIB = -L$(ABCDIR) -L$(COVDIR) -labc
+ABC_LIB = -L$(ABCDIR)/build -L$(ABCDIR)/build/PLS -L$(COVDIR) -labc -lpls -ljsoncpp
 GSL_LIB = -lm -L$(GSL_PATH)/lib/ -lgsl -lgslcblas -lpthread -ldl
 
-default: libabc covid main.cpp
+default: covid main.cpp
 	$(CPP) -O2 $(CFLAGS) $(PATHDEFS) $(INCLUDE) -I$(SQLDIR) main.cpp -o sim_test $(COVOBJ) $(ABC_LIB) $(GSL_LIB)
 
 debug: libabc covid_debug main.cpp
