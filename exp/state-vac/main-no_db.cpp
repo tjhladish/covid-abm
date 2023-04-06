@@ -1,12 +1,13 @@
 #include <chrono>
 #include <unistd.h>
-#include "AbcSmc.h"
+//#include "AbcSmc.h"
 #include "simulator.h"
 #include <cstdlib>
 #include "CCRC32.h"
 #include "Utility.h"
 #include <math.h>
 #include "../lib/exp_util.h"
+#include "./pars.h"
 
 using namespace std;
 
@@ -20,9 +21,9 @@ time_t GLOBAL_START_TIME;
 string calculate_process_id(vector<double> &args, string &argstring);
 //const string SIM_POP = "escambia"; // recent good T value == 0.0253
 //const string SIM_POP = "dade"; // recent good T value == 0.03
-//const string SIM_POP = "florida";
+const string SIM_POP = "florida";
 //const string SIM_POP = "pseudo-1000k"; // recent good T value == 0.042
-const string SIM_POP = "pseudo-300K"; // recent good T value == 0.042
+//const string SIM_POP = "pseudo-300K"; // recent good T value == 0.042
 //const string SIM_POP = "sim_pop-florida"; // recent good T value == 0.042
 //const string HOME_DIR(std::getenv("HOME")); // commented out to test local path header
 
@@ -33,7 +34,7 @@ const std::string WORK_DIR = WORKDIR;
 #endif
 
 #ifndef OUTPUTDIR
-const std::string output_dir = WORK_DIR + "covid-abm/exp/active-vac";
+const std::string output_dir = WORK_DIR + "covid-abm/exp/state-vac";
 #else
 const std::string output_dir = OUTPUTDIR;
 #endif
@@ -46,7 +47,7 @@ const int RESTART_BURNIN          = 0;
 // const int FORECAST_DURATION       = 777; // stop 2022-05-30
 //const int FORECAST_DURATION       = 747; // stop after omicron
 //const int FORECAST_DURATION       = 468; // stop prior to delta
-const int FORECAST_DURATION       = 861;
+const int FORECAST_DURATION       = 803;
 const int OVERRUN                 = 14; // to get accurate Rt estimates near the end of the forecast duration
 const bool RUN_FORECAST           = true;
 int TOTAL_DURATION                = RUN_FORECAST ? RESTART_BURNIN + FORECAST_DURATION + OVERRUN : RESTART_BURNIN;
@@ -55,7 +56,6 @@ const size_t JULIAN_START_YEAR    = 2020;
 //const double DEATH_UNDERREPORTING = 11807.0/20100.0; // FL Mar15-Sep5, https://www.nytimes.com/interactive/2020/05/05/us/coronavirus-death-toll-us.html
 bool autotune                     = false;
 const int FL_POP                  = 21538187;   // as of 2020 census
-bool USE_FL_ASSUMPTIONS           = false;
 
 enum VacCampaignScenario {
     FL_LIKE_FL,          // FL_ROLLOUT
@@ -89,8 +89,10 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->startJulianYear         = JULIAN_START_YEAR;
     par->startDayOfYear          = Date::to_julian_day("2020-02-10");
     par->runLength               = TOTAL_DURATION;
-
-    par->behavioral_autotuning = (bool) args[7];
+cerr << "ARGS = ";
+cerr_vector(args);
+cerr << endl;
+    par->behavioral_autotuning = (bool) args[4];
     par->tuning_window = 14;
     par->num_preview_windows = 3;
     par->runLength += par->behavioral_autotuning ? par->tuning_window * par->num_preview_windows : 0;          // if auto fitting is on, add 30 days to the runLength
@@ -264,10 +266,6 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     if (par->behavioral_autotuning) {
         par->behaviorInputFilename  = "";
         par->behaviorOutputFilename = output_dir + "/ppb_fits-v3/behavior_" + to_string(serial) + ".csv";
-        par->vaccinationFilename    = "./state_based_counterfactual_doses.txt"; // Used when trying to reproduce FL empirical data
-    } else if (USE_FL_ASSUMPTIONS) {
-        par->behaviorInputFilename  = "1k_mean_ppb_adj_v3.csv";
-        par->vaccinationFilename    = "./state_based_counterfactual_doses.txt"; // Used when trying to reproduce FL empirical data
     } else {
         par->behaviorInputFilename  = "1k_mean_ppb_adj_v3.csv";
         par->behaviorOutputFilename = "";
@@ -520,7 +518,18 @@ vector<double> tally_counts(const Parameters* par, Community* community, int dis
 //    cerr << "\t DEATH :\t" << community->getCumulIncidenceByOutcome(DEATH) << endl;
 //}
 
-vector<double> simulator(vector<double> args, const unsigned long int rng_seed, const unsigned long int serial, const ABC::MPI_par* mp = nullptr) {
+//serial, seed, realization, state, pas_vac, act_vac, ppb
+//vector<vector<double>> pars = {
+//{0,  1.0,  0.0,  0.0,  0.0,  0.0,  0.0},  
+//{1,  2.0,  1.0,  0.0,  0.0,  0.0,  0.0},  
+
+
+vector<double> simulator(const vector<double> &pars) {
+//vector<double> simulator(vector<double> args, const unsigned long int rng_seed, const unsigned long int serial) {
+    const unsigned long int serial   = pars[0];
+    const unsigned long int rng_seed = pars[1];
+    vector<double> args(pars.begin() + 2, pars.end());
+
     cerr << "rng seed: " << rng_seed << endl;
     if (not RNG)           {cerr << "realloc RNG1\n"; RNG = gsl_rng_alloc(gsl_rng_taus2);}
     if (not REPORTING_RNG) {cerr << "realloc RNG2\n"; REPORTING_RNG = gsl_rng_alloc(gsl_rng_mt19937);}
@@ -530,53 +539,27 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     gsl_rng_set(VAX_RNG, rng_seed);
     gsl_rng_set(REPORTING_RNG, rng_seed);
 
-//for (int i = 0; i < 1e6; ++i) { cerr << "RNG " << setprecision(40) << gsl_rng_uniform(RNG) << endl; } exit(10);
-//for (int i = 0; i < 1e7; ++i) { cerr << "REPORTING_RNG " << gsl_rng_uniform(REPORTING_RNG) << endl; } exit(10);
-
-    //gsl_rng_set(RNG, 1);
-    //gsl_rng_set(VAX_RNG, 1);
-    // initialize bookkeeping for run
     time_t start, end;
     time (&start);
-    //const string process_id = report_process_id(args, serial, mp, start);
-    //vector<double> abc_args(&args[0], &args[8]);
-    //vector<double> abc_args(args);
-    //const size_t realization = 0; //(int) args[9];
-
-    //const string process_id = report_process_id(abc_args, serial, start) + "." + to_string(realization);
     const string process_id = to_string(rng_seed);
     report_process_id(args, serial, GLOBAL_START_TIME, start);
 
     cerr << "SCENARIO " << rng_seed;
     for (auto _p: args) { cerr << " " << _p; } cerr << endl;
 
-    const vector<VacCampaignType> act_vc_lookup = {NO_CAMPAIGN, RING_VACCINATION, GROUPED_RISK_VACCINATION, NUM_OF_VAC_CAMPAIGN_TYPES};
-
-    const size_t realization                        = (size_t) args[0];
-    const bool quarantine_ctrl                      = (bool) args[1];                 // 0 = off; 1 = on
+//    const size_t realization                        = (size_t) args[0];
+    const VacCampaignScenario state                 = (VacCampaignScenario) args[1];  // 0 = FL; 1 = VT; 2 = MS 
     const bool do_passive_vac                       = (bool) args[2];                 // 0 = off; 1 = on
-
-                                                      // argument 3 now represents two dimensions within the simulator
-    VacCampaignType active_vac                      = args[3] < 3 ? act_vc_lookup.at(args[3]) :
-                                                      args[3] == 3 ? act_vc_lookup[2] : NUM_OF_VAC_CAMPAIGN_TYPES;      // 0 = off; 1 = ring; 2,3 = {risk_hosp, risk_age}
-    const Vac_Campaign::GroupedRiskDef grd_type     = args[3] == 2 ? Vac_Campaign::BY_HOSP_QUANTILE :
-                                                      args[3] == 3 ? Vac_Campaign::BY_AGE_QUANTILE : Vac_Campaign::NUM_OF_GROUPED_RISK_DEF_TYPES;
-
-    const size_t passive_alloc                      = args[4];                        // 0 = 0;  1 = LIC;  2 = MIC;  3 = HIC;  4 = USA
-    const size_t active_alloc                       = args[5];                        // 0 = 0;  1 = LIC;  2 = MIC;  3 = HIC;  4 = USA
-    const VaccineInfConstraint vac_constraint       = (VaccineInfConstraint) args[6]; // 2 = non-case only; 4 = any status
+    const bool do_active_vac                        = (bool) args[3];                 // 0 = off; 1 = grouped risk
   //const bool ppb_fitting                          = (bool) args[7];
 
     Parameters* par = define_simulator_parameters(args, rng_seed, serial, process_id);
     define_strain_parameters(par);
 
-    if (par->behavioral_autotuning or USE_FL_ASSUMPTIONS) {
-        assert(quarantine_ctrl == 0);
-        assert(do_passive_vac == 0); // used only to set the correct vaccination filename, which is set elsewhere for PPB fitting
-        assert(active_vac == NO_CAMPAIGN);
-        assert(passive_alloc == 0);
-        assert(active_alloc == 0);
-        assert(vac_constraint == VACCINATE_ALL_INF_STATUSES);
+    if (par->behavioral_autotuning) {
+        assert(state == FL_LIKE_FL);
+        assert(do_passive_vac);
+        assert(not do_active_vac);
     }
 
     vector<string> mutant_intro_dates = {};
@@ -593,41 +576,39 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     par->numVaccineDoses       = 3;             // total doses in series
     par->vaccineDoseInterval   = {21, 240};     // intervals between dose 1-->2, dose 2-->3, etc.
     par->vaccine_dose_to_protection_lag = 10;   // number of days from vaccination to protection
-    par->vaccineInfConstraint = vac_constraint;
+    par->vaccineInfConstraint = VACCINATE_ALL_INF_STATUSES;
+    par->urgent_vax_dose_threshold = 1;         // the highest dose in series that will be administered in the active strategy
 
-    vector<int> min_ages(par->runLength, 5);
-    vc->set_min_age(min_ages);       // needed for e.g. urgent vaccinations
-    vc->set_end_of_campaign(GENERAL_CAMPAIGN, par->runLength);
+    bool pool_std_doses = false;
+    bool pool_urg_doses = false;
+    bool pool_all_doses = false;
+
+    bool adjust_std_to_bin_pop = true;
+    bool adjust_urg_to_bin_pop = false;
+
+    if ((pool_std_doses or pool_urg_doses) and pool_all_doses) { cerr << "ERROR: Cannot set std or urg dose pooling AND all dose pooling" << endl; exit(-1); }
+
     // handle all vac campaign setup (not for behavior fitting)
-    if (do_passive_vac or (active_vac != NO_CAMPAIGN)) { // active_vac can take on NO_CAMPAIGN, RING_VACCINATION, GROUPED_RISK_VACCINATION, or GROUPED_AGE_VACCINATION
-        par->urgent_vax_dose_threshold = 1;         // the highest dose in series that will be administered in the active strategy
+    if (do_passive_vac or do_active_vac) {
         par->vaccinationFilename = "";
 
-        par->beginContactTracing = Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-12-14");
-        // par->beginContactTracing = passive_alloc == 1 ? Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-05-01")
-        //                                               : Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2020-12-14");
-
-        vector<string> SES_string = {"NONE", "LIC", "MIC", "HIC", "USA"};
-        string dose_filename = "active_vac_doses_";
-        if (do_passive_vac) {
-            assert(active_vac == NO_CAMPAIGN);
-            dose_filename += SES_string.at(passive_alloc) + "_std.txt";
-            par->vaccinationFilename = dose_filename;
-        } else if (not active_vac == NO_CAMPAIGN) {
-            assert(do_passive_vac == NO_CAMPAIGN);
-            dose_filename += SES_string.at(active_alloc) + "_urg.txt";
-            par->vaccinationFilename = dose_filename;
+        if (do_active_vac) {
+            //par->vaccinationFilename = "./FL_grouped_risk_doses.txt";
+            par->vaccinationFilename = "FL_passive_w_supplemental_grouped_risk.txt";
+            vc->set_grouped_risk_def(Vac_Campaign::BY_FILE);
+            vc->set_reactive_vac_strategy(GROUPED_RISK_VACCINATION);
+            vc->set_start_of_campaign(GROUPED_RISK_VACCINATION, vc->get_start_of_campaign(GENERAL_CAMPAIGN));
+            vc->set_end_of_campaign(GROUPED_RISK_VACCINATION, par->runLength);
+        } else {
+            par->vaccinationFilename = "state_based_counterfactual_doses.txt";
         }
 
-        if (par->vaccinationFilename == "") {
-            cerr << "ERROR: unknown vaccination scenario was specified" << endl;
-            exit(1);
-        }
-// TODO - maybe assert that if vac_req == 2, file = covax
-        // control whether to adjust to bin pops or total pop
-        // pop adjustment occurs before any dose pooling
-        bool adjust_std_to_bin_pop = false;
-        bool adjust_urg_to_bin_pop = false;
+        vc = generateVac_Campaign(par, community, state, {pool_urg_doses, pool_std_doses, pool_all_doses}, adjust_std_to_bin_pop, adjust_urg_to_bin_pop);
+
+        vector<int> min_ages(par->runLength, 5);
+        vc->set_min_age(min_ages);       // needed for e.g. urgent vaccinations
+        vc->set_end_of_campaign(GENERAL_CAMPAIGN, par->runLength);
+
 
         // pooling will accumulate doses across age bins and across doses
         /* allowed settings (std, urg, all):
@@ -637,35 +618,17 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
             - TTF: pool std and urg independently
             - FFT: pool std and urg together       // use for expanded passive & covax passive
         */
-        bool pool_std_doses = true;
-        bool pool_urg_doses = true;
-        bool pool_all_doses = false;
-
-       if ((pool_std_doses or pool_urg_doses) and pool_all_doses) { cerr << "ERROR: Cannot set std or urg dose pooling AND all dose pooling" << endl; exit(-1); }
-
-        vc = generateVac_Campaign(par, community, FL_LIKE_FL, {pool_urg_doses, pool_std_doses, pool_all_doses}, adjust_std_to_bin_pop, adjust_urg_to_bin_pop);
 
         // parameter handling --- how do we want to handle setting these? I just set them here rather than use par
         vc->set_prioritize_first_doses(false);
         vc->set_flexible_queue_allocation(false);
 
-        vc->set_reactive_vac_strategy(active_vac);
-        vc->set_grouped_risk_def(grd_type);
-
-        int group_risk_quantile_bins = 10;
-        vc->set_risk_quantile_nbins(group_risk_quantile_bins);  // TODO: make sure that if GROUPED_RISK_VACCINATION is on and this value is -1, fail
         // vc->set_reactive_vac_dose_allocation(0.0);
-
         // the GROUPED_RISK_VACCINATION strategies starts alongside the GENERAL_CAMPAIGN
         // other active strategies start on May 1, 2021 (and if they require contact tracing, the check is called)
 //        int active_strat_start = active_vac == GROUPED_RISK_VACCINATION ?
 //                                 vc->get_start_of_campaign(GENERAL_CAMPAIGN) :
 //                                 Date::to_sim_day(par->startJulianYear, par->startDayOfYear, "2021-05-01");
-
-        const int active_strat_start = par->beginContactTracing;
-        vc->set_start_of_campaign(active_vac, active_strat_start);
-
-        vc->set_end_of_campaign(active_vac, par->runLength);
 
 //        cerr << "Vaccination scenario:\n"
 //             << GENERAL_CAMPAIGN << "\n"
@@ -684,23 +647,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
 //                                 << "\tcontact tracing start " << par->beginContactTracing << "\n"
 //                                 << "\tself quarantining probs "; cerr_vector(par->quarantineProbability); cerr << "\n"
 //                                 << "\tself quarantining duration " << par->quarantineDuration << "\n" << endl;
-    } else if (par->behavioral_autotuning or USE_FL_ASSUMPTIONS) {
-        bool adjust_std_to_bin_pop = true;
-        bool adjust_urg_to_bin_pop = false;
-        bool pool_std_doses = false;
-        bool pool_urg_doses = false;
-        bool pool_all_doses = false;
-
-        vc = generateVac_Campaign(par, community, FL_LIKE_FL, {pool_urg_doses, pool_std_doses, pool_all_doses}, adjust_std_to_bin_pop, adjust_urg_to_bin_pop);
     }
-
-    // probability of self-quarantining for index cases and subsequent contacts
-    if (quarantine_ctrl) {
-        par->quarantineProbability = {0.9, 0.75, 0.5};
-    } else {
-        par->quarantineProbability = {0.0, 0.0, 0.0};
-    }
-    par->quarantineDuration = 10;
 
     // seed_epidemic(par, community, WILDTYPE);
     vector<string> plot_log_buffer = simulate_epidemic(par, community, process_id, mutant_intro_dates);//, social_contact_map);
@@ -745,9 +692,9 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     bool overwrite = true;
     // this output filename needs to be adjusted for each experiment, so as to not overwrite files
     //string filename = "plot_log" + to_string(serial) + ".csv";
-    //string version_dir = output_dir.starts_with("/red/longini/tjhladish") ? "/v6" : ""; // bit of a hack, should have multiple output dir vars
-    //string version_dir = output_dir.rfind("/red/longini/tjhladish", 0) == 0 ? "/FL_v1-3.25" : ""; // bit of a hack, should have multiple output dir vars
-    string version_dir = output_dir.rfind("/red/longini/tjhladish", 0) == 0 ? "/v6" : ""; // bit of a hack, should have multiple output dir vars
+    //string filename = "/red/longini/tjhladish/covid-abm/exp/state-vac/plot_log" + to_string(serial) + ".csv";
+    string version_dir = output_dir.rfind("/red/longini/tjhladish", 0) == 0 ? "/v2.0" : ""; // bit of a hack, should have multiple output dir vars
+    //string version_dir = output_dir.starts_with("/red/longini/tjhladish") ? "/v2.0" : ""; // requires c++20
     string filename = output_dir + version_dir + "/plot_log" + to_string(serial) + ".csv";
     write_daily_buffer(plot_log_buffer, process_id, filename, overwrite);
 
@@ -790,7 +737,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     //calculate_reporting_ratios(community);
 
     stringstream ss;
-    ss << mp->mpi_rank << " end " << hex << process_id << " " << dec << dif << " ";
+    ss << "0"  << " end " << hex << process_id << " " << dec << dif << " ";
 
     for (auto i: args) ss << i << " ";
     for (auto i: metrics) ss << i << " ";
@@ -825,7 +772,6 @@ void usage() {
     cerr << "\t       ./abc_sql abc_config_sql.json --simulate\n\n";
     cerr << "\t       ./abc_sql abc_config_sql.json --simulate -n <number of simulations per database write>\n\n";
     cerr << "\t       ./abc_sql abc_config_sql.json --simulate --serial <serial to run>\n\n";
-    cerr << "\t       ./abc_sql abc_config_sql.json --simulate --serial <serial to run> --doFlorida\n\n";
     cerr << "\t       ./abc_sql abc_config_sql.json --simulate --posterior <index to run>\n\n";
 
 }
@@ -836,54 +782,39 @@ int main(int argc, char* argv[]) {
 //        exit(100);
 //    }
 
-    bool process_db = false;
+//    bool process_db = false;
     bool simulate_db = false;
-    int buffer_size = 1;
+//    int buffer_size = 1;
     int requested_serial = -1;
-    int requested_posterior_idx = -1;
+//    int requested_posterior_idx = -1;
 
     for (int i=2; i < argc;  i++ ) {
         if ( string_matches(argv[i], "--process") ) {
-            process_db = true;
+//            process_db = true;
         } else if ( string_matches(argv[i], "--simulate") ) {
             simulate_db = true;
-        } else if ( string_matches(argv[i], "-n" ) ) {
-            buffer_size = atoi(argv[++i]);
+//        } else if ( string_matches(argv[i], "-n" ) ) {
+//            buffer_size = atoi(argv[++i]);
         } else if ( string_matches(argv[i], "--serial" ) ) {
             requested_serial = atoi(argv[++i]);
-        } else if ( string_matches(argv[i], "--posterior" ) ) {
-            requested_posterior_idx = atoi(argv[++i]);
+//        } else if ( string_matches(argv[i], "--posterior" ) ) {
+//            requested_posterior_idx = atoi(argv[++i]);
         } else if ( strcmp(argv[i], "--runLength" ) == 0 ) {
             TOTAL_DURATION = atoi(argv[++i]);
         } else if ( strcmp(argv[i], "--autotune" ) == 0 ) {
             autotune = true;
-        } else if ( strcmp(argv[i], "--doFlorida" ) == 0 ) {
-            USE_FL_ASSUMPTIONS = true;
         } else {
             usage();
             exit(101);
         }
     }
 
-    AbcSmc* abc = new AbcSmc();
-    abc->parse_config(string(argv[1]));
-    if (process_db) {
-        gsl_rng_set(RNG, time(NULL) * getpid()); // seed the rng using sys time and the process id
-        abc->process_database(RNG);
-    }
-
     if (simulate_db) {
         time(&GLOBAL_START_TIME);
-        abc->set_simulator(simulator);
         if (requested_serial > -1) {
-            abc->simulate_particle_by_serial(requested_serial);
-        } else if (requested_posterior_idx > -1) {
-            abc->simulate_particle_by_posterior_idx(requested_posterior_idx);
-        } else {
-            abc->simulate_next_particles(buffer_size);
+            simulator(pars.at(requested_serial));
         }
     }
 
-    delete abc;
     return 0;
 }

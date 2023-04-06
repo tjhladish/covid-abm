@@ -2,28 +2,36 @@
 
 CPP = g++
 
-CFLAGS = -std=c++17 -Wall -Wextra -Wno-deprecated-declarations --pedantic
-ABCDIR = $(HOME)/work/AbcSmc
-COVDIR = $(HOME)/work/covid-abm
-GSL_PATH = $(HOME)/work/AbcSmc/gsl_local
+WORKDIR ?= $(HOME)/work
+CFLAGS = -std=c++2a -Wall -Wextra -Wno-deprecated-declarations --pedantic
+ABCDIR = $(WORKDIR)/AbcSmc
+COVDIR = $(WORKDIR)/covid-abm
+GSL_PATH = $(WORKDIR)/AbcSmc/gsl_local
 COVOBJ = $(COVDIR)/Person.o $(COVDIR)/Location.o $(COVDIR)/Community.o $(COVDIR)/Parameters.o $(COVDIR)/Utility.o $(COVDIR)/Vac_Campaign.o
 SQLDIR = $(ABCDIR)/sqdb
 DOSEDIR = $(COVDIR)/exp/active-vac/dose_data
 DOSEDATA = $(DOSEDIR)/trends_in_number_of_covid19_vaccinations_in_fl.csv $(DOSEDIR)/trends_in_number_of_covid19_vaccinations_in_vt.csv $(DOSEDIR)/trends_in_number_of_covid19_vaccinations_in_ms.csv
+#OUTPUTDIR ?= /red/longini/tjhladish/work/covid-abm/active-vac
+OUTPUTDIR ?= $(COVDIR)/exp/active-vac
+
+PATHDEFS = -DWORKDIR="\"$(WORKDIR)\"" -DOUTPUTDIR="\"$(OUTPUTDIR)\""
 
 INCLUDE = -I$(ABCDIR) -I$(COVDIR) -I$(GSL_PATH)/include/ -I$(ABCDIR)/jsoncpp/include
 #ifdef HPC_GSL_INC
 #INCLUDE += -I$$HPC_GSL_INC
 #endif
 
-ABC_LIB = -L$(ABCDIR) -L$(COVDIR) -labc -ljsoncpp -lsqdb $(ABCDIR)/sqlite3.o
+ABC_LIB = -L$(ABCDIR) -L$(COVDIR) -labc
 GSL_LIB = -lm -L$(GSL_PATH)/lib/ -lgsl -lgslcblas -lpthread -ldl
 
 default: libabc covid main.cpp
-	$(CPP) -O2 $(CFLAGS) $(INCLUDE) -I$(SQLDIR) main.cpp -o sim_test $(COVOBJ) $(ABC_LIB) $(GSL_LIB)
+	$(CPP) -O2 $(CFLAGS) $(PATHDEFS) $(INCLUDE) -I$(SQLDIR) main.cpp -o sim_test $(COVOBJ) $(ABC_LIB) $(GSL_LIB)
+
+no_db: libabc covid main-no_db.cpp
+	$(CPP) -O2 $(CFLAGS) $(PATHDEFS) $(INCLUDE) main-no_db.cpp -o sim_test-no_db $(COVOBJ) $(ABC_LIB) $(GSL_LIB)
 
 debug: libabc covid_debug main.cpp
-	$(CPP) -g $(CFLAGS) $(INCLUDE) -I$(SQLDIR) main.cpp -o sim_test $(COVOBJ) $(ABC_LIB) $(GSL_LIB)
+	$(CPP) -g $(CFLAGS) $(PATHDEFS) $(INCLUDE) -I$(SQLDIR) main.cpp -o sim_test $(COVOBJ) $(ABC_LIB) $(GSL_LIB)
 
 libabc:
 	$(MAKE) -C $(ABCDIR) -f Makefile

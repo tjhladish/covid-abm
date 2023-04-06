@@ -1,6 +1,6 @@
 #include <chrono>
 #include <unistd.h>
-#include <AbcSmc/AbcSmc.h>
+#include "AbcSmc.h"
 #include "simulator.h"
 #include <cstdlib>
 #include "CCRC32.h"
