@@ -1,12 +1,13 @@
 #include <chrono>
 #include <unistd.h>
-#include "AbcSmc.h"
+//#include "AbcSmc.h"
 #include "simulator.h"
 #include <cstdlib>
 #include "CCRC32.h"
 #include "Utility.h"
 #include <math.h>
 #include "../lib/exp_util.h"
+#include "./pars.h"
 
 using namespace std;
 
@@ -88,7 +89,9 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->startJulianYear         = JULIAN_START_YEAR;
     par->startDayOfYear          = Date::to_julian_day("2020-02-10");
     par->runLength               = TOTAL_DURATION;
-
+cerr << "ARGS = ";
+cerr_vector(args);
+cerr << endl;
     par->behavioral_autotuning = (bool) args[4];
     par->tuning_window = 14;
     par->num_preview_windows = 3;
@@ -515,7 +518,18 @@ vector<double> tally_counts(const Parameters* par, Community* community, int dis
 //    cerr << "\t DEATH :\t" << community->getCumulIncidenceByOutcome(DEATH) << endl;
 //}
 
-vector<double> simulator(vector<double> args, const unsigned long int rng_seed, const unsigned long int serial, const ABC::MPI_par* mp = nullptr) {
+//serial, seed, realization, state, pas_vac, act_vac, ppb
+//vector<vector<double>> pars = {
+//{0,  1.0,  0.0,  0.0,  0.0,  0.0,  0.0},  
+//{1,  2.0,  1.0,  0.0,  0.0,  0.0,  0.0},  
+
+
+vector<double> simulator(const vector<double> &pars) {
+//vector<double> simulator(vector<double> args, const unsigned long int rng_seed, const unsigned long int serial) {
+    const unsigned long int serial   = pars[0];
+    const unsigned long int rng_seed = pars[1];
+    vector<double> args(pars.begin() + 2, pars.end());
+
     cerr << "rng seed: " << rng_seed << endl;
     if (not RNG)           {cerr << "realloc RNG1\n"; RNG = gsl_rng_alloc(gsl_rng_taus2);}
     if (not REPORTING_RNG) {cerr << "realloc RNG2\n"; REPORTING_RNG = gsl_rng_alloc(gsl_rng_mt19937);}
@@ -533,7 +547,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     cerr << "SCENARIO " << rng_seed;
     for (auto _p: args) { cerr << " " << _p; } cerr << endl;
 
-    const size_t realization                        = (size_t) args[0];
+//    const size_t realization                        = (size_t) args[0];
     const VacCampaignScenario state                 = (VacCampaignScenario) args[1];  // 0 = FL; 1 = VT; 2 = MS 
     const bool do_passive_vac                       = (bool) args[2];                 // 0 = off; 1 = on
     const bool do_active_vac                        = (bool) args[3];                 // 0 = off; 1 = grouped risk
@@ -723,7 +737,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     //calculate_reporting_ratios(community);
 
     stringstream ss;
-    ss << mp->mpi_rank << " end " << hex << process_id << " " << dec << dif << " ";
+    ss << "0"  << " end " << hex << process_id << " " << dec << dif << " ";
 
     for (auto i: args) ss << i << " ";
     for (auto i: metrics) ss << i << " ";
@@ -768,23 +782,23 @@ int main(int argc, char* argv[]) {
 //        exit(100);
 //    }
 
-    bool process_db = false;
+//    bool process_db = false;
     bool simulate_db = false;
-    int buffer_size = 1;
+//    int buffer_size = 1;
     int requested_serial = -1;
-    int requested_posterior_idx = -1;
+//    int requested_posterior_idx = -1;
 
     for (int i=2; i < argc;  i++ ) {
         if ( string_matches(argv[i], "--process") ) {
-            process_db = true;
+//            process_db = true;
         } else if ( string_matches(argv[i], "--simulate") ) {
             simulate_db = true;
-        } else if ( string_matches(argv[i], "-n" ) ) {
-            buffer_size = atoi(argv[++i]);
+//        } else if ( string_matches(argv[i], "-n" ) ) {
+//            buffer_size = atoi(argv[++i]);
         } else if ( string_matches(argv[i], "--serial" ) ) {
             requested_serial = atoi(argv[++i]);
-        } else if ( string_matches(argv[i], "--posterior" ) ) {
-            requested_posterior_idx = atoi(argv[++i]);
+//        } else if ( string_matches(argv[i], "--posterior" ) ) {
+//            requested_posterior_idx = atoi(argv[++i]);
         } else if ( strcmp(argv[i], "--runLength" ) == 0 ) {
             TOTAL_DURATION = atoi(argv[++i]);
         } else if ( strcmp(argv[i], "--autotune" ) == 0 ) {
@@ -795,25 +809,12 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    AbcSmc* abc = new AbcSmc();
-    abc->parse_config(string(argv[1]));
-    if (process_db) {
-        gsl_rng_set(RNG, time(NULL) * getpid()); // seed the rng using sys time and the process id
-        abc->process_database(RNG);
-    }
-
     if (simulate_db) {
         time(&GLOBAL_START_TIME);
-        abc->set_simulator(simulator);
         if (requested_serial > -1) {
-            abc->simulate_particle_by_serial(requested_serial);
-        } else if (requested_posterior_idx > -1) {
-            abc->simulate_particle_by_posterior_idx(requested_posterior_idx);
-        } else {
-            abc->simulate_next_particles(buffer_size);
+            simulator(pars.at(requested_serial));
         }
     }
 
-    delete abc;
     return 0;
 }
