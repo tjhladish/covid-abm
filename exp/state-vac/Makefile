@@ -11,8 +11,7 @@ COVOBJ = $(COVDIR)/Person.o $(COVDIR)/Location.o $(COVDIR)/Community.o $(COVDIR)
 SQLDIR = $(ABCDIR)/sqdb
 DOSEDIR = $(COVDIR)/exp/active-vac/dose_data
 DOSEDATA = $(DOSEDIR)/trends_in_number_of_covid19_vaccinations_in_fl.csv $(DOSEDIR)/trends_in_number_of_covid19_vaccinations_in_vt.csv $(DOSEDIR)/trends_in_number_of_covid19_vaccinations_in_ms.csv
-#OUTPUTDIR ?= /red/longini/tjhladish/work/covid-abm/active-vac
-OUTPUTDIR ?= $(COVDIR)/exp/active-vac
+OUTPUTDIR ?= $(COVDIR)/exp/state-vac
 
 PATHDEFS = -DWORKDIR="\"$(WORKDIR)\"" -DOUTPUTDIR="\"$(OUTPUTDIR)\""
 
