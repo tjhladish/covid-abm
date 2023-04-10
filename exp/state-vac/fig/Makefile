@@ -15,7 +15,7 @@ OUTDIR ?= output
 SIMFILES ?= $(patsubst %,covid-state-%-reserialed.sqlite,v2.0)
 
 digest: ${RESDIR}/digest.rds
-fig: $(addprefix ${OUTDIR}/,combo.png combo_alt.png)
+fig: $(addprefix ${OUTDIR}/,combo.png combo_alt.png state_dth_vax_comp.png)
 
 ${RESDIR}/${SIMFILES}: #| ${DATADIR}
 	cp $(subst ${RESDIR},${DATADIR},$@) $@
@@ -43,6 +43,7 @@ $(patsubst %,${RESDIR}/digest-%.rds,key doses ref): ${RESDIR}/digest.rds
 
 combo.png: ${RESDIR}/digest.rds ${RESDIR}/digest-key.rds
 combo_alt.png: ${RESDIR}/digest.rds ${RESDIR}/digest-key.rds
+state_dth_vax_comp.png: $(patsubst %,${RESDIR}/%.rds,acs_pop cdc_vax us_cases_deaths us_hosp)
 
 ${OUTDIR}/%.png: %.png | ${OUTDIR}
 	cp $< $@
