@@ -10,6 +10,7 @@ R = $(strip Rscript $^ $(1) $@)
 # for CABP, now overriden to point to GDRIVE fig dir
 DATADIR ?= ..
 RESDIR := process
+RAWDIR := ../../../raw_data
 OUTDIR ?= output
 
 SIMFILES ?= $(patsubst %,covid-state-%-reserialed.sqlite,v2.0)
@@ -19,6 +20,9 @@ fig: $(addprefix ${OUTDIR}/,combo.png combo_alt.png state_dth_vax_comp.png)
 
 ${RESDIR}/${SIMFILES}: #| ${DATADIR}
 	cp $(subst ${RESDIR},${DATADIR},$@) $@
+
+${RAWDIR}/%:
+	${MAKE} -C ${RAWDIR} $*
 
 ${RESDIR}:
 	mkdir $@
@@ -41,14 +45,11 @@ ${RESDIR}/digest.rds: digest.R $(addprefix ${RESDIR}/,${SIMFILES}) | ${RESDIR}
 
 $(patsubst %,${RESDIR}/digest-%.rds,key doses ref): ${RESDIR}/digest.rds
 
-combo.png: ${RESDIR}/digest.rds ${RESDIR}/digest-key.rds
-combo_alt.png: ${RESDIR}/digest.rds ${RESDIR}/digest-key.rds
-state_dth_vax_comp.png: $(patsubst %,${RESDIR}/%.rds,acs_pop cdc_vax us_cases_deaths us_hosp)
+${OUTDIR}/combo.png: ${RESDIR}/digest.rds ${RESDIR}/digest-key.rds
+${OUTDIR}/combo_alt.png: ${RESDIR}/digest.rds ${RESDIR}/digest-key.rds
+${OUTDIR}/state_dth_vax_comp.png: $(patsubst %,${RAWDIR}/process/%.rds,cdc_vax us_outcomes)
 
-${OUTDIR}/%.png: %.png | ${OUTDIR}
-	cp $< $@
-
-%.png: %.R vis_support.rda | ${OUTDIR}
+${OUTDIR}/%.png: %.R vis_support.rda | ${OUTDIR}
 	$(call R)
 
 vis_support.rda: vis_support.R
