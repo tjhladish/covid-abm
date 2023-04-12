@@ -76,6 +76,12 @@ p1 = upset(
   colnames(upset.dt),
   name = "Location type",
   width_ratio = 0.25,
+  set_sizes = (
+    upset_set_size(
+      mapping = aes(y = ..count../1000)
+    ) +
+    ylab("Set size (in thousands)")
+  ),
   matrix=(
     intersection_matrix(geom=geom_point(shape='circle filled', size=3))
     + scale_color_manual(
