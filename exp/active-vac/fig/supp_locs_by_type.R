@@ -6,21 +6,21 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 sim_pop = "pseudo-300K"
 # sim_pop = "sim_pop-florida"
 
-if (interactive()) { setwd("~/documents/work/covid-abm/exp/active-vac/") }
+if (interactive()) { setwd("~/documents/work/covid-abm/exp/active-vac/fig") }
 
 #' assumes R project at the experiment root level
 .args <- if (interactive()) c(
-  file.path("..", "..", "pop", sim_pop, paste0("locations-", sim_pop, ".txt")),
-  file.path("..", "..", "pop", sim_pop, paste0("public-locations-", sim_pop, ".txt")),
-  file.path("..", "..", "pop", sim_pop, paste0("population-", sim_pop, ".txt")),
-  file.path("..", "..", "pop", sim_pop, paste0("network-", sim_pop, ".txt")),
-  file.path("fig", "manuscript", "supp_locs_by_type.png"),
-  file.path("fig", "manuscript", "supp_home_size_distr.png"),
-  file.path("fig", "manuscript", "supp_work_size_distr.png"),
-  file.path("fig", "manuscript", "supp_home_degree_distr.png")
+  file.path("..", "..", "..", "pop", sim_pop, paste0("locations-", sim_pop, ".txt")),
+  file.path("..", "..", "..", "pop", sim_pop, paste0("public-locations-", sim_pop, ".txt")),
+  file.path("..", "..", "..", "pop", sim_pop, paste0("population-", sim_pop, ".txt")),
+  file.path("..", "..", "..", "pop", sim_pop, paste0("network-", sim_pop, ".txt")),
+  file.path("manuscript", "supp_locs_by_type.png"),
+  file.path("manuscript", "supp_home_size_distr.png"),
+  file.path("manuscript", "supp_work_size_distr.png"),
+  file.path("manuscript", "supp_home_degree_distr.png")
 ) else commandArgs(trailingOnly = TRUE)
 
-output_path = file.path('.', 'fig', 'manuscript')
+output_path = file.path('.', 'manuscript')
 dir.create(output_path, recursive = TRUE)
 
 locs.dt = fread(.args[1])[locid %in% fread(.args[2])[,V1], patronized := 1][is.na(patronized), patronized := 0]
