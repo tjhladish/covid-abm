@@ -595,9 +595,6 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     par->vaccine_dose_to_protection_lag = 10;   // number of days from vaccination to protection
     par->vaccineInfConstraint = vac_constraint;
 
-    vector<int> min_ages(par->runLength, 5);
-    vc->set_min_age(min_ages);       // needed for e.g. urgent vaccinations
-    vc->set_end_of_campaign(GENERAL_CAMPAIGN, par->runLength);
     // handle all vac campaign setup (not for behavior fitting)
     if (do_passive_vac or (active_vac != NO_CAMPAIGN)) { // active_vac can take on NO_CAMPAIGN, RING_VACCINATION, GROUPED_RISK_VACCINATION, or GROUPED_AGE_VACCINATION
         par->urgent_vax_dose_threshold = 1;         // the highest dose in series that will be administered in the active strategy
@@ -641,7 +638,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         bool pool_urg_doses = true;
         bool pool_all_doses = false;
 
-       if ((pool_std_doses or pool_urg_doses) and pool_all_doses) { cerr << "ERROR: Cannot set std or urg dose pooling AND all dose pooling" << endl; exit(-1); }
+        if ((pool_std_doses or pool_urg_doses) and pool_all_doses) { cerr << "ERROR: Cannot set std or urg dose pooling AND all dose pooling" << endl; exit(-1); }
 
         vc = generateVac_Campaign(par, community, FL_LIKE_FL, {pool_urg_doses, pool_std_doses, pool_all_doses}, adjust_std_to_bin_pop, adjust_urg_to_bin_pop);
 
@@ -692,6 +689,12 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
         bool pool_all_doses = false;
 
         vc = generateVac_Campaign(par, community, FL_LIKE_FL, {pool_urg_doses, pool_std_doses, pool_all_doses}, adjust_std_to_bin_pop, adjust_urg_to_bin_pop);
+    }
+
+    if (vc) {
+        vector<int> min_ages(par->runLength, 5);
+        vc->set_min_age(min_ages);       // needed for e.g. urgent vaccinations
+        vc->set_end_of_campaign(GENERAL_CAMPAIGN, par->runLength);
     }
 
     // probability of self-quarantining for index cases and subsequent contacts
@@ -747,7 +750,7 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     //string filename = "plot_log" + to_string(serial) + ".csv";
     //string version_dir = output_dir.starts_with("/red/longini/tjhladish") ? "/v6" : ""; // bit of a hack, should have multiple output dir vars
     //string version_dir = output_dir.rfind("/red/longini/tjhladish", 0) == 0 ? "/FL_v1-3.25" : ""; // bit of a hack, should have multiple output dir vars
-    string version_dir = output_dir.rfind("/red/longini/tjhladish", 0) == 0 ? "/v6" : ""; // bit of a hack, should have multiple output dir vars
+    string version_dir = output_dir.rfind("/red/longini/tjhladish", 0) == 0 ? "/v6.1" : ""; // bit of a hack, should have multiple output dir vars
     string filename = output_dir + version_dir + "/plot_log" + to_string(serial) + ".csv";
     write_daily_buffer(plot_log_buffer, process_id, filename, overwrite);
 
