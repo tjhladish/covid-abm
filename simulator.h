@@ -202,16 +202,19 @@ int seed_epidemic(const Parameters* par, Community* community, const Date* date,
     int introduced_infection_ct = 0;
     const int numperson = community->getNumPeople();
     const size_t dailyExposedIdx = date->day() % par->probDailyExposure.size();
-    const double intro_rate_multiplier = *date > "2021-06-15" ? 2.0 : 1.0;
+    const double intro_rate_multiplier = 1.0;//*date > "2021-06-15" ? 2.0 : 1.0;
     const double expected_num_exposed = intro_rate_multiplier * par->probDailyExposure[dailyExposedIdx] * numperson;
     if (expected_num_exposed > 0) {
         assert(expected_num_exposed <= numperson);
         const int num_exposed = gsl_ran_poisson(RNG, expected_num_exposed);
         for (int i=0; i<num_exposed; i++) {
             // gsl_rng_uniform_int returns on [0, numperson-1]
-            int transmit_to_id = gsl_rng_uniform_int(RNG, numperson);
+            size_t id = gsl_rng_uniform_int(RNG, numperson);
+            Person* person = community->getPersonByID(id);
+//if (person->getAge() < 20) { continue; }
+            StrainType strain = (StrainType) weighted_choice(RNG, strain_weights);
 
-            if (community->infect(transmit_to_id, (StrainType) weighted_choice(RNG, strain_weights))) {
+            if (person->infect(community, date, strain)) {
                 introduced_infection_ct++;
             }
         }
@@ -242,21 +245,21 @@ size_t tally_decreases(const vector<T> &vals) {
 
 
 // helper function to call simvis.R when needed
-//void gen_simvis(vector<string> &plot_log_buffer) {
-//    for (size_t i = 1; i < plot_log_buffer.size(); ++i) {
-//        //plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt[i-1].second);
-//        if (i >= (plot_log_buffer.size() - 14)) {
-//            plot_log_buffer[i] = plot_log_buffer[i] + ",0";// + to_string(Rt_ma[i-1]);
-//        } else {
-//            plot_log_buffer[i] = plot_log_buffer[i];// + to_string(Rt_ma[i-1]);
-//        }
-//    }
-//    bool overwrite = true;
-//    write_daily_buffer(plot_log_buffer, "42", "plot_log.csv", overwrite);
-//    //int retval = system("Rscript fitvis.R");
-//    int retval = system("Rscript simvis.R");
-//    if (retval == -1) { cerr << "System call to `Rscript simvis.R` failed\n"; }
-//}
+void gen_simvis(vector<string> &plot_log_buffer) {
+    for (size_t i = 1; i < plot_log_buffer.size(); ++i) {
+        //plot_log_buffer[i] = plot_log_buffer[i] + "," + to_string(Rt[i-1].second);
+        if (i >= (plot_log_buffer.size() - 14)) {
+            plot_log_buffer[i] = plot_log_buffer[i] + ",0";// + to_string(Rt_ma[i-1]);
+        } else {
+            plot_log_buffer[i] = plot_log_buffer[i];// + to_string(Rt_ma[i-1]);
+        }
+    }
+    bool overwrite = true;
+    write_daily_buffer(plot_log_buffer, "42", "plot_log.csv", overwrite);
+    //int retval = system("Rscript fitvis.R");
+    int retval = system("Rscript simvis.R");
+    if (retval == -1) { cerr << "System call to `Rscript simvis.R` failed\n"; }
+}
 
 
 vector<string> simulate_epidemic(const Parameters* par, Community* &community, const string process_id, const vector<string> mutant_intro_dates) {
