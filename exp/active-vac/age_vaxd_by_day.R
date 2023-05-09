@@ -4,8 +4,10 @@ library(patchwork)
 library(lubridate)
 library(ggsci)
 library(DBI)
+library(scales)
 
 if (interactive()) { setwd("~/documents/work/covid-abm/exp/active-vac/") }
+load("./fig/vis_support.rda")
 
 .args <- if (interactive()) c(
   "covid-active-v6.1.sqlite",
@@ -81,20 +83,43 @@ age_vaxd_by_day = function(db_path, file_path) {
 #' 466000 --> passive, USA, no quar, no inf constraint
 
 final_dt = rbindlist(lapply(list.files(.args[2], full.names = TRUE), age_vaxd_by_day, db_path = .args[1]))
+final_dt[, seven_rolling_mean_avg_age := filter(avg_age, rep(1/7, 7), sides = 2), by = .(serial)]
 
-p = ggplot(final_dt) +
-  geom_line(aes(x = day, y = avg_age, color = vax_strat), linewidth = 1, alpha = 0.5) +
+iqr_dt = final_dt[, .(
+  median = as.numeric(quantile(avg_age, na.rm = TRUE, probs = c(0.5))),
+  upper = as.numeric(quantile(avg_age, na.rm = TRUE, probs = c(0.95))),
+  lower = as.numeric(quantile(avg_age, na.rm = TRUE, probs = c(0.05)))
+), by = .(day, dose, vax_strat, vax_alloc, quar, inf_cond)]
+
+sim_start_date = ymd("2020-02-10")
+iqr_dt[, date := sim_start_date + day]
+
+p = ggplot(iqr_dt[date >= ymd("2021-01-01") & date <= ymd("2022-03-31")]) +
+  geom_month_background(
+    iqr_dt[date >= ymd("2021-01-01") & date <= ymd("2022-03-31")], 
+    by = c("dose"),
+    value = "upper", 
+    ymin = iqr_dt[order(date), min(upper, na.rm = TRUE)], 
+    ymax = iqr_dt[order(date), max(upper, na.rm = TRUE)],
+    font.size = 5
+  ) +
+  geom_ribbon(aes(x = date, ymin = lower, ymax = upper, fill = vax_strat), alpha = 0.25) +
+  geom_line(aes(x = date, y = median, color = vax_strat), linewidth = 1, alpha = 1) +
   facet_grid(cols = vars(paste0("Dose ", dose))) +
   scale_color_aaas(name = element_blank()) +
-  labs(x = element_blank(), y = "Median age") +
-  theme_light() +
-  theme(legend.position = "bottom", text = element_text(size = 15))
+  scale_fill_aaas(name = element_blank()) +
+  labs(x = element_blank(), y = "Mean age") +
+  theme_minimal() +
+  scale_x_null() +
+  coord_cartesian(expand = FALSE, clip = "off") +
+  theme(legend.position = "bottom", text = element_text(size = 18), panel.grid.minor = element_blank(), panel.spacing = unit(2, "lines"))
 
 ggsave("avg_age_vaxd.png",
   plot = p,
   device = png,
-  width = 10,
-  height = 5,
+  width = 12,
+  height = 6,
   units = "in",
-  dpi = 200
+  dpi = 300,
+  bg = "white"
 )
