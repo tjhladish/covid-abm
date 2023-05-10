@@ -35,7 +35,7 @@ get_scenario = function(db_path, sim_serial) {
   dbDisconnect(con)
   
   if (scen_query[, pas_vac] == 1) {
-    strat = "Passive"
+    strat = "Standard"
     alloc = get_alloc(scen_query[, pas_alloc])
   } else {
     strat = switch (as.character(scen_query[, act_vac]),
@@ -94,17 +94,34 @@ iqr_dt = final_dt[, .(
 sim_start_date = ymd("2020-02-10")
 iqr_dt[, date := sim_start_date + day]
 
+text_labs = data.table(
+  x = ymd("2021-01-05"),
+  y = c(5, 42.1),
+  lab = c("Minimum vaccinatable age", "Average population age"),
+  dose = factor(3, levels = c("1","2","3"))
+)
+
 p = ggplot(iqr_dt[date >= ymd("2021-01-01") & date <= ymd("2022-03-31")]) +
   geom_month_background(
     iqr_dt[date >= ymd("2021-01-01") & date <= ymd("2022-03-31")], 
     by = c("dose"),
     value = "upper", 
-    ymin = iqr_dt[order(date), min(upper, na.rm = TRUE)], 
-    ymax = iqr_dt[order(date), max(upper, na.rm = TRUE)],
+    ymin = 0, 
+    ymax = 120,
     font.size = 5
   ) +
   geom_ribbon(aes(x = date, ymin = lower, ymax = upper, fill = vax_strat), alpha = 0.25) +
   geom_line(aes(x = date, y = median, color = vax_strat), linewidth = 1, alpha = 1) +
+  geom_hline(aes(yintercept = 5), linetype = "42") +
+  geom_hline(aes(yintercept = 42.1), linetype = "42") +
+  geom_text(
+    data = text_labs,
+    aes(x = x, y = y, label = lab),
+    size = 3,
+    hjust = "bottom",
+    vjust = "left",
+    nudge_y = 1
+  ) +
   facet_grid(cols = vars(paste0("Dose ", dose))) +
   scale_color_aaas(name = element_blank()) +
   scale_fill_aaas(name = element_blank()) +
@@ -112,7 +129,13 @@ p = ggplot(iqr_dt[date >= ymd("2021-01-01") & date <= ymd("2022-03-31")]) +
   theme_minimal() +
   scale_x_null() +
   coord_cartesian(expand = FALSE, clip = "off") +
-  theme(legend.position = "bottom", text = element_text(size = 18), panel.grid.minor = element_blank(), panel.spacing = unit(2, "lines"))
+  ylim(c(0, 120)) +
+  theme(
+    legend.position = "bottom",
+    text = element_text(size = 18),
+    panel.grid.minor = element_blank(),
+    panel.spacing = unit(2, "lines")
+  )
 
 ggsave("avg_age_vaxd.png",
   plot = p,
