@@ -96,8 +96,8 @@ iqr_dt[, date := sim_start_date + day]
 
 text_labs = data.table(
   x = ymd("2021-01-05"),
-  y = c(5, 42.1),
-  lab = c("Minimum vaccinatable age", "Average population age"),
+  y = c(5, 44),
+  lab = c("Minimum vaccinatable age", "Average vaccinatable population age"),
   dose = factor(3, levels = c("1","2","3"))
 )
 
@@ -107,13 +107,13 @@ p = ggplot(iqr_dt[date >= ymd("2021-01-01") & date <= ymd("2022-03-31")]) +
     by = c("dose"),
     value = "upper", 
     ymin = 0, 
-    ymax = 120,
+    ymax = 100,
     font.size = 5
   ) +
   geom_ribbon(aes(x = date, ymin = lower, ymax = upper, fill = vax_strat), alpha = 0.25) +
   geom_line(aes(x = date, y = median, color = vax_strat), linewidth = 1, alpha = 1) +
   geom_hline(aes(yintercept = 5), linetype = "42") +
-  geom_hline(aes(yintercept = 42.1), linetype = "42") +
+  geom_hline(aes(yintercept = 44), linetype = "42") +
   geom_text(
     data = text_labs,
     aes(x = x, y = y, label = lab),
@@ -128,8 +128,9 @@ p = ggplot(iqr_dt[date >= ymd("2021-01-01") & date <= ymd("2022-03-31")]) +
   labs(x = element_blank(), y = "Mean age") +
   theme_minimal() +
   scale_x_null() +
+  scale_y_continuous(breaks = seq(0, 100, 20), limits = c(0, 100)) +
   coord_cartesian(expand = FALSE, clip = "off") +
-  ylim(c(0, 120)) +
+  # ylim(c(0, 100)) +
   theme(
     legend.position = "bottom",
     text = element_text(size = 18),
