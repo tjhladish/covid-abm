@@ -35,13 +35,13 @@ get_scenario = function(db_path, sim_serial) {
   dbDisconnect(con)
   
   if (scen_query[, pas_vac] == 1) {
-    strat = "Standard"
+    strat = "none"
     alloc = get_alloc(scen_query[, pas_alloc])
   } else {
     strat = switch (as.character(scen_query[, act_vac]),
-                    "1" = "Ring",
-                    "2" = "Risk (hosp.)",
-                    "3" = "Risk (age)"
+                    "1" = "ring",
+                    "2" = "risk",
+                    "3" = "age"
     )
     alloc = get_alloc(scen_query[, act_alloc])
   }
@@ -123,8 +123,7 @@ p = ggplot(iqr_dt[date >= ymd("2021-01-01") & date <= ymd("2022-03-31")]) +
     nudge_y = 1
   ) +
   facet_grid(cols = vars(paste0("Dose ", dose))) +
-  scale_color_aaas(name = element_blank()) +
-  scale_fill_aaas(name = element_blank()) +
+  scale_color_strategy() + 
   labs(x = element_blank(), y = "Mean age") +
   theme_minimal() +
   scale_x_null() +
@@ -138,7 +137,7 @@ p = ggplot(iqr_dt[date >= ymd("2021-01-01") & date <= ymd("2022-03-31")]) +
     panel.spacing = unit(2, "lines")
   )
 
-ggsave("avg_age_vaxd.png",
+ggsave("fig/manuscript/avg_age_vaxd.png",
   plot = p,
   device = png,
   width = 12,
