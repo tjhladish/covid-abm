@@ -51,7 +51,7 @@ geom_grid <- function(
   geom_texthline(
     aes(yintercept = ys, label = label),
     data = data.table(ys = ys, label = FUN(ys)), inherit.aes = FALSE,
-    gap = TRUE, hjust = 0.325, color = "grey75", fontface = "bold"
+    gap = TRUE, hjust = 0.325, color = "grey65", fontface = "bold"
   )
 }
 
@@ -440,10 +440,10 @@ p.res <- p.top + p.seas + p.detect + p.vax + p.sd +
     "", seas = "(a) Seasonality",
     det = "(b) Detection Probability", doses = "(c) Vaccine Coverage",
     sd = "(d) Societal Risk Perception",
-    incc = "(e) Reported Cases (Daily)",
+    incc = "(e) Reported Cases (Daily, Log Scale)",
   #  cinc = "Per 10k, Cumulative Incidence of ...",
-    hinc = "(f) Hospital Admissions (Daily)",
-  incd = "(g) Excess Deaths (Weekly)",
+    hinc = "(f) Hospital Admissions (Daily, Log Scale)",
+  incd = "(g) Excess Deaths (Weekly, Log Scale)",
     sero = "(h) Seroprevalence (Spike IgG)", brk = "(i) Breakthrough Infections in Vaccinees", ""
   ))) &
   theme(

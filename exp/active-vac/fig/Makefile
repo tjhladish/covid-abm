@@ -27,7 +27,7 @@ ${RESDIR}/vaccines.rds: ${DATADIR}/Rates_of_COVID-19_Cases_or_Deaths_by_Age_Grou
 ${RESDIR}/hospitals.rds: ${DATADIR}/COVID-19_Reported_Patient_Impact_and_Hospital_Capacity_by_State_Timeseries.csv
 ${RESDIR}/seroprev.rds: ${DATADIR}/CDC_seroprev_long.csv
 ${RESDIR}/FLvaccines.rds: ${DATADIR}/population-pseudo-300K.csv ${DATADIR}/state_based_counterfactual_doses.csv
-${RESDIR}/detection.rds: ${DATADIR}/reporting_by_day.txt
+${RESDIR}/detection.rds: ${DATADIR}/reporting_dump.csv
 ${RESDIR}/vocpattern.rds: ${RESDIR}/validation.rds
 ${RESDIR}/vocwindows.rds: ${RESDIR}/vocpattern.rds
 ${RESDIR}/validation.rds: plotlog
