@@ -93,8 +93,8 @@ funs <- list(
   quar = as.logical,
   pas_vac = as.logical,
   act_vac = genordfac(c("none", "ring", "risk", "age")),
-  pas_alloc = genordfac(c("none", "LS", "IS", "HS", "USA")),
-  act_alloc = genordfac(c("none", "LS", "IS", "HS", "USA")),
+  pas_alloc = genordfac(c("none", "LS", "MS", "HS", "USA")),
+  act_alloc = genordfac(c("none", "LS", "MS", "HS", "USA")),
   inf_con = \(x) x == 2,
   scenario = \(x) x
 )

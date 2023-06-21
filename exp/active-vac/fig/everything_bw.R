@@ -296,13 +296,8 @@ p.sd <- p.core(
       .(start = spn[1], end = spn[2])
     } ],
     inherit.aes = FALSE, alpha = 0.35, fill = "grey50"
-  ) + geom_rect(
-    aes(
-      ymin = level, ymax = 1, xmin = start - 0.5, xmax = end + 0.5
-    ),
-    data = schools,
-    inherit.aes = FALSE, alpha = 0.25, fill = "dodgerblue"
-  ) + geom_text(
+  ) +
+  geom_text(
     aes(
       y = 0.175, x = start+(end-start)/2, label = "Lockdown"
     ),
@@ -312,13 +307,20 @@ p.sd <- p.core(
     } ],
     inherit.aes = FALSE, angle = 90, hjust = 0, size = 6
   ) +
-  geom_text(
-    aes(
-      y = 0.975, x = start+(end-start)/2, label = "School\nActivity"
-    ),
-    data = schools[2],
-    inherit.aes = FALSE, vjust = 1, hjust = 0.5, size = 6
-  ) +
+  # geom_rect(
+  #   aes(
+  #     ymin = level, ymax = 1, xmin = start - 0.5, xmax = end + 0.5
+  #   ),
+  #   data = schools,
+  #   inherit.aes = FALSE, alpha = 0.25, fill = "dodgerblue"
+  # ) +
+  # geom_text(
+  #   aes(
+  #     y = 0.975, x = start+(end-start)/2, label = "School\nActivity"
+  #   ),
+  #   data = schools[2],
+  #   inherit.aes = FALSE, vjust = 1, hjust = 0.5, size = 6
+  # ) +
   geom_line() +
   scale_y_fraction(
     name = "Risk Threshold",
@@ -438,7 +440,7 @@ p.res <- p.top + p.seas + p.detect + p.vax + p.sd +
   plot_layout(ncol = 1, heights = c(0.4, rep(1, 9), 0.4)) +
   plot_annotation(tag_levels = list(c(
     "", seas = "(a) Seasonality",
-    det = "(b) Detection Probability", doses = "(c) Vaccine Coverage",
+    det = "(b) Detection %", doses = "(c) Vaccine Coverage",
     sd = "(d) Societal Risk Perception",
     incc = "(e) Reported Cases (Daily, Log Scale)",
   #  cinc = "Per 10k, Cumulative Incidence of ...",
