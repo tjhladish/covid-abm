@@ -27,8 +27,8 @@ plt.dt <- dt[translator, on=.(serial), .(
   variable, value,
      vtype = factor(c("none", "ring", "risk", "age")[act_vac+1]),
      alloc = factor(
-       c("none", "LIC", "MIC", "HIC", "USA")[ifelse(pas_vac == 0, act_alloc, pas_alloc)+1],
-       levels = c("none", "LIC", "MIC", "HIC", "USA"), ordered = TRUE
+       c("none", "LS", "MS", "HS", "USA")[ifelse(pas_vac == 0, act_alloc, pas_alloc)+1],
+       levels = c("none", "LS", "MS", "HS", "USA"), ordered = TRUE
      ),
      quar,
      inf_con
@@ -65,4 +65,4 @@ p2 <- ggplot(plt.dt) +
     guide = guide_legend(title.position = "top", title.hjust = 0.5)
   ) + scale_linetype_quar()
 
-store(.args, p2, width = 10, height = 6, bg = "white")
+store(p2, .args, width = 10, height = 6, bg = "white")

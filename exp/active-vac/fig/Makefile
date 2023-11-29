@@ -10,7 +10,7 @@ DLDIR ?= ~/Downloads
 RESDIR := process
 # for CABP, now overriden to point to GDRIVE fig dir
 OUTDIR ?= output
-SIMFILES ?= $(patsubst %,covid-active-%.sqlite,v5.1)
+SIMFILES ?= $(patsubst %,covid-active-%.sqlite,v6.1)
 
 R = $(strip Rscript $^ $(1) $@)
 
@@ -181,3 +181,8 @@ incidence.png: incvis.R $(PLOTINS)
 	$(call R)
 
 sifigs: doses.png effectiveness.png averted.png incidence.png
+
+${OUTDIR}/inf_risk.png: test_fig.R ~/Downloads ~/Downloads/serial_lookup.csv vis_support.rda
+	$(call R)
+
+finalfigs: $(patsubst %,${OUTDIR}/%.png,alt_ave_all alt_inc_all alt_inc_non con_summary conditioned_ci_all conditioned_eff_all inf_risk alt_ci_all alt_eff_all cumulative_doses summary)

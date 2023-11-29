@@ -30,7 +30,7 @@ plt.qs <- quantile(
   fifelse(
     pas_vac == FALSE,
     as.character(act_alloc), as.character(pas_alloc)
-  ), levels = c("LIC", "MIC", "HIC", "USA"), ordered = TRUE
+  ), levels = c("LS", "MS", "HS", "USA"), ordered = TRUE
 )][, qfac := factor(c("No Additional NPI", "Quarantine Contacts")[quar+1]) ][,
   outcome := "vaccine"
 ]
@@ -40,4 +40,4 @@ p <- allplot(
 ) + theme(strip.text.y = element_text(size = rel(1.25))) +
   geom_line(aes(y=qmed), data = \(dt) subset(dt, pas_vac == TRUE & quar == FALSE), show.legend = FALSE, size = 0.25)
 
-store(.args, p, height = 3, width = 10, bg = "white")
+store(p, .args, height = 3, width = 10, bg = "white")
