@@ -143,16 +143,16 @@ doitall <- function(path) {
   # Social distancing
   plot(d$date, d$sd, col='darkorange3', ylim=c(0,1), type='n', xlab='', ylab='', xaxt='n', bty='n')
   shading()
-  abline(v=d$date[d$closed==1], col='#f0e68c55', lwd=5)
+#  abline(v=d$date[d$closed==1], col='#f0e68c55', lwd=5)
   lines(d$date, d$sd, col='darkorange3')
-  annotate('Social distancing')
+  annotate('Societal risk perception')
 
   # Rt
   plot(d$date, d$Rt, type='n', xlab='', ylab='', xaxt='n', bty='n')
   shading()
   lines(d$date, d$Rt, col='red3')
-  points(as.Date(c('2020-03-27', '2020-05-07', '2020-06-28')), c(0.98, 1.0, 1.0))
-  segments(as.Date(c('2020-03-27', '2020-05-07')), c(0.78, 1.37), as.Date(c('2020-05-07', '2020-06-28')))
+#  points(as.Date(c('2020-03-27', '2020-05-07', '2020-06-28')), c(0.98, 1.0, 1.0))
+#  segments(as.Date(c('2020-03-27', '2020-05-07')), c(0.78, 1.37), as.Date(c('2020-05-07', '2020-06-28')))
   abline(h=1.0, lty=3)
   annotate(expression(R[t]))
 
@@ -168,7 +168,7 @@ doitall <- function(path) {
   # lines(d$date, d$cinf, col='orangered', lty = 3)
   lines(d$date, d$seroprev, col='darkorange')
   lines(d$date, d$ped_seroprev, col='royalblue')
-  annotate('Seroprevalence (total - orange; pediatric - blue)')
+  annotate('Seroprevalence (total = orange, pediatric = blue)')
 
   # Seasonality
   plot(d$date, d$seasonality, type='n', xlab='', ylab='', xaxt='n', bty='n')
@@ -214,7 +214,7 @@ doitall <- function(path) {
   shading()
   lines(ed$date, ed$rdeath)
   lines(d$date, d$rdeath, col='green4')
-  annotate('All deaths')
+  annotate('Deaths')
   #axis(1, at=ticks, labels=format(ticks, "%b"))
 
   # cumulative reported deaths
@@ -223,7 +223,7 @@ doitall <- function(path) {
   shading()
   lines(ed$date, ed$crdeath)
   lines(d$date, d$crdeath, col='green4')
-  annotate('Cumulative (excess) deaths')
+  annotate('Cumulative deaths')
 
   # infections by vax status
   ymax = max(d$vaxInfs + d$unvaxInfs, na.rm=T)
@@ -231,7 +231,7 @@ doitall <- function(path) {
   shading()
   lines(d$date, d$vaxInfs, col='dodgerblue4')
   lines(d$date, d$unvaxInfs + d$vaxInfs, col='coral')
-  annotate('Infections by vax status (stacked)')
+  annotate('Infections (stacked; vacc. = blue, unvacc. = orange)')
 
   # VES over time
   plot(d$date, d$VES, type='n', xlab='', ylab='', xaxt='n', ylim=c(0,1), bty='n')
@@ -251,7 +251,7 @@ doitall <- function(path) {
   lines(d$date, d$cov1, col='purple', lty=3)
   lines(d$date, d$cov2, col='purple', lty=2)
   lines(d$date, d$cov3, col='purple', lty=1)
-  annotate('Vaccination coverage (dose 1 - dotted; dose 2 - dashed; dose 3 = solid)')
+  annotate('Vaccination coverage by dose (1st = dotted, 2nd = dashed, 3rd = solid)')
 
   # hosp by vax status
   ymax = max(d$vaxHosp + d$unvaxHosp, rm.na=T)
@@ -260,7 +260,7 @@ doitall <- function(path) {
   lines(hhsHosp$date, hhsHosp$hospInc)
   lines(d$date, d$vaxHosp, col='dodgerblue4')
   lines(d$date, d$unvaxHosp + d$vaxHosp, col='coral')
-  annotate('Hosp by vax status (stacked)')
+  annotate('Hosp by vax status (stacked; vacc. = blue, unvacc. = orange)')
 
   # hosp inc/prev
   ymax = max(d$hospInc, d$hospPrev, rm.na=T)
