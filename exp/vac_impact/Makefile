@@ -1,22 +1,20 @@
+-include ../common.mk
 -include local.mk
 
-CPP = g++
+#OUTPUTDIR ?= /red/longini/tjhladish/work/covid-abm/active-vac
+OUTPUTDIR ?= $(COVDIR)/exp/active-vac
 
-#CFLAGS = -g -std=c++17 -Wall -Wextra -Wno-deprecated-declarations --pedantic
-CFLAGS = -O2 -std=c++17 -Wall -Wextra -Wno-deprecated-declarations --pedantic
-ABCDIR = $(HOME)/work/AbcSmc
-COVDIR = $(HOME)/work/covid-abm
-GSL_PATH = $(HOME)/work/AbcSmc/gsl_local
-COVOBJ = $(COVDIR)/Person.o $(COVDIR)/Location.o $(COVDIR)/Community.o $(COVDIR)/Parameters.o $(COVDIR)/Utility.o $(COVDIR)/Vac_Campaign.o
-SQLDIR = $(ABCDIR)/sqdb
+PATHDEFS = -DWORKDIR="\"$(WORKDIR)\"" -DOUTPUTDIR="\"$(OUTPUTDIR)\""
 
-INCLUDE = -I$(ABCDIR) -I$(COVDIR) -I$(GSL_PATH)/include/ -I$(ABCDIR)/jsoncpp/include
 #ifdef HPC_GSL_INC
 #INCLUDE += -I$$HPC_GSL_INC
 #endif
 
-ABC_LIB = -L$(ABCDIR) -L$(COVDIR) -labc -ljsoncpp -lsqdb $(ABCDIR)/sqlite3.o
-GSL_LIB = -lm -L$(GSL_PATH)/lib/ -lgsl -lgslcblas -lpthread -ldl
+default: libabc covid main.cpp
+	$(CPP) -O2 $(CFLAGS) $(PATHDEFS) $(INCLUDE) -I$(SQLDIR) main.cpp -o sim_test $(COVOBJ) $(LIB)
+
+debug: libabc covid_debug main.cpp
+	$(CPP) -g $(CFLAGS) $(PATHDEFS) $(INCLUDE) -I$(SQLDIR) main.cpp -o sim_test $(COVOBJ) $(LIB)
 
 libabc:
 	$(MAKE) -C $(ABCDIR) -f Makefile
@@ -24,11 +22,14 @@ libabc:
 covid:
 	$(MAKE) -C $(COVDIR) -f Makefile
 
-abc_sql: libabc covid main_abc.cpp
-	$(CPP) $(CFLAGS) $(INCLUDE) -I$(SQLDIR) main_abc.cpp -o abc_sql $(COVOBJ) $(ABC_LIB) $(GSL_LIB)
+covid_debug:
+	$(MAKE) -C $(COVDIR) -f Makefile OPTI=-g
 
-sim_test: libabc covid main.cpp
-	$(CPP) $(CFLAGS) $(INCLUDE) -I$(SQLDIR) main.cpp -o sim_test $(COVOBJ) $(ABC_LIB) $(GSL_LIB)
+abc_sql: libabc covid main_abc.cpp
+	$(CPP) -O2 $(CFLAGS) $(INCLUDE) -I$(SQLDIR) main_abc.cpp -o abc_sql $(COVOBJ) $(LIB)
+
+abc_sql_debug: libabc covid main_abc.cpp
+	$(CPP) -g $(CFLAGS) $(INCLUDE) -I$(SQLDIR) main_abc.cpp -o abc_sql $(COVOBJ) $(LIB)
 
 clean:
 	$(MAKE) -C $(ABCDIR) -f Makefile clean
