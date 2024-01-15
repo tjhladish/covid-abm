@@ -263,7 +263,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
 
     if (par->behavioral_autotuning) {
         par->behaviorInputFilename  = "";
-        par->behaviorOutputFilename = output_dir + "/ppb_fits-v3/behavior_" + to_string(serial) + ".csv";
+        par->behaviorOutputFilename = output_dir + "/ppb_fits-v4-w_season/behavior_" + to_string(serial) + ".csv";
         par->vaccinationFilename    = "./state_based_counterfactual_doses.txt"; // Used when trying to reproduce FL empirical data
     } else if (USE_FL_ASSUMPTIONS) {
         par->behaviorInputFilename  = "1k_mean_ppb_adj_v3.csv";
