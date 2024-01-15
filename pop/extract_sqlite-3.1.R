@@ -100,9 +100,9 @@ pers$undlycond[is.na(pers$undlycond)] <- -1
 
 message("Preview for pers")
 print(head(pers))
-fwrite(pers %>% select(-undlycond), 
+fwrite(pers %>% select(-undlycond),
        paste0(out_folder, "population-", cnt, ".txt"), sep = " ", scipen = 10)
-fwrite(pers %>% select(-home_id, -day_id), 
+fwrite(pers %>% select(-home_id, -day_id),
        paste0(out_folder, "comorbidity-", cnt, ".txt"), sep = " ", scipen = 10)
 
 rm(hh_nonnh, loc, pers, wp)
@@ -115,7 +115,7 @@ hh_network$locid2 <- hh_network$locid2 - 1
 
 message("Preview for hh_network")
 print(head(hh_network))
-fwrite(hh_network, paste0(out_folder, "network-", cnt, ".txt"), 
+fwrite(hh_network, paste0(out_folder, "network-", cnt, ".txt"),
        sep = " ", col.names = F, scipen = 10)
 
 rm(hh_network)
@@ -125,12 +125,12 @@ rm(hh_network)
 # nb_network <- dbGetQuery(con, sql)
 # nb_network$locid1 <- nb_network$locid1 - 1
 # nb_network$locid2 <- nb_network$locid2 - 1
-# 
+#
 # message("Preview for nb_network")
 # print(head(nb_network))
-# fwrite(nb_network, paste0(out_folder, "network_nb-", cnt, ".txt"), 
+# fwrite(nb_network, paste0(out_folder, "network_nb-", cnt, ".txt"),
 #        sep = " ", col.names = F, scipen = 10)
-# 
+#
 # rm(nb_network)
 
 ## Extracurricular activities (pretty much just take from the sql db)
@@ -138,11 +138,11 @@ if (extracurricular_mode) {
   sql <- "SELECT * FROM extracurr"
   ec <- dbGetQuery(con, sql)
   ec <- ec - 1
-  
+
   message("Preview for public-activity")
   print(head(ec))
   fwrite(ec, paste0(out_folder, "public-activity-", cnt, ".txt"), sep = " ")
-  
+
   ec_vec <- ec[,-1] %>%
     as.matrix() %>%
     as.vector()
@@ -150,7 +150,7 @@ if (extracurricular_mode) {
   ec_df <- data.frame(ec = ec_vec)
   message("Preview for public-locations")
   print(head(ec_df))
-  fwrite(ec_df, paste0(out_folder, "public-locations-", cnt, ".txt"), sep = " ", 
+  fwrite(ec_df, paste0(out_folder, "public-locations-", cnt, ".txt"), sep = " ",
          col.names = F)
 }
 
