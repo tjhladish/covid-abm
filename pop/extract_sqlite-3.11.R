@@ -17,14 +17,14 @@ if (length(arg) < 1) {
 } else if (str_detect(arg, "/")) {
   stop("Target tgz file should be in the same folder of this script, and you should execute this script
        in its directory, so argument with '/' character is inappropriate.")
-} else if (!str_detect(arg, "sim_pop-.*-3.1.tgz")) {
-  stop("Argument is not a valid sim_pop 3.1 tgz file.")
+} else if (!str_detect(arg, "sim_pop-.*-3.11.tgz")) {
+  stop("Argument is not a valid sim_pop 3.11 tgz file.")
 } else {
   tgz_file <- arg
 }
 
 #### Splicing args
-cnt <- str_remove(tgz_file, "sim_pop-") %>% str_remove("-3.1.tgz")
+cnt <- str_remove(tgz_file, "sim_pop-") %>% str_remove("-3.11.tgz")
 folder <- str_remove(tgz_file, ".tgz")
 sqlite_file <- str_replace(tgz_file, ".tgz", ".sqlite")
 out_folder <- paste0("sim_pop-", cnt, "/")
