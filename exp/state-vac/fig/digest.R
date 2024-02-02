@@ -6,7 +6,7 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 #' assumes R project at the experiment root level
 .args <- if (interactive()) c(
   file.path("fig","process", c(
-    "covid-state-v1.0.sqlite"
+    "covid-state-v2.0-reserialed.sqlite"
   )),
   file.path("fig", "process", "digest.rds")
 ) else commandArgs(trailingOnly = TRUE)
@@ -53,6 +53,7 @@ dts <- head(.args, -1) |> abcreader()
 
 setkey(dts$pars, serial, realization)
 reserialize(dts)
+dts$pars <- dts$pars[1:400]
 scenarize(dts)
 
 meta.dt <- dts$meta[, .SD, .SDcols = -c("serial")] |>

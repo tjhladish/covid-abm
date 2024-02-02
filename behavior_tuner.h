@@ -555,7 +555,7 @@ void behavior_autotuning(const Parameters* par, Community* &community, Date* &da
         // keep track of the anchor val with the smallest distance for this window
         tuner->update_best_distance(fit_distance);
 
-//        gen_simvis(ledger->plot_log_buffer);
+        gen_simvis(ledger->plot_log_buffer);
 
         int fit_is_good = 0;
         if (tuner->manual_control) {
