@@ -33,7 +33,7 @@ ref.dt <- CJ(
   outcome = c("inf", "deaths"),
   date = overdates,
   measure = "c.effectiveness",
-  qmed = 0, quar = FALSE, alloc = c("LIC", "MIC", "HIC", "USA"),
+  qmed = 0, quar = FALSE, alloc = c("LS", "MS", "HS", "USA"),
   act_vac = "none"
 )
 plt.dt <- rbind(plt.dt, ref.dt, fill = TRUE)

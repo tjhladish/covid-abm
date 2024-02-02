@@ -1,6 +1,6 @@
 #include <chrono>
 #include <unistd.h>
-#include "AbcSmc.h"
+#include <AbcSmc/AbcSmc.h>
 #include "simulator.h"
 #include <cstdlib>
 #include "CCRC32.h"
@@ -90,7 +90,8 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->startDayOfYear          = Date::to_julian_day("2020-02-10");
     par->runLength               = TOTAL_DURATION;
 
-    par->behavioral_autotuning = (bool) args[7];
+    par->behavioral_autotuning   = (bool) args[7];
+    double seasonality_amplitude = args[9]; // assumed value was 0.15
     par->tuning_window = 14;
     par->num_preview_windows = 3;
     par->runLength += par->behavioral_autotuning ? par->tuning_window * par->num_preview_windows : 0;          // if auto fitting is on, add 30 days to the runLength
@@ -111,7 +112,7 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
 
     vector<double> seasonality;
     for (size_t day = 0; day < 366; ++day) {
-        seasonality.push_back(1 - 0.15*sin((4*M_PI*((int) day-60))/366));
+        seasonality.push_back(1 - seasonality_amplitude*sin((4*M_PI*((int) day-60))/366));
     }
     par->seasonality = seasonality;
 
@@ -261,16 +262,22 @@ Parameters* define_simulator_parameters(vector<double> args, const unsigned long
     par->death_tuning_offset = 18; // 18 is median lag b/n infection and death; 8 is median lag b/n detection and death
     //par->behaviorInputFilename  = "autotuning_dataset.csv";   // ALEX: I just create a sym link to whatever anchor file you want to read
 
+    // behavior file defaults
+    assert (seasonality_amplitude == 0.0 or seasonality_amplitude == 0.15);
+    if (seasonality_amplitude == 0) {
+        par->behaviorInputFilename  = "ppb_wo_adj.csv";
+    } else {
+        par->behaviorInputFilename  = "ppb_w_adj.csv"; // was "1k_mean_ppb_adj_v3.csv"
+    }
+
+    par->behaviorOutputFilename = "";
+
     if (par->behavioral_autotuning) {
         par->behaviorInputFilename  = "";
-        par->behaviorOutputFilename = output_dir + "/ppb_fits-v3/behavior_" + to_string(serial) + ".csv";
+        par->behaviorOutputFilename = output_dir + "/ppb_fits-v4-w_season/behavior_" + to_string(serial) + ".csv";
         par->vaccinationFilename    = "./state_based_counterfactual_doses.txt"; // Used when trying to reproduce FL empirical data
     } else if (USE_FL_ASSUMPTIONS) {
-        par->behaviorInputFilename  = "1k_mean_ppb_adj_v3.csv";
         par->vaccinationFilename    = "./state_based_counterfactual_doses.txt"; // Used when trying to reproduce FL empirical data
-    } else {
-        par->behaviorInputFilename  = "1k_mean_ppb_adj_v3.csv";
-        par->behaviorOutputFilename = "";
     }
 
     par->dump_simulation_data = false;
@@ -566,6 +573,8 @@ vector<double> simulator(vector<double> args, const unsigned long int rng_seed, 
     const size_t active_alloc                       = args[5];                        // 0 = 0;  1 = LIC;  2 = MIC;  3 = HIC;  4 = USA
     const VaccineInfConstraint vac_constraint       = (VaccineInfConstraint) args[6]; // 2 = non-case only; 4 = any status
   //const bool ppb_fitting                          = (bool) args[7];
+    USE_FL_ASSUMPTIONS                              = (bool) args[8];
+    // const float seasonality_amplitude            = args[9];
 
     Parameters* par = define_simulator_parameters(args, rng_seed, serial, process_id);
     define_strain_parameters(par);
@@ -749,9 +758,9 @@ vector<string> plot_log_buffer = simulate_epidemic(par, community, to_string(ser
     bool overwrite = true;
     // this output filename needs to be adjusted for each experiment, so as to not overwrite files
     //string filename = "plot_log" + to_string(serial) + ".csv";
-    //string version_dir = output_dir.starts_with("/red/longini/tjhladish") ? "/v6" : ""; // bit of a hack, should have multiple output dir vars
     //string version_dir = output_dir.rfind("/red/longini/tjhladish", 0) == 0 ? "/FL_v1-3.25" : ""; // bit of a hack, should have multiple output dir vars
-    string version_dir = output_dir.rfind("/red/longini/tjhladish", 0) == 0 ? "/v6.1" : ""; // bit of a hack, should have multiple output dir vars
+    //string version_dir = output_dir.rfind("/red/longini/tjhladish", 0) == 0 ? "/FL_v2" : ""; // bit of a hack, should have multiple output dir vars
+    string version_dir = output_dir.rfind("/red/longini/tjhladish", 0) == 0 ? "/v7" : ""; // bit of a hack, should have multiple output dir vars
     string filename = output_dir + version_dir + "/plot_log" + to_string(serial) + ".csv";
     write_daily_buffer(plot_log_buffer, process_id, filename, overwrite);
 

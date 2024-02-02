@@ -115,9 +115,9 @@ par(mfrow=c(5,3), mar=c(1,2.1,0.5,0.5), oma=c(2,0.5,1,0.5))
 # Social distancing
 plot(d$date, d$sd, col='darkorange3', ylim=c(0,1), type='n', xlab='', ylab='', xaxt='n', bty='n')
 shading()
-abline(v=d$date[d$closed==1], col='#f0e68c55', lwd=5)
+#abline(v=d$date[d$closed==1], col='#f0e68c55', lwd=5)
 lines(d$date, d$sd, col='darkorange3')
-annotate('Social distancing')
+annotate('Societal risk perception')
 
 # Rt
 plot(d$date, d$Rt, type='n', xlab='', ylab='', xaxt='n', bty='n')
@@ -140,7 +140,7 @@ points(seroprev$date, seroprev$ped_seroprev_point/100, pch = 20, cex = 0.5, col=
 # lines(d$date, d$cinf, col='orangered', lty = 3)
 lines(d$date, d$seroprev, col='darkorange')
 lines(d$date, d$ped_seroprev, col='royalblue')
-annotate('Seroprevalence (total - orange; pediatric - blue)')
+annotate('Seroprevalence (total = orange; pediatric = blue)')
 
 # Seasonality
 plot(d$date, d$seasonality, type='n', xlab='', ylab='', xaxt='n', bty='n')
@@ -186,7 +186,7 @@ plot(d$date, d$rdeath, type='n', xlab='', ylab='', xaxt='n', ylim=c(0,ymax), bty
 shading()
 lines(ed$date, ed$rdeath)
 lines(d$date, d$rdeath, col='green4')
-annotate('All deaths')
+annotate('Deaths')
 #axis(1, at=ticks, labels=format(ticks, "%b"))
 
 # cumulative reported deaths
@@ -195,7 +195,7 @@ plot(d$date, d$crdeath, type='n', xlab='', ylab='', xaxt='n', ylim=c(0,ymax), bt
 shading()
 lines(ed$date, ed$crdeath)
 lines(d$date, d$crdeath, col='green4')
-annotate('Cumulative (excess) deaths')
+annotate('Cumulative deaths')
 
 # infections by vax status
 ymax = max(d$vaxInfs + d$unvaxInfs, na.rm=T)
@@ -203,7 +203,7 @@ plot(d$date, d$vaxInfs, type='n', xlab='', ylab='', xaxt='n', ylim=c(0,ymax), bt
 shading()
 lines(d$date, d$vaxInfs, col='dodgerblue4')
 lines(d$date, d$unvaxInfs + d$vaxInfs, col='coral')
-annotate('Infections by vax status (stacked)')
+annotate('Infections (stacked; vacc. = blue, unvacc. = orange)')
 
 # VES over time
 plot(d$date, d$VES, type='n', xlab='', ylab='', xaxt='n', ylim=c(0,1), bty='n')
@@ -223,7 +223,7 @@ lines(cov_dates, cov3, lty = 1)
 lines(d$date, d$cov1, col='purple', lty=3)
 lines(d$date, d$cov2, col='purple', lty=2)
 lines(d$date, d$cov3, col='purple', lty=1)
-annotate('Vaccination coverage (dose 1 - dotted; dose 2 - dashed; dose 3 = solid)')
+annotate('Vaccination coverage by dose (1 = dotted, 2 = dashed, 3 = solid)')
 
 # hosp by vax status
 ymax = max(d$vaxHosp + d$unvaxHosp, rm.na=T)
@@ -232,7 +232,7 @@ shading()
 lines(hhsHosp$date, hhsHosp$hospInc)
 lines(d$date, d$vaxHosp, col='dodgerblue4')
 lines(d$date, d$unvaxHosp + d$vaxHosp, col='coral')
-annotate('Hosp by vax status (stacked)')
+annotate('Hosp by vax status (stacked; vacc. = blue, unvacc. = orange)')
 
 # hosp inc/prev
 ymax = max(d$hospInc, d$hospPrev, rm.na=T)

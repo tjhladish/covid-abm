@@ -39,7 +39,7 @@ plt.qs <- quantile(
   fifelse(
     pas_alloc == "none",
     as.character(act_alloc), as.character(pas_alloc)
-  ), levels = c("LIC", "MIC", "HIC", "USA"), ordered = TRUE
+  ), levels = c("LS", "MS", "HS", "USA"), ordered = TRUE
 )][, qfac := factor(c("No Additional NPI", "Quarantine Contacts")[quar+1]) ]
 
 p <- ggplot(plt.qs) + aes(
