@@ -19,6 +19,11 @@ vendday <- as.Date("2022-03-31")
 startday <- as.Date("2020-12-01")
 datefilter <- expression(between(date, startday, endday))
 outfilter <- expression(outcome %in% c("inf", "deaths"))
+# check output filename for (anything)_ns.(anyext) - ns == non-seasonal
+# if the target is non-seasonal, get the season == FALSE slice; otherwise, get
+# the season == TRUE slice
+seasfilter <- expression(season == !grepl("_ns.", tail(.args, 1), fixed = TRUE))
+
 pop <- c(florida = 21538187, escambia = 312212, dade = 2794464)
 
 scale_y_effectiveness <- rejig(
@@ -522,11 +527,11 @@ geom_crosshair <- function(mapping, data, ...) {
   return(res)
 }
 
-prepare <- function(...) setkey(melt(
+prepare <- function(..., id.vars = c("realization", "date")) setkeyv(melt(
   rbind(..., fill = TRUE),
-  id.vars = c("realization", "date"),
+  id.vars = id.vars,
   variable.name = "measure", variable.factor = FALSE
-), measure, realization, date)
+), c("measure", id.vars))
 
 plt.prep <- function(dt, j) eval(substitute(quantile(
   dt, j, sampleby = "realization",

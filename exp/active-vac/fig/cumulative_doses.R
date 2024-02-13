@@ -15,12 +15,12 @@ load(.args[1])
 #' TODO: identify proper reference point?
 doses.dt <- readRDS(.args[2])[eval(datefilter)]
 
-scn.dt <- readRDS(.args[3])[inf_con == FALSE]
+scn.dt <- readRDS(.args[3])[inf_con == FALSE][eval(seasfilter)]
 
 plt.dt <- setkeyv(
   doses.dt[scn.dt, on=.(scenario), nomatch = 0],
   union(key(doses.dt), colnames(scn.dt))
-)
+)[eval(seasfilter)]
 
 plt.qs <- quantile(
   plt.dt,

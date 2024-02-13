@@ -16,7 +16,7 @@
     "vocpattern.rds",
     "vocwindows.rds"
   )),
-  file.path("fig", "tmp", "everything_bw.png")
+  file.path("fig", "tmp", "everything_both.png")
 ))
 
 intfilter <- if (interactive()) expression(realization < 10) else expression(realization >= 0)
@@ -24,10 +24,6 @@ intfilter <- if (interactive()) expression(realization < 10) else expression(rea
 load(.args[1])
 d <- readRDS(.args[2])[date <= vendday][eval(intfilter)]
 d[, season := season > 0]
-
-# for MT results, we are only interested in w/ seasonality results
-d <- d[season == TRUE]
-
 ed <- readRDS(.args[3])[date <= vendday]
 cdc = readRDS(.args[4])[date <= vendday]
 hhsHosp = readRDS(.args[5])[date <= vendday][, .(date, hospInc) ]
@@ -185,7 +181,7 @@ geom_liner <- function(datafn) geom_text(
 p.sero <- p.core(
   sero.dt[, measure := "infection"], ymin = 0.01, ymax = .99,
   gridy = c(0.25, 0.5, 0.75)
-) + aes(shape = after_stat(spaghetti)) + geom_crosshair(
+) + aes(shape = after_stat(spaghetti), color = season) + geom_crosshair(
   mapping = aes(
     x = start + (end+1-start)/2, xmin = start, xmax = end+1,
     ymax = upper, y = est, ymin = lower, color = NULL
@@ -200,7 +196,8 @@ p.sero <- p.core(
   theme(
     legend.position = "none", panel.grid.major.y = element_blank()
   ) + coord_cartesian(clip = "off") +
-  scale_alpha_continuous(guide = "none", range = c(0.05/7, 1))
+  scale_alpha_continuous(guide = "none", range = c(0.05/7, 1)) +
+  scale_color_discrete(guide = "none")
 
 inc.dt <- prepare(
   d[, .(realization, date, case = rcase, death = rdeath, season)],
@@ -215,12 +212,13 @@ p.inc.c <- p.core(
     ymin = 0.01, ymax = 100, trans = "log10", laby = 0.85
   ),
   gridy = c(0.1, 1, 10)
-) + geom_observation() +
+) + aes(color = season) + geom_observation() +
   scale_y_incidence(trans = "log10", breaks = 10^((-2):2), labels = c("0.01", "0.1", "1", "10", "100")) +
   conserved +
   coord_cartesian(ylim = c(1e-2, 100), expand = FALSE, clip = "off") +
   theme(legend.position = "none", panel.grid.major.y = element_blank()) +
-  scale_alpha_continuous(guide = "none", range = c(0.05/7, 1))
+  scale_alpha_continuous(guide = "none", range = c(0.05/7, 1)) +
+  scale_color_discrete(guide = "none")
 
 p.inc.d <- p.core(
   inc.dt[measure == "death"], ymin = 1e-2, ymax = 10, ytrans = "log10",
@@ -229,11 +227,12 @@ p.inc.d <- p.core(
     ymin = 0.01, ymax = 10, trans = "log10", laby = 0.85
   ),
   gridy = c(0.1, 1)
-) + geom_observation() +
+) + aes(color = season) + geom_observation() +
   scale_y_incidence(trans = "log10", breaks = 10^((-2):1), labels = c("0.01", "0.1", "1", "10")) +
   conserved +
   coord_cartesian(ylim = c(1e-2, 10), expand = FALSE) +
-  theme(legend.position = "none", panel.grid.major.y = element_blank())
+  theme(legend.position = "none", panel.grid.major.y = element_blank()) +
+  scale_color_discrete(guide = "none")
 
 hinc.dt <- prepare(
   d[, .(realization, date = as.Date(date), hospInc, season) ], # vaxHosp, hospPrev, unvaxHosp,
@@ -247,12 +246,13 @@ p.hosp <- p.core(
     ymin = 0.01, ymax = 3, trans = "log10", laby = 0.85
   ),
   gridy = c(0.03, 0.1, 0.3, 1)
-) + geom_observation() +
+) + aes(color = season) + geom_observation() +
   scale_y_incidence(trans = "log10", breaks = 10^sort(c((-2):0, log10(3)-(2:0))), labels = c("0.01", "0.03", "0.1", "0.3", "1", "3")) +#, )
   conserved +
   coord_cartesian(ylim = c(1e-2, 3), expand = FALSE) +
   theme(legend.position = "none", panel.grid.major.y = element_blank()) +
-  scale_alpha_continuous(guide = "none", range = c(0.05/7, 1))
+  scale_alpha_continuous(guide = "none", range = c(0.05/7, 1)) +
+  scale_color_discrete(guide = "none")
 
 brk.dt <- rbind(prepare(
   d[, .(realization, date = as.Date(date), brkthru, season) ],
@@ -267,7 +267,7 @@ brk.dt[!is.na(realization) & date < "2020-12-01", value := NA]
 p.brk <- p.core(
   brk.dt, ymin = 0, ymax = 1,
   gridy = c(0.25, 0.5, 0.75)
-) + geom_observation() +
+) + aes(color = season) + geom_observation() +
   scale_y_fraction(name = "Fraction of Cases") +
   conserved +
   theme(legend.position = "none", panel.grid.major.y = element_blank()) + coord_cartesian(clip = "off")
@@ -294,7 +294,7 @@ schools <- data.table(
 p.sd <- p.core(
   sd.dt[, measure := "socialdist"], ymin = 0, ymax = 1,
   gridy = c(0.25, 0.5, 0.75)
-) +
+) + aes(color = season) +
   geom_rect(
     aes(
       ymin = 0, ymax = 1, xmin = start, xmax = end, color = NULL
@@ -339,7 +339,8 @@ p.sd <- p.core(
       labels = c("0.01", "0.1", "1", "10", "100")
     )
   ) + theme(panel.grid.major.y = element_blank()) +
-  coord_cartesian(clip = "off")
+  coord_cartesian(clip = "off") +
+  scale_color_discrete(guide = "none")
 
 seas.dt <- prepare(
   d[realization == 1, .(realization, date, seasonality = fifelse(season, seasonality, 1), season)
@@ -356,10 +357,14 @@ scale_y_seasonality <- rejig(
 
 p.seas <- p.core(
   seas.dt, ymin = 0.8, ymax = 1.2, gridy = c(0.85, 1, 1.15)
-) +
+) + aes(color = season) +
   geom_line() +
   scale_y_seasonality() +
-  theme(panel.grid.major.y = element_blank(), panel.grid.minor.y = element_blank()) +
+  scale_color_discrete("Seasonality?") +
+  theme(
+    panel.grid.major.y = element_blank(), panel.grid.minor.y = element_blank(),
+    legend.position = c(0.8, 1), legend.justification = c(0.5, 1)
+  ) +
   coord_cartesian(clip = "off")
 
 #' TODO make geom_month_background work for logit
@@ -372,7 +377,8 @@ p.voc <- p.core(
   scale_y_fraction(
     name = "Variant Fraction"
   ) + scale_alpha_continuous(range = c(0.05, 1)) +
-  coord_cartesian(clip = "off")
+  coord_cartesian(clip = "off") +
+  scale_color_discrete(guide = "none")
 
 vax.mlt <- dcast(vax, date ~ dose, value.var = "cov")
 setnames(vax.mlt, 2:4, paste0("cov", 1:3))

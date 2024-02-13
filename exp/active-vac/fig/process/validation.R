@@ -1,5 +1,5 @@
 
-.pkgs <- c("data.table")
+.pkgs <- c("data.table", "RSQLite")
 
 stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 
@@ -7,7 +7,8 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 .args <- if (interactive()) c(
   file.path("fig", "vis_support.rda"),
   file.path("fig", "plotlog"),
-  file.path("fig", "input", "validation.rds")
+  file.path("~", "Downloads", "validation_runs.sqlite"),
+  file.path("fig", "process", "validation.rds")
 ) else commandArgs(trailingOnly = TRUE)
 
 fls <- list.files(.args[2], full.names = TRUE)
@@ -46,6 +47,14 @@ extractor <- function(fl) {
 }
 
 dt <- rbindlist(lapply(fls, extractor))
+
+db <- dbConnect(SQLite(), .args[3])
+seas_dt <- setDT(dbGetQuery(db, "SELECT serial, realization, seed, season FROM par;"))
+seas_dt[, seed := bit64::as.integer64(seed) ]
+dbDisconnect(db)
+
+dt[seas_dt, on = .(realization = seed), c("realization", "season") := .(i.realization, season)]
+dt[, realization := as.integer(realization)]
 
 saveRDS(dt, tail(.args, 1))
 

@@ -14,14 +14,16 @@ load(.args[1])
 
 tar <- match.arg(
   tail(.args, 1) |> basename() |> gsub(pattern = "^.+_(.+)\\..+$", replacement = "\\1"),
-  c("inf", "sev", "deaths", "doses")
+  c("inf", "sev", "deaths", "doses", "all")
 )
+
+outfilter
 
 #' comes key'd
 eff.dt <- readRDS(.args[2])[
   eval(datefilter)
 ][
-  outcome == tar
+  eval(outfilter)
 ][, .(
   scenario, realization, date, outcome, value, averted
 )]
@@ -33,12 +35,12 @@ eff.dt[order(date),
 
 intscns <- eff.dt[, unique(scenario)]
 
-scn.dt <- readRDS(.args[3])[scenario %in% intscns]
+scn.dt <- readRDS(.args[3])[scenario %in% intscns][eval(seasfilter)]
 
 plt.dt <- setkeyv(
-  eff.dt[scn.dt, on=.(scenario)],
+  eff.dt[scn.dt, on=.(scenario), nomatch = 0],
   union(key(eff.dt), colnames(scn.dt))
-)
+)[eval(seasfilter)]
 
 dt2 <- plt.dt[, .(
   act_vac="none", c.value = i.c.value[1]

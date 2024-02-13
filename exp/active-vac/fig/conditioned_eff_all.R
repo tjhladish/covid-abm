@@ -21,7 +21,7 @@ eff.dt <- readRDS(.args[2])[
 
 intscns <- eff.dt[, unique(scenario)]
 
-scn.dt <- readRDS(.args[3])[scenario %in% intscns]
+scn.dt <- readRDS(.args[3])[scenario %in% intscns][eval(seasfilter)]
 
 takeover.wins <- readRDS(.args[4])
 

@@ -20,7 +20,7 @@ inc.dt <- readRDS(.args[2])[
   scenario, realization, date, outcome, value
 )]
 
-scn.dt <- readRDS(.args[3])
+scn.dt <- readRDS(.args[3])[eval(seasfilter)]
 takeover.wins <- readRDS(.args[4])
 # reconstructing reference scenarios
 refscn.dt <- scn.dt[(quar == FALSE & act_vac == "none") & (!inf_con | !pas_vac)]
@@ -68,7 +68,7 @@ allplot <- function (data.qs, yl, withRef = FALSE, col.breaks = if (withRef) c("
   }
   res <- res + geom_ribbon(aes(ymin = q90l, ymax = q90h, fill = pas_alloc,
                                color = NULL), alpha = 0.15) + geom_line(aes(y = qmed)) +
-    scale_color_discrete(name = "Supply", aesthetics = c("color", "fill")) +
+    scale_color_discrete(name = "Supply", aesthetics = c("color", "fill"), breaks = c("none", "LS", "MS", "HS", "USA")) +
     coord_cartesian(clip = "off") +
     scale_y_continuous(name = yl, expand = c(0, 0), labels = scales::label_number(scale_cut = scales::cut_short_scale())) +
     scale_x_null() + scale_linetype_quar(guide = "none") +

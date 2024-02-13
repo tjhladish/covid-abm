@@ -30,7 +30,7 @@ inc.dt[order(date),
 
 intscns <- inc.dt[, unique(scenario)]
 
-scn.dt <- readRDS(.args[3])
+scn.dt <- readRDS(.args[3])[eval(seasfilter)]
 
 takeover.wins <- readRDS(.args[4])
 

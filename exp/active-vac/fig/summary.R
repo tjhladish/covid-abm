@@ -6,16 +6,16 @@
   file.path("fig", "vis_support.rda"),
   file.path("fig", "process", "alt_eff.rds"),
   file.path("fig", "process", "digest-key.rds"),
-  file.path("fig", "output", "summary.png")
+  file.path("fig", "output", "summary_ns.png")
 ))
 
 load(.args[1])
 
 overdates <- as.Date(c("2021-05-27", "2021-11-26", "2022-03-07"))
 
-scn.dt <- readRDS(.args[3])[inf_con == FALSE][, .(
+scn.dt <- readRDS(.args[3])[inf_con == FALSE][eval(seasfilter)][, .(
   scenario, quar, alloc = fifelse(pas_vac, pas_alloc, act_alloc),
-  act_vac
+  act_vac, season
 )]
 
 dt <- readRDS(.args[2])[
@@ -34,7 +34,7 @@ ref.dt <- CJ(
   date = overdates,
   measure = "c.effectiveness",
   qmed = 0, quar = FALSE, alloc = c("LS", "MS", "HS", "USA"),
-  act_vac = "none"
+  act_vac = "none", season = plt.dt[, unique(season)]
 )
 plt.dt <- rbind(plt.dt, ref.dt, fill = TRUE)
 plt.dt[date == overdates[1], variant := "alpha"]
@@ -70,14 +70,15 @@ p <- ggplot(plt.dt[measure == "c.effectiveness"]) + aes(
     outcome ~ alloc, scales = "free_y", switch = "y",
     labeller = labeller(outcome = c(inf = "Infections", deaths = "Deaths"))
   ) +
-  coord_cartesian(clip = "off") +
+  coord_cartesian(clip = "off", ylim = c(-.5, .5), expand = FALSE) +
   theme_minimal() +
   theme(
     strip.placement = "outside", legend.position = "bottom",
     #panel.spacing.y = unit(1.5, "line"), panel.spacing.x = unit(1, "line"),
     legend.text = element_text(size = rel(.75)),
     panel.grid.major.x = element_blank(),
-    panel.border = element_rect(fill = NA, color = "grey")
+    panel.border = element_rect(fill = NA, color = "grey"),
+    panel.spacing.y = unit(1.1, "line")
   ) +
   # scale_linetype_quar(
   #   guide = guide_legend(title.position = "top", title.hjust = 0.5, order = 1)

@@ -6,7 +6,7 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 #' assumes R project at the experiment root level
 .args <- if (interactive()) c(
   file.path(c(
-    "covid-active-v5.1.sqlite"
+    "covid-active-v7.sqlite"
   )),
   file.path("fig", "process", "digest.rds")
 ) else commandArgs(trailingOnly = TRUE)
@@ -15,7 +15,7 @@ magicdate <- as.Date("2020-12-01")
 
 abcreader <- function(
     pth,
-    pmcols = c("serial", "realization", "quar", "pas_vac", "act_vac", "pas_alloc", "act_alloc", "inf_con"),
+    pmcols = c("serial", "realization", "quar", "pas_vac", "act_vac", "pas_alloc", "act_alloc", "inf_con", "season"),
     metacols = c("serial", "date", "inf", "sev", "deaths", "std_doses + urg_doses AS doses"),
     datelim = magicdate,
     reallimit = if (interactive()) 10,
@@ -147,10 +147,13 @@ funs <- list(
   act_vac = genordfac(c("none", "ring", "risk", "age")),
   pas_alloc = genordfac(c("none", "LS", "MS", "HS", "USA")),
   act_alloc = genordfac(c("none", "LS", "MS", "HS", "USA")),
-  inf_con = \(x) x == 2
+  inf_con = \(x) x == 2,
+  season = \(x) x > 0
 )
 
-res <- scn.dt[, sapply(names(funs), \(nm) funs[[nm]](.SD[[nm]]), USE.NAMES = TRUE, simplify = FALSE)][, scenario := 1:.N ]
+res <- scn.dt[,
+  sapply(names(funs), \(nm) funs[[nm]](.SD[[nm]]), USE.NAMES = TRUE, simplify = FALSE)
+][, scenario := 1:.N ]
 
 saveRDS(res, gsub("\\.rds","-key.rds", tail(.args, 1)))
 

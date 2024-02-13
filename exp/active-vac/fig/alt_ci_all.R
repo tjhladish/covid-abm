@@ -7,7 +7,7 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 .args <- commandArgs(args = c(
   file.path("fig", "vis_support.rda"),
   file.path("fig", "process", c("alt_eff.rds", "digest-key.rds", "vocwindows.rds")),
-  file.path("fig", "output", "alt_ci_all.png")
+  file.path("fig", "output", "alt_ci_all_ns.png")
 ))
 
 load(.args[1])
@@ -31,7 +31,7 @@ inc.dt[order(date),
 
 intscns <- inc.dt[, unique(scenario)]
 
-scn.dt <- readRDS(.args[3])
+scn.dt <- readRDS(.args[3])[eval(seasfilter)]
 
 takeover.wins <- readRDS(.args[4])
 

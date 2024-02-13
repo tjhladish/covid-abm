@@ -6,7 +6,7 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 #' assumes R project at the experiment root level
 .args <- if (interactive()) c(
   file.path(c(
-    "covid-active-v5.0.sqlite"
+    "covid-active-v7.sqlite"
   )),
   file.path("fig", "process", "alt_i_eff.rds")
 ) else commandArgs(trailingOnly = TRUE)
@@ -15,7 +15,7 @@ magicdate <- as.Date("2020-12-01")
 
 abcreader <- function(
   pth,
-  pmcols = c("serial", "realization", "quar", "pas_vac", "act_vac", "pas_alloc", "act_alloc", "inf_con"),
+  pmcols = c("serial", "realization", "quar", "pas_vac", "act_vac", "pas_alloc", "act_alloc", "inf_con", "season"),
   metacols = c("serial", "date", "inf", "sev", "deaths"),
   datelim = magicdate,
   reallimit = if (interactive()) 10,
@@ -96,7 +96,8 @@ funs <- list(
   act_vac = genordfac(c("none", "ring", "risk")),
   pas_alloc = genordfac(c("none", "LS", "MS", "HS", "USA")),
   act_alloc = genordfac(c("none", "LS", "MS", "HS", "USA")),
-  inf_con = \(x) x == 2
+  inf_con = \(x) x == 2,
+  season = \(x) x > 0
 )
 
 scn.dt <- dts$pars[
@@ -120,11 +121,11 @@ ref.dt <- meta.dt[
   c(
     "pas_vac", "pas_alloc",
     "act_vac", "act_alloc",
-    "quar"
+    "quar", "season"
   ) := .(
     pas_vac, pas_alloc,
     act_vac, act_alloc,
-    quar
+    quar, season
   ),
   on=.(scenario)
 ]
@@ -136,11 +137,11 @@ int.dt <- meta.dt[
   c(
     "pas_vac", "pas_alloc",
     "act_vac", "act_alloc",
-    "quar"
+    "quar", "season"
   ) := .(
     pas_vac, pas_alloc,
     act_vac, act_alloc,
-    quar
+    quar, season
   ),
   on=.(scenario)
 ]
@@ -154,8 +155,8 @@ int.dt[
   on=.(
     pas_vac, pas_alloc,
     act_vac, act_alloc,
-    quar, realization,
-    outcome, date
+    quar, season,
+    realization, outcome, date
   )
 ]
 

@@ -10,7 +10,7 @@ DLDIR ?= ~/Downloads
 RESDIR := process
 # for CABP, now overriden to point to GDRIVE fig dir
 OUTDIR ?= output
-SIMFILES ?= $(patsubst %,covid-active-%.sqlite,v6.1)
+SIMFILES ?= $(patsubst %,covid-active-%.sqlite,v7)
 
 R = $(strip Rscript $^ $(1) $@)
 
@@ -30,7 +30,7 @@ ${RESDIR}/FLvaccines.rds: ${DATADIR}/population-pseudo-300K.csv ${DATADIR}/state
 ${RESDIR}/detection.rds: ${DATADIR}/reporting_by_day.txt
 ${RESDIR}/vocpattern.rds: ${RESDIR}/validation.rds
 ${RESDIR}/vocwindows.rds: ${RESDIR}/vocpattern.rds
-${RESDIR}/validation.rds: plotlog
+${RESDIR}/validation.rds: plotlog ~/Downloads/validation_runs.sqlite
 
 ${RESDIR}/%.rds: ${RESDIR}/%.R vis_support.rda | ${RESDIR}
 	$(call R)
@@ -53,6 +53,12 @@ ${RESDIR}/alt_i_eff.rds: alt_i_eff_digest.R $(addprefix ${DATADIR}/,${SIMFILES})
 
 ${RESDIR}/alt_eff-rt.rds: ${RESDIR}/alt_eff.rds
 
+${RESDIR}/preference.rds: preference_pre.R vis_support.rda ${RESDIR}/alt_eff.rds ${RESDIR}/digest-key.rds
+	Rscript $^ $@
+
+${RESDIR}/preference_wq.rds: ${RESDIR}/preference.rds
+${RESDIR}/preference_nq.rds: ${RESDIR}/preference.rds
+
 INPUTS := $(patsubst %,${RESDIR}/%.rds,validation outcomes vaccines hospitals seroprev FLvaccines detection vocpattern vocwindows)
 
 allinputs: ${INPUTS}
@@ -65,12 +71,14 @@ ${OUTDIR}/model_inputs.png: ${INPUTS}
 ${OUTDIR}/validation_review.png: ${INPUTS}
 ${OUTDIR}/everything.png: ${INPUTS}
 ${OUTDIR}/everything_bw.png: ${INPUTS}
+${OUTDIR}/everything_both.png: ${INPUTS}
 ${OUTDIR}/avertvis.png: ${PLOTINS}
 ${OUTDIR}/cumulative_doses.png: ${RESDIR}/digest-doses.rds ${RESDIR}/digest-key.rds
 ${OUTDIR}/summary.png: ${RESDIR}/alt_eff.rds ${RESDIR}/digest-key.rds
+${OUTDIR}/summary_ns.png: ${RESDIR}/alt_eff.rds ${RESDIR}/digest-key.rds
 ${OUTDIR}/con_summary.png: ${RESDIR}/alt_eff.rds ${RESDIR}/digest-key.rds
 
-${OUTDIR}/%.png: %.R vis_support.rda | ${OUTDIR}
+${OUTDIR}/%_ns.png: %.R vis_support.rda | ${OUTDIR}
 	$(call R)
 
 ${OUTDIR}/avertvis_%.png: avertvis_outcome.R vis_support.rda ${PLOTINS} | ${OUTDIR}
@@ -98,6 +106,9 @@ ${OUTDIR}/%_ci_all.png: %_ci_all.R vis_support.rda ${RESDIR}/alt_eff.rds \
 ${RESDIR}/digest-key.rds ${RESDIR}/vocwindows.rds | ${OUTDIR}
 	$(call R)
 
+${OUTDIR}/%_ci_all_ns.png: %_ci_all.R vis_support.rda ${RESDIR}/alt_eff.rds \
+${RESDIR}/digest-key.rds ${RESDIR}/vocwindows.rds | ${OUTDIR}
+	$(call R)
 ${OUTDIR}/alt_mul_all.png: alt_mul_all.R vis_support.rda ${RESDIR}/alt_eff.rds \
 ${RESDIR}/digest-key.rds ${RESDIR}/vocwindows.rds | ${OUTDIR}
 	$(call R)
@@ -117,16 +128,16 @@ altave: $(addprefix ${OUTDIR}/,$(patsubst %,alt_ave_%.png,inf sev deaths))
 altinc: $(addprefix ${OUTDIR}/,$(patsubst %,alt_inc_%.png,inf sev deaths))
 allfigs: $(patsubst %,${OUTDIR}/%.png,model_input validation_review everything)
 
-altall: $(addprefix ${OUTDIR}/,$(patsubst %,alt_%_all.png,eff ave ci inc mul) cumulative_doses.png everything.png everything_bw.png)
+altall: $(addprefix ${OUTDIR}/,$(patsubst %,alt_%_all.png,eff ave ci inc mul) cumulative_doses.png everything.png everything_bw.png everything_both.png)
 conall: $(addprefix ${OUTDIR}/,$(patsubst %,conditioned_%_all.png,eff ci) con_summary.png)
 
 vis_support.rda: vis_support.R
 	$(call R)
 
-${DATADIR}/active_vac_logs-v4.0-FL_ref_only.tgz:
+${DATADIR}/validation_runs.tgz:
 	mv $(subst ${DATADIR},${DLDIR},$@) $@
 
-plotlog: | ${DATADIR}/active_vac_logs-v4.0-FL_ref_only.tgz
+plotlog: | ${DATADIR}/validation_runs.tgz
 	mkdir $@
 	tar -xf $| --strip-components=1 -C $@
 
@@ -185,4 +196,4 @@ sifigs: doses.png effectiveness.png averted.png incidence.png
 ${OUTDIR}/inf_risk.png: test_fig.R ~/Downloads ~/Downloads/serial_lookup.csv vis_support.rda
 	$(call R)
 
-finalfigs: $(patsubst %,${OUTDIR}/%.png,alt_ave_all alt_inc_all alt_inc_non con_summary conditioned_ci_all conditioned_eff_all inf_risk alt_ci_all alt_eff_all cumulative_doses summary)
+finalfigs: $(patsubst %,${OUTDIR}/%.png,alt_ave_all alt_inc_all alt_inc_non con_summary conditioned_ci_all conditioned_eff_all inf_risk alt_ci_all alt_eff_all cumulative_doses summary summary_ns)

@@ -6,7 +6,7 @@
 .args <- if (interactive()) c(
   file.path("fig", "vis_support.rda"),
   file.path("fig", "process", c("digest.rds", "digest-key.rds", "vocwindows.rds")),
-  file.path("fig", "output", "alt_inc_all.png")
+  file.path("fig", "output", "alt_inc_all_ns.png")
 ) else commandArgs(trailingOnly = TRUE)
 
 load(.args[1])
@@ -22,7 +22,7 @@ inc.dt <- readRDS(.args[2])[
 
 intscns <- inc.dt[, unique(scenario)]
 
-scn.dt <- readRDS(.args[3])
+scn.dt <- readRDS(.args[3])[eval(seasfilter)]
 
 takeover.wins <- readRDS(.args[4])
 

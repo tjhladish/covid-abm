@@ -1,10 +1,10 @@
 
-.pkgs <- c("data.table", "ggplot2", "scales", "cabputils")
+.pkgs <- c("data.table", "ggplot2", "scales", "cabputils", "RSQLite")
 .pkgs |> sapply(require, character.only = TRUE) |> all() |> stopifnot()
 
 .args <- commandArgs(args = c(
-  "~/Downloads", # TODO some digest of this output
-  file.path("~", "Downloads", "serial_lookup.csv"), # TODO extract
+  "~/Downloads/vpdr", # TODO some digest of this output
+  file.path("covid-active-v7.sqlite"),
   file.path("fig", "vis_support.rda"),
   file.path("fig", "output", "inf_risk.png")
 ))
@@ -17,7 +17,12 @@ dt <- .args[1] |> list.files(pattern = "vpdr.*csv$", full.names = TRUE) |>
 
 dt$file <- NULL
 
-serialkey <- .args[2] |> fread()
+conn <- dbConnect(SQLite(), .args[2])
+serialkey <- conn |> dbGetQuery(
+  "SELECT quar, pas_vac, act_vac, pas_alloc, act_alloc, inf_con, ppb_ctrl, min(serial), max(serial), count(*) FROM par WHERE season != 0.0 GROUP BY quar, pas_vac, act_vac, pas_alloc, act_alloc, inf_con, ppb_ctrl;"
+) |> as.data.table()
+dbDisconnect(conn)
+
 .args[3] |> load()
 
 translator <- dt[, serialkey[between(serial, `min(serial)`, `max(serial)`), .(quar, pas_vac, act_vac, pas_alloc, act_alloc, inf_con)], by=serial]
@@ -53,7 +58,7 @@ p2 <- ggplot(plt.dt) +
     ))
   ) +
   geom_month_background(
-    plt.dt, by = c(row="var", col="alloc"), font.size = 3
+    plt.dt[!is.nan(value)], by = c(row="var", col="alloc"), font.size = 3
   ) +
   geom_line() +
   theme_minimal() + theme(

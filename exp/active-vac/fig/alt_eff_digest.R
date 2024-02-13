@@ -6,7 +6,7 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 #' assumes R project at the experiment root level
 .args <- if (interactive()) c(
   file.path(c(
-    "covid-active-v5.1.sqlite"
+    "covid-active-v7.sqlite"
   )),
   file.path("fig", "process", "alt_eff.rds")
 ) else commandArgs(trailingOnly = TRUE)
@@ -15,7 +15,7 @@ magicdate <- as.Date("2020-12-01")
 
 abcreader <- function(
   pth,
-  pmcols = c("serial", "realization", "quar", "pas_vac", "act_vac", "pas_alloc", "act_alloc", "inf_con"),
+  pmcols = c("serial", "realization", "quar", "pas_vac", "act_vac", "pas_alloc", "act_alloc", "inf_con", "season"),
   metacols = c("serial", "date", "inf", "sev", "deaths"),
   datelim = magicdate,
   reallimit = if (interactive()) 10,
@@ -28,9 +28,15 @@ abcreader <- function(
     paste(pmcols, collapse=", "),
     wherelim
   )
-  if (verbose) warning("Issuing: ", stmt)
 
   db <- dbConnect(SQLite(), pth)
+
+  stopstmt <- "SELECT n, status FROM (SELECT COUNT(*) AS n, status FROM job GROUP BY status) WHERE status != 'D';"
+  check_dt <- db |> dbGetQuery(stopstmt) |> as.data.table()
+  if (check_dt[, .N]) stop(sprintf("Partial sets: %s", toString(check_dt)))
+
+  if (verbose) warning("Issuing: ", stmt)
+
   dt <- db |> dbGetQuery(stmt) |> as.data.table()
   dt[, realization := as.integer(realization) ] |> setkey(serial)
 
@@ -96,7 +102,8 @@ funs <- list(
   pas_alloc = genordfac(c("none", "LS", "MS", "HS", "USA")),
   act_alloc = genordfac(c("none", "LS", "MS", "HS", "USA")),
   inf_con = \(x) x == 2,
-  scenario = \(x) x
+  scenario = \(x) x,
+  season = \(x) x > 0
 )
 
 scn.dt <- dts$pars[
@@ -111,12 +118,12 @@ dts$pars <- NULL
 #' )[
 #'   ,.(value = median(cdeath)), by=.(scenario, source)
 #' ][scn.dt, on=.(scenario)][inf_con == FALSE][,
-#'   .(scenario, source, quar, pas_vac, act_vac, alloc = fifelse(pas_vac, pas_alloc, act_alloc), value)
+#'   .(scenario, source, quar, pas_vac, act_vac, alloc = fifelse(pas_vac, pas_alloc, act_alloc), season, value)
 #' ]
 #'
 #' require(ggplot2); require(ggh4x)
 #' ggplot(cmp.dt) + aes(x=alloc, y=value, shape = source, color = act_vac) +
-#'   facet_nested("Quar" + quar ~ .) +
+#'   facet_nested("Quar" + quar ~ "Seasonality" + season) +
 #'   geom_point() + theme_minimal() + scale_y_continuous("Tot. Deaths")
 
 meta.dt <- dts$meta[, .SD, .SDcols = -c("serial")] |>
@@ -157,14 +164,14 @@ ref.dt <- meta.dt[
   (scenario %in% basescnid)# & (outcome != "doses")
 ][
   scn.dt,
-  c("alloc", "inf_con") := .(pas_alloc, inf_con),
+  c("alloc", "inf_con", "season") := .(pas_alloc, inf_con, season),
   on=.(scenario)
 ]
 
 int.dt <- meta.dt[
   !(scenario %in% c(basescnid, excludescns))# & (outcome != "doses")
 ][scn.dt,
-  c("alloc", "inf_con", "quar") := .(fifelse(pas_vac, pas_alloc, act_alloc), inf_con, quar),
+  c("alloc", "inf_con", "quar", "season") := .(fifelse(pas_vac, pas_alloc, act_alloc), inf_con, quar, season),
   on=.(scenario)
 ]
 
@@ -174,7 +181,7 @@ gc()
 int.dt[
   ref.dt[, .SD, .SDcols = -c("scenario")],
   c("averted", "c.effectiveness") := .(i.value-value, fifelse(c.value == i.c.value, 0, (i.c.value-c.value)/i.c.value)),
-  on=.(alloc, inf_con, realization, outcome, date)
+  on=.(alloc, inf_con, season, realization, outcome, date)
 ]
 
 rm(ref.dt)

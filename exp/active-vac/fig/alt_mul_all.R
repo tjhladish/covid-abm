@@ -28,7 +28,7 @@ takeover.wins <- readRDS(.args[4])
 plt.dt <- setkeyv(
   eff.dt[scn.dt, on=.(scenario)],
   union(key(eff.dt), colnames(scn.dt))
-)[inf_con == FALSE]
+)[inf_con == FALSE][eval(seasfilter)]
 
 rm(eff.dt)
 gc()

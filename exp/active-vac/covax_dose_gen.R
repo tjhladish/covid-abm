@@ -74,6 +74,25 @@ pop10k <- lapply(
 
 globalpop10k <- refpop[country_code %in% unique(dose_file$iso3), sum(pop10k)]
 
+#' @examples
+#'
+#' review_q <- dose_file[, .(doses = sum(doses)), keyby = .(name, iso3, date)]
+#' review_q[, grp := fifelse(
+#'   iso3 %in% isos$HIC, "HIC",
+#'   fifelse(iso3 %in% isos$UMIC, "UMIC", fifelse(iso3 %in% isos$LMIC, "LMIC", "LIC")))
+#' ]
+#' review_q[refpop, on = .(iso3 = country_code), pop := pop10k]
+#' review_q[, cdoses := cumsum(doses)/pop, by = iso3]
+#'
+#' review_q[, grp := factor(grp, levels = c("LIC", "LMIC", "UMIC", "HIC"), ordered = TRUE)]
+#'
+#' library(ggplot2); library(scales)
+#' ggplot(review_q[date < "2022-04-01"]) + aes(x = date, y = cdoses/10000, group = iso3) +
+#' geom_line(alpha = 0.25) + facet_grid(. ~ grp) + theme_minimal() +
+#' scale_y_continuous("Cumulative Doses\nper eligible population",
+#'   labels = label_number(scale_cut = cut_short_scale()) ) +
+#'   scale_x_date(NULL)
+
 doses.dt <- rbindlist(
   mapply(function(isogrp, pop) dose_file[
     iso3 %in% isogrp, .(dp10k = sum(doses)/pop), keyby=.(date)

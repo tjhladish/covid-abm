@@ -7,7 +7,7 @@ stopifnot(all(sapply(.pkgs, require, character.only = TRUE)))
 .args <- if (interactive()) c(
   file.path("fig", "vis_support.rda"),
   file.path("fig", "process", c("alt_eff.rds", "digest-key.rds", "vocwindows.rds")),
-  file.path("fig", "output", "alt_ave_all.png")
+  file.path("fig", "output", "alt_ave_all_ns.png")
 ) else commandArgs(trailingOnly = TRUE)
 
 load(.args[1])
@@ -23,14 +23,14 @@ eff.dt[order(date), c.averted := cumsum(averted), by=.(scenario, realization, ou
 
 intscns <- eff.dt[, unique(scenario)]
 
-scn.dt <- readRDS(.args[3])[scenario %in% intscns]
+scn.dt <- readRDS(.args[3])[scenario %in% intscns][eval(seasfilter)]
 
 takeover.wins <- readRDS(.args[4])
 
 plt.dt <- setkeyv(
-  eff.dt[scn.dt, on=.(scenario)],
+  eff.dt[scn.dt, on=.(scenario), nomatch = 0],
   union(key(eff.dt), colnames(scn.dt))
-)[inf_con == FALSE]
+)[inf_con == FALSE][eval(seasfilter)]
 
 rm(eff.dt)
 gc()
