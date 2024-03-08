@@ -34,3 +34,19 @@ clean:
 	$(MAKE) -C $(ABCDIR) -f Makefile clean
 	$(MAKE) -C $(COVDIR) -f Makefile clean
 	rm -f abc abc_sql
+
+
+# get SMC data
+smhdata.rds: smhdata.R
+	Rscript $^ $@
+
+# get covidcast data; data limits based on SMH data
+ccdata.rds: ccdata.R smhdata.rds
+	Rscript $^ $@
+
+# translate typical current model outputs; data limits based on SMH data
+curdata.rds: curdata.R smhdata.rds plot_log21.csv 
+	Rscript $^ $@
+
+smccomparison.png: smh_visualization.R smhdata.rds ccdata.rds curdata.rds
+	Rscript $^ $@
