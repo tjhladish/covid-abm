@@ -20,7 +20,7 @@ cc_dt[target == "exdeath", target := "death"]
 # our updated model outputs
 update_dt <- readRDS(.args[3])[, scenario := "model-rev"][, quantile := 0.5]
 
-cc_dt <- cc_dt[date <= max(update_dt[, max(date)], smh_dt[, max(date)])]
+cc_dt <- cc_dt[between(date, min(update_dt[, min(date)], smh_dt[, min(date)]), max(update_dt[, max(date)], smh_dt[, max(date)])+1)]
 
 p <- ggplot(rbindlist(list(
   smh_dt, cc_dt, update_dt
@@ -36,25 +36,43 @@ p <- ggplot(rbindlist(list(
     alpha = 0.2
   ) +
   geom_line(aes(y = value), data = \(dt) dt[quantile == 0.5 & !(scenario %in% c("reported", "excessdeaths"))]) +
-  geom_point(aes(y = value), data = \(dt) dt[scenario %in% c("reported", "excessdeaths")]) +
+  geom_point(aes(y = value), data = \(dt) dt[scenario == "reported"], shape = 21) +
+  geom_point(aes(y = value), data = \(dt) dt[scenario == "excessdeaths"], shape = 19) +
   theme_minimal() +
   theme(
-    legend.position = c(1, 1), legend.justification = c(1, 1)
+    legend.position = c(1, 1), legend.justification = c(1, 1),
+    legend.text = element_text(margin = margin(t=5, b=5)),
+    axis.text.x = element_text(hjust = 0)
   ) +
-  scale_color_discrete(
-    "Scenario", label = c(
+  scale_color_manual(
+    NULL, label = c(
       reported = "Reported",
       excessdeaths = "Excess Deaths",
-      "model-rev" = "Ultimate Model",
-      "optSev_highIE" = "SMH, low Severity, high Imm. Escape",
-      "optSev_lowIE" = "SMH, low Severity, low Imm. Escape",
-      "pessSev_highIE" = "SMH, high Severity, high Imm. Escape",
-      "pessSev_lowIE" = "SMH, high Severity, low Imm. Escape"
-    ), aesthetics = c("color", "fill")) +
-  scale_x_date(name = NULL) +
+      "model-rev" = "2022 Model,\nSOME NOTES?",
+      "optSev_highIE" = "SMH: low CFR,\nlow immunity & transmissibility",
+      "optSev_lowIE" = "SMH: low CFR,\nhigh immunity & transmissibility",
+      "pessSev_highIE" = "SMH: high CFR,\nlow immunity & transmissibility",
+      "pessSev_lowIE" = "SMH: high CFR,\nhigh immunity & transmissibility"
+    ),
+    breaks = c("reported", "excessdeaths", "model-rev", "pessSev_lowIE", "optSev_lowIE", "pessSev_highIE", "optSev_highIE"),
+    values = c(
+      reported = "black", excessdeaths = "black",
+      "model-rev" = "dodgerblue",
+      "pessSev_lowIE" = "firebrick",
+      "optSev_lowIE" = "forestgreen",
+      "pessSev_highIE" = "red",
+      "optSev_highIE" = "green"
+    ),
+    aesthetics = c("color", "fill"),
+    guide = guide_legend(override.aes = list(
+      shape = c(21, 19, rep(NA, 5)),
+      lty = c("blank", "blank", rep("solid", 5)),
+      fill = c(NA, NA, "dodgerblue", "firebrick", "forestgreen", "red", "green")
+    ))
+  ) + scale_x_date(name = NULL) +
   scale_y_continuous(
-    "Incidence per 10K",
+    "Weekly Incidence per 10K",
     trans = "log10", labels = \(br) sprintf("10^%i", log10(br))
   )
 
-ggsave(tail(.args, 1), p, width = 8, height = 6, bg = "white")
+ggsave(tail(.args, 1), p, width = 9, height = 6, bg = "white")
