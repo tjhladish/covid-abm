@@ -3,7 +3,7 @@
 
 .args <- if (interactive()) c(
   "smhdata.rds",
-  "plot_log21.csv",
+  "../active-vac/fig/process/validation.rds",
   "curdata.rds"
 ) else commandArgs(trailingOnly = TRUE)
 
@@ -13,27 +13,27 @@ library(data.table)
 smh_dt <- readRDS(.args[1])
 
 # the model outputs used as demo time series
-update_dt <- fread(
-  .args[2],
-  select = c("date", "rcase", "rdeath", "rhosp")
-) |> setnames(\(n) gsub("^r", "", n)) |>
-  melt.data.table(id.vars = "date", variable.name = "target")
+# deaths already converted to weekly incidence, but need to convert
+# rcase and rhosp to weekly
+update_dt <- readRDS(.args[2])[,
+  .SD, .SDcols = c("season", "realization", "date", "rcase", "rdeath", "rhosp")
+][season != 0]
 
-update_dt[,
-  target := gsub(".*(case|death|hosp)", "\\1", target) |>
-  factor(levels = c("case", "hosp", "death"), ordered = TRUE)
+update_dt$season <- NULL
+
+update_dt[
+  order(realization, date),
+  c("ccase", "chosp") := .(cumsum(rcase), cumsum(rhosp)), by = realization
 ]
 
-dater <- smh_dt[, range(date)]
-dater[1] <- dater[1] - 7*4
-dater[2] <- dater[2] + 7*4
-tardates <- seq(from = dater[1], to = dater[2], by = 7)
-update_dt[, cvalue := cumsum(value)]
-update_dt <- update_dt[date %in% tardates]
-update_dt[, dvalue := c(0, diff(cvalue)), by = target]
+rev_dt <- (update_dt[
+  !is.na(rdeath)
+][, .(
+  date, case = c(0, diff(ccase)),
+  hosp = c(0, diff(chosp)), death = rdeath
+), by = realization] |> melt.data.table(
+  id.vars = c("realization", "date"), variable.name = "target"
+))[between(date, smh_dt[, min(date)], smh_dt[, max(date)])]
 
-update_dt <- update_dt[date != tardates[1]]
-update_dt$value <- update_dt$cvalue <- NULL
-setnames(update_dt, "dvalue", "value")
 
-saveRDS(update_dt, tail(.args, 1))
+saveRDS(rev_dt, tail(.args, 1))

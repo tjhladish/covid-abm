@@ -17,24 +17,28 @@ smh_dt$type <- NULL
 # the gold standard data
 cc_dt <- readRDS(.args[2])[, scenario := fifelse(target == "exdeath", "excessdeaths", "reported")][, quantile := 0.5]
 cc_dt[target == "exdeath", target := "death"]
-# our updated model outputs
-update_dt <- readRDS(.args[3])[, scenario := "model-rev"][, quantile := 0.5]
+# our updated model validation runs
+update_dt <- readRDS(.args[3])[,.(
+  quantile = c(0.025, 0.5, .975),
+  value = quantile(value, probs = c(0.025, 0.5, 0.975))
+), by=.(target, date) ][, scenario := "model-rev"]
 
 cc_dt <- cc_dt[between(date, min(update_dt[, min(date)], smh_dt[, min(date)]), max(update_dt[, max(date)], smh_dt[, max(date)])+1)]
 
 p <- ggplot(rbindlist(list(
   smh_dt, cc_dt, update_dt
-), use.names = TRUE)) + aes(x = date, color = scenario) +
+), use.names = TRUE, fill = TRUE)) + aes(x = date, color = scenario) +
   facet_grid(. ~ target, labeller = labeller(
     target = c(case = "Cases", hosp = "Hospitalizations", death = "Deaths")
   )) +
   geom_ribbon(
     aes(ymin = `0.025`, ymax = `0.975`, color = NULL, fill = scenario),
-    data = \(dt) dt[quantile != 0.5] |> dcast.data.table(
+    data = \(dt) dt[!is.na(quantile) & (quantile != 0.5)] |> dcast.data.table(
       scenario + target + date ~ quantile, value.var = "value"
     ),
     alpha = 0.2
   ) +
+#  geom_line(aes(y = value, group = realization), data = \(dt) dt[is.na(quantile) & scenario == "model-rev"], alpha = 1/100) +
   geom_line(aes(y = value), data = \(dt) dt[quantile == 0.5 & !(scenario %in% c("reported", "excessdeaths"))]) +
   geom_point(aes(y = value), data = \(dt) dt[scenario == "reported"], shape = 21) +
   geom_point(aes(y = value), data = \(dt) dt[scenario == "excessdeaths"], shape = 19) +
@@ -48,7 +52,7 @@ p <- ggplot(rbindlist(list(
     NULL, label = c(
       reported = "Reported",
       excessdeaths = "Excess Deaths",
-      "model-rev" = "2022 Model,\nSOME NOTES?",
+      "model-rev" = "2022 Model:low CFR,\nintermediate immunity, high transmissibilty",
       "optSev_highIE" = "SMH: low CFR,\nlow immunity & transmissibility",
       "optSev_lowIE" = "SMH: low CFR,\nhigh immunity & transmissibility",
       "pessSev_highIE" = "SMH: high CFR,\nlow immunity & transmissibility",
@@ -60,8 +64,8 @@ p <- ggplot(rbindlist(list(
       "model-rev" = "dodgerblue",
       "pessSev_lowIE" = "firebrick",
       "optSev_lowIE" = "forestgreen",
-      "pessSev_highIE" = "red",
-      "optSev_highIE" = "green"
+      "pessSev_highIE" = "salmon",
+      "optSev_highIE" = "yellowgreen"
     ),
     aesthetics = c("color", "fill"),
     guide = guide_legend(override.aes = list(

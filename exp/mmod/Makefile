@@ -45,7 +45,7 @@ ccdata.rds: ccdata.R smhdata.rds
 	Rscript $^ $@
 
 # translate typical current model outputs; data limits based on SMH data
-curdata.rds: curdata.R smhdata.rds plot_log21.csv 
+curdata.rds: curdata.R smhdata.rds ../active-vac/fig/process/validation.rds
 	Rscript $^ $@
 
 smccomparison.png: smh_visualization.R smhdata.rds ccdata.rds curdata.rds
