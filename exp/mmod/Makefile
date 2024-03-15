@@ -48,5 +48,8 @@ ccdata.rds: ccdata.R smhdata.rds
 curdata.rds: curdata.R smhdata.rds ../active-vac/fig/process/validation.rds
 	Rscript $^ $@
 
-smccomparison.png: smh_visualization.R smhdata.rds ccdata.rds curdata.rds
+round11_comparison.png: smh_visualization.R smhdata.rds ccdata.rds curdata.rds
+	Rscript $^ $@
+
+smh_reporting.png: smh_detect_compare.R round11_detection_2020-02-05_start.txt current_detection_2020-02-10_start.txt
 	Rscript $^ $@
