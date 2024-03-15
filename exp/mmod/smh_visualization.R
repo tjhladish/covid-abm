@@ -52,11 +52,11 @@ p <- ggplot(rbindlist(list(
     NULL, label = c(
       reported = "Reported",
       excessdeaths = "Excess Deaths",
-      "model-rev" = "2022 Model:low CFR,\nintermediate immunity, high transmissibilty",
-      "optSev_highIE" = "SMH: low CFR,\nlow immunity & transmissibility",
-      "optSev_lowIE" = "SMH: low CFR,\nhigh immunity & transmissibility",
-      "pessSev_highIE" = "SMH: high CFR,\nlow immunity & transmissibility",
-      "pessSev_lowIE" = "SMH: high CFR,\nhigh immunity & transmissibility"
+      "model-rev" = "2023 Model: low CFR, moderate immunity,\nhigh transmissibilty",
+      "optSev_highIE" = "UF SMH: low CFR,\nlow immunity & transmissibility",
+      "optSev_lowIE" = "UF SMH: low CFR,\nhigh immunity & transmissibility",
+      "pessSev_highIE" = "UF SMH: high CFR,\nlow immunity & transmissibility",
+      "pessSev_lowIE" = "UF SMH: high CFR,\nhigh immunity & transmissibility"
     ),
     breaks = c("reported", "excessdeaths", "model-rev", "pessSev_lowIE", "optSev_lowIE", "pessSev_highIE", "optSev_highIE"),
     values = c(
@@ -79,4 +79,4 @@ p <- ggplot(rbindlist(list(
     trans = "log10", labels = \(br) sprintf("10^%i", log10(br))
   )
 
-ggsave(tail(.args, 1), p, width = 9, height = 6, bg = "white")
+ggsave(tail(.args, 1), p, width = 10, height = 6, bg = "white")
